@@ -11,7 +11,8 @@
     "types": []
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "lib/**/*.ts"],
-  // Tests run under Node and use node: builtins; they are never bundled
-  // for the browser, so they are checked only by tsconfig.json.
-  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+  // `*.test.ts` runs under node --test and uses node: builtins, so it is
+  // checked by tsconfig.json instead. `*.test.tsx` runs under Vitest in the
+  // browser environment and belongs here.
+  "exclude": ["**/*.test.ts"]
 }

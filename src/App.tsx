@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
+import { Centered } from './components/Centered.tsx';
 import { GameFrame } from './components/GameFrame.tsx';
 import { GameMeta } from './components/GameMeta.tsx';
 import { fetchGameHtml, fetchManifest } from './lib/manifest-client.ts';
@@ -13,14 +14,6 @@ type LoadState =
   | { status: 'empty' }
   | { status: 'error'; message: string }
   | { status: 'ready'; manifest: Manifest; html: string };
-
-function Centered({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex h-full items-center justify-center p-8 text-center text-slate-400">
-      {children}
-    </div>
-  );
-}
 
 /** Loads the day's manifest and bundle, then hands the bundle to the sandbox. */
 export function App() {

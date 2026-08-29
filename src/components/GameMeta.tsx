@@ -1,29 +1,17 @@
 // Metadata strip: what the game is, which model built it, and how long
 // it has left. Every field here comes from AI-generated content, so it is
 // rendered as JSX text — never innerHTML — and React escapes it.
-import { useEffect, useState } from 'react';
-import { formatCountdown, formatGeneratedDate, msUntil } from '../lib/countdown.ts';
+import { formatGeneratedDate } from '../lib/countdown.ts';
+import { useCountdown } from '../hooks/useCountdown.ts';
 import type { Manifest } from '../../lib/types.ts';
 
-/**
- * Ticks once a second and returns the formatted time remaining.
- *
- * @param expiresAt ISO timestamp from the manifest.
- */
-function useCountdown(expiresAt: string): string {
-  const [remaining, setRemaining] = useState(() => msUntil(expiresAt));
-
-  useEffect(() => {
-    setRemaining(msUntil(expiresAt));
-    const id = setInterval(() => setRemaining(msUntil(expiresAt)), 1000);
-    return () => clearInterval(id);
-  }, [expiresAt]);
-
-  return formatCountdown(remaining);
+export interface GameMetaProps {
+  /** The current day's manifest, as written by the publish step. */
+  manifest: Manifest;
 }
 
 /** Title, genre, model and live countdown for the current game. */
-export function GameMeta({ manifest }: { manifest: Manifest }) {
+export function GameMeta({ manifest }: GameMetaProps) {
   const countdown = useCountdown(manifest.expiresAt);
 
   return (

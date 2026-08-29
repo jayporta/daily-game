@@ -15,7 +15,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run dev          # Vite dev server, serving the real pipeline output
-npm test             # full suite (~15s; smoke tests launch headless Chromium)
+npm test             # both runners (~15s; smoke tests launch headless Chromium)
+npm run test:node    # node --test only  (*.test.ts)
+npm run test:web     # vitest only       (*.test.tsx)
+npm run test:watch   # vitest in watch mode
 npm run typecheck    # both projects: tsconfig.json and tsconfig.web.json
 npm run dry-run      # whole generation pipeline against mocks, no API key
 npm run build:site   # vite build + assemble-site.ts → deployable dist/
@@ -23,11 +26,12 @@ npm run build:site   # vite build + assemble-site.ts → deployable dist/
 
 First run also needs `npx playwright install chromium`.
 
-- One file: `node --experimental-strip-types --test scripts/moderate.test.ts`
-- By name, **always scoped to a file**: append
+- One Node file: `node --experimental-strip-types --test scripts/moderate.test.ts`
+- One web file: `npx vitest run src/components/GameMeta.test.tsx`
+- By name under `node --test`, **always scope it to a file**: append
   `--test-name-pattern "fails closed"`. Repo-wide it hangs — the smoke-test
   file's `before()` launches a browser that its `after()` never closes when
-  no test in that file matches.
+  no test in that file matches. Vitest's `-t` has no such problem.
 - Run `npm run typecheck` after editing types; `tsc` is only a checker here,
   so nothing else catches type errors.
 
@@ -63,6 +67,8 @@ First run also needs `npx playwright install chromium`.
   else.
 - Extract non-visual logic into plain functions or hooks so it can be tested
   without rendering.
+- One component per file.
+- One hook per file. Don't create a hook or Context in the same file as a component.
 
 ## Tailwind
 
@@ -86,7 +92,14 @@ First run also needs `npx playwright install chromium`.
 - Each test asserts one thing, with a name stating the expected behavior.
 - Cover the edges that matter: empty, malformed, expired, unreachable.
 - Never assert something that cannot fail, and avoid snapshots for logic.
-- Tests live beside the code as `*.test.ts` and run under `node --test`.
+- A test guarding an invariant must fail when that invariant is broken.
+  Check it by breaking the code on purpose, not by reading the test.
+- Tests live beside the code. Two runners, split by what the code needs:
+  `*.test.tsx` under **Vitest + jsdom** (rendering, hooks, interaction) and
+  `*.test.ts` under **`node --test`** (pure logic and the Node pipeline).
+  The patterns are disjoint, so nothing runs twice — keep them that way.
+  Node cannot load `.tsx` at all: its type stripping does not transform JSX.
+- Query by role or visible text, not by test id or class name.
 
 ## Documentation comments
 
