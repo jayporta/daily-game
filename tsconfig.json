@@ -1,0 +1,12 @@
+// Node side: the daily pipeline in scripts/, plus the isomorphic lib/.
+// The browser side is checked separately by tsconfig.web.json.
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"]
+  },
+  "include": ["scripts/**/*.ts", "lib/**/*.ts", "vite.config.ts"]
+}

@@ -1,0 +1,9 @@
+{
+  "historyHotWindowDays": 45,
+  "rollupTriggerEntries": 60,
+  "remixProbability": 0.2,
+  "remixLookbackDays": 90,
+  "retryTemperatures": [0.7, 0.9, 1.0],
+  "sentryDsn": null,
+  "cronSchedule": "0 13 * * *"
+}

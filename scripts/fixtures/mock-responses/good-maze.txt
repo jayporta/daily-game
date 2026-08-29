@@ -1,0 +1,36 @@
+Here is your game:
+
+```json
+{"title": "Beetle of a Thousand Mirrors", "genre": "maze-adventure", "theme": "glass beetles navigating a mirrored maze", "mechanics": ["arrow-key movement", "collect shards", "avoid mirror walls"]}
+```
+
+```html
+<!doctype html>
+<html>
+<head><style>html,body{margin:0;background:#111;}canvas{display:block;margin:0 auto;background:#222;}</style></head>
+<body>
+<canvas id="game" width="400" height="400"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let x = 200, y = 200;
+function draw() {
+  ctx.fillStyle = '#222';
+  ctx.fillRect(0, 0, 400, 400);
+  ctx.fillStyle = '#6cf';
+  ctx.beginPath();
+  ctx.arc(x, y, 10, 0, Math.PI * 2);
+  ctx.fill();
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowUp') y -= 5;
+  if (e.key === 'ArrowDown') y += 5;
+  if (e.key === 'ArrowLeft') x -= 5;
+  if (e.key === 'ArrowRight') x += 5;
+  draw();
+});
+draw();
+</script>
+</body>
+</html>
+```

@@ -1,0 +1,95 @@
+// Read/append/write for the two history files. Centralised here because
+// publish.ts, rollup-history.ts and fetch-feedback.ts all touch the same
+// files and must agree on their shape and formatting.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { paths } from './paths.ts';
+import { validateHistoryGames } from './schema.ts';
+import { loadValidatedJson } from './config-store.ts';
+import type { HistoryGameEntry, HistorySummary } from './types.ts';
+
+export const EMPTY_SUMMARY: HistorySummary = {
+  genreCounts: {},
+  genreLastUsed: {},
+  popularityLeaderboard: [],
+  lessons: '',
+};
+
+function writeFileEnsuringDir(filePath: string, contents: string): void {
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, contents, 'utf8');
+}
+
+/** The hot window of full-detail entries the prompt builder reads. */
+export function readHotWindow(filePath: string = paths.historyGames): HistoryGameEntry[] {
+  if (!existsSync(filePath)) return [];
+  return loadValidatedJson<HistoryGameEntry[]>(filePath, validateHistoryGames);
+}
+
+export function readSummary(filePath: string = paths.historySummary): HistorySummary {
+  if (!existsSync(filePath)) return { ...EMPTY_SUMMARY };
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as Partial<HistorySummary>;
+    return { ...EMPTY_SUMMARY, ...parsed };
+  } catch (error) {
+    throw new Error(`${filePath}: could not read or parse JSON — ${(error as Error).message}`);
+  }
+}
+
+/**
+ * Appends an entry, keeping the list sorted oldest-first and replacing any
+ * existing entry for the same date (a same-day re-run supersedes, rather
+ * than duplicating, its earlier attempt). Pure — returns a new array.
+ */
+export function appendEntry(entries: HistoryGameEntry[], newEntry: HistoryGameEntry): HistoryGameEntry[] {
+  const withoutSameDate = entries.filter((entry) => entry.date !== newEntry.date);
+  return [...withoutSameDate, newEntry].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** The most recent published entry, used to pick the next model in rotation. */
+export function lastPublishedEntry(entries: HistoryGameEntry[]): HistoryGameEntry | undefined {
+  return [...entries]
+    .filter((entry) => entry.status === 'published')
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .at(-1);
+}
+
+export function writeGamesJson(filePath: string, entries: HistoryGameEntry[]): void {
+  writeFileEnsuringDir(filePath, `${JSON.stringify(entries, null, 2)}\n`);
+}
+
+/** Human-readable mirror of the hot window. Regenerated each run, never parsed back. */
+export function renderGamesMd(entries: HistoryGameEntry[]): string {
+  const lines = ['# Game history', '', 'Generated automatically — do not edit by hand.', ''];
+
+  if (entries.length === 0) {
+    lines.push('_No games yet._');
+    return `${lines.join('\n')}\n`;
+  }
+
+  for (const entry of [...entries].sort((a, b) => b.date.localeCompare(a.date))) {
+    if (entry.status === 'published') {
+      lines.push(`## ${entry.date} — ${entry.title ?? entry.slug ?? 'untitled'}`);
+      lines.push('');
+      lines.push(`- genre: ${entry.genre ?? 'unknown'}`);
+      lines.push(`- theme: ${entry.theme ?? 'unknown'}`);
+      lines.push(`- mechanics: ${entry.mechanics?.join(', ') || 'unrecorded'}`);
+      lines.push(`- model: ${entry.model}`);
+      if (entry.attempts !== undefined) lines.push(`- attempts: ${entry.attempts}`);
+      if (entry.popularityScore !== undefined) lines.push(`- reactions: ${entry.popularityScore}`);
+      if (entry.errors?.length) lines.push(`- runtime errors: ${entry.errors.length}`);
+    } else {
+      lines.push(`## ${entry.date} — generation failed, previous game kept`);
+      lines.push('');
+      lines.push(`- model: ${entry.model}`);
+      if (entry.attempts !== undefined) lines.push(`- attempts: ${entry.attempts}`);
+    }
+    lines.push('');
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+export function writeGamesMd(filePath: string, entries: HistoryGameEntry[]): void {
+  writeFileEnsuringDir(filePath, renderGamesMd(entries));
+}

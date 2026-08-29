@@ -1,0 +1,20 @@
+Here is your game:
+
+```json
+{"title": "Broken Orb", "genre": "puzzle", "theme": "a crystal orb puzzle", "mechanics": ["click to rotate"]}
+```
+
+```html
+<!doctype html>
+<html>
+<head></head>
+<body>
+<canvas id="game" width="200" height="200"></canvas>
+<script>
+const ctx = document.getElementById('game').getContext('2d');
+ctx.fillRect(0, 0, 200, 200);
+thisFunctionDoesNotExist();
+</script>
+</body>
+</html>
+```

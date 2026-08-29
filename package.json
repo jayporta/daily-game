@@ -1,0 +1,34 @@
+{
+  "name": "daily-game",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A free GitHub Pages site that shows a brand-new AI-generated browser game every day.",
+  "engines": {
+    "node": ">=23.6.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types --test",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.web.json",
+    "dry-run": "node --experimental-strip-types scripts/call-openrouter.ts",
+    "build:site": "vite build && node --experimental-strip-types scripts/assemble-site.ts"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.4.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
+    "playwright": "^1.62.1",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.7.3",
+    "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

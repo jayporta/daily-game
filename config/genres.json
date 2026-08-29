@@ -1,0 +1,12 @@
+[
+  { "id": "maze-adventure", "label": "Maze Adventure", "examples": ["navigate a shifting maze to reach an exit", "collect keys scattered through a labyrinth"] },
+  { "id": "platformer", "label": "Platformer", "examples": ["jump between platforms to reach the top", "run and jump past obstacles to a goal"] },
+  { "id": "puzzle", "label": "Puzzle", "examples": ["rearrange tiles to match a pattern", "solve a logic grid before time runs out"] },
+  { "id": "tower-defense", "label": "Tower Defense", "examples": ["place defenders along a path to stop invaders", "upgrade towers to survive waves"] },
+  { "id": "endless-runner", "label": "Endless Runner", "examples": ["dodge obstacles in an ever-scrolling world", "collect items while outrunning a chaser"] },
+  { "id": "physics-sandbox", "label": "Physics Sandbox", "examples": ["stack objects without toppling them", "launch a projectile to hit a target"] },
+  { "id": "rhythm", "label": "Rhythm", "examples": ["hit cues in time with a beat", "match a sequence of visual pulses"] },
+  { "id": "tile-matching", "label": "Tile Matching", "examples": ["match three or more tiles to clear them", "swap adjacent tiles to form patterns"] },
+  { "id": "growth-sim", "label": "Growth Simulation", "examples": ["nurture a garden that grows over time", "manage a small ecosystem's balance"] },
+  { "id": "racing", "label": "Racing", "examples": ["race a course avoiding hazards", "beat the clock across a track"] }
+]

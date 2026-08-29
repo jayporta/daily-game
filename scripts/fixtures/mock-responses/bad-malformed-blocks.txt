@@ -1,0 +1,9 @@
+Here is your game, sorry about the formatting:
+
+```json
+{"title": "Broken Fences" genre: maze-adventure}
+```
+
+I forgot the html fence entirely, here's the code:
+
+<!doctype html><html><body>oops</body></html>

@@ -1,0 +1,17 @@
+// Browser side: the React app in src/, plus the isomorphic lib/ (checked
+// here as well as by tsconfig.json, which is what keeps it honestly
+// isomorphic — a Node-only API in lib/ fails this build).
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "types": []
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "lib/**/*.ts"],
+  // Tests run under Node and use node: builtins; they are never bundled
+  // for the browser, so they are checked only by tsconfig.json.
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"]
+}
