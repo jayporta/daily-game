@@ -55,6 +55,42 @@ test('real client throws when response is missing content', async () => {
   await assert.rejects(() => client.complete({ model: 'm', messages: [], temperature: 0.7 }));
 });
 
+// The error text is stored in history/games.json, which is public, and is
+// shown to the model that rewrites the lessons note. OpenRouter's error
+// envelope carries the account's user_id, which belongs in neither.
+test('a failed request reports the message without the account id', async () => {
+  const body = JSON.stringify({
+    error: { message: 'No endpoints found for a/model:free.', code: 404 },
+    user_id: 'user_ExampleAccountIdNotARealOne',
+  });
+  const fetchImpl = async (): Promise<Response> => new Response(body, { status: 404 });
+  const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl: fetchImpl as typeof fetch });
+
+  await assert.rejects(
+    () => client.complete({ model: 'm', messages: [], temperature: 0.7 }),
+    (error: Error) => {
+      assert.match(error.message, /No endpoints found/);
+      assert.doesNotMatch(error.message, /user_/, 'the account id reached the error text');
+      return true;
+    },
+  );
+});
+
+test('an unparseable error body is truncated rather than dropped', async () => {
+  const fetchImpl = async (): Promise<Response> =>
+    new Response('x'.repeat(5_000), { status: 500 });
+  const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl: fetchImpl as typeof fetch });
+
+  await assert.rejects(
+    () => client.complete({ model: 'm', messages: [], temperature: 0.7 }),
+    (error: Error) => {
+      assert.ok(error.message.length < 300, `error was ${error.message.length} chars`);
+      assert.match(error.message, /500/);
+      return true;
+    },
+  );
+});
+
 test('createOpenRouterClient requires an apiKey', () => {
   assert.throws(() => createOpenRouterClient({ apiKey: '' }));
 });

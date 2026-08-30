@@ -1,9 +1,10 @@
 {
-  "moderationModel": "mistralai/mistral-7b-instruct:free",
+  "moderationModel": "minimax/minimax-m3:free",
   "models": [
-    { "id": "qwen/qwen-2.5-72b-instruct:free", "active": true, "provider": "openrouter" },
-    { "id": "meta-llama/llama-3.3-70b-instruct:free", "active": true, "provider": "openrouter" },
-    { "id": "google/gemma-2-9b-it:free", "active": true, "provider": "openrouter" },
-    { "id": "deprecated-example-model:free", "active": false, "provider": "openrouter" }
+    { "id": "nvidia/nemotron-3-super-120b-a12b:free", "active": true, "provider": "openrouter" },
+    { "id": "inclusionai/ling-3.0-flash-fin:free", "active": true, "provider": "openrouter" },
+    { "id": "google/gemma-4-31b-it:free", "active": false, "provider": "openrouter" },
+    { "id": "google/gemma-4-26b-a4b-it:free", "active": false, "provider": "openrouter" },
+    { "id": "poolside/laguna-s-2.1:free", "active": false, "provider": "openrouter" }
   ]
 }

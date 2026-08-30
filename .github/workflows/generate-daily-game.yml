@@ -39,6 +39,10 @@ env:
 jobs:
   generate:
     runs-on: ubuntu-latest
+    # Three attempts, each a model call plus a browser smoke test, measured at
+    # ~5 minutes. This bounds a provider that accepts the connection and then
+    # never answers, rather than letting GitHub's 6-hour default apply.
+    timeout-minutes: 30
     outputs:
       published: ${{ steps.publish-check.outputs.published }}
     steps:

@@ -1,17 +1,18 @@
 [
   {
     "date": "2026-08-30",
-    "status": "published",
-    "model": "meta-llama/llama-3.3-70b-instruct:free",
-    "slug": "2026-08-30-beetle-of-a-thousand-mirrors",
-    "genre": "maze-adventure",
-    "theme": "glass beetles navigating a mirrored maze",
-    "mechanics": [
-      "arrow-key movement",
-      "collect shards",
-      "avoid mirror walls"
+    "status": "failed_kept_previous",
+    "model": "inclusionai/ling-3.0-flash-fin:free",
+    "attempts": 3,
+    "failureReasons": [
+      "attempt 1 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: Cannot access 'target' before initialization",
+      "attempt 2 (inclusionai/ling-3.0-flash-fin:free): smoke test failed — uncaught JS error: menuParticles is not defined",
+      "attempt 3 (nvidia/nemotron-3-super-120b-a12b:free): could not extract bundle — missing-html-block"
     ],
-    "title": "Beetle of a Thousand Mirrors",
-    "attempts": 1
+    "failureKinds": [
+      "smoke-js-error",
+      "smoke-js-error",
+      "extract"
+    ]
   }
 ]

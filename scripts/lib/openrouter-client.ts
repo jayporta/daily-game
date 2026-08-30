@@ -23,6 +23,34 @@ export interface CreateOpenRouterClientOptions {
   fetchImpl?: typeof fetch;
 }
 
+/** Cap on an error body we could not parse, before it reaches history. */
+const MAX_ERROR_DETAIL = 200;
+
+/**
+ * The human-readable part of a failed response.
+ *
+ * Only the message, not the whole body: this string is stored in
+ * `history/games.json`, which is public, and is shown to the model that
+ * rewrites the lessons note. OpenRouter's error envelope also carries the
+ * account's `user_id`, which has no business in either place.
+ */
+async function failureDetail(response: Response): Promise<string> {
+  const body = await response.text().catch(() => '');
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (typeof parsed === 'object' && parsed !== null && 'error' in parsed) {
+      const { error } = parsed;
+      if (typeof error === 'object' && error !== null && 'message' in error) {
+        const { message } = error;
+        if (typeof message === 'string') return message;
+      }
+    }
+  } catch {
+    // Not JSON. Fall through to the truncated body.
+  }
+  return body.slice(0, MAX_ERROR_DETAIL);
+}
+
 /**
  * The one field this client reads out of a completion response.
  *
@@ -64,8 +92,9 @@ export function createOpenRouterClient({
       });
 
       if (!response.ok) {
-        const body = await response.text().catch(() => '');
-        throw new Error(`OpenRouter request failed: ${response.status} ${body}`);
+        throw new Error(
+          `OpenRouter request failed: ${response.status} ${await failureDetail(response)}`,
+        );
       }
 
       const content = firstChoiceContent(await response.json());
