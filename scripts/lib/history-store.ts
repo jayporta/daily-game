@@ -47,6 +47,23 @@ export function appendEntry(entries: HistoryGameEntry[], newEntry: HistoryGameEn
 }
 
 /** The most recent published entry, used to pick the next model in rotation. */
+/**
+ * Applies reaction counts to one entry, matched by slug.
+ *
+ * Pure and non-mutating, and a no-op when the slug is not in the hot
+ * window — a game that has aged out of it must not resurrect an entry.
+ *
+ * @param patch Fields to overwrite. Counts replace rather than accumulate,
+ *   so a re-run against the same day is idempotent.
+ */
+export function patchEntry(
+  entries: HistoryGameEntry[],
+  slug: string,
+  patch: Partial<HistoryGameEntry>,
+): HistoryGameEntry[] {
+  return entries.map((entry) => (entry.slug === slug ? { ...entry, ...patch } : entry));
+}
+
 export function lastPublishedEntry(entries: HistoryGameEntry[]): HistoryGameEntry | undefined {
   return [...entries]
     .filter((entry) => entry.status === 'published')
@@ -77,6 +94,12 @@ export function renderGamesMd(entries: HistoryGameEntry[]): string {
       lines.push(`- model: ${entry.model}`);
       if (entry.attempts !== undefined) lines.push(`- attempts: ${entry.attempts}`);
       if (entry.popularityScore !== undefined) lines.push(`- reactions: ${entry.popularityScore}`);
+      if (entry.likes !== undefined) lines.push(`- likes: ${entry.likes}`);
+      if (entry.dislikes !== undefined) lines.push(`- dislikes: ${entry.dislikes}`);
+      const reasons = Object.entries(entry.dislikeReasons ?? {})
+        .filter(([, count]) => count > 0)
+        .map(([id, count]) => `${id}: ${count}`);
+      if (reasons.length) lines.push(`- disliked for: ${reasons.join(', ')}`);
       if (entry.errors?.length) lines.push(`- runtime errors: ${entry.errors.length}`);
     } else {
       lines.push(`## ${entry.date} — generation failed, previous game kept`);

@@ -11,6 +11,7 @@ export interface Paths {
   modelsConfig: string;
   genresConfig: string;
   generationConfig: string;
+  reactionConfig: string;
   guardrails: string;
   historyGames: string;
   historySummary: string;
@@ -29,6 +30,7 @@ export function createPaths(root: string = REPO_ROOT): Paths {
     modelsConfig: join(root, 'config', 'models.json'),
     genresConfig: join(root, 'config', 'genres.json'),
     generationConfig: join(root, 'config', 'generation.json'),
+    reactionConfig: join(root, 'config', 'reaction-config.json'),
     guardrails: join(root, 'config', 'guardrails.md'),
     historyGames: join(root, 'history', 'games.json'),
     historySummary: join(root, 'history', 'summary.json'),

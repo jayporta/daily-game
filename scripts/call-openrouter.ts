@@ -14,8 +14,16 @@ import { moderate } from './moderate.ts';
 import { createSmokeTester, type SmokeTester } from './smoke-test.ts';
 import { publish, recordFailure } from './publish.ts';
 import { getOpenRouterClient } from './lib/get-client.ts';
-import { loadAllConfig } from './lib/config-store.ts';
-import { lastPublishedEntry, readHotWindow, readSummary } from './lib/history-store.ts';
+import { loadAllConfig, loadReactionConfigOrUnconfigured } from './lib/config-store.ts';
+import {
+  lastPublishedEntry,
+  readHotWindow,
+  readSummary,
+  writeGamesJson,
+  writeGamesMd,
+} from './lib/history-store.ts';
+import { applyFeedback } from './fetch-feedback.ts';
+import { paths } from './lib/paths.ts';
 import type { OpenRouterClient } from './lib/openrouter-client.ts';
 import type { GeneratedMeta } from '../lib/types.ts';
 import type {
@@ -164,6 +172,35 @@ export interface RunDailyPipelineOptions {
   now?: Date;
 }
 
+/**
+ * Fills in the previous game's reaction counts and writes them to disk.
+ *
+ * Best-effort in every direction: the config loader degrades to
+ * unconfigured rather than throwing on a bad hand-edit, and
+ * `applyFeedback` returns the entries unchanged when the store is unset or
+ * unreachable. Nothing here can cost the day its game.
+ */
+async function reconcileYesterday(
+  entries: HistoryGameEntry[],
+  dryRun: boolean,
+): Promise<HistoryGameEntry[]> {
+  const previous = lastPublishedEntry(entries);
+  if (previous?.slug === undefined) return entries;
+
+  const reconciled = await applyFeedback(entries, {
+    slug: previous.slug,
+    endpointUrl: loadReactionConfigOrUnconfigured().endpointUrl,
+    // Privileged, and deliberately not read from any committed file.
+    apiKey: process.env['REACTION_STORE_KEY'] ?? null,
+  });
+
+  if (reconciled !== entries && !dryRun) {
+    writeGamesJson(paths.historyGames, reconciled);
+    writeGamesMd(paths.historyGamesMd, reconciled);
+  }
+  return reconciled;
+}
+
 /** Loads real config/history from disk, generates, and publishes on success. */
 export async function runDailyPipeline({
   dryRun = false,
@@ -171,9 +208,12 @@ export async function runDailyPipeline({
   now = new Date(),
 }: RunDailyPipelineOptions = {}): Promise<GenerateResult> {
   const { models, genres, generation, guardrails } = loadAllConfig();
-  const historyEntries = readHotWindow();
   const summary = readSummary();
   const date = todayISODate(now);
+
+  // Reconciled before anything can fail: a generation that later gives up
+  // must still leave yesterday's reactions recorded.
+  const historyEntries = await reconcileYesterday(readHotWindow(), dryRun);
 
   const client = getOpenRouterClient();
   const smokeTester = await createSmokeTester();

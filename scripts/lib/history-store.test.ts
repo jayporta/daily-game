@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   appendEntry,
+  patchEntry,
   lastPublishedEntry,
   readHotWindow,
   readSummary,
@@ -120,4 +121,69 @@ test('writeGamesMd creates the file on disk', (t) => {
   const file = join(dir, 'games.md');
   writeGamesMd(file, [PUBLISHED]);
   assert.match(readFileSync(file, 'utf8'), /Beetle Maze/);
+});
+
+const RATED: HistoryGameEntry = {
+  ...PUBLISHED,
+  likes: 7,
+  dislikes: 2,
+  dislikeReasons: { broken: 1, 'goal-unclear': 2 },
+};
+
+test('patchEntry applies reaction counts to the matching slug', () => {
+  const patched = patchEntry([FAILED, PUBLISHED], '2026-08-28-beetle', {
+    likes: 7,
+    dislikes: 2,
+  });
+
+  assert.deepEqual(patched[1], { ...PUBLISHED, likes: 7, dislikes: 2 });
+});
+
+test('patchEntry leaves every other entry untouched', () => {
+  const patched = patchEntry([FAILED, PUBLISHED], '2026-08-28-beetle', { likes: 7 });
+
+  assert.deepEqual(patched[0], FAILED);
+});
+
+// A slug that is not in the hot window has aged out, or was never ours.
+test('patchEntry is a no-op for an unknown slug', () => {
+  const entries = [FAILED, PUBLISHED];
+
+  assert.deepEqual(patchEntry(entries, '2026-01-01-ghost', { likes: 7 }), entries);
+});
+
+test('patchEntry does not mutate its input', () => {
+  const entries = [PUBLISHED];
+
+  patchEntry(entries, '2026-08-28-beetle', { likes: 7 });
+
+  assert.equal(entries[0]?.likes, undefined);
+});
+
+test('patchEntry overwrites counts from an earlier run rather than adding to them', () => {
+  const patched = patchEntry([RATED], '2026-08-28-beetle', { likes: 9, dislikes: 3 });
+
+  assert.equal(patched[0]?.likes, 9);
+  assert.equal(patched[0]?.dislikes, 3);
+});
+
+test('renderGamesMd reports how a published game was received', () => {
+  const markdown = renderGamesMd([RATED]);
+
+  assert.match(markdown, /- likes: 7/);
+  assert.match(markdown, /- dislikes: 2/);
+});
+
+test('renderGamesMd names the reasons a game was disliked for', () => {
+  const markdown = renderGamesMd([RATED]);
+
+  assert.match(markdown, /goal-unclear: 2/);
+  assert.match(markdown, /broken: 1/);
+});
+
+test('renderGamesMd omits reaction lines for a game nobody rated', () => {
+  const markdown = renderGamesMd([PUBLISHED]);
+
+  assert.doesNotMatch(markdown, /- likes:/);
+  assert.doesNotMatch(markdown, /- dislikes:/);
 });

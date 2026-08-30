@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Centered } from './components/Centered.tsx';
 import { GameFrame } from './components/GameFrame.tsx';
 import { GameMeta } from './components/GameMeta.tsx';
+import { ReactionBar } from './components/ReactionBar.tsx';
 import { fetchGameHtml, fetchManifest } from './lib/manifest-client.ts';
 import type { Manifest } from '../lib/types.ts';
 
@@ -65,6 +66,10 @@ export function App() {
         {state.status === 'error' && <Centered>Could not load today&rsquo;s game: {state.message}</Centered>}
         {state.status === 'ready' && <GameFrame html={state.html} title={state.manifest.title} />}
       </main>
+
+      {/* Below the frame and outside it: the rating must not be reachable by
+          the AI-authored code it rates. See ReactionBar's own note. */}
+      {state.status === 'ready' && <ReactionBar slug={state.manifest.slug} />}
 
       <footer className="border-t border-slate-800 px-4 py-2 text-xs text-slate-500">
         A new game, invented by AI, every day. Built by Jason Matthew Porta ·{' '}

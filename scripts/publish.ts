@@ -102,7 +102,8 @@ export function buildManifest({
 
 /**
  * Fixed, trusted snippet appended to every published game.
- * Returns '' while `sentryDsn` is null — see PLAN.md Epic 6.
+ * Returns '' while `sentryDsn` is null, which is the case until a Sentry
+ * account exists.
  */
 export function buildErrorReportingSnippet(sentryDsn: string | null, slug: string): string {
   if (!sentryDsn) return '';

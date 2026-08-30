@@ -1,6 +1,7 @@
 // Node-only shapes: config files and the history store. Kept separate
 // from lib/types.ts (isomorphic bundle types) since these never need to
 // ship to the browser.
+import type { DislikeReason } from '../../lib/reaction-types.ts';
 
 export interface ModelEntry {
   id: string;
@@ -45,6 +46,17 @@ export interface HistoryGameEntry {
   attempts?: number;
   popularityScore?: number;
   errors?: string[];
+  /** Likes recorded for this game, patched in by `fetch-feedback.ts`. */
+  likes?: number;
+  /** Dislikes recorded for this game, patched in by `fetch-feedback.ts`. */
+  dislikes?: number;
+  /**
+   * How often each reason was given, keyed by {@link DislikeReason}.
+   *
+   * Only ever counts under ids from the closed vocabulary — no string from
+   * the reaction store is passed through into this file.
+   */
+  dislikeReasons?: Partial<Record<DislikeReason, number>>;
 }
 
 export interface PopularityEntry {
@@ -64,4 +76,12 @@ export interface HistorySummary {
 export interface ValidationResult {
   valid: boolean;
   errors: string[];
+}
+
+/** Contents of `config/reaction-config.json`, as the pipeline reads it. */
+export interface ReactionConfig {
+  /** Reaction store REST endpoint, or null when none is configured. */
+  endpointUrl: string | null;
+  /** The public, insert-only key that ships in the page. */
+  anonKey: string | null;
 }

@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { paths } from './paths.ts';
 import {
   validateModelsConfig,
+  validateReactionConfig,
   validateGenresConfig,
   validateGenerationConfig,
   validateHistoryGames,
@@ -131,4 +134,44 @@ test('validateHistoryGames rejects an invalid status', () => {
 test('validateHistoryGames requires slug/genre only when published', () => {
   const result = validateHistoryGames([{ date: '2026-08-29', status: 'failed_kept_previous', model: 'a/model:free' }]);
   assert.equal(result.valid, true);
+});
+
+test('validateReactionConfig accepts the unconfigured store this site ships with', () => {
+  assert.deepEqual(validateReactionConfig({ endpointUrl: null, anonKey: null }), {
+    valid: true,
+    errors: [],
+  });
+});
+
+test('validateReactionConfig accepts a configured store', () => {
+  assert.equal(
+    validateReactionConfig({ endpointUrl: 'https://proj.supabase.co/rest/v1/reactions', anonKey: 'k' })
+      .valid,
+    true,
+  );
+});
+
+test('validateReactionConfig rejects a missing field', () => {
+  assert.equal(validateReactionConfig({ endpointUrl: null }).valid, false);
+});
+
+test('validateReactionConfig rejects a non-https endpoint', () => {
+  assert.equal(validateReactionConfig({ endpointUrl: 'http://proj.test', anonKey: null }).valid, false);
+});
+
+// The key that ships in the page is insert-only. The privileged one lives
+// in an Actions secret and must never reach the repo.
+test('validateReactionConfig rejects a service_role key', () => {
+  const serviceRoleJwt = `header.${Buffer.from('{"role":"service_role"}').toString('base64url')}.sig`;
+
+  const result = validateReactionConfig({ endpointUrl: null, anonKey: serviceRoleJwt });
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join(' '), /service_role/);
+});
+
+test('the reaction config this repo ships carries no privileged key', () => {
+  const shipped: unknown = JSON.parse(readFileSync(paths.reactionConfig, 'utf8'));
+
+  assert.equal(validateReactionConfig(shipped).valid, true);
 });

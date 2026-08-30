@@ -149,3 +149,50 @@ export function validateHistoryGames(json: unknown): ValidationResult {
 
   return { valid: errors.length === 0, errors };
 }
+
+/**
+ * A JWT whose payload claims the privileged `service_role`.
+ *
+ * Matched against the base64url payload segment rather than decoded: this
+ * is a tripwire, not an authenticator, and it only has to catch the honest
+ * mistake of pasting the wrong key from the dashboard.
+ */
+function looksLikeServiceRoleKey(value: string): boolean {
+  const payload = value.split('.')[1];
+  if (payload === undefined) return false;
+  try {
+    return Buffer.from(payload, 'base64url').toString('utf8').includes('service_role');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validates `config/reaction-config.json`.
+ *
+ * `anonKey` ships to every visitor in the page bundle, so the one thing
+ * that must never appear here is the privileged read key — that belongs in
+ * an Actions secret, and is used only by `fetch-feedback.ts`.
+ */
+export function validateReactionConfig(json: unknown): ValidationResult {
+  const errors: string[] = [];
+  if (!isPlainObject(json)) {
+    return { valid: false, errors: ['root must be an object'] };
+  }
+
+  const { endpointUrl, anonKey } = json;
+
+  if (endpointUrl !== null && typeof endpointUrl !== 'string') {
+    errors.push('endpointUrl must be a string or null');
+  } else if (typeof endpointUrl === 'string' && !endpointUrl.startsWith('https://')) {
+    errors.push('endpointUrl must be https — a reaction must never travel in the clear');
+  }
+
+  if (anonKey !== null && typeof anonKey !== 'string') {
+    errors.push('anonKey must be a string or null');
+  } else if (typeof anonKey === 'string' && looksLikeServiceRoleKey(anonKey)) {
+    errors.push('anonKey looks like a service_role key — that key must never ship to the browser');
+  }
+
+  return { valid: errors.length === 0, errors };
+}

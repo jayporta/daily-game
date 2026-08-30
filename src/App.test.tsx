@@ -122,4 +122,31 @@ describe('App', () => {
       expect(errors).toEqual([]);
     });
   });
+  it('lets the viewer rate the game once it has loaded', async () => {
+    stubFetch({ manifest: () => jsonResponse(MANIFEST) });
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByRole('group', { name: /rate this game/i })).toBeVisible());
+    expect(screen.getByRole('button', { name: /^like$/i })).toBeVisible();
+  });
+
+  // The frame holds AI-authored code under an opaque origin. The controls a
+  // viewer uses to judge a game must never sit inside the thing they judge.
+  it('keeps the rating controls outside the sandboxed frame', async () => {
+    stubFetch({ manifest: () => jsonResponse(MANIFEST) });
+    render(<App />);
+
+    const rate = await screen.findByRole('button', { name: /^like$/i });
+    const frame = screen.getByTitle(MANIFEST.title);
+
+    expect(frame.tagName).toBe('IFRAME');
+    expect(frame.contains(rate)).toBe(false);
+  });
+
+  it('offers no rating controls before a game has loaded', () => {
+    stubFetch({ manifest: () => jsonResponse(null) });
+    render(<App />);
+
+    expect(screen.queryByRole('group', { name: /rate this game/i })).toBeNull();
+  });
 });

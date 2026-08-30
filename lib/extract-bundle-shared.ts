@@ -3,8 +3,7 @@
 // ```html block (a single self-contained game HTML file).
 //
 // Pure and dependency-free so it runs identically under Node (the daily
-// pipeline) and in a browser (BYOK mode) once compiled for that context —
-// see PLAN.md's "Technology choices".
+// pipeline) and in a browser (BYOK mode) once compiled for that context.
 import type { ExtractedBundle, GeneratedMeta } from './types.ts';
 
 const JSON_BLOCK_RE = /```json\s*\r?\n([\s\S]*?)```/i;

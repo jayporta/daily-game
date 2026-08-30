@@ -3,6 +3,30 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--
+      Deliberately partial, and it must stay that way.
+
+      There is NO `default-src`, and no `script-src` or `style-src`. Every
+      one of those falls back to `default-src`, and a srcdoc iframe inherits
+      the parent document's CSP — so restricting scripts here would block
+      the inline <script> in every AI-generated game bundle, and
+      `default-src` alone would do it silently. It would break the whole
+      site in production while every test still passed. The `sandbox`
+      attribute on the frame is what contains that code, not this policy;
+      see src/components/GameFrame.tsx.
+
+      What is listed cannot reach scripts or styles. `connect-src` is
+      inherited by the frame, where it reinforces the no-network rule the
+      smoke test already enforces — add the reaction store's origin here
+      when config/reaction-config.json gains an endpoint.
+
+      `frame-ancestors` is deliberately absent too: browsers ignore it in a
+      meta CSP, and GitHub Pages cannot set response headers.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="connect-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'"
+    />
     <title>Daily Game — a new AI-built game every day</title>
     <meta
       name="description"

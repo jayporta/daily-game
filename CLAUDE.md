@@ -143,6 +143,18 @@ refactor.
 - **Nothing downstream branches on mock-vs-real.**
   `scripts/lib/get-client.ts` is the only place that decides, so setting
   `OPENROUTER_API_KEY` flips the pipeline live with no code change.
+- **The page's CSP must never restrict scripts or styles.** `index.html`
+  carries a deliberately partial policy with no `default-src`, `script-src`
+  or `style-src`. A `srcdoc` iframe inherits the parent's CSP, so any of
+  those would block the inline `<script>` in every generated bundle —
+  breaking the whole site in production while every test still passes.
+  The frame's `sandbox` attribute is what contains that code, not the CSP.
+- **Reaction feedback is a closed vocabulary, never freetext.**
+  `DISLIKE_REASONS` in `lib/reaction-types.ts` is the only thing that
+  crosses the network, and `fetch-feedback.ts` tallies by iterating that
+  vocabulary rather than the store's response. Anyone who loads the page
+  holds the insert key, so no string from the store may ever reach
+  `history/games.json` or the generation prompt.
 - **`lib/` stays isomorphic.** It's compiled by both tsconfigs; a Node-only
   API there breaks the browser build. Node-only code belongs in `scripts/`,
   which never ships to Pages.
@@ -156,8 +168,9 @@ refactor.
   and network, so tests need neither.
 - Take a `root`/path override on anything that writes, so tests target a
   scratch directory instead of the repo.
-- `PLAN.md` tracks epics and stays current as they land; it's part of the
-  repo's portfolio story. `SPEC.md` is the original design and is updated
-  only when the implementation deliberately diverges.
+- Planning artifacts stay out of the repo. The design spec and the
+  epics/stories breakdown are gitignored; the commit history is the record
+  of how the work was split into reviewable chunks. Don't reintroduce them,
+  and don't add cross-references to them from code.
 - Sentry is deliberately stubbed (`sentryDsn: null`,
   `buildErrorReportingSnippet` returns `''`) until credentials exist.

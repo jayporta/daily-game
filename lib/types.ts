@@ -1,6 +1,6 @@
 // Types for the isomorphic bundle-extraction core. Lives in lib/ (not
 // scripts/lib/) because this file ships to the browser for BYOK mode as
-// well as running in the Node pipeline — see PLAN.md's architectural note.
+// well as running in the Node pipeline.
 
 export interface GeneratedMeta {
   title: string;

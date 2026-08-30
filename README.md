@@ -19,8 +19,6 @@ browser game invented from scratch by AI and rebuilt from nothing once a
 day. Every visitor during that day plays the same game; when the daily
 cron job fires, that game is replaced by something completely different.
 
-See `SPEC.md` for the full design, and `PLAN.md` for the phased build plan
-(epics → stories → tasks) this project is being built against.
 
 ## Status
 
@@ -29,9 +27,8 @@ See `SPEC.md` for the full design, and `PLAN.md` for the phased build plan
 against a mock OpenRouter client — no API key needed — and everything is
 covered by 138 tests.
 
-**Not built yet:** the reaction button, the daily generation workflow
-(Epic 3), history rollup (Epic 4), bring-your-own-key mode (Epic 5), and
-Sentry error tracking (Epic 6). See `PLAN.md` for the full roadmap.
+**Not built yet:** the daily generation workflow, history rollup,
+bring-your-own-key mode, and Sentry error tracking.
 
 ## How the pipeline works
 

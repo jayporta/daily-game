@@ -7,9 +7,11 @@ import {
   validateGenerationConfig,
   validateGenresConfig,
   validateModelsConfig,
+  validateReactionConfig,
 } from './schema.ts';
 import type {
   GenerationConfig,
+  ReactionConfig,
   GenresConfig,
   ModelsConfig,
   ValidationResult,
@@ -43,6 +45,32 @@ export function loadGenresConfig(filePath: string = paths.genresConfig): GenresC
 
 export function loadGenerationConfig(filePath: string = paths.generationConfig): GenerationConfig {
   return loadValidatedJson<GenerationConfig>(filePath, validateGenerationConfig);
+}
+
+/**
+ * Where the browser posts reactions. The pipeline reads only `endpointUrl`
+ * from here — the key it reads the store back with is privileged and comes
+ * from the environment, never from a committed file.
+ */
+export function loadReactionConfig(filePath: string = paths.reactionConfig): ReactionConfig {
+  return loadValidatedJson<ReactionConfig>(filePath, validateReactionConfig);
+}
+
+/**
+ * Like {@link loadReactionConfig}, but never throws.
+ *
+ * The reaction store is decoration: a hand-edit that breaks this file must
+ * cost the day its like counts, not its game. Every other config is
+ * load-bearing and is still allowed to fail the run loudly.
+ */
+export function loadReactionConfigOrUnconfigured(
+  filePath: string = paths.reactionConfig,
+): ReactionConfig {
+  try {
+    return loadReactionConfig(filePath);
+  } catch {
+    return { endpointUrl: null, anonKey: null };
+  }
 }
 
 /** Guardrails are markdown, injected verbatim into generation + moderation prompts. */
