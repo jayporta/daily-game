@@ -191,6 +191,8 @@ test('recordFailure logs the failure and leaves the manifest untouched', (t) => 
     date: '2026-08-29',
     model: 'a/model:free',
     attempts: 3,
+    reasons: [],
+    kinds: [],
     historyEntries: [],
     root,
   });
@@ -198,6 +200,102 @@ test('recordFailure logs the failure and leaves the manifest untouched', (t) => 
   assert.equal(entries[0]?.status, 'failed_kept_previous');
   assert.equal(existsSync(join(root, 'manifest.json')), false, 'the live site must not be touched');
   assert.equal(existsSync(join(root, 'games', 'archive')), false);
+});
+
+// Without these stored, a failed day leaves only an attempt count and the
+// rollup can never distil what actually went wrong.
+test('recordFailure keeps the reason each attempt failed', (t) => {
+  const root = scratchRoot(t);
+
+  const entries = recordFailure({
+    date: '2026-08-29',
+    model: 'a/model:free',
+    attempts: 3,
+    reasons: ['attempt 1: uncaught JS error', 'attempt 2: moderation rejected'],
+    kinds: ['smoke-js-error', 'moderation'],
+    historyEntries: [],
+    root,
+  });
+
+  assert.deepEqual(entries[0]?.failureReasons, [
+    'attempt 1: uncaught JS error',
+    'attempt 2: moderation rejected',
+  ]);
+});
+
+// A smoke-test reason carries the game's own console output, which a
+// misbehaving bundle can produce without limit, and it reaches the rollup
+// prompt from here.
+test('recordFailure bounds a runaway reason', (t) => {
+  const root = scratchRoot(t);
+
+  const entries = recordFailure({
+    date: '2026-08-29',
+    model: 'a/model:free',
+    attempts: 3,
+    reasons: ['x'.repeat(10_000)],
+    kinds: ['smoke-js-error'],
+    historyEntries: [],
+    root,
+  });
+
+  assert.equal(entries[0]?.failureReasons?.[0]?.length, 300);
+});
+
+test('recordFailure writes the reasons to disk, not just the returned array', (t) => {
+  const root = scratchRoot(t);
+
+  recordFailure({
+    date: '2026-08-29',
+    model: 'a/model:free',
+    attempts: 3,
+    reasons: ['attempt 1: smoke test failed'],
+    kinds: ['smoke-js-error'],
+    historyEntries: [],
+    root,
+  });
+
+  const history = JSON.parse(readFileSync(join(root, 'history', 'games.json'), 'utf8'));
+  assert.deepEqual(history[0].failureReasons, ['attempt 1: smoke test failed']);
+});
+
+test('recordFailure stores the closed-vocabulary kinds beside the prose', (t) => {
+  const root = scratchRoot(t);
+
+  const entries = recordFailure({
+    date: '2026-08-29',
+    model: 'a/model:free',
+    attempts: 2,
+    reasons: ['attempt 1: smoke', 'attempt 2: moderation'],
+    kinds: ['smoke-network', 'moderation'],
+    historyEntries: [],
+    root,
+  });
+
+  assert.deepEqual(entries[0]?.failureKinds, ['smoke-network', 'moderation']);
+});
+
+// A published game that painted nothing still passes the smoke test, but it
+// is weak evidence of a working game and the prompt should hear about it.
+test('publish records whether the game drew anything', (t) => {
+  const root = scratchRoot(t);
+  const { meta, html } = loadFixtureBundle('good-maze');
+
+  publish({
+    date: '2026-08-29',
+    meta,
+    html,
+    model: 'a/model:free',
+    attempts: 1,
+    canvasDrawn: false,
+    generationConfig: GENERATION_CONFIG,
+    genres: GENRES,
+    historyEntries: [],
+    root,
+  });
+
+  const history = JSON.parse(readFileSync(join(root, 'history', 'games.json'), 'utf8'));
+  assert.equal(history[0].canvasDrawn, false);
 });
 
 test('buildManifest shows the genre by its readable label', () => {

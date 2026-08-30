@@ -46,7 +46,10 @@ test('loadReactionConfigOrUnconfigured degrades when the file is absent entirely
 });
 
 test('loadReactionConfigOrUnconfigured still returns a valid config unchanged', (t) => {
-  const configured = { endpointUrl: 'https://proj.supabase.co/rest/v1/reactions', anonKey: 'k' };
+  const configured = {
+    endpointUrl: 'https://proj.supabase.co/rest/v1/reactions',
+    anonKey: 'sb_publishable_AbC123',
+  };
   const file = scratchFile(t, JSON.stringify(configured));
 
   assert.deepEqual(loadReactionConfigOrUnconfigured(file), configured);

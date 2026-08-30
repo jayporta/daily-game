@@ -206,28 +206,89 @@ export function validateHistorySummary(json: unknown): ValidationResult {
 }
 
 /**
- * A JWT whose payload claims the privileged `service_role`.
+ * Checks that `index.html`'s CSP permits the configured reaction store.
  *
- * Matched against the base64url payload segment rather than decoded: this
- * is a tripwire, not an authenticator, and it only has to catch the honest
- * mistake of pasting the wrong key from the dashboard.
+ * A `srcdoc` iframe inherits the parent's CSP and `connect-src` starts as
+ * `'self'`, so a cross-origin store is blocked unless its origin is listed.
+ * `sendReaction` swallows that failure by design, which means a missing
+ * origin drops every reaction with nothing anywhere reporting it — hence a
+ * check rather than a comment.
+ *
+ * @param endpointUrl From `config/reaction-config.json`; `null` means no
+ *   store is configured and there is nothing to permit.
  */
-function looksLikeServiceRoleKey(value: string): boolean {
-  const payload = value.split('.')[1];
-  if (payload === undefined) return false;
+export function validateCspAllowsEndpoint(
+  endpointUrl: string | null,
+  indexHtml: string,
+): ValidationResult {
+  if (endpointUrl === null) return { valid: true, errors: [] };
+
+  let origin: string;
   try {
-    return Buffer.from(payload, 'base64url').toString('utf8').includes('service_role');
+    origin = new URL(endpointUrl).origin;
   } catch {
-    return false;
+    return { valid: false, errors: [`endpointUrl is not a URL: ${endpointUrl}`] };
   }
+
+  // Scoped to the policy's own `content` attribute: index.html also discusses
+  // connect-src in a comment, and matching that would read the prose instead
+  // of the directive.
+  const policy = /content="([^"]*connect-src[^"]*)"/i.exec(indexHtml)?.[1];
+  const connectSrc = policy === undefined ? undefined : /connect-src([^;]*)/i.exec(policy)?.[1];
+  if (connectSrc === undefined) {
+    return { valid: false, errors: ['index.html has no connect-src directive'] };
+  }
+  if (!connectSrc.split(/\s+/).includes(origin)) {
+    return {
+      valid: false,
+      errors: [
+        `index.html's connect-src does not list ${origin} — the browser would ` +
+          'block every reaction, and sendReaction swallows that failure silently',
+      ],
+    };
+  }
+
+  return { valid: true, errors: [] };
+}
+
+/**
+ * The `role` a legacy Supabase JWT claims, or `null` if it is not one.
+ *
+ * Decoded rather than pattern-matched, so `service_role` cannot slip through
+ * on an encoding quirk. This is a tripwire, not an authenticator — it only
+ * has to catch the honest mistake of copying the wrong key.
+ */
+function jwtRole(value: string): string | null {
+  const payload = value.split('.')[1];
+  if (payload === undefined) return null;
+  try {
+    const parsed: unknown = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    if (typeof parsed !== 'object' || parsed === null || !('role' in parsed)) return null;
+    return typeof parsed.role === 'string' ? parsed.role : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether a key is one of the shapes Supabase publishes as safe for a browser.
+ *
+ * An allowlist, not a denylist: this value ships to every visitor, so an
+ * unrecognised shape has to fail loudly rather than be assumed harmless.
+ * Supabase's newer secret keys (`sb_secret_…`) are not JWTs, so a check that
+ * only decoded JWTs would wave one straight through into the page.
+ */
+function isPublicKey(value: string): boolean {
+  if (value.startsWith('sb_publishable_')) return true;
+  return jwtRole(value) === 'anon';
 }
 
 /**
  * Validates `config/reaction-config.json`.
  *
- * `anonKey` ships to every visitor in the page bundle, so the one thing
- * that must never appear here is the privileged read key — that belongs in
- * an Actions secret, and is used only by `fetch-feedback.ts`.
+ * `anonKey` ships to every visitor in the page bundle, so it must be one of
+ * the shapes Supabase publishes for browser use. The privileged key belongs
+ * in an Actions secret and is used only by `fetch-feedback.ts`.
  */
 export function validateReactionConfig(json: unknown): ValidationResult {
   // Shape from the shared guard; the checks below are deployment policy.
@@ -244,8 +305,12 @@ export function validateReactionConfig(json: unknown): ValidationResult {
   if (endpointUrl !== null && !endpointUrl.startsWith('https://')) {
     errors.push('endpointUrl must be https — a reaction must never travel in the clear');
   }
-  if (anonKey !== null && looksLikeServiceRoleKey(anonKey)) {
-    errors.push('anonKey looks like a service_role key — that key must never ship to the browser');
+  if (anonKey !== null && !isPublicKey(anonKey)) {
+    errors.push(
+      'anonKey must be a publishable key (sb_publishable_...) or a legacy anon JWT. ' +
+        'This value ships to every visitor, so a secret or service_role key must ' +
+        'never appear here, and an unrecognised shape is refused rather than trusted',
+    );
   }
 
   return { valid: errors.length === 0, errors };

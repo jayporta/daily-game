@@ -110,6 +110,7 @@ export function renderGamesMd(entries: HistoryGameEntry[]): string {
       lines.push('');
       lines.push(`- model: ${entry.model}`);
       if (entry.attempts !== undefined) lines.push(`- attempts: ${entry.attempts}`);
+      for (const reason of entry.failureReasons ?? []) lines.push(`- ${reason}`);
     }
     lines.push('');
   }

@@ -48,7 +48,9 @@ create table public.reactions (
 alter table public.reactions enable row level security;
 
 -- The key that ships in the page may insert, and do nothing else. The
--- front-end never reads, so a working select means the policy is wrong.
+-- front-end never reads, so a select that returns rows means the
+-- policy is wrong. RLS with no select policy answers 200 with an empty
+-- array, not an error.
 create policy "anon may insert one reaction"
   on public.reactions for insert to anon with check (true);
 `;

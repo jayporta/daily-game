@@ -4,6 +4,7 @@
 //
 // No validation logic of its own: each loader in scripts/lib/ already
 // validates, so this walks them and reports which file failed.
+import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { errorMessage } from '../lib/errors.ts';
 import {
@@ -15,6 +16,7 @@ import {
 } from './lib/config-store.ts';
 import { readHotWindow, readSummary } from './lib/history-store.ts';
 import { paths as defaultPaths, type Paths } from './lib/paths.ts';
+import { validateCspAllowsEndpoint } from './lib/schema.ts';
 
 /** One file to check, and the loader that validates it. */
 interface Check {
@@ -41,6 +43,14 @@ function checksFor(paths: Paths): readonly Check[] {
     { label: 'config/reaction-config.json', load: () => loadReactionConfig(paths.reactionConfig) },
     { label: 'history/games.json', load: () => readHotWindow(paths.historyGames) },
     { label: 'history/summary.json', load: () => readSummary(paths.historySummary) },
+    {
+      label: "index.html (CSP allows the reaction store)",
+      load: () => {
+        const { endpointUrl } = loadReactionConfig(paths.reactionConfig);
+        const result = validateCspAllowsEndpoint(endpointUrl, readFileSync(paths.indexHtml, 'utf8'));
+        if (!result.valid) throw new Error(result.errors.join('; '));
+      },
+    },
   ];
 }
 

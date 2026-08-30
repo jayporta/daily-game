@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { validateAll } from './validate-config.ts';
@@ -12,6 +12,7 @@ function scratchRepo(t: { after(fn: () => void): void }): string {
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   cpSync(join(REPO_ROOT, 'config'), join(dir, 'config'), { recursive: true });
   cpSync(join(REPO_ROOT, 'history'), join(dir, 'history'), { recursive: true });
+  cpSync(join(REPO_ROOT, 'index.html'), join(dir, 'index.html'));
   return dir;
 }
 
@@ -61,6 +62,46 @@ for (const [label, contents] of [
     assert.ok(!report.checked.includes(label));
   });
 }
+
+// Provisioning the store without widening the CSP drops every reaction
+// silently, so validation has to catch it before a deploy does not.
+test('a configured store the CSP does not permit fails validation', (t) => {
+  const root = scratchRepo(t);
+  writeFileSync(
+    join(root, 'config/reaction-config.json'),
+    JSON.stringify({ endpointUrl: 'https://proj.supabase.co/rest/v1/reactions', anonKey: null }),
+    'utf8',
+  );
+
+  const report = validateAll(createPaths(root));
+
+  assert.ok(
+    report.failures.some((failure) => failure.includes('connect-src')),
+    `expected a CSP failure, got: ${report.failures.join(' | ')}`,
+  );
+});
+
+test('a configured store the CSP does permit passes validation', (t) => {
+  const root = scratchRepo(t);
+  const indexPath = join(root, 'index.html');
+  writeFileSync(
+    join(root, 'config/reaction-config.json'),
+    JSON.stringify({ endpointUrl: 'https://proj.supabase.co/rest/v1/reactions', anonKey: null }),
+    'utf8',
+  );
+  writeFileSync(
+    indexPath,
+    readFileSync(indexPath, 'utf8').replace(
+      "connect-src 'self'",
+      "connect-src 'self' https://proj.supabase.co",
+    ),
+    'utf8',
+  );
+
+  const report = validateAll(createPaths(root));
+
+  assert.deepEqual(report.failures, []);
+});
 
 test('an unreadable guardrails file fails validation', (t) => {
   const root = scratchRepo(t);

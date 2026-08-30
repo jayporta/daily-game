@@ -9,9 +9,16 @@ import { join } from 'node:path';
 import { createPaths, paths as defaultPaths, type Paths } from './lib/paths.ts';
 import { appendEntry, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
 import type { GeneratedMeta, Manifest } from '../lib/types.ts';
-import type { GenerationConfig, GenresConfig, HistoryGameEntry } from './lib/types.ts';
+import type { FailureKind, GenerationConfig, GenresConfig, HistoryGameEntry } from './lib/types.ts';
 
 const MS_PER_DAY = 86_400_000;
+
+/**
+ * Cap on a stored failure reason. Smoke-test reasons carry the game's own
+ * console output, which a misbehaving bundle can produce without limit, and
+ * these strings reach the rollup prompt.
+ */
+const MAX_FAILURE_REASON_LENGTH = 300;
 
 /**
  * Slugs become directory names and URL segments. Capped so that the full
@@ -137,6 +144,8 @@ export interface PublishParams {
   html: string;
   model: string;
   attempts: number;
+  /** Whether the game painted anything during the smoke test. */
+  canvasDrawn?: boolean;
   generationConfig: GenerationConfig;
   /** Genre catalogue, used to resolve {@link Manifest.genreLabel}. */
   genres: GenresConfig;
@@ -158,6 +167,7 @@ export function publish({
   html,
   model,
   attempts,
+  canvasDrawn,
   generationConfig,
   genres,
   historyEntries,
@@ -196,6 +206,7 @@ export function publish({
     mechanics: meta.mechanics,
     title: meta.title,
     attempts,
+    ...(canvasDrawn === undefined ? {} : { canvasDrawn }),
   };
   const updatedEntries = appendEntry(historyEntries, entry);
   writeGamesJson(paths.historyGames, updatedEntries);
@@ -204,17 +215,27 @@ export function publish({
   return { slug, manifest, historyEntries: updatedEntries };
 }
 
-/** Records a failed run without touching the live site. */
+/**
+ * Records a failed run without touching the live site.
+ *
+ * @param reasons Why each attempt failed. Required rather than optional so
+ *   a caller cannot quietly drop the only record of what went wrong; pass
+ *   an empty array if there is genuinely nothing to say.
+ */
 export function recordFailure({
   date,
   model,
   attempts,
+  reasons,
+  kinds,
   historyEntries,
   root,
 }: {
   date: string;
   model: string;
   attempts: number;
+  reasons: readonly string[];
+  kinds: readonly FailureKind[];
   historyEntries: HistoryGameEntry[];
   root?: string;
 }): HistoryGameEntry[] {
@@ -224,6 +245,8 @@ export function recordFailure({
     status: 'failed_kept_previous',
     model,
     attempts,
+    failureReasons: reasons.map((reason) => reason.slice(0, MAX_FAILURE_REASON_LENGTH)),
+    failureKinds: [...kinds],
   });
   writeGamesJson(paths.historyGames, updatedEntries);
   writeGamesMd(paths.historyGamesMd, updatedEntries);

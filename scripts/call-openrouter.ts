@@ -12,7 +12,7 @@ import { selectNextModel } from './select-model.ts';
 import { extractBundle } from '../lib/extract-bundle-shared.ts';
 import { errorMessage } from '../lib/errors.ts';
 import { moderate } from './moderate.ts';
-import { createSmokeTester, type SmokeTester } from './smoke-test.ts';
+import { createSmokeTester, type SmokeTester, type SmokeTestResult } from './smoke-test.ts';
 import { publish, recordFailure } from './publish.ts';
 import { getOpenRouterClient } from './lib/get-client.ts';
 import { loadAllConfig, loadReactionConfigOrUnconfigured } from './lib/config-store.ts';
@@ -28,6 +28,7 @@ import { paths } from './lib/paths.ts';
 import type { OpenRouterClient } from './lib/openrouter-client.ts';
 import type { GeneratedMeta } from '../lib/types.ts';
 import type {
+  FailureKind,
   GenerationConfig,
   GenresConfig,
   HistoryGameEntry,
@@ -38,8 +39,23 @@ import type {
 export const MAX_ATTEMPTS = 3;
 
 export type GenerateResult =
-  | { status: 'success'; meta: GeneratedMeta; html: string; model: string; attempts: number }
-  | { status: 'failed_kept_previous'; attempts: number; reasons: string[]; model: string };
+  | {
+      status: 'success';
+      meta: GeneratedMeta;
+      html: string;
+      model: string;
+      attempts: number;
+      /** Whether the game painted anything during the smoke test. */
+      canvasDrawn: boolean;
+    }
+  | {
+      status: 'failed_kept_previous';
+      attempts: number;
+      reasons: string[];
+      /** The same failures as `reasons`, as closed-vocabulary ids. */
+      kinds: FailureKind[];
+      model: string;
+    };
 
 const EXTRACTION_FEEDBACK: Record<string, string> = {
   'missing-meta-block': 'Your response had no ```json block. Return both fenced blocks exactly as specified.',
@@ -79,6 +95,7 @@ export async function generateDailyGame({
   now = new Date(),
 }: GenerateDailyGameParams): Promise<GenerateResult> {
   const reasons: string[] = [];
+  const kinds: FailureKind[] = [];
   let priorFailureFeedback: string | undefined;
   let model = forceModel ?? selectNextModel(modelsConfig, lastUsedModelId).id;
 
@@ -117,6 +134,7 @@ export async function generateDailyGame({
     } catch (error) {
       const reason = `attempt ${attempt} (${model}): generation call failed — ${errorMessage(error)}`;
       reasons.push(reason);
+      kinds.push('generation-call');
       priorFailureFeedback = 'The previous request failed before returning a game. Return the two fenced blocks exactly as specified.';
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
       continue;
@@ -125,6 +143,7 @@ export async function generateDailyGame({
     const extracted = extractBundle(raw);
     if (!extracted.ok) {
       reasons.push(`attempt ${attempt} (${model}): could not extract bundle — ${extracted.reason}`);
+      kinds.push('extract');
       priorFailureFeedback = EXTRACTION_FEEDBACK[extracted.reason] ?? 'Your response did not match the required format.';
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
       continue;
@@ -138,6 +157,7 @@ export async function generateDailyGame({
     });
     if (!moderation.pass) {
       reasons.push(`attempt ${attempt} (${model}): moderation rejected — ${moderation.reasons.join('; ')}`);
+      kinds.push('moderation');
       priorFailureFeedback = `Your previous game violated the content rules: ${moderation.reasons.join('; ')}. Re-read the content rules and avoid this entirely.`;
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
       continue;
@@ -146,15 +166,35 @@ export async function generateDailyGame({
     const smoke = await smokeTester.test(extracted.html);
     if (!smoke.pass) {
       reasons.push(`attempt ${attempt} (${model}): smoke test failed — ${smoke.reasons.join('; ')}`);
+      kinds.push(smokeFailureKind(smoke));
       priorFailureFeedback = `Your previous game did not run correctly: ${smoke.reasons.join('; ')}. Be more defensive — guard every element lookup, and make no network requests of any kind.`;
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
       continue;
     }
 
-    return { status: 'success', meta: extracted.meta, html: extracted.html, model, attempts: attempt };
+    return {
+      status: 'success',
+      meta: extracted.meta,
+      html: extracted.html,
+      model,
+      attempts: attempt,
+      canvasDrawn: smoke.canvasDrawn,
+    };
   }
 
-  return { status: 'failed_kept_previous', attempts: MAX_ATTEMPTS, reasons, model };
+  return { status: 'failed_kept_previous', attempts: MAX_ATTEMPTS, reasons, kinds, model };
+}
+
+/**
+ * Which closed-vocabulary kind a smoke-test rejection was.
+ *
+ * The result can carry more than one problem; the most specific wins, since
+ * that is what the corrective guidance keys off.
+ */
+function smokeFailureKind(smoke: SmokeTestResult): FailureKind {
+  if (smoke.networkAttempts.length > 0) return 'smoke-network';
+  if (smoke.pageErrors.length > 0 || smoke.consoleErrors.length > 0) return 'smoke-js-error';
+  return 'smoke-load';
 }
 
 /** Retrying on a different model gives a genuinely different roll of the dice. */
@@ -250,6 +290,7 @@ export async function runDailyPipeline({
       html: result.html,
       model: result.model,
       attempts: result.attempts,
+      canvasDrawn: result.canvasDrawn,
       generationConfig: generation,
       genres,
       historyEntries,
@@ -257,7 +298,14 @@ export async function runDailyPipeline({
     });
     console.log(`Published ${published.slug} (model ${result.model}, ${result.attempts} attempt(s))`);
   } else {
-    recordFailure({ date, model: result.model, attempts: result.attempts, historyEntries });
+    recordFailure({
+      date,
+      model: result.model,
+      attempts: result.attempts,
+      reasons: result.reasons,
+      kinds: result.kinds,
+      historyEntries,
+    });
     console.log(`All ${result.attempts} attempts failed — previous game kept. Reasons:`);
     for (const reason of result.reasons) console.log(`  - ${reason}`);
   }

@@ -111,6 +111,12 @@ test('renderGamesMd lists newest first', () => {
   assert.ok(md.indexOf('2026-08-29') < md.indexOf('2026-08-28'));
 });
 
+test('renderGamesMd names why a failed run gave up', () => {
+  const md = renderGamesMd([{ ...FAILED, failureReasons: ['attempt 1: uncaught JS error'] }]);
+
+  assert.match(md, /attempt 1: uncaught JS error/);
+});
+
 test('renderGamesMd handles an empty history', () => {
   assert.match(renderGamesMd([]), /_No games yet\._/);
 });

@@ -83,6 +83,37 @@ jobs:
           fi
           node --experimental-strip-types scripts/call-openrouter.ts "${args[@]}"
 
+      # Distils the hot window into the lessons note the next prompt reads.
+      # Like the rollup, it must not cost an already-published game its commit.
+      - name: Reflect on recent games
+        continue-on-error: true
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          node --experimental-strip-types scripts/reflect-lessons.ts "${args[@]}"
+
+      # After the day's entry exists so it counts toward the trigger, and
+      # before the change check so the archive lands in the same commit.
+      - name: Roll up history
+        # A failed step skips the commit below, which would discard a game
+        # that is already generated, moderated and smoke-tested. Compaction
+        # is maintenance: it can wait for tomorrow's run.
+        continue-on-error: true
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          node --experimental-strip-types scripts/rollup-history.ts "${args[@]}"
+
       # The tree is the source of truth for what happened. Three failed
       # attempts is a successful run that writes only history and leaves
       # manifest.json alone, so the two questions are asked separately.

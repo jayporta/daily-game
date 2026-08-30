@@ -115,6 +115,45 @@ test('gives up after three failures and keeps the previous game', async () => {
   assert.match(result.reasons[2] as string, /could not extract bundle/);
 });
 
+// The kinds are what the next day's prompt keys its guidance off, so they
+// have to name the failure that actually happened.
+test('each failed attempt is tagged with the kind of failure it was', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: scriptedClient([
+      loadFixture('bad-js-error'),
+      loadFixture('bad-fetch-attempt'),
+      loadFixture('bad-malformed-blocks'),
+    ]),
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.deepEqual(result.kinds, ['smoke-js-error', 'smoke-network', 'extract']);
+});
+
+test('a moderation rejection is tagged as one', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: scriptedClient(
+      [loadFixture('good-maze'), loadFixture('good-maze'), loadFixture('good-maze')],
+      'FAIL: not allowed',
+    ),
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.deepEqual(result.kinds, ['moderation', 'moderation', 'moderation']);
+});
+
+test('a successful run reports whether the game drew anything', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: scriptedClient([loadFixture('good-maze')]),
+  });
+
+  assert.equal(result.status, 'success');
+  assert.equal(result.canvasDrawn, true);
+});
+
 test('a guardrail-violating bundle is rejected even when it runs fine', async () => {
   const result = await generateDailyGame({
     ...baseParams(),

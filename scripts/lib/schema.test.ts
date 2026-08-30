@@ -9,6 +9,7 @@ import {
   validateGenerationConfig,
   validateHistoryGames,
   validateHistorySummary,
+  validateCspAllowsEndpoint,
 } from './schema.ts';
 
 test('validateModelsConfig accepts a valid config', () => {
@@ -144,11 +145,42 @@ test('validateReactionConfig accepts the unconfigured store this site ships with
   });
 });
 
-test('validateReactionConfig accepts a configured store', () => {
+test('validateReactionConfig accepts a store with a publishable key', () => {
   assert.equal(
-    validateReactionConfig({ endpointUrl: 'https://proj.supabase.co/rest/v1/reactions', anonKey: 'k' })
-      .valid,
+    validateReactionConfig({
+      endpointUrl: 'https://proj.supabase.co/rest/v1/reactions',
+      anonKey: 'sb_publishable_AbC123',
+    }).valid,
     true,
+  );
+});
+
+test('validateReactionConfig accepts a legacy anon JWT', () => {
+  const anonJwt = `header.${Buffer.from('{"role":"anon"}').toString('base64url')}.sig`;
+
+  assert.equal(
+    validateReactionConfig({ endpointUrl: 'https://proj.test/rest/v1/x', anonKey: anonJwt }).valid,
+    true,
+  );
+});
+
+// Supabase's newer secret keys are not JWTs, so a check that only decoded
+// JWTs would wave one straight through into the page.
+test('validateReactionConfig rejects a secret key', () => {
+  const result = validateReactionConfig({
+    endpointUrl: 'https://proj.test/rest/v1/x',
+    anonKey: 'sb_secret_AbC123',
+  });
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join(' '), /ships to every visitor/);
+});
+
+// An allowlist: an unfamiliar shape is refused rather than assumed harmless.
+test('validateReactionConfig rejects a key of no recognised shape', () => {
+  assert.equal(
+    validateReactionConfig({ endpointUrl: 'https://proj.test/rest/v1/x', anonKey: 'k' }).valid,
+    false,
   );
 });
 
@@ -168,7 +200,6 @@ test('validateReactionConfig rejects a service_role key', () => {
   const result = validateReactionConfig({ endpointUrl: null, anonKey: serviceRoleJwt });
 
   assert.equal(result.valid, false);
-  assert.match(result.errors.join(' '), /service_role/);
 });
 
 test('the reaction config this repo ships carries no privileged key', () => {
@@ -228,4 +259,55 @@ test('validateHistorySummary rejects lessons that are not a string', () => {
 
 test('validateHistorySummary rejects genre counts that are not numbers', () => {
   assert.equal(validateHistorySummary({ genreCounts: { puzzle: 'three' } }).valid, false);
+});
+
+const CSP_SELF_ONLY = '<meta content="connect-src \'self\'; form-action \'none\'" />';
+const CSP_WITH_STORE =
+  '<meta content="connect-src \'self\' https://proj.supabase.co; form-action \'none\'" />';
+
+test('validateCspAllowsEndpoint passes when no store is configured', () => {
+  assert.deepEqual(validateCspAllowsEndpoint(null, CSP_SELF_ONLY), { valid: true, errors: [] });
+});
+
+// The trap this exists for: a configured store the CSP does not permit means
+// the browser blocks every reaction and sendReaction swallows the failure, so
+// nothing anywhere reports it.
+test('validateCspAllowsEndpoint rejects a store the CSP would block', () => {
+  const result = validateCspAllowsEndpoint(
+    'https://proj.supabase.co/rest/v1/reactions',
+    CSP_SELF_ONLY,
+  );
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join(' '), /https:\/\/proj\.supabase\.co/);
+});
+
+test('validateCspAllowsEndpoint passes once the origin is listed', () => {
+  const result = validateCspAllowsEndpoint(
+    'https://proj.supabase.co/rest/v1/reactions',
+    CSP_WITH_STORE,
+  );
+
+  assert.equal(result.valid, true);
+});
+
+// A prefix match would accept an attacker-controlled lookalike origin.
+test('validateCspAllowsEndpoint matches whole origins, not substrings', () => {
+  const result = validateCspAllowsEndpoint(
+    'https://proj.supabase.co.evil.test/rest/v1/reactions',
+    CSP_WITH_STORE,
+  );
+
+  assert.equal(result.valid, false);
+});
+
+test('validateCspAllowsEndpoint rejects an endpoint that is not a URL', () => {
+  assert.equal(validateCspAllowsEndpoint('not a url', CSP_WITH_STORE).valid, false);
+});
+
+test('validateCspAllowsEndpoint reports a page with no connect-src at all', () => {
+  const result = validateCspAllowsEndpoint('https://proj.supabase.co/x', '<meta content="" />');
+
+  assert.equal(result.valid, false);
+  assert.match(result.errors.join(' '), /no connect-src/);
 });

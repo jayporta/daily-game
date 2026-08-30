@@ -41,6 +41,9 @@ npm run test:web     # vitest only       (*.test.tsx)
 npm run test:watch   # vitest in watch mode
 npm run typecheck    # both projects: tsconfig.json and tsconfig.web.json
 npm run validate     # every hand-editable config + history file
+npm run rollup       # compact history/games.json into archive + summary
+npm run reflect      # rewrite summary.json's lessons from the hot window
+npm run schema       # print the reaction store's DDL
 npm run dry-run      # whole pipeline against mocks, writing nothing to disk
 npm run generate:local  # same, but publishes locally so `npm run dev` has a game
 npm run build:site   # vite build + assemble-site.ts → deployable dist/
@@ -237,6 +240,36 @@ refactor.
   vocabulary rather than the store's response. Anyone who loads the page
   holds the insert key, so no string from the store may ever reach
   `history/games.json` or the generation prompt.
+- **Only our own words reach the generation prompt as guidance.**
+  `correctiveDirectives` in `scripts/build-prompt.ts` keys fixed wording off
+  the closed `DISLIKE_REASONS` and `FAILURE_KINDS` vocabularies, so nothing a
+  visitor or a previous generation authored is quoted into the next prompt.
+  `digestHistory` shows model-authored `theme`/`mechanics`/`title` as labelled
+  historical data, never as instructions, and never shows `failureReasons`.
+
+  The `lessons` note is the one indirect path, and it is worth understanding
+  before changing: `failureReasons` (which embed console output from
+  AI-written games) reach the *reflection* prompt in
+  `scripts/lib/lessons-prompt.ts`, the model there writes the note, and the
+  note reaches the *generation* prompt. Two model hops, capped at 300
+  characters per reason and 4,000 for the note. That is a deliberate trade —
+  a note distilled from "smoke-js-error x3" alone would be useless — but it
+  is the one place model-authored text can influence later instructions, so
+  keep both caps and never route `failureReasons` into the generation prompt
+  directly.
+- **`reflect-lessons.ts` owns `lessons`; `rollup-history.ts` owns the archive
+  and the tallies.** The rollup makes no model call and carries the note
+  through untouched. Two writers of one field would race each other.
+- **The archive is append-only and nothing is ever dropped.**
+  `scripts/rollup-history.ts` moves entries out of `history/games.json` into
+  `history/archive/YYYY-MM.jsonl`. Every entry must survive in one place or
+  the other — the rollup archives before it truncates, and re-archiving a
+  date it already holds is a no-op so a re-run cannot duplicate. Losing an
+  entry loses a day of the project permanently.
+  The summary's tallies are *derived* from the whole archive by
+  `summariseEntries`, never added to the previous summary. That is what makes
+  a repeated or interrupted rollup safe: accumulating instead double-counted
+  every genre when a run repeated before `games.json` was truncated.
 - **`lib/` stays isomorphic.** It's compiled by both tsconfigs; a Node-only
   API there breaks the browser build. Node-only code belongs in `scripts/`,
   which never ships to Pages.

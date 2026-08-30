@@ -17,8 +17,10 @@
 // it. Its constraints, not the checks in the browser, are what actually
 // bound what can be stored: anyone who loads the page holds the insert
 // key. Verify RLS is ON and that the anon key can neither select nor
-// update; the front-end never reads, so a working select means the policy
-// is wrong. The privileged read key belongs in REACTION_STORE_KEY and must
+// update; the front-end never reads, so a select that returns
+// rows means the policy is wrong. RLS with no select policy answers 200
+// with an empty array rather than an error, so the status alone proves
+// nothing. The privileged read key belongs in REACTION_STORE_KEY and must
 // never be committed.
 import { DISLIKE_REASONS, isPublishableSlug, type DislikeReason } from '../lib/reaction-types.ts';
 import { patchEntry } from './lib/history-store.ts';
