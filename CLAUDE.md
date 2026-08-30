@@ -40,6 +40,7 @@ npm run test:node    # node --test only  (*.test.ts)
 npm run test:web     # vitest only       (*.test.tsx)
 npm run test:watch   # vitest in watch mode
 npm run typecheck    # both projects: tsconfig.json and tsconfig.web.json
+npm run validate     # every hand-editable config + history file
 npm run dry-run      # whole pipeline against mocks, writing nothing to disk
 npm run generate:local  # same, but publishes locally so `npm run dev` has a game
 npm run build:site   # vite build + assemble-site.ts → deployable dist/
@@ -202,12 +203,18 @@ refactor.
   `OUTPUT_FORMAT_CONTRACT` in `scripts/build-prompt.ts` describes the two
   fenced blocks that `lib/extract-bundle-shared.ts` parses. Change them
   together or every generation fails.
-- **`cronSchedule` will be duplicated by hand** in `config/generation.json`
-  and the daily workflow's `on.schedule.cron`, because Actions triggers
-  can't read config. Only the config copy exists today — it drives the
-  front-end countdown via `computeExpiresAt` — since
-  `generate-daily-game.yml` has not been written yet. Keep the two in step
-  the moment it is.
+- **`cronSchedule` is duplicated by hand** in `config/generation.json` and
+  `generate-daily-game.yml`'s `on.schedule.cron`, because Actions triggers
+  can't read config. Both copies exist now; change them together. The config
+  copy drives the front-end countdown via `computeExpiresAt`, so a drift
+  shows up as a countdown that expires at the wrong time rather than as a
+  failure.
+- **The daily job's push cannot trigger the deploy.** A push authenticated
+  with `GITHUB_TOKEN` does not start other workflows, so
+  `generate-daily-game.yml` calls `deploy-pages.yml` through `workflow_call`
+  instead of relying on its `push` trigger. Removing that `deploy` job, or
+  the `workflow_call:` trigger it depends on, leaves the site serving
+  yesterday's game with every workflow green.
 - **Published bundles ship byte-for-byte.** Nothing may transform an
   archived `game.html` between the pipeline writing it and the browser
   running it; the dev server has a plugin specifically to prevent Vite

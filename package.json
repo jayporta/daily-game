@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "test": "npm run test:node && npm run test:web",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.web.json",
+    "validate": "node --experimental-strip-types scripts/validate-config.ts",
     "dry-run": "node --experimental-strip-types scripts/call-openrouter.ts --dry-run",
     "generate:local": "node --experimental-strip-types scripts/call-openrouter.ts",
     "build:site": "vite build && node --experimental-strip-types scripts/assemble-site.ts",

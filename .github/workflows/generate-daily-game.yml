@@ -1,0 +1,153 @@
+# Builds one game a day and publishes it.
+#
+# Runs on mocks until Epic 6 provisions credentials: scripts/lib/get-client.ts
+# falls back to fixture responses when OPENROUTER_API_KEY is unset, and no
+# step here branches on whether the secret exists.
+name: Generate daily game
+
+on:
+  schedule:
+    # Duplicated by hand from cronSchedule in config/generation.json, which
+    # Actions cannot read. Change both together — the config copy drives the
+    # front-end countdown.
+    - cron: '0 13 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run the whole pipeline but write nothing to disk
+        type: boolean
+        default: false
+      force_model:
+        description: Pin every attempt to one model id, skipping the rotation
+        type: string
+        required: false
+
+permissions:
+  contents: write
+
+# One generation at a time. Two runs would race for the same day's slug and
+# the same history entry.
+concurrency:
+  group: generate-daily-game
+  cancel-in-progress: false
+
+# Everything the pipeline may write. Both the change check and `git add` use
+# this list, so they can never disagree about what is being committed.
+env:
+  PUBLISHED_PATHS: manifest.json games/archive history
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.publish-check.outputs.published }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history, so the push step below can rebase.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # The smoke test drives headless Chromium.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Before any API call, so a hand-edit to config/ fails in seconds
+      # rather than three attempts in.
+      - name: Validate config and history
+        run: npm run validate
+
+      # Inputs arrive as environment variables rather than being interpolated
+      # into the script: a `${{ }}` expression in a run block is substituted
+      # as text before bash sees it, so a crafted force_model would run as a
+      # command. They are empty on a schedule run.
+      - name: Generate
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          REACTION_STORE_KEY: ${{ secrets.REACTION_STORE_KEY }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          FORCE_MODEL: ${{ inputs.force_model }}
+        run: |
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          if [ -n "$FORCE_MODEL" ]; then
+            args+=("--force-model=$FORCE_MODEL")
+          fi
+          node --experimental-strip-types scripts/call-openrouter.ts "${args[@]}"
+
+      # The tree is the source of truth for what happened. Three failed
+      # attempts is a successful run that writes only history and leaves
+      # manifest.json alone, so the two questions are asked separately.
+      - name: Check what changed
+        id: publish-check
+        run: |
+          # Split into separate pathspecs explicitly, rather than relying on
+          # the shell to word-split an unquoted expansion.
+          read -ra paths <<< "$PUBLISHED_PATHS"
+          changed=false
+          published=false
+          if [ -n "$(git status --porcelain -- "${paths[@]}")" ]; then
+            changed=true
+          fi
+          if [ -n "$(git status --porcelain -- manifest.json)" ]; then
+            published=true
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "published=$published" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.publish-check.outputs.changed == 'true'
+        env:
+          PUBLISHED: ${{ steps.publish-check.outputs.published }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          read -ra paths <<< "$PUBLISHED_PATHS"
+          git add -- "${paths[@]}"
+          if [ "$PUBLISHED" = "true" ]; then
+            message="Publish $(jq -r .slug manifest.json)"
+          else
+            message="Record failed generation for $(date -u +%Y-%m-%d), previous game kept"
+          fi
+          git commit -m "$message"
+
+          # A push to main while this run was generating makes the push a
+          # non-fast-forward. The day's game is already generated, moderated
+          # and smoke-tested by this point, so rebase onto the new tip and
+          # retry rather than discarding it and failing the run.
+          for attempt in 1 2 3; do
+            if git push; then
+              exit 0
+            fi
+            echo "Push rejected on attempt $attempt; rebasing onto the new tip."
+            git pull --rebase
+          done
+          echo "::error::Could not push the day's game after 3 attempts."
+          exit 1
+
+      - name: Summary
+        run: |
+          {
+            echo "### Daily generation"
+            echo "- published: ${{ steps.publish-check.outputs.published }}"
+            echo "- committed: ${{ steps.publish-check.outputs.changed }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # A push authenticated with GITHUB_TOKEN does not trigger other workflows,
+  # so deploy-pages.yml is called rather than left to its own push trigger.
+  deploy:
+    needs: generate
+    if: needs.generate.outputs.published == 'true'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/deploy-pages.yml
