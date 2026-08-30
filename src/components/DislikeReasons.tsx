@@ -34,12 +34,12 @@ export function DislikeReasons({ onSubmit }: DislikeReasonsProps) {
 
   return (
     <div className="mt-3 text-sm">
-      <p className="mb-2 text-slate-400">What went wrong?</p>
+      <p className="mb-2 text-slate-500 dark:text-slate-400">What went wrong?</p>
 
       <ul className="space-y-1">
         {DISLIKE_REASONS.map((reason) => (
           <li key={reason.id}>
-            <label className="flex items-center gap-2 text-slate-300">
+            <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
               <input
                 type="checkbox"
                 checked={chosen.includes(reason.id)}
@@ -52,8 +52,8 @@ export function DislikeReasons({ onSubmit }: DislikeReasonsProps) {
         ))}
         {/* Set apart from the five: a convenience that ticks them all, not a
             sixth reason. What gets stored is always the concrete set. */}
-        <li className="mt-2 border-t border-slate-800 pt-2">
-          <label className="flex items-center gap-2 text-slate-300">
+        <li className="mt-2 border-t border-slate-200 pt-2 dark:border-slate-800">
+          <label className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
             <input
               type="checkbox"
               checked={allChosen}
@@ -69,14 +69,14 @@ export function DislikeReasons({ onSubmit }: DislikeReasonsProps) {
         <button
           type="button"
           onClick={() => onSubmit(inVocabularyOrder(chosen))}
-          className="rounded bg-slate-700 px-3 py-1 text-slate-100 transition-colors hover:bg-slate-600"
+          className="rounded bg-slate-200 px-3 py-1 text-slate-900 transition-colors hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
         >
           Send
         </button>
         <button
           type="button"
           onClick={() => onSubmit([])}
-          className="rounded px-3 py-1 text-slate-400 transition-colors hover:text-slate-200"
+          className="rounded px-3 py-1 text-slate-500 transition-colors hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200"
         >
           Skip
         </button>

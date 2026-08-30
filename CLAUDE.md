@@ -149,6 +149,9 @@ refactor.
   those would block the inline `<script>` in every generated bundle —
   breaking the whole site in production while every test still passes.
   The frame's `sandbox` attribute is what contains that code, not the CSP.
+  `index.html`'s own inline theme bootstrap relies on this too, so a
+  `script-src` added with a hash for that script would still break the
+  games.
 - **Reaction feedback is a closed vocabulary, never freetext.**
   `DISLIKE_REASONS` in `lib/reaction-types.ts` is the only thing that
   crosses the network, and `fetch-feedback.ts` tallies by iterating that

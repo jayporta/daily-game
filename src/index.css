@@ -1,7 +1,28 @@
 @import 'tailwindcss';
 
+/*
+  Make `dark:` follow the `data-theme` attribute the page sets, rather than
+  the operating system alone — otherwise the toggle in the header could not
+  override a visitor's OS setting. `index.html` sets the attribute before
+  first paint; src/hooks/useTheme.ts keeps it current after that.
+*/
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
 html,
 body,
 #root {
   height: 100%;
+}
+
+/*
+  The page's own background is painted by the App shell, but the first paint
+  happens before React mounts. Matching it here keeps that moment from
+  flashing the wrong colour.
+*/
+body {
+  background-color: var(--color-white);
+}
+
+[data-theme='dark'] body {
+  background-color: var(--color-slate-950);
 }

@@ -28,6 +28,43 @@
       content="connect-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'"
     />
     <title>Daily Game — a new AI-built game every day</title>
+    <!--
+      Paints the right theme before React mounts, so a visitor who chose
+      light does not get a flash of dark first.
+
+      Inline, which this CSP deliberately permits — see the note above:
+      adding `script-src` to allow it via a hash would cascade into every
+      AI-generated bundle and break the site. The sandbox contains that
+      code, not this policy.
+
+      Cannot import src/lib/theme.ts, so the key and attribute names are
+      hardcoded here; a test in src/lib/theme.test.ts fails if they drift
+      apart from the module's exports.
+    -->
+    <script>
+      (function () {
+        // Guarded separately, not in one try: `localStorage` throws outright
+        // in Safari's private mode, and swallowing that alongside the media
+        // query would force light on a visitor whose system asks for dark.
+        var stored = null;
+        try {
+          stored = localStorage.getItem('daily-game:theme');
+        } catch (storageDenied) {
+          /* no remembered choice, then */
+        }
+
+        var theme = stored === 'light' || stored === 'dark' ? stored : null;
+        if (theme === null) {
+          try {
+            theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          } catch (noMediaQueries) {
+            theme = 'light';
+          }
+        }
+
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
     <meta
       name="description"
       content="A complete browser game, invented from scratch by AI and rebuilt from nothing once a day."

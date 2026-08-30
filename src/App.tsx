@@ -4,6 +4,7 @@ import { GameFrame } from './components/GameFrame.tsx';
 import { ControlLegend } from './components/ControlLegend.tsx';
 import { GameMeta } from './components/GameMeta.tsx';
 import { ReactionBar } from './components/ReactionBar.tsx';
+import { ThemeToggle } from './components/ThemeToggle.tsx';
 import { fetchGameHtml, fetchManifest } from './lib/manifest-client.ts';
 import type { Manifest } from '../lib/types.ts';
 
@@ -47,16 +48,17 @@ export function App() {
   }, []);
 
   return (
-    <div className="flex h-dvh flex-col bg-slate-950 text-slate-100">
-      <header className="border-b border-slate-800 px-4 py-3">
+    <div className="flex h-dvh flex-col bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-4 py-3 dark:border-slate-800">
         {state.status === 'ready' ? (
           <GameMeta manifest={state.manifest} />
         ) : (
           <h1 className="text-base font-semibold">Daily Game</h1>
         )}
+        {/* Site chrome, so it is offered in every state — including the seed
+            state, where there is no game to theme around. */}
+        <ThemeToggle />
       </header>
-
-      {state.status === 'ready' && <ControlLegend controls={state.manifest.controls} />}
 
       <main className="min-h-0 flex-1">
         {state.status === 'loading' && <Centered>Loading today&rsquo;s game&hellip;</Centered>}
@@ -70,14 +72,21 @@ export function App() {
         {state.status === 'ready' && <GameFrame html={state.html} title={state.manifest.title} />}
       </main>
 
-      {/* Below the frame and outside it: the rating must not be reachable by
-          the AI-authored code it rates. See ReactionBar's own note. */}
-      {state.status === 'ready' && <ReactionBar slug={state.manifest.slug} />}
+      {/* One strip directly under the frame: what the game listens for on the
+          left, the rating on the right. Both are outside the frame, and the
+          rating must stay that way — it must not be reachable by the
+          AI-authored code it rates. See ReactionBar's own note. */}
+      {state.status === 'ready' && (
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-2 border-t border-slate-200 px-4 py-2 dark:border-slate-800">
+          <ControlLegend controls={state.manifest.controls} />
+          <ReactionBar slug={state.manifest.slug} />
+        </div>
+      )}
 
-      <footer className="border-t border-slate-800 px-4 py-2 text-xs text-slate-500">
+      <footer className="border-t border-slate-200 px-4 py-2 text-xs text-slate-500 dark:border-slate-800">
         A new game, invented by AI, every day. Built by Jason Matthew Porta ·{' '}
         <a
-          className="underline hover:text-slate-300"
+          className="underline hover:text-slate-900 dark:hover:text-slate-300"
           href="https://github.com/jayporta/daily-game"
         >
           source
