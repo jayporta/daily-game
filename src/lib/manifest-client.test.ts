@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { fetchGameHtml, fetchManifest, isManifest, manifestUrl } from './manifest-client.ts';
 
 const VALID = {
+  genreLabel: 'Maze Adventure',
+  controls: [{ action: 'Move', key: 'Arrow keys' }],
   date: '2026-08-29',
   slug: '2026-08-29-beetle',
   path: 'games/archive/2026-08-29-beetle/game.html',
@@ -91,4 +93,35 @@ test('fetchGameHtml throws on an HTTP error', async () => {
       }),
     /could not load game \(500\)/,
   );
+});
+
+test('isManifest requires the readable genre label', () => {
+  const { genreLabel: _omitted, ...withoutLabel } = VALID;
+
+  assert.equal(isManifest(withoutLabel), false);
+});
+
+test('isManifest requires the controls list', () => {
+  const { controls: _omitted, ...withoutControls } = VALID;
+
+  assert.equal(isManifest(withoutControls), false);
+});
+
+test('isManifest accepts a game that reported no controls', () => {
+  assert.equal(isManifest({ ...VALID, controls: [] }), true);
+});
+
+test('isManifest rejects controls that are not a list', () => {
+  assert.equal(isManifest({ ...VALID, controls: 'W to move' }), false);
+});
+
+// The manifest is written by our pipeline, but it is fetched over the wire
+// and a half-written one should fail visibly rather than render blanks.
+test('isManifest rejects a control missing either half', () => {
+  assert.equal(isManifest({ ...VALID, controls: [{ action: 'Jump' }] }), false);
+  assert.equal(isManifest({ ...VALID, controls: [{ key: 'Space' }] }), false);
+});
+
+test('isManifest rejects a control whose halves are not strings', () => {
+  assert.equal(isManifest({ ...VALID, controls: [{ action: 1, key: 2 }] }), false);
 });

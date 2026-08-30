@@ -11,9 +11,11 @@ const MANIFEST: Manifest = {
   path: 'games/archive/2026-08-29-beetle/game.html',
   title: 'Beetle of a Thousand Mirrors',
   genre: 'maze-adventure',
+  genreLabel: 'Maze Adventure',
   model: 'qwen/qwen-2.5-72b-instruct:free',
   generatedAt: '2026-08-29T09:04:00.000Z',
   expiresAt: '2026-08-29T18:00:00.000Z',
+  controls: [{ action: 'Move', key: 'Arrow keys' }],
 };
 
 describe('GameMeta', () => {
@@ -30,7 +32,7 @@ describe('GameMeta', () => {
     render(<GameMeta manifest={MANIFEST} />);
 
     expect(screen.getByRole('heading', { name: 'Beetle of a Thousand Mirrors' })).toBeVisible();
-    expect(screen.getByText('maze-adventure')).toBeVisible();
+    expect(screen.getByText('Maze Adventure')).toBeVisible();
     expect(screen.getByText('qwen/qwen-2.5-72b-instruct:free')).toBeVisible();
   });
 

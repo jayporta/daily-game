@@ -13,7 +13,8 @@ import {
   slugify,
 } from './publish.ts';
 import { loadFixtureBundle } from './lib/fixtures.ts';
-import type { GenerationConfig, HistoryGameEntry } from './lib/types.ts';
+import type { GenerationConfig, GenresConfig, HistoryGameEntry } from './lib/types.ts';
+import type { GeneratedMeta } from '../lib/types.ts';
 
 const GENERATION_CONFIG: GenerationConfig = {
   historyHotWindowDays: 45,
@@ -23,6 +24,19 @@ const GENERATION_CONFIG: GenerationConfig = {
   retryTemperatures: [0.7, 0.9, 1.0],
   sentryDsn: null,
   cronSchedule: '0 13 * * *',
+};
+
+const GENRES: GenresConfig = [
+  { id: 'maze-adventure', label: 'Maze Adventure', examples: [] },
+  { id: 'puzzle', label: 'Puzzle', examples: [] },
+];
+
+const META: GeneratedMeta = {
+  title: 'Beetle Maze',
+  genre: 'maze-adventure',
+  theme: 'glass beetles',
+  mechanics: ['move'],
+  controls: [],
 };
 
 function scratchRoot(t: { after(fn: () => void): void }): string {
@@ -79,6 +93,7 @@ test('buildManifest records the url-facing path and computed expiry', () => {
     model: 'a/model:free',
     generatedAt: '2026-08-29T13:04:00.000Z',
     cronSchedule: '0 13 * * *',
+    genres: GENRES,
   });
   assert.equal(manifest.path, 'games/archive/2026-08-29-beetle/game.html');
   assert.equal(manifest.title, meta.title);
@@ -97,6 +112,7 @@ test('publish writes the archive folder, manifest and history', (t) => {
     model: 'a/model:free',
     attempts: 1,
     generationConfig: GENERATION_CONFIG,
+    genres: GENRES,
     historyEntries: [],
     generatedAt: '2026-08-29T13:04:00.000Z',
     root,
@@ -129,6 +145,7 @@ test('publish appends no Sentry snippet while the dsn is null', (t) => {
     model: 'a/model:free',
     attempts: 1,
     generationConfig: GENERATION_CONFIG,
+    genres: GENRES,
     historyEntries: [],
     root,
   });
@@ -148,6 +165,7 @@ test('publish appends the snippet once a dsn is configured', (t) => {
     model: 'a/model:free',
     attempts: 1,
     generationConfig: { ...GENERATION_CONFIG, sentryDsn: 'https://ingest.example/123' },
+    genres: GENRES,
     historyEntries: [],
     root,
   });
@@ -171,6 +189,7 @@ test('publish preserves earlier history entries', (t) => {
     model: 'a/model:free',
     attempts: 2,
     generationConfig: GENERATION_CONFIG,
+    genres: GENRES,
     historyEntries: existing,
     root,
   });
@@ -194,4 +213,48 @@ test('recordFailure logs the failure and leaves the manifest untouched', (t) => 
   assert.equal(entries[0]?.status, 'failed_kept_previous');
   assert.equal(existsSync(join(root, 'manifest.json')), false, 'the live site must not be touched');
   assert.equal(existsSync(join(root, 'games', 'archive')), false);
+});
+
+test('buildManifest shows the genre by its readable label', () => {
+  const manifest = buildManifest({
+    date: '2026-08-29',
+    slug: '2026-08-29-beetle',
+    meta: { ...META, genre: 'growth-sim' },
+    genres: [{ id: 'growth-sim', label: 'Growth Simulation', examples: [] }],
+    model: 'a/model:free',
+    generatedAt: '2026-08-29T13:00:00.000Z',
+    cronSchedule: '0 13 * * *',
+  });
+
+  assert.equal(manifest.genreLabel, 'Growth Simulation');
+});
+
+// Title-casing the id would produce "Growth Sim", so the label has to come
+// from config rather than be derived.
+test('buildManifest falls back to the raw genre id when it is unknown', () => {
+  const manifest = buildManifest({
+    date: '2026-08-29',
+    slug: '2026-08-29-beetle',
+    meta: { ...META, genre: 'not-a-real-genre' },
+    genres: [{ id: 'puzzle', label: 'Puzzle', examples: [] }],
+    model: 'a/model:free',
+    generatedAt: '2026-08-29T13:00:00.000Z',
+    cronSchedule: '0 13 * * *',
+  });
+
+  assert.equal(manifest.genreLabel, 'not-a-real-genre');
+});
+
+test('buildManifest carries the reported controls through to the front-end', () => {
+  const manifest = buildManifest({
+    date: '2026-08-29',
+    slug: '2026-08-29-beetle',
+    meta: { ...META, controls: [{ action: 'Steer', key: 'Arrow keys' }] },
+    genres: [{ id: META.genre, label: 'Maze Adventure', examples: [] }],
+    model: 'a/model:free',
+    generatedAt: '2026-08-29T13:00:00.000Z',
+    cronSchedule: '0 13 * * *',
+  });
+
+  assert.deepEqual(manifest.controls, [{ action: 'Steer', key: 'Arrow keys' }]);
 });

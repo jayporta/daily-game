@@ -60,3 +60,144 @@ test('rejects non-string input', () => {
   const result = extractBundle(undefined);
   assert.equal(result.ok, false);
 });
+
+/** A response whose meta block is exactly `meta`, with a valid html block. */
+function responseWithMeta(meta: unknown): string {
+  return `\`\`\`json\n${JSON.stringify(meta)}\n\`\`\`\n\`\`\`html\n<div>game</div>\n\`\`\``;
+}
+
+const BASE_META = { title: 'x', genre: 'y', theme: 'z', mechanics: [] };
+
+test('extracts the controls the game reports', () => {
+  const result = extractBundle(
+    responseWithMeta({
+      ...BASE_META,
+      controls: [
+        { action: 'Steer', key: 'Arrow keys' },
+        { action: 'Boost', key: 'Shift' },
+      ],
+    }),
+  );
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.meta.controls, [
+    { action: 'Steer', key: 'Arrow keys' },
+    { action: 'Boost', key: 'Shift' },
+  ]);
+});
+
+test('a game that reports no controls is still a valid bundle', () => {
+  const result = extractBundle(responseWithMeta({ ...BASE_META, controls: [] }));
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.meta.controls, []);
+});
+
+// The field is new; a model that omits it should not cost the day its game.
+test('a response omitting controls entirely still extracts', () => {
+  const result = extractBundle(responseWithMeta(BASE_META));
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.meta.controls, []);
+});
+
+test('controls that are not a list are discarded', () => {
+  const result = extractBundle(responseWithMeta({ ...BASE_META, controls: 'W to move' }));
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.meta.controls, []);
+});
+
+test('a control missing either half is dropped', () => {
+  const result = extractBundle(
+    responseWithMeta({
+      ...BASE_META,
+      controls: [{ action: 'Jump' }, { key: 'Space' }, { action: 'Fire', key: 'F' }],
+    }),
+  );
+
+  assert.deepEqual(result.ok === true && result.meta.controls, [{ action: 'Fire', key: 'F' }]);
+});
+
+test('control text is trimmed', () => {
+  const result = extractBundle(
+    responseWithMeta({ ...BASE_META, controls: [{ action: '  Jump  ', key: ' Space ' }] }),
+  );
+
+  assert.deepEqual(result.ok === true && result.meta.controls, [
+    { action: 'Jump', key: 'Space' },
+  ]);
+});
+
+// Everything below renders in the parent page, so none of it may run away.
+test('an over-long control is truncated rather than shown in full', () => {
+  const result = extractBundle(
+    responseWithMeta({ ...BASE_META, controls: [{ action: 'a'.repeat(500), key: 'b'.repeat(500) }] }),
+  );
+
+  const [control] = result.ok === true ? result.meta.controls : [];
+  assert.ok((control?.action.length ?? 0) <= 40, 'action was not bounded');
+  assert.ok((control?.key.length ?? 0) <= 40, 'key was not bounded');
+});
+
+test('a runaway number of controls is capped', () => {
+  const many = Array.from({ length: 200 }, (_, i) => ({ action: `Do ${i}`, key: `K${i}` }));
+
+  const result = extractBundle(responseWithMeta({ ...BASE_META, controls: many }));
+
+  assert.ok((result.ok === true ? result.meta.controls.length : 0) <= 10);
+});
+
+test('controls that are not objects are dropped', () => {
+  const result = extractBundle(
+    responseWithMeta({ ...BASE_META, controls: [null, 'W', 42, ['a'], { action: 'Go', key: 'G' }] }),
+  );
+
+  assert.deepEqual(result.ok === true && result.meta.controls, [{ action: 'Go', key: 'G' }]);
+});
+
+// A model repeating itself would otherwise render the same row twice and
+// hand React two identical keys.
+test('a control reported twice is kept once', () => {
+  const result = extractBundle(
+    responseWithMeta({
+      ...BASE_META,
+      controls: [
+        { action: 'Move', key: 'Arrow keys' },
+        { action: 'Move', key: 'Arrow keys' },
+        { action: 'Jump', key: 'Space' },
+      ],
+    }),
+  );
+
+  assert.deepEqual(result.ok === true && result.meta.controls, [
+    { action: 'Move', key: 'Arrow keys' },
+    { action: 'Jump', key: 'Space' },
+  ]);
+});
+
+test('the same action on a different input is kept, not merged', () => {
+  const result = extractBundle(
+    responseWithMeta({
+      ...BASE_META,
+      controls: [
+        { action: 'Move', key: 'Arrow keys' },
+        { action: 'Move', key: 'WASD' },
+      ],
+    }),
+  );
+
+  assert.equal(result.ok === true && result.meta.controls.length, 2);
+});
+
+test('duplicates are removed before the cap, not after', () => {
+  const controls = Array.from({ length: 40 }, () => ({ action: 'Move', key: 'Arrows' })).concat(
+    Array.from({ length: 5 }, (_, i) => ({ action: `Act ${i}`, key: `K${i}` })),
+  );
+
+  const result = extractBundle(responseWithMeta({ ...BASE_META, controls }));
+
+  // Without dedup-before-cap, 40 identical entries eat the whole budget and
+  // the five real controls never appear.
+  assert.equal(result.ok === true && result.meta.controls.length, 6);
+});

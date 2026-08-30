@@ -21,15 +21,18 @@ export const DISLIKE_REASONS = [
   { id: 'broken', label: "Doesn't work" },
   { id: 'missing-art', label: 'Works but missing background or sprites' },
   { id: 'goal-unclear', label: 'Goal unclear' },
-  { id: 'instructions-unclear', label: "Instructions don't make sense" },
-  { id: 'description-mismatch', label: "Description doesn't match or make sense" },
+  { id: 'controls-unclear', label: "Controls don't work as displayed" },
+  { id: 'gametype-mismatch', label: "Game type doesn't match output" },
 ] as const satisfies readonly { readonly id: string; readonly label: string }[];
 
 /** One of {@link DISLIKE_REASONS}' ids. */
 export type DislikeReason = (typeof DISLIKE_REASONS)[number]['id'];
 
+/** Every way a visitor can react. The single source for the union below. */
+export const REACTION_KINDS = ['like', 'dislike'] as const;
+
 /** Which way a visitor reacted. */
-export type ReactionKind = 'like' | 'dislike';
+export type ReactionKind = (typeof REACTION_KINDS)[number];
 
 /** The row the browser inserts, and the pipeline reads back. */
 export interface ReactionPayload {
@@ -56,8 +59,12 @@ export function isDislikeReason(value: unknown): value is DislikeReason {
  * Slugs as `publish.ts` builds them: an ISO date followed by a kebab-case
  * title. Anchored, and with no `.` or `/`, so a slug can never traverse a
  * URL path or a directory.
+ *
+ * Exported because the reaction store constrains its `slug` column with
+ * this same pattern — see `scripts/reaction-store-schema.ts`, which reads
+ * it from here rather than repeating it.
  */
-const SLUG_PATTERN = /^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/;
+export const SLUG_PATTERN = /^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/;
 
 /**
  * Whether a value is a slug this project could have published.

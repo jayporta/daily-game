@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { createPaths, paths as defaultPaths, type Paths } from './lib/paths.ts';
 import { appendEntry, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
 import type { GeneratedMeta, Manifest } from '../lib/types.ts';
-import type { GenerationConfig, HistoryGameEntry } from './lib/types.ts';
+import type { GenerationConfig, GenresConfig, HistoryGameEntry } from './lib/types.ts';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -76,6 +76,8 @@ export interface BuildManifestParams {
   model: string;
   generatedAt: string;
   cronSchedule: string;
+  /** Genre catalogue, used to resolve {@link Manifest.genreLabel}. */
+  genres: GenresConfig;
   paths?: Paths;
 }
 
@@ -86,6 +88,7 @@ export function buildManifest({
   model,
   generatedAt,
   cronSchedule,
+  genres,
   paths = defaultPaths,
 }: BuildManifestParams): Manifest {
   return {
@@ -94,9 +97,13 @@ export function buildManifest({
     path: paths.archiveGameUrlPath(slug),
     title: meta.title,
     genre: meta.genre,
+    // An unknown id means the model ignored the catalogue; show what it
+    // said rather than an empty chip.
+    genreLabel: genres.find((genre) => genre.id === meta.genre)?.label ?? meta.genre,
     model,
     generatedAt,
     expiresAt: computeExpiresAt(cronSchedule, generatedAt),
+    controls: meta.controls,
   };
 }
 
@@ -131,6 +138,8 @@ export interface PublishParams {
   model: string;
   attempts: number;
   generationConfig: GenerationConfig;
+  /** Genre catalogue, used to resolve {@link Manifest.genreLabel}. */
+  genres: GenresConfig;
   historyEntries: HistoryGameEntry[];
   generatedAt?: string;
   /** Repo root to write into — overridden in tests. */
@@ -150,6 +159,7 @@ export function publish({
   model,
   attempts,
   generationConfig,
+  genres,
   historyEntries,
   generatedAt = new Date().toISOString(),
   root,
@@ -171,6 +181,7 @@ export function publish({
     model,
     generatedAt,
     cronSchedule: generationConfig.cronSchedule,
+    genres,
     paths,
   });
   writeFileSync(paths.manifest, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');

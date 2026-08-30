@@ -1,7 +1,7 @@
 Here is your game:
 
 ```json
-{"title": "Bad Word Game", "genre": "puzzle", "theme": "a puzzle involving blood splatter effects", "mechanics": ["click to splatter blood"]}
+{"title": "Bad Word Game", "genre": "puzzle", "theme": "a puzzle involving blood splatter effects", "mechanics": ["click to splatter blood"], "controls": [{"action": "Splatter", "key": "Click"}]}
 ```
 
 ```html

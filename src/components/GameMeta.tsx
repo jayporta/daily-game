@@ -18,7 +18,7 @@ export function GameMeta({ manifest }: GameMetaProps) {
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm text-slate-400">
       <h1 className="text-base font-semibold text-slate-100">{manifest.title}</h1>
       <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300">
-        {manifest.genre}
+        {manifest.genreLabel}
       </span>
       <span className="text-slate-500">
         Generated {formatGeneratedDate(manifest.generatedAt)}

@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "date": "2026-08-30",
+    "status": "published",
+    "model": "qwen/qwen-2.5-72b-instruct:free",
+    "slug": "2026-08-30-beetle-of-a-thousand-mirrors",
+    "genre": "maze-adventure",
+    "theme": "glass beetles navigating a mirrored maze",
+    "mechanics": [
+      "arrow-key movement",
+      "collect shards",
+      "avoid mirror walls"
+    ],
+    "title": "Beetle of a Thousand Mirrors",
+    "attempts": 1
+  }
+]

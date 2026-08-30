@@ -18,7 +18,7 @@ export const OUTPUT_FORMAT_CONTRACT = `Return EXACTLY two fenced code blocks and
 
 First, a block tagged \`json\` containing only this object:
 \`\`\`json
-{"title": "...", "genre": "...", "theme": "...", "mechanics": ["...", "..."]}
+{"title": "...", "genre": "...", "theme": "...", "mechanics": ["...", "..."], "controls": [{"action": "...", "key": "..."}]}
 \`\`\`
 
 Second, a block tagged \`html\` containing the entire game as ONE self-contained HTML file:
@@ -28,7 +28,13 @@ Second, a block tagged \`html\` containing the entire game as ONE self-contained
 \`\`\`
 
 The \`genre\` value must be one of the genre ids listed above. The html block
-must be a complete, immediately playable document that needs no other files.`;
+must be a complete, immediately playable document that needs no other files.
+
+The \`controls\` array must list the inputs your game actually listens for,
+using whatever control scheme you chose — \`action\` describes what it does in
+your game, \`key\` is what the player presses, clicks or drags. List only
+inputs the code really handles, and return an empty array if the game needs
+none.`;
 
 export const SYSTEM_PROMPT = `You are a game designer and front-end engineer who invents small, complete,
 original browser games. You always return working, self-contained code that

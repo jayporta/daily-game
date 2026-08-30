@@ -1,7 +1,7 @@
 Here is your game:
 
 ```json
-{"title": "Broken Orb", "genre": "puzzle", "theme": "a crystal orb puzzle", "mechanics": ["click to rotate"]}
+{"title": "Broken Orb", "genre": "puzzle", "theme": "a crystal orb puzzle", "mechanics": ["click to rotate"], "controls": [{"action": "Rotate", "key": "Click the orb"}]}
 ```
 
 ```html

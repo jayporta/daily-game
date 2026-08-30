@@ -2,7 +2,13 @@
 // the whole safety design, so every layer is checked for failing CLOSED.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { aiModerationCheck, keywordScan, moderate, moderatableText } from './moderate.ts';
+import {
+  aiModerationCheck,
+  buildModerationMessages,
+  keywordScan,
+  moderate,
+  moderatableText,
+} from './moderate.ts';
 import { loadFixtureBundle } from './lib/fixtures.ts';
 import { loadGuardrails } from './lib/config-store.ts';
 import type { OpenRouterClient } from './lib/openrouter-client.ts';
@@ -20,6 +26,7 @@ function throwingModerator(message: string): OpenRouterClient {
 }
 
 const CLEAN_META: GeneratedMeta = {
+  controls: [],
   title: 'Beetle Maze',
   genre: 'maze-adventure',
   theme: 'glass beetles',
@@ -133,6 +140,7 @@ test('moderate rejects content only the AI check can catch', async () => {
   // No banned keyword appears, so the keyword scan passes and the verdict
   // rests entirely on the moderation model.
   const sneaky: GeneratedMeta = {
+    controls: [],
     title: 'Playground Friends',
     genre: 'puzzle',
     theme: 'two schoolkids trading lunch snacks',
@@ -161,4 +169,57 @@ test('moderate skips the AI call once the keyword scan has already failed', asyn
   const { meta, html } = loadFixtureBundle('bad-guardrail-word');
   await moderate(countingModerator, { meta, html, guardrailsText: GUARDRAILS, moderationModel: 'mod' });
   assert.equal(aiCalls, 0);
+});
+
+/** Every string anywhere inside a value, however deeply nested. */
+function stringLeaves(value: unknown): string[] {
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) return value.flatMap(stringLeaves);
+  if (typeof value === 'object' && value !== null) return Object.values(value).flatMap(stringLeaves);
+  return [];
+}
+
+/** Distinct sentinels, so a field being dropped is unmistakable. */
+const SENTINEL_META: GeneratedMeta = {
+  title: 'zzTITLEzz',
+  genre: 'zzGENREzz',
+  theme: 'zzTHEMEzz',
+  mechanics: ['zzMECHANICzz'],
+  controls: [{ action: 'zzACTIONzz', key: 'zzKEYzz' }],
+};
+
+// Both moderation paths used to hand-enumerate the metadata fields, so a
+// new field reached the published page unmoderated and nothing failed.
+// These two lock that shut for whatever gets added next.
+test('every string in the metadata reaches the keyword scan', () => {
+  const text = moderatableText(SENTINEL_META, '<html>zzHTMLzz</html>');
+
+  for (const leaf of [...stringLeaves(SENTINEL_META), 'zzHTMLzz']) {
+    assert.ok(text.includes(leaf), `${leaf} never reached the keyword scan`);
+  }
+});
+
+test('every string in the metadata reaches the moderating model', () => {
+  const messages = buildModerationMessages('rules', SENTINEL_META, '<html>zzHTMLzz</html>');
+  const prompt = messages.map((message) => message.content).join('\n');
+
+  for (const leaf of [...stringLeaves(SENTINEL_META), 'zzHTMLzz']) {
+    assert.ok(prompt.includes(leaf), `${leaf} was never shown to the moderator`);
+  }
+});
+
+test('a banned term hidden in the reported controls is still caught', async () => {
+  const meta: GeneratedMeta = {
+    ...CLEAN_META,
+    controls: [{ action: 'Spray blood', key: 'B' }],
+  };
+
+  const result = await moderate(stubModerator('PASS'), {
+    meta,
+    html: '<html></html>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod/model',
+  });
+
+  assert.equal(result.pass, false);
 });

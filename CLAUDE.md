@@ -168,9 +168,10 @@ refactor.
   and network, so tests need neither.
 - Take a `root`/path override on anything that writes, so tests target a
   scratch directory instead of the repo.
-- Planning artifacts stay out of the repo. The design spec and the
-  epics/stories breakdown are gitignored; the commit history is the record
-  of how the work was split into reviewable chunks. Don't reintroduce them,
-  and don't add cross-references to them from code.
+- Planning artifacts stay out of the repo. A design spec and an
+  epics/stories plan file once lived here and were deliberately removed;
+  the commit history is the record of how the work was split into
+  reviewable chunks. Don't reintroduce them, and don't add
+  cross-references to them from code.
 - Sentry is deliberately stubbed (`sentryDsn: null`,
   `buildErrorReportingSnippet` returns `''`) until credentials exist.

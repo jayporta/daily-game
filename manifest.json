@@ -1,1 +1,21 @@
-null
+{
+  "date": "2026-08-30",
+  "slug": "2026-08-30-beetle-of-a-thousand-mirrors",
+  "path": "games/archive/2026-08-30-beetle-of-a-thousand-mirrors/game.html",
+  "title": "Beetle of a Thousand Mirrors",
+  "genre": "maze-adventure",
+  "genreLabel": "Maze Adventure",
+  "model": "qwen/qwen-2.5-72b-instruct:free",
+  "generatedAt": "2026-08-30T02:26:20.357Z",
+  "expiresAt": "2026-08-30T13:00:00.000Z",
+  "controls": [
+    {
+      "action": "Move",
+      "key": "Arrow keys"
+    },
+    {
+      "action": "Restart",
+      "key": "R"
+    }
+  ]
+}

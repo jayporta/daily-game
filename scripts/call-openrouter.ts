@@ -250,6 +250,7 @@ export async function runDailyPipeline({
       model: result.model,
       attempts: result.attempts,
       generationConfig: generation,
+      genres,
       historyEntries,
       generatedAt: now.toISOString(),
     });

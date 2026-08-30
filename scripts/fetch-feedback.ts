@@ -12,31 +12,14 @@
 // unparseable body all leave history exactly as it was. Missing yesterday's
 // reaction counts is a cosmetic loss; failing the daily run over it is not.
 //
-// The store is one table. Provisioning it, at the credentials checkpoint:
-//
-//   create table public.reactions (
-//     id          bigint generated always as identity primary key,
-//     created_at  timestamptz not null default now(),
-//     slug        text not null check (slug ~ '^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$'),
-//     reaction    text not null check (reaction in ('like', 'dislike')),
-//     reasons     text[] not null default '{}'
-//                 check (reasons <@ array['broken','missing-art','goal-unclear',
-//                                         'instructions-unclear','description-mismatch'])
-//   );
-//
-//   alter table public.reactions enable row level security;
-//
-//   -- The key that ships in the page may insert, and do nothing else.
-//   create policy "anon may insert one reaction"
-//     on public.reactions for insert to anon with check (true);
-//
-// Those constraints matter more than the checks in the browser: anyone who
-// loads the page holds the insert key, so the database is the only real
-// boundary. Verify RLS is ON and that the anon key can neither select nor
-// update — the front-end never reads, so a working select means the policy
-// is wrong. The privileged read key belongs in the REACTION_STORE_KEY
-// secret and must never be committed; validateReactionConfig fails the
-// build if a service_role key is ever pasted into the config file.
+// The store is one table, whose schema is generated from this app's own
+// vocabulary by scripts/reaction-store-schema.ts — run that to provision
+// it. Its constraints, not the checks in the browser, are what actually
+// bound what can be stored: anyone who loads the page holds the insert
+// key. Verify RLS is ON and that the anon key can neither select nor
+// update; the front-end never reads, so a working select means the policy
+// is wrong. The privileged read key belongs in REACTION_STORE_KEY and must
+// never be committed.
 import { DISLIKE_REASONS, isPublishableSlug, type DislikeReason } from '../lib/reaction-types.ts';
 import { patchEntry } from './lib/history-store.ts';
 import type { HistoryGameEntry } from './lib/types.ts';

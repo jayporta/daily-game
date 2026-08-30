@@ -1,7 +1,7 @@
 Here is your game:
 
 ```json
-{"title": "Ember Sprite Ascent", "genre": "platformer", "theme": "a small ember spirit climbing a crumbling tower", "mechanics": ["jump", "double-jump", "avoid falling debris"]}
+{"title": "Ember Sprite Ascent", "genre": "platformer", "theme": "a small ember spirit climbing a crumbling tower", "mechanics": ["jump", "double-jump", "avoid falling debris"], "controls": [{"action": "Run", "key": "A and D"}, {"action": "Jump", "key": "Space"}, {"action": "Double jump", "key": "Space twice"}]}
 ```
 
 ```html

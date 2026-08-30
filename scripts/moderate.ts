@@ -50,9 +50,31 @@ export function keywordScan(text: string, bannedTerms: readonly string[] = BANNE
   return { pass: hits.length === 0, hits };
 }
 
+/**
+ * Every string anywhere inside a value, however deeply nested.
+ *
+ * Derived rather than enumerated on purpose. Both moderation paths used to
+ * list the metadata fields by hand, so a field added to
+ * {@link GeneratedMeta} reached the published page with no moderation at
+ * all and nothing failed. Whatever is added next is covered by default.
+ */
+function stringLeaves(value: unknown): string[] {
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) return value.flatMap(stringLeaves);
+  if (typeof value === 'object' && value !== null) return Object.values(value).flatMap(stringLeaves);
+  return [];
+}
+
 /** Everything a human would read: the metadata plus the game source. */
 export function moderatableText(meta: GeneratedMeta, html: string): string {
-  return [meta.title, meta.genre, meta.theme, ...meta.mechanics, html].join('\n');
+  return [...stringLeaves(meta), html].join('\n');
+}
+
+/** The metadata as labelled lines, for the moderating model to read. */
+function describeMeta(meta: GeneratedMeta): string {
+  return Object.entries(meta)
+    .map(([field, value]) => `${field}: ${stringLeaves(value).join(', ')}`)
+    .join('\n');
 }
 
 export const MODERATION_SYSTEM_PROMPT =
@@ -84,10 +106,7 @@ ${guardrailsText}
 
 ## Game metadata
 
-title: ${meta.title}
-genre: ${meta.genre}
-theme: ${meta.theme}
-mechanics: ${meta.mechanics.join(', ')}
+${describeMeta(meta)}
 
 ## Game source
 

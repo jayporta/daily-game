@@ -179,11 +179,48 @@ test('the documented output format actually parses with extractBundle', () => {
   const modelStyleResponse = OUTPUT_FORMAT_CONTRACT.replace(
     '...your complete game, with inline <style> and <script> only...',
     '<html><body><canvas></canvas></body></html>',
-  ).replace('{"title": "...", "genre": "...", "theme": "...", "mechanics": ["...", "..."]}',
-    '{"title": "T", "genre": "puzzle", "theme": "Th", "mechanics": ["m"]}');
+  ).replace(
+    /\{"title".*\}/,
+    '{"title": "T", "genre": "puzzle", "theme": "Th", "mechanics": ["m"], "controls": [{"action": "Go", "key": "G"}]}',
+  );
 
   const result = extractBundle(modelStyleResponse);
   assert.ok(result.ok, 'contract example should parse');
   assert.equal(result.meta.title, 'T');
+  assert.deepEqual(result.meta.controls, [{ action: 'Go', key: 'G' }]);
   assert.match(result.html, /<canvas>/);
+});
+
+// The looser half of the same invariant: a field can be added to the
+// extractor and quietly never asked for. Then every game ships without it
+// and nothing fails.
+test('every field the extractor produces is named in the output contract', () => {
+  const result = extractBundle('```json\n{}\n```\n```html\n<p>x</p>\n```');
+  assert.ok(result.ok);
+
+  for (const field of Object.keys(result.meta)) {
+    assert.match(
+      OUTPUT_FORMAT_CONTRACT,
+      new RegExp(`\\b${field}\\b`),
+      `the contract never mentions "${field}", so no model will return it`,
+    );
+  }
+});
+
+test('the contract example anchors the model to none of our own content', () => {
+  const example = /^\{.*\}$/m.exec(OUTPUT_FORMAT_CONTRACT)?.[0] ?? '';
+  assert.notEqual(example, '', 'contract should show an example meta object');
+
+  const leaves: string[] = [];
+  const walk = (value: unknown): void => {
+    if (typeof value === 'string') leaves.push(value);
+    else if (Array.isArray(value)) value.forEach(walk);
+    else if (typeof value === 'object' && value !== null) Object.values(value).forEach(walk);
+  };
+  walk(JSON.parse(example));
+
+  assert.ok(leaves.length > 0, 'example should contain values');
+  // Models copy examples literally. A concrete key or title here would push
+  // every game toward whatever we happened to write.
+  assert.deepEqual([...new Set(leaves)], ['...']);
 });

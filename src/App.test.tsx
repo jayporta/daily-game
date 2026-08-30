@@ -9,9 +9,11 @@ const MANIFEST: Manifest = {
   path: 'games/archive/2026-08-29-beetle/game.html',
   title: 'Beetle of a Thousand Mirrors',
   genre: 'maze-adventure',
+  genreLabel: 'Maze Adventure',
   model: 'qwen/qwen-2.5-72b-instruct:free',
   generatedAt: '2026-08-29T09:04:00.000Z',
   expiresAt: '2026-08-30T13:00:00.000Z',
+  controls: [{ action: 'Move', key: 'Arrow keys' }],
 };
 
 const BUNDLE = '<!doctype html><html><body><canvas></canvas></body></html>';
@@ -52,7 +54,7 @@ describe('App', () => {
 
     const frame = await screen.findByTitle('Beetle of a Thousand Mirrors');
     expect(frame).toHaveAttribute('srcdoc', BUNDLE);
-    expect(screen.getByText('maze-adventure')).toBeVisible();
+    expect(screen.getByText('Maze Adventure')).toBeVisible();
   });
 
   it('invites a local dry run when nothing has been published yet', async () => {

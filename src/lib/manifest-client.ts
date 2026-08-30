@@ -1,18 +1,25 @@
 // Fetching and validating the manifest, kept free of React so it can be
 // unit tested with a stubbed fetch.
-import type { Manifest } from '../../lib/types.ts';
+import type { ControlHint, Manifest } from '../../lib/types.ts';
 
-/** Every field of {@link Manifest}, so the guard can't drift from the type. */
-const REQUIRED_MANIFEST_FIELDS = [
+/** The string-valued fields of {@link Manifest}, so the guard can't drift. */
+const REQUIRED_STRING_FIELDS = [
   'date',
   'slug',
   'path',
   'title',
   'genre',
+  'genreLabel',
   'model',
   'generatedAt',
   'expiresAt',
 ] as const satisfies readonly (keyof Manifest)[];
+
+function isControlHint(value: unknown): value is ControlHint {
+  if (typeof value !== 'object' || value === null) return false;
+  if (!('action' in value) || !('key' in value)) return false;
+  return typeof value.action === 'string' && typeof value.key === 'string';
+}
 
 /**
  * Full shape check. The manifest is written by our own pipeline, but the
@@ -23,8 +30,11 @@ const REQUIRED_MANIFEST_FIELDS = [
  */
 export function isManifest(value: unknown): value is Manifest {
   if (typeof value !== 'object' || value === null) return false;
-  const m = value as Record<string, unknown>;
-  return REQUIRED_MANIFEST_FIELDS.every((field) => typeof m[field] === 'string');
+  if (!REQUIRED_STRING_FIELDS.every((field) => typeof Reflect.get(value, field) === 'string')) {
+    return false;
+  }
+  const controls: unknown = Reflect.get(value, 'controls');
+  return Array.isArray(controls) && controls.every(isControlHint);
 }
 
 /** Cache-busted so a visitor never sees yesterday's game from cache. */

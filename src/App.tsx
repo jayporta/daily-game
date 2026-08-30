@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Centered } from './components/Centered.tsx';
 import { GameFrame } from './components/GameFrame.tsx';
+import { ControlLegend } from './components/ControlLegend.tsx';
 import { GameMeta } from './components/GameMeta.tsx';
 import { ReactionBar } from './components/ReactionBar.tsx';
 import { fetchGameHtml, fetchManifest } from './lib/manifest-client.ts';
@@ -54,6 +55,8 @@ export function App() {
           <h1 className="text-base font-semibold">Daily Game</h1>
         )}
       </header>
+
+      {state.status === 'ready' && <ControlLegend controls={state.manifest.controls} />}
 
       <main className="min-h-0 flex-1">
         {state.status === 'loading' && <Centered>Loading today&rsquo;s game&hellip;</Centered>}
