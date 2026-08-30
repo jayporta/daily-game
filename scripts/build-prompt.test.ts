@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
+  DISPLAY_CONTRACT,
   OUTPUT_FORMAT_CONTRACT,
   buildPrompt,
   digestHistory,
@@ -170,6 +172,37 @@ test('buildPrompt feeds a prior failure reason back to the model', () => {
 test('buildPrompt is deterministic for identical inputs', () => {
   const params = { guardrailsText: 'rules', genres: GENRES, historyEntries: HISTORY, summary: SUMMARY };
   assert.equal(buildPrompt(params), buildPrompt(params));
+});
+
+// Nothing outside the game's own document paints the frame, so a game that
+// sizes itself to a fixed box leaves the rest of it blank.
+test('buildPrompt tells the model how its game will be displayed', () => {
+  const prompt = buildPrompt({ guardrailsText: 'rules', genres: GENRES, historyEntries: HISTORY, summary: SUMMARY });
+
+  assert.ok(prompt.includes(DISPLAY_CONTRACT), 'display contract missing from the prompt');
+});
+
+// The same lesson as the meta example below: a model handed a number
+// reproduces it. Naming any concrete size would re-create the fixed-canvas
+// problem this contract exists to prevent.
+test('the display contract anchors the model to no particular size', () => {
+  assert.doesNotMatch(
+    DISPLAY_CONTRACT,
+    /\b\d{3,4}\s*(?:px\b|[x\u00d7]\s*\d{3,4})/i,
+    'the display contract names a pixel size, which models copy literally',
+  );
+});
+
+// guardrails.md is injected verbatim into BOTH the generator and the
+// moderator, which is why a display rule must not live there: the moderator
+// judges content, and would start failing games closed over their layout.
+test('the display contract is not part of the shared content guardrails', () => {
+  const guardrails = readFileSync(
+    new URL('../config/guardrails.md', import.meta.url),
+    'utf8',
+  );
+
+  assert.ok(!guardrails.includes(DISPLAY_CONTRACT), 'display rules leaked into guardrails.md');
 });
 
 // The prompt's format contract and the extractor's parser must agree, or

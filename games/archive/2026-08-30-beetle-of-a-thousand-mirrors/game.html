@@ -1,28 +1,35 @@
 <!doctype html>
 <html>
-<head><style>html,body{margin:0;background:#111;}canvas{display:block;margin:0 auto;background:#222;}</style></head>
+<head><style>html,body{margin:0;height:100%;overflow:hidden;background:#111;}canvas{display:block;width:100%;height:100%;}</style></head>
 <body>
-<canvas id="game" width="400" height="400"></canvas>
+<canvas id="game"></canvas>
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-let x = 200, y = 200;
+let x = 0.5, y = 0.5;
+function resize() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+  draw();
+}
 function draw() {
   ctx.fillStyle = '#222';
-  ctx.fillRect(0, 0, 400, 400);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = '#6cf';
   ctx.beginPath();
-  ctx.arc(x, y, 10, 0, Math.PI * 2);
+  ctx.arc(x * canvas.width, y * canvas.height, Math.min(canvas.width, canvas.height) / 40, 0, Math.PI * 2);
   ctx.fill();
 }
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowUp') y -= 5;
-  if (e.key === 'ArrowDown') y += 5;
-  if (e.key === 'ArrowLeft') x -= 5;
-  if (e.key === 'ArrowRight') x += 5;
+  if (e.key === 'ArrowUp') y -= 0.02;
+  if (e.key === 'ArrowDown') y += 0.02;
+  if (e.key === 'ArrowLeft') x -= 0.02;
+  if (e.key === 'ArrowRight') x += 0.02;
+  if (e.key === 'r') { x = 0.5; y = 0.5; }
   draw();
 });
-draw();
+addEventListener('resize', resize);
+resize();
 </script>
 </body>
 </html>

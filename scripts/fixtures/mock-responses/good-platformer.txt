@@ -7,26 +7,34 @@ Here is your game:
 ```html
 <!doctype html>
 <html>
-<head><style>html,body{margin:0;background:#000;}canvas{display:block;margin:0 auto;background:#331;}</style></head>
+<head><style>html,body{margin:0;height:100%;overflow:hidden;background:#000;}canvas{display:block;width:100%;height:100%;}</style></head>
 <body>
-<canvas id="game" width="400" height="400"></canvas>
+<canvas id="game"></canvas>
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
-let y = 350;
+let y = 0;
 let vy = 0;
+function resize() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+}
 function draw() {
-  vy += 0.5;
+  const ground = canvas.height * 0.85;
+  const size = Math.min(canvas.width, canvas.height) / 20;
+  vy += canvas.height * 0.0012;
   y += vy;
-  if (y > 350) { y = 350; vy = 0; }
+  if (y > ground - size) { y = ground - size; vy = 0; }
   ctx.fillStyle = '#331';
-  ctx.fillRect(0, 0, 400, 400);
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = '#f80';
-  ctx.fillRect(190, y, 20, 20);
+  ctx.fillRect(canvas.width / 2 - size / 2, y, size, size);
 }
 document.addEventListener('keydown', (e) => {
-  if (e.key === ' ' && y >= 350) vy = -10;
+  if (e.key === ' ') vy = -canvas.height * 0.025;
 });
+addEventListener('resize', resize);
+resize();
 setInterval(draw, 33);
 draw();
 </script>

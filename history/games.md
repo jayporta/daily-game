@@ -7,6 +7,6 @@ Generated automatically — do not edit by hand.
 - genre: maze-adventure
 - theme: glass beetles navigating a mirrored maze
 - mechanics: arrow-key movement, collect shards, avoid mirror walls
-- model: qwen/qwen-2.5-72b-instruct:free
+- model: meta-llama/llama-3.3-70b-instruct:free
 - attempts: 1
 

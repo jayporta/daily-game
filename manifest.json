@@ -5,8 +5,8 @@
   "title": "Beetle of a Thousand Mirrors",
   "genre": "maze-adventure",
   "genreLabel": "Maze Adventure",
-  "model": "qwen/qwen-2.5-72b-instruct:free",
-  "generatedAt": "2026-08-30T02:26:20.357Z",
+  "model": "meta-llama/llama-3.3-70b-instruct:free",
+  "generatedAt": "2026-08-30T03:06:18.086Z",
   "expiresAt": "2026-08-30T13:00:00.000Z",
   "controls": [
     {
