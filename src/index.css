@@ -77,6 +77,11 @@
   /* Lifts the game off the page without a border, which would compete with
      whatever the generated bundle draws at its own edges. */
   --shadow-frame: 0 6px 20px rgb(20 20 30 / 0.08);
+
+  /* The frame's shape. Fixed rather than filling the viewport, because the
+     page scrolls — a height derived from the window would collapse on a
+     short one. Games are told to size to whatever frame they are given. */
+  --aspect-game: 4 / 3;
 }
 
 html,

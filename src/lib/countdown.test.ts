@@ -34,7 +34,7 @@ test('formatCountdown handles an elapsed countdown', () => {
 });
 
 test('formatGeneratedDate renders a stable, UTC-based date', () => {
-  assert.equal(formatGeneratedDate('2026-08-29T13:04:00.000Z'), 'Aug 29, 2026');
+  assert.equal(formatGeneratedDate('2026-08-29T13:04:00.000Z'), '8/29/26');
 });
 
 test('formatGeneratedDate degrades gracefully on bad input', () => {

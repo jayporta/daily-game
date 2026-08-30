@@ -24,7 +24,7 @@ export function GameFrame({ html, title }: GameFrameProps) {
     // parent centres it. It grants nothing: `overflow-hidden` is what makes
     // the corners round, since the frame cannot be clipped by its own
     // `border-radius` once the game paints to its edges.
-    <div className="h-full w-full max-w-160 overflow-hidden rounded-xl shadow-frame">
+    <div className="aspect-game w-full overflow-hidden rounded-xl shadow-frame">
       <iframe
         title={title}
         srcDoc={html}

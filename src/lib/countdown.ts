@@ -37,7 +37,7 @@ export function formatCountdown(remainingMs: number): string {
 }
 
 /**
- * Formats a timestamp as e.g. "Aug 29, 2026".
+ * Formats a timestamp as e.g. "8/29/26".
  *
  * @param isoDate ISO timestamp; rendered in UTC so the label never varies
  *   by viewer timezone and tests stay stable.
@@ -46,9 +46,9 @@ export function formatGeneratedDate(isoDate: string): string {
   const date = new Date(isoDate);
   if (Number.isNaN(date.getTime())) return 'unknown date';
   return date.toLocaleDateString('en-US', {
-    month: 'short',
+    month: 'numeric',
     day: 'numeric',
-    year: 'numeric',
+    year: '2-digit',
     timeZone: 'UTC',
   });
 }

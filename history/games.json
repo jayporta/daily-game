@@ -1,18 +1,18 @@
 [
   {
     "date": "2026-08-30",
-    "status": "failed_kept_previous",
-    "model": "inclusionai/ling-3.0-flash-fin:free",
-    "attempts": 3,
-    "failureReasons": [
-      "attempt 1 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: Cannot access 'target' before initialization",
-      "attempt 2 (inclusionai/ling-3.0-flash-fin:free): smoke test failed — uncaught JS error: menuParticles is not defined",
-      "attempt 3 (nvidia/nemotron-3-super-120b-a12b:free): could not extract bundle — missing-html-block"
+    "status": "published",
+    "model": "minimax/minimax-m2.7:free",
+    "slug": "2026-08-30-construct-critters",
+    "genre": "maze-adventure",
+    "theme": "A cavern where geometric critters seek their glowing homes",
+    "mechanics": [
+      "Navigate through procedurally generated mazes",
+      "Collect keys scattered through the labyrinth",
+      "Reach the exit before getting trapped"
     ],
-    "failureKinds": [
-      "smoke-js-error",
-      "smoke-js-error",
-      "extract"
-    ]
+    "title": "Construct Critters",
+    "attempts": 3,
+    "canvasDrawn": true
   }
 ]

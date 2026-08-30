@@ -1,3 +1,4 @@
+import { IconButton } from './IconButton.tsx';
 import { useTheme } from '../hooks/useTheme.ts';
 import { nextTheme } from '../lib/theme.ts';
 
@@ -17,12 +18,7 @@ export function ThemeToggle() {
   const target = nextTheme(theme);
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      aria-label={`Switch to ${target} theme`}
-      className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-chip text-label transition-colors hover:bg-slate-200 hover:text-body dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-    >
+    <IconButton onClick={toggle} label={`Switch to ${target} theme`}>
       <svg
         aria-hidden="true"
         viewBox="0 0 24 24"
@@ -42,6 +38,6 @@ export function ThemeToggle() {
           </>
         )}
       </svg>
-    </button>
+    </IconButton>
   );
 }

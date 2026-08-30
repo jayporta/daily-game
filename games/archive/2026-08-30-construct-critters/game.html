@@ -1,0 +1,350 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Construct Critters</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; }
+body { background: #0a0a1a; font-family: 'Courier New', monospace; }
+canvas { display: block; }
+#ui { position: absolute; top: 10px; left: 10px; color: #88ffff; font-size: 14px; pointer-events: none; }
+#msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: #fff; font-size: 24px; text-align: center; pointer-events: none; display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">Keys: <span id="keys">0</span> | Level: <span id="level">1</span></div>
+<div id="msg"></div>
+<script>
+(function(){
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const ui = { keys: document.getElementById('keys'), level: document.getElementById('level') };
+  const msg = document.getElementById('msg');
+
+  let W, H, CELL, COLS, ROWS;
+  let maze, critter, exit, keys, collectedKeys;
+  let level, gameState, animTime;
+
+  function resize() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W;
+    canvas.height = H;
+    CELL = Math.floor(Math.min(W, H) / 15);
+    COLS = Math.floor(W / CELL);
+    ROWS = Math.floor(H / CELL);
+  }
+
+  function init() {
+    level = 1;
+    gameState = 'playing';
+    animTime = 0;
+    buildLevel();
+    ui.level.textContent = level;
+  }
+
+  function buildLevel() {
+    collectedKeys = 0;
+    ui.keys.textContent = '0';
+
+    // Generate maze using recursive backtracking
+    COLS = Math.max(9, Math.min(21, Math.floor(W / CELL)));
+    ROWS = Math.max(9, Math.min(15, Math.floor(H / CELL)));
+    if (COLS % 2 === 0) COLS--;
+    if (ROWS % 2 === 0) ROWS--;
+
+    maze = [];
+    for (let y = 0; y < ROWS; y++) {
+      maze[y] = [];
+      for (let x = 0; x < COLS; x++) {
+        maze[y][x] = 1; // wall
+      }
+    }
+
+    function carve(x, y) {
+      const dirs = [[0,-2],[0,2],[-2,0],[2,0]];
+      // Shuffle
+      for (let i = dirs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+      }
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx, ny = y + dy;
+        if (nx > 0 && nx < COLS - 1 && ny > 0 && ny < ROWS - 1 && maze[ny][nx] === 1) {
+          maze[y + dy/2][x + dx/2] = 0;
+          maze[ny][nx] = 0;
+          carve(nx, ny);
+        }
+      }
+    }
+    carve(1, 1);
+
+    // Place critter at start
+    critter = { x: 1, y: 1, targetX: 1, targetY: 1, moving: false, angle: 0 };
+
+    // Place exit far from start
+    exit = { x: COLS - 2, y: ROWS - 2 };
+    maze[exit.y][exit.x] = 0;
+    // Ensure path to exit
+    if (maze[exit.y - 1][exit.x] === 1 && maze[exit.y][exit.x - 1] === 1) {
+      maze[exit.y - 1][exit.x] = 0;
+    }
+
+    // Place keys
+    keys = [];
+    const keyCount = Math.min(3, Math.floor(level / 2) + 1);
+    const emptyCells = [];
+    for (let y = 1; y < ROWS - 1; y++) {
+      for (let x = 1; x < COLS - 1; x++) {
+        if (maze[y][x] === 0 && !(x === critter.x && y === critter.y) && !(x === exit.x && y === exit.y)) {
+          emptyCells.push({x, y});
+        }
+      }
+    }
+    // Shuffle and pick key positions
+    for (let i = emptyCells.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [emptyCells[i], emptyCells[j]] = [emptyCells[j], emptyCells[i]];
+    }
+    for (let i = 0; i < Math.min(keyCount, emptyCells.length); i++) {
+      keys.push({ x: emptyCells[i].x, y: emptyCells[i].y, collected: false });
+    }
+  }
+
+  function move(dx, dy) {
+    if (gameState !== 'playing') return;
+    if (critter.moving) return;
+
+    const nx = critter.x + dx;
+    const ny = critter.y + dy;
+    if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && maze[ny][nx] === 0) {
+      critter.targetX = nx;
+      critter.targetY = ny;
+      critter.moving = true;
+      critter.angle += Math.atan2(dy, dx);
+    }
+  }
+
+  // Input
+  const keysDown = {};
+  window.addEventListener('keydown', function(e) {
+    if (keysDown[e.key]) return;
+    keysDown[e.key] = true;
+    const k = e.key.toLowerCase();
+    if (k === 'w' || k === 'arrowup') move(0, -1);
+    else if (k === 's' || k === 'arrowdown') move(0, 1);
+    else if (k === 'a' || k === 'arrowleft') move(-1, 0);
+    else if (k === 'd' || k === 'arrowright') move(1, 0);
+    else if (k === 'r') init();
+    e.preventDefault();
+  });
+  window.addEventListener('keyup', function(e) {
+    keysDown[e.key] = false;
+  });
+
+  // Touch controls
+  let touchStart = null;
+  canvas.addEventListener('touchstart', function(e) {
+    touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+  }, { passive: false });
+  canvas.addEventListener('touchend', function(e) {
+    if (!touchStart) return;
+    const dx = e.changedTouches[0].clientX - touchStart.x;
+    const dy = e.changedTouches[0].clientY - touchStart.y;
+    if (Math.abs(dx) > 20 || Math.abs(dy) > 20) {
+      if (Math.abs(dx) > Math.abs(dy)) {
+        move(dx > 0 ? 1 : -1, 0);
+      } else {
+        move(0, dy > 0 ? 1 : -1);
+      }
+    }
+    touchStart = null;
+    e.preventDefault();
+  }, { passive: false });
+
+  // Mouse click
+  canvas.addEventListener('click', function(e) {
+    if (gameState === 'won') {
+      level++;
+      gameState = 'playing';
+      msg.style.display = 'none';
+      buildLevel();
+      ui.level.textContent = level;
+    }
+  });
+
+  function update(dt) {
+    animTime += dt;
+
+    if (critter.moving) {
+      const speed = 8;
+      const dx = critter.targetX - critter.x;
+      const dy = critter.targetY - critter.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 0.05) {
+        critter.x = critter.targetX;
+        critter.y = critter.targetY;
+        critter.moving = false;
+
+        // Check key collection
+        for (let i = 0; i < keys.length; i++) {
+          if (!keys[i].collected && keys[i].x === critter.x && keys[i].y === critter.y) {
+            keys[i].collected = true;
+            collectedKeys++;
+            ui.keys.textContent = collectedKeys;
+          }
+        }
+
+        // Check exit
+        if (critter.x === exit.x && critter.y === exit.y) {
+          gameState = 'won';
+          msg.innerHTML = 'Level ' + level + ' Complete!<br><small>Click to continue</small>';
+          msg.style.display = 'block';
+        }
+      } else {
+        critter.x += (dx / dist) * speed * dt;
+        critter.y += (dy / dist) * speed * dt;
+      }
+    }
+  }
+
+  function draw() {
+    // Clear with gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#0a0a1a');
+    grad.addColorStop(1, '#1a1a3a');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    // Center the maze
+    const offsetX = (W - COLS * CELL) / 2;
+    const offsetY = (H - ROWS * CELL) / 2;
+
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+
+    // Draw maze
+    for (let y = 0; y < ROWS; y++) {
+      for (let x = 0; x < COLS; x++) {
+        if (maze[y] && maze[y][x] === 1) {
+          // Wall with glow
+          ctx.fillStyle = '#2a2a4a';
+          ctx.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2, CELL - 2);
+          // Highlight
+          ctx.fillStyle = '#3a3a5a';
+          ctx.fillRect(x * CELL + 2, y * CELL + 2, CELL - 6, 2);
+        } else {
+          // Floor
+          ctx.fillStyle = '#151525';
+          ctx.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2, CELL - 2);
+        }
+      }
+    }
+
+    // Draw exit
+    const pulse = Math.sin(animTime * 4) * 0.3 + 0.7;
+    ctx.fillStyle = `rgba(0, 255, 136, ${pulse * 0.5})`;
+    ctx.beginPath();
+    ctx.arc(exit.x * CELL + CELL/2, exit.y * CELL + CELL/2, CELL/2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = `rgba(0, 255, 136, ${pulse})`;
+    ctx.beginPath();
+    ctx.arc(exit.x * CELL + CELL/2, exit.y * CELL + CELL/2, CELL/3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw keys
+    for (let i = 0; i < keys.length; i++) {
+      if (!keys[i].collected) {
+        const kx = keys[i].x * CELL + CELL/2;
+        const ky = keys[i].y * CELL + CELL/2;
+        const kpulse = Math.sin(animTime * 3 + i) * 0.2 + 0.8;
+        ctx.fillStyle = `rgba(255, 215, 0, ${kpulse})`;
+        // Draw key shape
+        ctx.beginPath();
+        ctx.arc(kx, ky - 2, CELL/4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillRect(kx - 2, ky, 4, CELL/3);
+        ctx.fillRect(kx - 5, ky + CELL/4, 10, 3);
+      }
+    }
+
+    // Draw critter (geometric robot)
+    const cx = critter.x * CELL + CELL/2;
+    const cy = critter.y * CELL + CELL/2;
+    const bob = Math.sin(animTime * 5) * 2;
+
+    ctx.save();
+    ctx.translate(cx, cy + bob);
+
+    // Body (hexagon-ish)
+    ctx.fillStyle = '#00ccff';
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2 - Math.PI / 2;
+      const r = CELL / 2.5;
+      const px = Math.cos(angle) * r;
+      const py = Math.sin(angle) * r;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(-4, -3, 3, 0, Math.PI * 2);
+    ctx.arc(4, -3, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(-4, -3, 1.5, 0, Math.PI * 2);
+    ctx.arc(4, -3, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Antenna
+    ctx.strokeStyle = '#00ccff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -CELL/2.5);
+    ctx.lineTo(0, -CELL/2.5 - 8);
+    ctx.stroke();
+    ctx.fillStyle = '#ff66ff';
+    ctx.beginPath();
+    ctx.arc(0, -CELL/2.5 - 10, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  let lastTime = 0;
+  function loop(timestamp) {
+    const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+    lastTime = timestamp;
+
+    update(dt);
+    draw();
+
+    requestAnimationFrame(loop);
+  }
+
+  window.addEventListener('resize', function() {
+    resize();
+  });
+
+  resize();
+  init();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

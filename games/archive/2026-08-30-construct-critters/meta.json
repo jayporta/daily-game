@@ -1,13 +1,12 @@
 {
-  "date": "2026-08-30",
-  "slug": "2026-08-30-construct-critters",
-  "path": "games/archive/2026-08-30-construct-critters/game.html",
   "title": "Construct Critters",
   "genre": "maze-adventure",
-  "genreLabel": "Maze Adventure",
-  "model": "minimax/minimax-m2.7:free",
-  "generatedAt": "2026-08-30T21:11:23.883Z",
-  "expiresAt": "2026-08-31T13:00:00.000Z",
+  "theme": "A cavern where geometric critters seek their glowing homes",
+  "mechanics": [
+    "Navigate through procedurally generated mazes",
+    "Collect keys scattered through the labyrinth",
+    "Reach the exit before getting trapped"
+  ],
   "controls": [
     {
       "action": "Move up",
