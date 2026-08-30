@@ -1,4 +1,4 @@
-// Countdown formatting for the "replaced in ..." label. Pure, so the
+// Countdown formatting for the "will be replaced in ..." label. Pure, so the
 // display logic is testable without rendering or fake timers.
 
 const SECOND = 1000;

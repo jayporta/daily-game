@@ -21,7 +21,7 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={`Switch to ${target} theme`}
-      className="rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+      className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-chip text-label transition-colors hover:bg-slate-200 hover:text-body dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
     >
       <svg
         aria-hidden="true"
@@ -31,7 +31,7 @@ export function ThemeToggle() {
         strokeWidth="1.5"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="size-5"
+        className="size-4.5"
       >
         {target === 'dark' ? (
           <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z" />

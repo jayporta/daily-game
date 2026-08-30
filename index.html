@@ -27,6 +27,18 @@
       http-equiv="Content-Security-Policy"
       content="connect-src 'self'; form-action 'none'; base-uri 'none'; object-src 'none'"
     />
+    <!--
+      Quicksand for the title, Nunito for the interface, JetBrains Mono for
+      keycaps and the model name. Loaded from Google Fonts rather than
+      self-hosted: there is no asset pipeline for binaries here, and
+      `assemble-site.ts` only merges the build with published bundles.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    />
     <title>Daily Game — a new AI-built game every day</title>
     <!--
       Paints the right theme before React mounts, so a visitor who chose

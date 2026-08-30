@@ -8,6 +8,77 @@
 */
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+/*
+  The chrome's design tokens.
+
+  These exist so the markup can stay on a named scale instead of carrying
+  arbitrary values: the palette is a fixed set of greys the design pins
+  exactly, and none of them land on Tailwind's `slate` ramp. Adding them
+  here is how that scale grows.
+
+  Light mode only, deliberately. Dark mode stays on `dark:slate-*` in the
+  markup — a token that silently flips under `[data-theme='dark']` would
+  hide which colour a component actually renders, and every component here
+  already names its dark counterpart inline.
+*/
+@theme {
+  /* Surfaces. The page and the game area share one ground; the header and
+     the control strip sit on top of it as lighter panels. */
+  --color-surface: #fafafa;
+  --color-panel: #ffffff;
+  --color-hairline: #eeeeee;
+
+  /* Text, darkest to lightest: the title, emphasis inside a sentence,
+     labels on chips and controls, secondary meta text, and the footer. */
+  --color-title: #1f2430;
+  --color-body: #3a4150;
+  --color-label: #5b6472;
+  --color-meta: #8b93a3;
+  --color-faint: #a3aab8;
+
+  /* Chips: the neutral fill behind the model name, the theme toggle and
+     dislike; the slightly cooler fill and border of a `kbd` key. */
+  --color-chip: #f1f3f6;
+  --color-key: #f6f7f9;
+  --color-key-edge: #e4e7eb;
+
+  /* The one accent, shared by the genre badge and the like button. */
+  --color-like: #e8f6f0;
+  --color-like-ink: #0f8a5f;
+
+  /*
+    A finer type ramp than Tailwind's default steps. The header and the
+    control strip distinguish 11, 11.5, 12.5 and 13px within a single row,
+    so the sizes are named for the role they play rather than given scale
+    positions that would sit fractions of a pixel apart.
+  */
+  --text-kbd: 0.6875rem; /* 11px — kbd keycaps */
+  --text-kbd--line-height: 1rem;
+  --text-code: 0.71875rem; /* 11.5px — the inline model name */
+  --text-code--line-height: 1rem;
+  /* Named `legend`, not `chip`: `--color-chip` already exists, and a
+     `--text-*` sharing a name with a `--color-*` makes the `text-` utility
+     ambiguous — Tailwind resolves it as the colour and silently drops the
+     size. */
+  --text-legend: 0.78125rem; /* 12.5px — control legend */
+  --text-legend--line-height: 1.125rem;
+  --text-ui: 0.8125rem; /* 13px — meta text and the reaction pills */
+  --text-ui--line-height: 1.25rem;
+
+  /* Quicksand carries the title, Nunito the interface, JetBrains Mono
+     anything the viewer is meant to read as literal input or an
+     identifier. Loaded in index.html; each keeps a real fallback stack so
+     a blocked or slow font request degrades rather than reflows to
+     something unrelated. */
+  --font-sans: 'Nunito', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Quicksand', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Lifts the game off the page without a border, which would compete with
+     whatever the generated bundle draws at its own edges. */
+  --shadow-frame: 0 6px 20px rgb(20 20 30 / 0.08);
+}
+
 html,
 body,
 #root {
@@ -20,7 +91,7 @@ body,
   flashing the wrong colour.
 */
 body {
-  background-color: var(--color-white);
+  background-color: var(--color-surface);
 }
 
 [data-theme='dark'] body {

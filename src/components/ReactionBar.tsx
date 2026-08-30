@@ -29,29 +29,28 @@ export function ReactionBar({ slug, config = reactionConfig, fetchImpl }: Reacti
   const { phase, like, beginDislike, submitDislike } = useReaction(slug, config, fetchImpl);
 
   return (
-    // `ml-auto` rather than a `justify-between` on the strip: the legend
-    // beside it renders nothing at all for a game with no controls, and the
-    // rating still belongs at the right-hand end when it is alone there.
-    <div role="group" aria-label="Rate this game" className="ml-auto text-sm">
+    <div role="group" aria-label="Rate this game" className="ml-auto text-ui">
       {phase === 'submitted' && (
-        <p className="text-slate-500 dark:text-slate-400">Thanks — that helps tomorrow&rsquo;s game.</p>
+        <p className="min-h-8 content-center text-meta dark:text-slate-400">
+          Thanks — that helps tomorrow&rsquo;s game.
+        </p>
       )}
 
       {phase === 'idle' && (
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={like}
-            className="rounded bg-slate-100 px-3 py-1 text-slate-700 transition-colors hover:bg-emerald-500/15 hover:text-emerald-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-emerald-300"
+            onClick={beginDislike}
+            className="rounded-2xl bg-chip px-4 py-1.5 font-semibold text-label transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           >
-            Like
+            Dislike
           </button>
           <button
             type="button"
-            onClick={beginDislike}
-            className="rounded bg-slate-100 px-3 py-1 text-slate-700 transition-colors hover:bg-rose-500/15 hover:text-rose-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:text-rose-300"
+            onClick={like}
+            className="rounded-2xl bg-like px-4 py-1.5 font-semibold text-like-ink transition-colors hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25"
           >
-            Dislike
+            Like
           </button>
         </div>
       )}

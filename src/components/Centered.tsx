@@ -5,11 +5,14 @@ export interface CenteredProps {
   children: ReactNode;
 }
 
-/** Fills the viewer area with a centred status message. */
+/**
+ * A status message where the game would be.
+ *
+ * Carries no layout of its own: the viewer area centres and pads its single
+ * child, so this only has to set the text.
+ */
 export function Centered({ children }: CenteredProps) {
   return (
-    <div className="flex h-full items-center justify-center p-8 text-center text-slate-500 dark:text-slate-400">
-      {children}
-    </div>
+    <p className="max-w-sm text-center text-ui text-meta dark:text-slate-400">{children}</p>
   );
 }

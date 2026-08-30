@@ -15,19 +15,23 @@ export function GameMeta({ manifest }: GameMetaProps) {
   const countdown = useCountdown(manifest.expiresAt);
 
   return (
-    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm text-slate-500 dark:text-slate-400">
-      <h1 className="text-base font-semibold text-slate-900 dark:text-slate-100">{manifest.title}</h1>
-      <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+    <div className="flex flex-wrap items-baseline gap-x-3.5 gap-y-2.5 text-ui text-meta dark:text-slate-400">
+      <h1 className="font-display text-xl font-bold text-title dark:text-slate-100">
+        {manifest.title}
+      </h1>
+      <span className="rounded-lg bg-like px-2.75 py-0.75 text-xs font-semibold text-like-ink dark:bg-emerald-500/15 dark:text-emerald-300">
         {manifest.genreLabel}
       </span>
-      <span className="text-slate-500">
-        Generated {formatGeneratedDate(manifest.generatedAt)}
+      <span>Generated {formatGeneratedDate(manifest.generatedAt)}</span>
+      <span>
+        built by{' '}
+        <code className="rounded-sm bg-chip px-1.25 py-px font-mono text-code text-label dark:bg-slate-800 dark:text-slate-300">
+          {manifest.model}
+        </code>
       </span>
-      <span className="text-slate-500">
-        built by <code className="text-slate-600 dark:text-slate-400">{manifest.model}</code>
-      </span>
-      <span className="text-slate-500">
-        replaced in <span className="tabular-nums text-slate-700 dark:text-slate-300">{countdown}</span>
+      <span>
+        will be replaced in{' '}
+        <span className="font-bold tabular-nums text-body dark:text-slate-200">{countdown}</span>
       </span>
     </div>
   );

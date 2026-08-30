@@ -23,17 +23,17 @@ export function ControlLegend({ controls }: ControlLegendProps) {
     <div
       role="group"
       aria-label="Controls"
-      // `min-h-7` is the height of a rating button opposite (`text-sm` plus
-      // `py-1`), so the two centre on one line even though the `kbd` chips
+      // `min-h-8` is the height of a rating pill opposite (`text-ui` plus
+      // `py-1.5`), so the two centre on one line even though the `kbd` chips
       // here are shorter. A minimum rather than a fixed height: the strip
       // anchors both sides to its top, which is what keeps this beside the
       // game when the dislike panel opens and makes that side tall.
-      className="flex min-h-7 flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 dark:text-slate-400"
+      className="flex min-h-8 flex-wrap items-center gap-4 text-legend text-label dark:text-slate-400"
     >
       {controls.map((control) => (
         <span key={controlIdentity(control)} className="flex items-center gap-1.5">
           <span>{control.action}</span>
-          <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 font-sans text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+          <kbd className="rounded-md border border-key-edge bg-key px-1.75 py-0.5 font-mono text-kbd text-body dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
             {control.key}
           </kbd>
         </span>

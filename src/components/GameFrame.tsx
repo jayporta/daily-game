@@ -20,11 +20,17 @@ export interface GameFrameProps {
 /** Renders the untrusted game inside its sandbox. */
 export function GameFrame({ html, title }: GameFrameProps) {
   return (
-    <iframe
-      title={title}
-      srcDoc={html}
-      sandbox="allow-scripts"
-      className="h-full w-full border-0 bg-white"
-    />
+    // Presentation only — the wrapper rounds and lifts the frame, and the
+    // parent centres it. It grants nothing: `overflow-hidden` is what makes
+    // the corners round, since the frame cannot be clipped by its own
+    // `border-radius` once the game paints to its edges.
+    <div className="h-full w-full max-w-160 overflow-hidden rounded-xl shadow-frame">
+      <iframe
+        title={title}
+        srcDoc={html}
+        sandbox="allow-scripts"
+        className="h-full w-full border-0 bg-white"
+      />
+    </div>
   );
 }
