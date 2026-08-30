@@ -3,20 +3,24 @@
 // and the CI validation step all fail identically on a bad hand-edit.
 import { readFileSync } from 'node:fs';
 import { paths } from './paths.ts';
+import { errorMessage } from '../../lib/errors.ts';
 import {
   validateGenerationConfig,
   validateGenresConfig,
   validateModelsConfig,
   validateReactionConfig,
 } from './schema.ts';
-import type {
-  GenerationConfig,
-  ReactionConfig,
-  GenresConfig,
-  ModelsConfig,
-  ValidationResult,
-} from './types.ts';
+import type { GenerationConfig, GenresConfig, ModelsConfig, ValidationResult } from './types.ts';
+import type { ReactionConfig } from '../../lib/reaction-types.ts';
 
+/**
+ * Reads, parses and validates a JSON file, returning it typed.
+ *
+ * Nothing in the types ties `T` to `validate`. Pair them in a named loader
+ * below, so each config file has one place where both are stated.
+ *
+ * @throws If the file cannot be read, is not JSON, or fails `validate`.
+ */
 export function loadValidatedJson<T>(
   filePath: string,
   validate: (json: unknown) => ValidationResult,
@@ -25,7 +29,7 @@ export function loadValidatedJson<T>(
   try {
     parsed = JSON.parse(readFileSync(filePath, 'utf8'));
   } catch (error) {
-    throw new Error(`${filePath}: could not read or parse JSON — ${(error as Error).message}`);
+    throw new Error(`${filePath}: could not read or parse JSON — ${errorMessage(error)}`);
   }
 
   const result = validate(parsed);

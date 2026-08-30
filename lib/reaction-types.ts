@@ -56,6 +56,44 @@ export function isDislikeReason(value: unknown): value is DislikeReason {
 }
 
 /**
+ * Contents of `config/reaction-config.json`, read by both sides: the
+ * browser to POST a row, the pipeline to read them back.
+ *
+ * Vendor-agnostic — `endpointUrl` plus a public key describes Supabase's
+ * REST insert and equally a Cloudflare Worker, so changing services is a
+ * config edit.
+ */
+export interface ReactionConfig {
+  /**
+   * Where to POST one reaction row, or `null` when no store is configured —
+   * today's state, in which the page makes no request at all.
+   */
+  readonly endpointUrl: string | null;
+  /**
+   * Public, insert-only key. Safe to ship in client JS *only* because the
+   * store restricts it to inserts; it is never the privileged key, which
+   * lives in an Actions secret and is used solely by the daily pipeline.
+   */
+  readonly anonKey: string | null;
+}
+
+/**
+ * Shape check for the hand-edited config file.
+ *
+ * `validateReactionConfig` in `scripts/lib/schema.ts` calls this for the
+ * shape and adds its own deployment rules on top.
+ */
+export function isReactionConfig(value: unknown): value is ReactionConfig {
+  if (typeof value !== 'object' || value === null) return false;
+  if (!('endpointUrl' in value) || !('anonKey' in value)) return false;
+  const { endpointUrl, anonKey } = value;
+  return (
+    (endpointUrl === null || typeof endpointUrl === 'string') &&
+    (anonKey === null || typeof anonKey === 'string')
+  );
+}
+
+/**
  * Slugs as `publish.ts` builds them: an ISO date followed by a kebab-case
  * title. Anchored, and with no `.` or `/`, so a slug can never traverse a
  * URL path or a directory.

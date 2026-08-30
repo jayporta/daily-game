@@ -1,10 +1,10 @@
 // Read/append/write for the two history files. Centralised here because
 // publish.ts, rollup-history.ts and fetch-feedback.ts all touch the same
 // files and must agree on their shape and formatting.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { paths } from './paths.ts';
-import { validateHistoryGames } from './schema.ts';
+import { validateHistoryGames, validateHistorySummary } from './schema.ts';
 import { loadValidatedJson } from './config-store.ts';
 import type { HistoryGameEntry, HistorySummary } from './types.ts';
 
@@ -26,14 +26,18 @@ export function readHotWindow(filePath: string = paths.historyGames): HistoryGam
   return loadValidatedJson<HistoryGameEntry[]>(filePath, validateHistoryGames);
 }
 
+/**
+ * The rolled-up summary, with any field the file omits filled from
+ * {@link EMPTY_SUMMARY}.
+ *
+ * @throws If the file exists but cannot be parsed or does not validate.
+ *   The contents reach the prompt builder, which iterates the leaderboard
+ *   and slices dates out of its slugs.
+ */
 export function readSummary(filePath: string = paths.historySummary): HistorySummary {
   if (!existsSync(filePath)) return { ...EMPTY_SUMMARY };
-  try {
-    const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as Partial<HistorySummary>;
-    return { ...EMPTY_SUMMARY, ...parsed };
-  } catch (error) {
-    throw new Error(`${filePath}: could not read or parse JSON — ${(error as Error).message}`);
-  }
+  const parsed = loadValidatedJson<Partial<HistorySummary>>(filePath, validateHistorySummary);
+  return { ...EMPTY_SUMMARY, ...parsed };
 }
 
 /**
@@ -46,7 +50,6 @@ export function appendEntry(entries: HistoryGameEntry[], newEntry: HistoryGameEn
   return [...withoutSameDate, newEntry].sort((a, b) => a.date.localeCompare(b.date));
 }
 
-/** The most recent published entry, used to pick the next model in rotation. */
 /**
  * Applies reaction counts to one entry, matched by slug.
  *
@@ -64,6 +67,7 @@ export function patchEntry(
   return entries.map((entry) => (entry.slug === slug ? { ...entry, ...patch } : entry));
 }
 
+/** The most recent published entry, used to pick the next model in rotation. */
 export function lastPublishedEntry(entries: HistoryGameEntry[]): HistoryGameEntry | undefined {
   return [...entries]
     .filter((entry) => entry.status === 'published')

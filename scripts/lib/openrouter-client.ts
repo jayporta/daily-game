@@ -23,6 +23,28 @@ export interface CreateOpenRouterClientOptions {
   fetchImpl?: typeof fetch;
 }
 
+/**
+ * The one field this client reads out of a completion response.
+ *
+ * @returns The assistant's text, or `null` if the response is not shaped
+ *   the way the API documents, which the caller turns into a retry.
+ */
+function firstChoiceContent(data: unknown): string | null {
+  if (typeof data !== 'object' || data === null) return null;
+  if (!('choices' in data) || !Array.isArray(data.choices)) return null;
+
+  const choice: unknown = data.choices[0];
+  if (typeof choice !== 'object' || choice === null) return null;
+  if (!('message' in choice)) return null;
+
+  const message: unknown = choice.message;
+  if (typeof message !== 'object' || message === null) return null;
+  if (!('content' in message)) return null;
+
+  const content: unknown = message.content;
+  return typeof content === 'string' ? content : null;
+}
+
 export function createOpenRouterClient({
   apiKey,
   baseUrl = 'https://openrouter.ai/api/v1',
@@ -46,10 +68,8 @@ export function createOpenRouterClient({
         throw new Error(`OpenRouter request failed: ${response.status} ${body}`);
       }
 
-      const data: unknown = await response.json();
-      const content = (data as { choices?: Array<{ message?: { content?: unknown } }> })?.choices?.[0]?.message
-        ?.content;
-      if (typeof content !== 'string') {
+      const content = firstChoiceContent(await response.json());
+      if (content === null) {
         throw new Error('OpenRouter response missing choices[0].message.content');
       }
       return content;

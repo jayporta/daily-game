@@ -171,7 +171,12 @@ test('moderate skips the AI call once the keyword scan has already failed', asyn
   assert.equal(aiCalls, 0);
 });
 
-/** Every string anywhere inside a value, however deeply nested. */
+/**
+ * Every string anywhere inside a value, however deeply nested.
+ *
+ * Kept independent of moderate.ts's own walker: the tests below use this to
+ * enumerate what should have reached the moderator.
+ */
 function stringLeaves(value: unknown): string[] {
   if (typeof value === 'string') return [value];
   if (Array.isArray(value)) return value.flatMap(stringLeaves);

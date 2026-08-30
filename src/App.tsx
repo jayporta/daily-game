@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Centered } from './components/Centered.tsx';
+import { CodeChip } from './components/CodeChip.tsx';
 import { GameFrame } from './components/GameFrame.tsx';
 import { ControlLegend } from './components/ControlLegend.tsx';
 import { GameMeta } from './components/GameMeta.tsx';
 import { ReactionBar } from './components/ReactionBar.tsx';
 import { ThemeToggle } from './components/ThemeToggle.tsx';
 import { fetchGameHtml, fetchManifest } from './lib/manifest-client.ts';
+import { errorMessage } from '../lib/errors.ts';
 import type { Manifest } from '../lib/types.ts';
 
 /**
@@ -38,7 +40,7 @@ export function App() {
         setState({ status: 'ready', manifest, html });
       } catch (error) {
         if (cancelled) return;
-        setState({ status: 'error', message: (error as Error).message });
+        setState({ status: 'error', message: errorMessage(error) });
       }
     })();
 
@@ -58,14 +60,14 @@ export function App() {
 
         <ThemeToggle />
       </header>
-      <main className="flex min-h-0 flex-1 items-center justify-center bg-surface p-7 dark:bg-slate-950">
+      <main className="flex min-h-0 flex-1 items-center justify-center p-7">
         {state.status === 'loading' && <Centered>Loading today&rsquo;s game&hellip;</Centered>}
         {state.status === 'empty' && (
           <Centered>
-            No game has been published yet. Run{' '}
-            <code className="mx-1 rounded-sm bg-chip px-1.25 py-px font-mono text-code text-label dark:bg-slate-800 dark:text-slate-300">
-              npm run dry-run
-            </code>{' '}
+            No game has been published yet. Run
+            <span className="mx-1">
+              <CodeChip>npm run generate:local</CodeChip>
+            </span>
             to generate one locally.
           </Centered>
         )}
@@ -80,7 +82,7 @@ export function App() {
         </div>
       )}
 
-      <footer className="bg-surface px-6 py-2.5 text-xs text-faint dark:bg-slate-950 dark:text-slate-500">
+      <footer className="px-6 py-2.5 text-xs text-faint dark:text-slate-500">
         A new game, invented by AI, every day. Built by Jason Matthew Porta ·{' '}
         <a
           className="text-label hover:underline dark:text-slate-400"

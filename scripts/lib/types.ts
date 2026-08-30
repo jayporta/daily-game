@@ -77,11 +77,3 @@ export interface ValidationResult {
   valid: boolean;
   errors: string[];
 }
-
-/** Contents of `config/reaction-config.json`, as the pipeline reads it. */
-export interface ReactionConfig {
-  /** Reaction store REST endpoint, or null when none is configured. */
-  endpointUrl: string | null;
-  /** The public, insert-only key that ships in the page. */
-  anonKey: string | null;
-}

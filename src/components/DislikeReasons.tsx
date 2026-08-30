@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DISLIKE_REASONS, type DislikeReason } from '../../lib/reaction-types.ts';
+import { PillButton } from './PillButton.tsx';
 
 export interface DislikeReasonsProps {
   /**
@@ -66,20 +67,12 @@ export function DislikeReasons({ onSubmit }: DislikeReasonsProps) {
       </ul>
 
       <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          onClick={() => onSubmit(inVocabularyOrder(chosen))}
-          className="rounded-2xl bg-chip px-4 py-1.5 font-semibold text-body transition-colors hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
-        >
+        <PillButton tone="strong" onClick={() => onSubmit(inVocabularyOrder(chosen))}>
           Send
-        </button>
-        <button
-          type="button"
-          onClick={() => onSubmit([])}
-          className="rounded-2xl px-4 py-1.5 font-semibold text-meta transition-colors hover:text-body dark:text-slate-400 dark:hover:text-slate-200"
-        >
+        </PillButton>
+        <PillButton tone="quiet" onClick={() => onSubmit([])}>
           Skip
-        </button>
+        </PillButton>
       </div>
     </div>
   );

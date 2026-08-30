@@ -2,13 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   buildInsertRequest,
-  isReactionConfig,
   readReaction,
   rememberReaction,
   sendReaction,
-  type ReactionConfig,
-  type ReactionStorage,
 } from './reaction.ts';
+import type { WebStorage } from './browser-storage.ts';
+import type { ReactionConfig } from '../../lib/reaction-types.ts';
 
 const SLUG = '2026-08-29-beetle';
 const CONFIGURED: ReactionConfig = {
@@ -17,7 +16,7 @@ const CONFIGURED: ReactionConfig = {
 };
 const UNCONFIGURED: ReactionConfig = { endpointUrl: null, anonKey: null };
 
-function memoryStorage(): ReactionStorage {
+function memoryStorage(): WebStorage {
   const map = new Map<string, string>();
   return {
     getItem: (key) => map.get(key) ?? null,
@@ -25,7 +24,7 @@ function memoryStorage(): ReactionStorage {
   };
 }
 
-const throwingStorage: ReactionStorage = {
+const throwingStorage: WebStorage = {
   getItem() {
     throw new DOMException('denied', 'SecurityError');
   },
@@ -38,18 +37,6 @@ const throwingStorage: ReactionStorage = {
 function likeRequest() {
   return buildInsertRequest(CONFIGURED, { slug: SLUG, reaction: 'like', reasons: [] });
 }
-
-test('isReactionConfig accepts an unconfigured store', () => {
-  assert.equal(isReactionConfig({ endpointUrl: null, anonKey: null }), true);
-});
-
-test('isReactionConfig rejects a config missing a field', () => {
-  assert.equal(isReactionConfig({ endpointUrl: null }), false);
-});
-
-test('isReactionConfig rejects fields of the wrong type', () => {
-  assert.equal(isReactionConfig({ endpointUrl: 42, anonKey: null }), false);
-});
 
 test('buildInsertRequest posts the reaction as JSON', () => {
   const request = likeRequest();

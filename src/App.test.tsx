@@ -1,22 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { App } from './App.tsx';
-import type { Manifest } from '../lib/types.ts';
-
-const MANIFEST: Manifest = {
-  date: '2026-08-29',
-  slug: '2026-08-29-beetle',
-  path: 'games/archive/2026-08-29-beetle/game.html',
-  title: 'Beetle of a Thousand Mirrors',
-  genre: 'maze-adventure',
-  genreLabel: 'Maze Adventure',
-  model: 'qwen/qwen-2.5-72b-instruct:free',
-  generatedAt: '2026-08-29T09:04:00.000Z',
-  expiresAt: '2026-08-30T13:00:00.000Z',
-  controls: [{ action: 'Move', key: 'Arrow keys' }],
-};
-
-const BUNDLE = '<!doctype html><html><body><canvas></canvas></body></html>';
+import { BUNDLE, MANIFEST } from './lib/fixtures.ts';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
@@ -57,7 +42,7 @@ describe('App', () => {
     expect(screen.getByText('Maze Adventure')).toBeVisible();
   });
 
-  it('invites a local dry run when nothing has been published yet', async () => {
+  it('invites a local generation run when nothing has been published yet', async () => {
     // The seed manifest is literally `null` until the pipeline first runs.
     stubFetch({ manifest: () => jsonResponse(null) });
     render(<App />);
@@ -134,15 +119,20 @@ describe('App', () => {
 
   // The frame holds AI-authored code under an opaque origin. The controls a
   // viewer uses to judge a game must never sit inside the thing they judge.
-  it('keeps the rating controls outside the sandboxed frame', async () => {
+  // Asserted on `srcdoc`, since `Node.contains` cannot see into a frame.
+  it('keeps the rating controls out of the sandboxed document', async () => {
     stubFetch({ manifest: () => jsonResponse(MANIFEST) });
     render(<App />);
 
     const rate = await screen.findByRole('button', { name: /^like$/i });
     const frame = screen.getByTitle(MANIFEST.title);
+    const sandboxed = frame.getAttribute('srcdoc') ?? '';
 
-    expect(frame.tagName).toBe('IFRAME');
-    expect(frame.contains(rate)).toBe(false);
+    // The bundle reaches the sandbox exactly as it was fetched.
+    expect(sandboxed).toBe(BUNDLE);
+    expect(sandboxed).not.toMatch(/like|dislike/i);
+    // The controls live in the parent document.
+    expect(document.body.contains(rate)).toBe(true);
   });
 
   it('offers no rating controls before a game has loaded', () => {

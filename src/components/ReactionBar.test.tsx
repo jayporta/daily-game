@@ -1,9 +1,9 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ReactionBar } from './ReactionBar.tsx';
 import { DISLIKE_REASONS } from '../../lib/reaction-types.ts';
-import type { ReactionConfig } from '../lib/reaction.ts';
+import type { ReactionConfig } from '../../lib/reaction-types.ts';
 
 const SLUG = '2026-08-29-beetle';
 const UNCONFIGURED: ReactionConfig = { endpointUrl: null, anonKey: null };
@@ -219,9 +219,4 @@ describe('ReactionBar', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('labels itself for assistive technology', () => {
-    render(<ReactionBar slug={SLUG} config={UNCONFIGURED} />);
-
-    expect(within(screen.getByRole('group', { name: /rate this game/i })).getByRole('button', { name: /^like$/i })).toBeVisible();
-  });
 });

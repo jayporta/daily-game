@@ -7,6 +7,7 @@
 // acceptance publishes banned content to a public site.
 import type { ChatMessage, OpenRouterClient } from './lib/openrouter-client.ts';
 import type { GeneratedMeta } from '../lib/types.ts';
+import { errorMessage } from '../lib/errors.ts';
 
 /**
  * High-precision terms that are never acceptable. This is a fast
@@ -138,7 +139,7 @@ export async function aiModerationCheck(
     });
   } catch (error) {
     // An unreachable moderator is not permission to publish.
-    return { pass: false, raw: `moderation call failed: ${(error as Error).message}` };
+    return { pass: false, raw: `moderation call failed: ${errorMessage(error)}` };
   }
 
   const normalized = raw.trim().toUpperCase();

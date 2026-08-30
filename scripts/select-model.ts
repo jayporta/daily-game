@@ -24,5 +24,7 @@ export function selectNextModel(config: ModelsConfig, lastUsedModelId?: string):
   const lastIndex = active.findIndex((model) => model.id === lastUsedModelId);
   if (lastIndex === -1) return first;
 
-  return active[(lastIndex + 1) % active.length] as ModelEntry;
+  // Wrapping past the end lands on `first`, which is also the fallback
+  // `noUncheckedIndexedAccess` requires.
+  return active[(lastIndex + 1) % active.length] ?? first;
 }

@@ -5,8 +5,8 @@ import {
   rememberTheme,
   resolveInitialTheme,
   type Theme,
-  type ThemeStorage,
 } from '../lib/theme.ts';
+import { localStorageOrNull } from '../lib/browser-storage.ts';
 
 /** The active theme, and the one thing a visitor can do to it. */
 export interface UseThemeResult {
@@ -14,18 +14,6 @@ export interface UseThemeResult {
   readonly theme: Theme;
   /** Switches to the other theme and remembers the choice. */
   toggle: () => void;
-}
-
-/**
- * `localStorage` is absent in some embedding contexts and throws outright
- * in Safari's private mode, so even reaching for it is guarded.
- */
-function themeStorage(): ThemeStorage | null {
-  try {
-    return globalThis.localStorage ?? null;
-  } catch {
-    return null;
-  }
 }
 
 /** Whether the operating system asks for a dark palette. */
@@ -50,7 +38,7 @@ function prefersDark(): boolean {
  */
 export function useTheme(): UseThemeResult {
   const [theme, setTheme] = useState<Theme>(() =>
-    resolveInitialTheme(themeStorage(), prefersDark()),
+    resolveInitialTheme(localStorageOrNull(), prefersDark()),
   );
 
   // `<html>` lives outside React's tree, so this is synchronisation with
@@ -64,7 +52,7 @@ export function useTheme(): UseThemeResult {
     toggle: () => {
       const chosen = nextTheme(theme);
       setTheme(chosen);
-      rememberTheme(themeStorage(), chosen);
+      rememberTheme(localStorageOrNull(), chosen);
     },
   };
 }

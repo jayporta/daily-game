@@ -2,8 +2,11 @@
 // unit tested with a stubbed fetch.
 import type { ControlHint, Manifest } from '../../lib/types.ts';
 
-/** The string-valued fields of {@link Manifest}, so the guard can't drift. */
-const REQUIRED_STRING_FIELDS = [
+/**
+ * The string-valued fields of {@link Manifest}, so the guard can't drift.
+ * Exported for the test that deletes each one in turn.
+ */
+export const REQUIRED_STRING_FIELDS = [
   'date',
   'slug',
   'path',

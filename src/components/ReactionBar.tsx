@@ -1,7 +1,8 @@
 import { DislikeReasons } from './DislikeReasons.tsx';
+import { PillButton } from './PillButton.tsx';
 import { useReaction } from '../hooks/useReaction.ts';
 import { reactionConfig } from '../lib/reaction-config.ts';
-import type { ReactionConfig } from '../lib/reaction.ts';
+import type { ReactionConfig } from '../../lib/reaction-types.ts';
 
 export interface ReactionBarProps {
   /** Manifest slug of the game being rated — the row's key in the store. */
@@ -38,20 +39,12 @@ export function ReactionBar({ slug, config = reactionConfig, fetchImpl }: Reacti
 
       {phase === 'idle' && (
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={beginDislike}
-            className="rounded-2xl bg-chip px-4 py-1.5 font-semibold text-label transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-          >
+          <PillButton tone="neutral" onClick={beginDislike}>
             Dislike
-          </button>
-          <button
-            type="button"
-            onClick={like}
-            className="rounded-2xl bg-like px-4 py-1.5 font-semibold text-like-ink transition-colors hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25"
-          >
+          </PillButton>
+          <PillButton tone="accent" onClick={like}>
             Like
-          </button>
+          </PillButton>
         </div>
       )}
 

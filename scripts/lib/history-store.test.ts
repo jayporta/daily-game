@@ -13,6 +13,7 @@ import {
   writeGamesJson,
   writeGamesMd,
 } from './history-store.ts';
+import { FAILED_ENTRY as FAILED, PUBLISHED_ENTRY as PUBLISHED } from './fixtures.ts';
 import type { HistoryGameEntry } from './types.ts';
 
 function scratchDir(t: { after(fn: () => void): void }): string {
@@ -20,24 +21,6 @@ function scratchDir(t: { after(fn: () => void): void }): string {
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
-
-const PUBLISHED: HistoryGameEntry = {
-  date: '2026-08-28',
-  status: 'published',
-  model: 'a/model:free',
-  slug: '2026-08-28-beetle',
-  genre: 'maze-adventure',
-  theme: 'glass beetles',
-  mechanics: ['move'],
-  title: 'Beetle Maze',
-};
-
-const FAILED: HistoryGameEntry = {
-  date: '2026-08-29',
-  status: 'failed_kept_previous',
-  model: 'b/model:free',
-  attempts: 3,
-};
 
 test('appendEntry keeps entries sorted oldest-first', () => {
   const result = appendEntry([FAILED], PUBLISHED);
@@ -84,6 +67,22 @@ test('readSummary fills in missing keys from a partial file', (t) => {
   assert.equal(summary.lessons, 'only lessons');
   assert.deepEqual(summary.genreCounts, {});
   assert.deepEqual(summary.popularityLeaderboard, []);
+});
+
+test('readSummary rejects a summary whose leaderboard is not a list', (t) => {
+  const dir = scratchDir(t);
+  const file = join(dir, 'summary.json');
+  writeFileSync(file, JSON.stringify({ popularityLeaderboard: 'oops' }), 'utf8');
+
+  assert.throws(() => readSummary(file), /invalid/);
+});
+
+test('readSummary rejects a leaderboard entry the prompt builder could not use', (t) => {
+  const dir = scratchDir(t);
+  const file = join(dir, 'summary.json');
+  writeFileSync(file, JSON.stringify({ popularityLeaderboard: [{ slug: 42 }] }), 'utf8');
+
+  assert.throws(() => readSummary(file), /invalid/);
 });
 
 test('writeGamesJson round-trips through readHotWindow', (t) => {

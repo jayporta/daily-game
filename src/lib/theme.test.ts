@@ -9,11 +9,11 @@ import {
   readTheme,
   rememberTheme,
   resolveInitialTheme,
-  type ThemeStorage,
 } from './theme.ts';
+import type { WebStorage } from './browser-storage.ts';
 
 /** A working storage, plus the raw record so a test can inspect what landed. */
-function fakeStorage(seed: Record<string, string> = {}): ThemeStorage & {
+function fakeStorage(seed: Record<string, string> = {}): WebStorage & {
   readonly written: Record<string, string>;
 } {
   const written: Record<string, string> = { ...seed };
@@ -27,7 +27,7 @@ function fakeStorage(seed: Record<string, string> = {}): ThemeStorage & {
 }
 
 /** Safari's private mode: the API is present and every call throws. */
-const throwingStorage: ThemeStorage = {
+const throwingStorage: WebStorage = {
   getItem: () => {
     throw new DOMException('denied', 'SecurityError');
   },

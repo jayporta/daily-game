@@ -14,38 +14,11 @@ import {
   isDislikeReason,
   isPublishableSlug,
   type DislikeReason,
+  type ReactionConfig,
   type ReactionKind,
   type ReactionPayload,
 } from '../../lib/reaction-types.ts';
-
-/**
- * Contents of `config/reaction-config.json`.
- *
- * Deliberately generic rather than vendor-shaped: `endpointUrl` plus a
- * public key describes Supabase's REST insert and would equally describe a
- * Cloudflare Worker, so changing services stays a config edit.
- */
-export interface ReactionConfig {
-  /**
-   * Where to POST one reaction row, or `null` when no store is configured —
-   * today's state, in which the page makes no request at all.
-   */
-  readonly endpointUrl: string | null;
-  /**
-   * Public, insert-only key. Safe to ship in client JS *only* because the
-   * store restricts it to inserts; it is never the privileged key, which
-   * lives in an Actions secret and is used solely by the daily pipeline.
-   */
-  readonly anonKey: string | null;
-}
-
-/** The slice of `localStorage` this module uses, so tests need no DOM. */
-export interface ReactionStorage {
-  /** Returns the stored string, or `null` when the key is absent. */
-  getItem(key: string): string | null;
-  /** Stores `value`; may throw, which every caller here tolerates. */
-  setItem(key: string, value: string): void;
-}
+import type { WebStorage } from './browser-storage.ts';
 
 /** A visitor's own recorded choice for one game. */
 export interface StoredReaction {
@@ -61,17 +34,6 @@ export interface InsertRequest {
   readonly url: string;
   /** Carries this module's cross-origin posture — see {@link buildInsertRequest}. */
   readonly init: RequestInit;
-}
-
-/** Shape check for the hand-edited config file. */
-export function isReactionConfig(value: unknown): value is ReactionConfig {
-  if (typeof value !== 'object' || value === null) return false;
-  if (!('endpointUrl' in value) || !('anonKey' in value)) return false;
-  const { endpointUrl, anonKey } = value;
-  return (
-    (endpointUrl === null || typeof endpointUrl === 'string') &&
-    (anonKey === null || typeof anonKey === 'string')
-  );
 }
 
 /**
@@ -176,7 +138,7 @@ function toStoredReaction(value: unknown): StoredReaction | null {
  * every project site under one account on a single origin, so this store is
  * shared with any other site the owner publishes there.
  */
-export function readReaction(storage: ReactionStorage | null, slug: string): StoredReaction | null {
+export function readReaction(storage: WebStorage | null, slug: string): StoredReaction | null {
   if (storage === null) return null;
   try {
     const raw = storage.getItem(storageKey(slug));
@@ -190,7 +152,7 @@ export function readReaction(storage: ReactionStorage | null, slug: string): Sto
 
 /** Records this visitor's choice for `slug`. Never throws. */
 export function rememberReaction(
-  storage: ReactionStorage | null,
+  storage: WebStorage | null,
   slug: string,
   reaction: StoredReaction,
 ): void {

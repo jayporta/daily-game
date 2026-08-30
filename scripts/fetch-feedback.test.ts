@@ -1,21 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyFeedback, tallyReactions } from './fetch-feedback.ts';
-import type { HistoryGameEntry } from './lib/types.ts';
+import { PUBLISHED_ENTRY as PUBLISHED, PUBLISHED_SLUG as SLUG } from './lib/fixtures.ts';
 
-const SLUG = '2026-08-28-beetle';
 const ENDPOINT = 'https://proj.supabase.co/rest/v1/reactions';
-
-const PUBLISHED: HistoryGameEntry = {
-  date: '2026-08-28',
-  status: 'published',
-  model: 'a/model:free',
-  slug: SLUG,
-  genre: 'maze-adventure',
-  theme: 'glass beetles',
-  mechanics: ['move'],
-  title: 'Beetle Maze',
-};
 
 const row = (reaction: string, reasons: unknown[] = [], slug = SLUG): unknown => ({
   slug,

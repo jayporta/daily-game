@@ -6,10 +6,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Never run `git add`, `git commit`, or `git push`. The repo owner reviews
   and commits every change by hand.
-- When a unit of work is done, run a code review subagent, fix what it
-  finds, then hand the tree back.
+- When a unit of work is done, work the checklist below, then run a code
+  review subagent, fix what it finds, and hand the tree back. The review is
+  a backstop — anything on that checklist it has to catch was a wasted
+  round trip.
 - Confirm before reconfiguring the GitHub remote or Pages, and before
   provisioning real OpenRouter or Sentry credentials.
+
+## Before handing work back
+
+Every item here has been violated at least once and cost a review cycle.
+
+- `npm run typecheck` and `npm test` both clean. State the counts.
+- For each new test that guards an invariant: break the code on purpose,
+  confirm the test fails, restore. Say what you broke and what failed.
+- No new `as`, `!`, or `any` — `as const` and `import { x as y }` aside. If
+  one is genuinely unavoidable, a comment beside it says why.
+- Nothing added duplicates something already here. Before writing a type,
+  guard, constant, fixture or class string, grep for it.
+- Anything user-visible: look at it. `npm run build:site`, or drive the
+  page with Playwright, before claiming it renders.
+- Every flag, option and branch introduced has a caller. A `--flag` no
+  script passes is dead code behind a misleading doc entry.
+- Deleting a test requires saying what still covers it, or why nothing
+  needs to — a test that asserted nothing had no coverage to replace.
 
 ## Commands
 
@@ -20,7 +40,8 @@ npm run test:node    # node --test only  (*.test.ts)
 npm run test:web     # vitest only       (*.test.tsx)
 npm run test:watch   # vitest in watch mode
 npm run typecheck    # both projects: tsconfig.json and tsconfig.web.json
-npm run dry-run      # whole generation pipeline against mocks, no API key
+npm run dry-run      # whole pipeline against mocks, writing nothing to disk
+npm run generate:local  # same, but publishes locally so `npm run dev` has a game
 npm run build:site   # vite build + assemble-site.ts → deployable dist/
 ```
 
@@ -44,8 +65,18 @@ First run also needs `npx playwright install chromium`.
   Prefer exhaustive `switch`/ternaries over defensive `if (x?.y)` chains.
 - Annotate exported signatures; let inference handle locals.
 - Union types or `as const` objects instead of `enum`.
-- Avoid `!` and `as`. If a value may be absent, prove it isn't.
-  `noUncheckedIndexedAccess` is on, so index access is checked.
+- Avoid `!` and `as`. If a value may be absent, prove it isn't — `?? fallback`
+  or an early return, not an assertion. `noUncheckedIndexedAccess` is on, so
+  index access is checked, and `noUnusedLocals`/`noUnusedParameters` catch
+  what a deletion leaves behind.
+- `catch` binds `unknown`, and a `throw` can carry anything. Never
+  `(error as Error).message` — it renders the literal string `"undefined"`
+  for a bare throw. Use `errorMessage()` from `lib/errors.ts`.
+- Data arriving from disk, the network or `localStorage` is validated and
+  then used, never `JSON.parse(x) as T`. Config and history go through
+  `loadValidatedJson` with a validator from `scripts/lib/schema.ts`;
+  anything else gets a guard that narrows field by field. Every reader of a
+  given file validates, or the one that doesn't becomes the crash.
 - `satisfies` to validate an object against a type without widening it.
 - Prefer `readonly` for parameters and fields that are never reassigned.
 
@@ -61,6 +92,10 @@ First run also needs `npx playwright install chromium`.
 - Every effect that starts something must stop it — clear intervals, abort
   requests, and guard against setting state after unmount.
 - Keep state at the lowest component that needs it. Lift only when shared.
+- Hold in state what the component renders, not the raw value it is derived
+  from, when the derived value changes less often. React bails out on an
+  unchanged value: that is what keeps a one-second interval from
+  re-rendering a label that reads the same for a minute.
 - Stable, meaningful `key`s in lists. Never an array index.
 - Never `dangerouslySetInnerHTML`. AI-generated text renders as JSX so React
   escapes it; AI-generated *markup* goes in the sandboxed iframe, nowhere
@@ -78,8 +113,13 @@ First run also needs `npx playwright install chromium`.
   repeats and cannot be a component.
 - Use scale values (`p-4`, `text-slate-400`). Arbitrary values like
   `[13px]` or `[#1a1a1a]` mean the scale should have grown instead.
-- Compose conditional classes with a helper, never string concatenation
-  that can produce partial class names.
+- A class string that appears twice is already a duplicate — extract a
+  component (`PillButton`, `CodeChip`). Don't wait for a third copy.
+- Variants belong in a `Record<Variant, string>` of complete class strings.
+  Never assemble one from fragments: Tailwind only generates what it can
+  read whole in the source.
+- Don't repeat a background a parent already paints. A child with none
+  shows the ancestor's.
 - Mobile-first: unprefixed base, then `sm:`/`md:` to widen.
 - No inline `style` for anything a utility covers.
 
@@ -92,6 +132,18 @@ First run also needs `npx playwright install chromium`.
 - Each test asserts one thing, with a name stating the expected behavior.
 - Cover the edges that matter: empty, malformed, expired, unreachable.
 - Never assert something that cannot fail, and avoid snapshots for logic.
+  Two ways this has slipped through: an assertion that cannot *observe*
+  what its name claims (`Node.contains` never crosses into an iframe's
+  document, so it cannot see what is inside the sandbox — assert on the
+  `srcdoc` string), and an assertion that is only true at compile time
+  (`node --test` strips types rather than checking them, so only
+  `npm run typecheck` ever sees it).
+- A new test must be able to fail while the tests beside it pass. If a
+  stronger assertion nearby already covers it, it is documentation — put it
+  in a comment, not a second run. This matters most where a test is
+  expensive: the smoke tests each launch a browser.
+- Fixtures come from `scripts/lib/fixtures.ts` or `src/lib/fixtures.ts`.
+  Never paste a manifest, config or history entry into a second test file.
 - A test guarding an invariant must fail when that invariant is broken.
   Check it by breaking the code on purpose, not by reading the test.
 - Tests live beside the code. Two runners, split by what the code needs:
@@ -101,17 +153,34 @@ First run also needs `npx playwright install chromium`.
   Node cannot load `.tsx` at all: its type stripping does not transform JSX.
 - Query by role or visible text, not by test id or class name.
 
-## Documentation comments
+## Comments
 
-- JSDoc every exported function, type, and interface field. It surfaces on
-  hover in editors, which is the point — write for someone reading the
-  signature, not the body.
+Two kinds, with different jobs. Don't write the first kind's prose in the
+second kind's place.
+
+**Doc comments** — `/** */` on exported functions, types, interface fields
+and props. These surface on hover, which is the point, so they earn their
+length.
+
+- JSDoc every export. Write for someone reading the signature, not the body.
 - Document parameters whose meaning isn't obvious from the name: expected
   format, units, what an absent value means. Use `@throws` where a function
   throws, and `{@link}` to connect related helpers.
-- Explain *why*, not *what*. Skip comments that restate the code.
-- Comment the non-obvious decision, the workaround, and the invariant that
-  would otherwise be easy to delete.
+- Describe the contract as it stands. Never narrate how it used to work.
+
+**Every other comment** — a brief description of what the block does. One
+line, two at most.
+
+- No rationale essays, and no arguing the code against an alternative that
+  isn't in the tree. "A rather than B, because B would…" only confuses a
+  reader who never saw B, and B is usually something that existed only in a
+  chat log. State what the code does.
+- Skip comments that restate the code.
+- Do note the genuine trap: a workaround, a constraint the code cannot
+  express, a deliberate duplication that would otherwise be merged away, an
+  invariant easy to delete by accident. State it plainly; don't justify it.
+- A doc comment moves with the function it documents. A stranded one
+  silently describes its new neighbour.
 
 ## Invariants
 
@@ -133,9 +202,12 @@ refactor.
   `OUTPUT_FORMAT_CONTRACT` in `scripts/build-prompt.ts` describes the two
   fenced blocks that `lib/extract-bundle-shared.ts` parses. Change them
   together or every generation fails.
-- **`cronSchedule` is duplicated by hand** in `config/generation.json` and
-  the workflow's `on.schedule.cron`, because Actions triggers can't read
-  config. The config copy drives the front-end countdown.
+- **`cronSchedule` will be duplicated by hand** in `config/generation.json`
+  and the daily workflow's `on.schedule.cron`, because Actions triggers
+  can't read config. Only the config copy exists today — it drives the
+  front-end countdown via `computeExpiresAt` — since
+  `generate-daily-game.yml` has not been written yet. Keep the two in step
+  the moment it is.
 - **Published bundles ship byte-for-byte.** Nothing may transform an
   archived `game.html` between the pipeline writing it and the browser
   running it; the dev server has a plugin specifically to prevent Vite
@@ -164,9 +236,16 @@ refactor.
 
 ## Conventions
 
-- Shared helpers live in `scripts/lib/` — config loading, history I/O, path
-  building, validation, fixtures. Extend them rather than re-reading or
-  re-validating files in a new script.
+- One definition per fact, in the narrowest home that reaches every caller:
+  `lib/` when both sides need it, `src/lib/` for browser-only, `scripts/lib/`
+  for Node-only. A type declared twice drifts — these already had to be
+  merged back: `ReactionConfig`, the `localStorage` seam, and the shape
+  check for `config/reaction-config.json`.
+- Shared helpers live in `scripts/lib/` (config loading, history I/O, path
+  building, validation, fixtures) and `src/lib/` on the browser side.
+  Extend them rather than re-reading or re-validating files in a new script.
+- An npm script's name has to describe what it does. `dry-run` once wrote to
+  disk, and the front-end told visitors to run it.
 - Keep I/O at the edges: pure functions for logic, thin wrappers for disk
   and network, so tests need neither.
 - Take a `root`/path override on anything that writes, so tests target a

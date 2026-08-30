@@ -11,13 +11,8 @@ import {
   selectRemixSuggestion,
 } from './build-prompt.ts';
 import { extractBundle } from '../lib/extract-bundle-shared.ts';
-import type { GenresConfig, HistoryGameEntry, HistorySummary } from './lib/types.ts';
-
-const GENRES: GenresConfig = [
-  { id: 'maze-adventure', label: 'Maze Adventure', examples: ['navigate a maze'] },
-  { id: 'platformer', label: 'Platformer', examples: ['jump between platforms'] },
-  { id: 'puzzle', label: 'Puzzle', examples: ['rearrange tiles'] },
-];
+import { GENRES } from './lib/fixtures.ts';
+import type { HistoryGameEntry, HistorySummary } from './lib/types.ts';
 
 const HISTORY: HistoryGameEntry[] = [
   {
@@ -244,6 +239,7 @@ test('the contract example anchors the model to none of our own content', () => 
   const example = /^\{.*\}$/m.exec(OUTPUT_FORMAT_CONTRACT)?.[0] ?? '';
   assert.notEqual(example, '', 'contract should show an example meta object');
 
+  // Walks the contract's example, independently of the extractor.
   const leaves: string[] = [];
   const walk = (value: unknown): void => {
     if (typeof value === 'string') leaves.push(value);

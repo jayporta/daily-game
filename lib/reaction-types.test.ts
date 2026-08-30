@@ -4,7 +4,7 @@ import {
   DISLIKE_REASONS,
   isDislikeReason,
   isPublishableSlug,
-  type DislikeReason,
+  isReactionConfig,
 } from './reaction-types.ts';
 
 test('every dislike reason has a distinct id', () => {
@@ -62,10 +62,27 @@ test('isPublishableSlug rejects non-string values', () => {
   }
 });
 
-test('the reason id type stays in step with the vocabulary', () => {
-  // Fails to compile, not at runtime, if an id is added without widening the
-  // union — which is the point.
-  const ids: DislikeReason[] = DISLIKE_REASONS.map((reason) => reason.id);
+test('isReactionConfig accepts the unconfigured store this site ships with', () => {
+  assert.equal(isReactionConfig({ endpointUrl: null, anonKey: null }), true);
+});
 
-  assert.equal(ids.length, DISLIKE_REASONS.length);
+test('isReactionConfig accepts a configured store', () => {
+  assert.equal(
+    isReactionConfig({ endpointUrl: 'https://proj.supabase.co/rest/v1/reactions', anonKey: 'k' }),
+    true,
+  );
+});
+
+test('isReactionConfig rejects a config missing a field', () => {
+  assert.equal(isReactionConfig({ endpointUrl: null }), false);
+});
+
+test('isReactionConfig rejects fields of the wrong type', () => {
+  assert.equal(isReactionConfig({ endpointUrl: 42, anonKey: null }), false);
+});
+
+test('isReactionConfig rejects values that are not objects', () => {
+  for (const value of [null, undefined, 'https://store', 42, []]) {
+    assert.equal(isReactionConfig(value), false, `${JSON.stringify(value)} was accepted`);
+  }
 });

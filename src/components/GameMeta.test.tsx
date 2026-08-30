@@ -1,22 +1,9 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { GameMeta } from './GameMeta.tsx';
-import type { Manifest } from '../../lib/types.ts';
+import { MANIFEST } from '../lib/fixtures.ts';
 
 const NOW = new Date('2026-08-29T12:00:00.000Z');
-
-const MANIFEST: Manifest = {
-  date: '2026-08-29',
-  slug: '2026-08-29-beetle',
-  path: 'games/archive/2026-08-29-beetle/game.html',
-  title: 'Beetle of a Thousand Mirrors',
-  genre: 'maze-adventure',
-  genreLabel: 'Maze Adventure',
-  model: 'qwen/qwen-2.5-72b-instruct:free',
-  generatedAt: '2026-08-29T09:04:00.000Z',
-  expiresAt: '2026-08-29T18:00:00.000Z',
-  controls: [{ action: 'Move', key: 'Arrow keys' }],
-};
 
 describe('GameMeta', () => {
   beforeEach(() => {

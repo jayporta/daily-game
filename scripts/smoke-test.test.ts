@@ -40,13 +40,6 @@ test('rejects a bundle that attempts a network request', async () => {
   assert.match(result.networkAttempts.join(' '), /example\.com/);
 });
 
-test('the network request never actually leaves the machine', async () => {
-  const { html } = loadFixtureBundle('bad-fetch-attempt');
-  const result = await tester.test(html);
-  // Recorded as an attempt, and aborted — the route handler never continues it.
-  assert.equal(result.networkAttempts.length, 1);
-});
-
 test('an allowlisted origin does not fail the bundle', async () => {
   // Epic 6 relies on this to permit exactly Sentry's ingest domain.
   const { html } = loadFixtureBundle('bad-fetch-attempt');

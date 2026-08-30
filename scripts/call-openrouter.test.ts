@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { MAX_ATTEMPTS, generateDailyGame } from './call-openrouter.ts';
 import { createSmokeTester, type SmokeTester } from './smoke-test.ts';
 import { createMockOpenRouterClient } from './lib/openrouter-client.mock.ts';
-import { loadFixture } from './lib/fixtures.ts';
+import { GENERATION_CONFIG, loadFixture } from './lib/fixtures.ts';
+import { EMPTY_SUMMARY } from './lib/history-store.ts';
 import { loadGuardrails, loadGenresConfig } from './lib/config-store.ts';
 import { isModerationRequest } from './moderate.ts';
 import type { OpenRouterClient } from './lib/openrouter-client.ts';
@@ -20,22 +21,10 @@ const MODELS: ModelsConfig = {
   ],
 };
 
-const GENERATION: GenerationConfig = {
-  historyHotWindowDays: 45,
-  rollupTriggerEntries: 60,
-  remixProbability: 0,
-  remixLookbackDays: 90,
-  retryTemperatures: [0.7, 0.9, 1.0],
-  sentryDsn: null,
-  cronSchedule: '0 13 * * *',
-};
+// Remixing is off so a run is deterministic; nothing else differs.
+const GENERATION: GenerationConfig = { ...GENERATION_CONFIG, remixProbability: 0 };
 
-const SUMMARY: HistorySummary = {
-  genreCounts: {},
-  genreLastUsed: {},
-  popularityLeaderboard: [],
-  lessons: '',
-};
+const SUMMARY: HistorySummary = EMPTY_SUMMARY;
 
 let smokeTester: SmokeTester;
 

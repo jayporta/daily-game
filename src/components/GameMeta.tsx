@@ -1,6 +1,7 @@
 // Metadata strip: what the game is, which model built it, and how long
 // it has left. Every field here comes from AI-generated content, so it is
 // rendered as JSX text — never innerHTML — and React escapes it.
+import { CodeChip } from './CodeChip.tsx';
 import { formatGeneratedDate } from '../lib/countdown.ts';
 import { useCountdown } from '../hooks/useCountdown.ts';
 import type { Manifest } from '../../lib/types.ts';
@@ -24,10 +25,7 @@ export function GameMeta({ manifest }: GameMetaProps) {
       </span>
       <span>Generated {formatGeneratedDate(manifest.generatedAt)}</span>
       <span>
-        built by{' '}
-        <code className="rounded-sm bg-chip px-1.25 py-px font-mono text-code text-label dark:bg-slate-800 dark:text-slate-300">
-          {manifest.model}
-        </code>
+        built by <CodeChip>{manifest.model}</CodeChip>
       </span>
       <span>
         will be replaced in{' '}

@@ -9,6 +9,7 @@
 // This is the site's chrome only. The game itself is AI-authored HTML
 // behind an opaque origin and ships byte-for-byte, so it brings its own
 // colours and does not follow the toggle. See src/components/GameFrame.tsx.
+import type { WebStorage } from './browser-storage.ts';
 
 /** The palettes on offer. A visitor toggles between them; there is no third, system-following state past the first visit. */
 export const THEMES = ['light', 'dark'] as const;
@@ -27,14 +28,6 @@ export const THEME_ATTRIBUTE = 'data-theme';
 /** `localStorage` key holding the visitor's own choice. */
 export const THEME_STORAGE_KEY = 'daily-game:theme';
 
-/** The slice of `localStorage` this module uses, so tests need no DOM. */
-export interface ThemeStorage {
-  /** Returns the stored string, or `null` when the key is absent. */
-  getItem(key: string): string | null;
-  /** Stores `value`; may throw, which every caller here tolerates. */
-  setItem(key: string, value: string): void;
-}
-
 /** Narrows a hand-editable stored string to a theme this site can paint. */
 export function isTheme(value: unknown): value is Theme {
   return THEMES.some((theme) => theme === value);
@@ -47,7 +40,7 @@ export function isTheme(value: unknown): value is Theme {
  *
  * @param storage `null` when `localStorage` could not even be reached.
  */
-export function readTheme(storage: ThemeStorage | null): Theme | null {
+export function readTheme(storage: WebStorage | null): Theme | null {
   if (storage === null) return null;
   try {
     const stored = storage.getItem(THEME_STORAGE_KEY);
@@ -63,7 +56,7 @@ export function readTheme(storage: ThemeStorage | null): Theme | null {
  * A failure costs them the preference on their next visit and nothing more,
  * so it is swallowed rather than surfaced.
  */
-export function rememberTheme(storage: ThemeStorage | null, theme: Theme): void {
+export function rememberTheme(storage: WebStorage | null, theme: Theme): void {
   if (storage === null) return;
   try {
     storage.setItem(THEME_STORAGE_KEY, theme);
@@ -78,7 +71,7 @@ export function rememberTheme(storage: ThemeStorage | null, theme: Theme): void 
  *
  * @param prefersDark Result of the `(prefers-color-scheme: dark)` query.
  */
-export function resolveInitialTheme(storage: ThemeStorage | null, prefersDark: boolean): Theme {
+export function resolveInitialTheme(storage: WebStorage | null, prefersDark: boolean): Theme {
   return readTheme(storage) ?? (prefersDark ? 'dark' : 'light');
 }
 

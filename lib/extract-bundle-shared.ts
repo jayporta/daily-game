@@ -7,6 +7,7 @@
 import type { ControlHint, ExtractedBundle, GeneratedMeta } from './types.ts';
 
 const JSON_BLOCK_RE = /```json\s*\r?\n([\s\S]*?)```/i;
+const HTML_BLOCK_RE = /```html\s*\r?\n([\s\S]*?)```/i;
 
 /**
  * Bounds on reported controls. They render in the parent page, so a model
@@ -62,7 +63,6 @@ function extractControls(value: unknown): ControlHint[] {
   }
   return controls;
 }
-const HTML_BLOCK_RE = /```html\s*\r?\n([\s\S]*?)```/i;
 
 /**
  * Deliberately permissive: any object passes, and missing fields are

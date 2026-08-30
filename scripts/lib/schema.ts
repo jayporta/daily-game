@@ -3,6 +3,7 @@
 // adding a dependency. Each takes `unknown` (the direct result of
 // JSON.parse) since the whole point is validating input we don't yet
 // trust matches scripts/lib/types.ts's shapes.
+import { isReactionConfig } from '../../lib/reaction-types.ts';
 import type { ValidationResult } from './types.ts';
 
 function isNonEmptyString(v: unknown): v is string {
@@ -15,6 +16,11 @@ function isFiniteNumber(v: unknown): v is number {
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/** An object used as a lookup table, every value of which passes `isValid`. */
+function isRecordOf(v: unknown, isValid: (entry: unknown) => boolean): boolean {
+  return isPlainObject(v) && Object.values(v).every(isValid);
 }
 
 export function validateModelsConfig(json: unknown): ValidationResult {
@@ -151,6 +157,55 @@ export function validateHistoryGames(json: unknown): ValidationResult {
 }
 
 /**
+ * Validates `history/summary.json`.
+ *
+ * Every field is optional: `readSummary` fills a missing one from the empty
+ * summary. A field that is present must carry the right type, since it is
+ * spread over the defaults and reaches the prompt builder unchecked.
+ */
+export function validateHistorySummary(json: unknown): ValidationResult {
+  const errors: string[] = [];
+  if (!isPlainObject(json)) {
+    return { valid: false, errors: ['root must be an object'] };
+  }
+
+  if (json.genreCounts !== undefined && !isRecordOf(json.genreCounts, isFiniteNumber)) {
+    errors.push('genreCounts must be an object whose values are numbers');
+  }
+  if (json.genreLastUsed !== undefined && !isRecordOf(json.genreLastUsed, isNonEmptyString)) {
+    errors.push('genreLastUsed must be an object whose values are date strings');
+  }
+  if (json.lessons !== undefined && typeof json.lessons !== 'string') {
+    errors.push('lessons must be a string');
+  }
+
+  if (json.popularityLeaderboard !== undefined) {
+    if (!Array.isArray(json.popularityLeaderboard)) {
+      errors.push('popularityLeaderboard must be an array');
+    } else {
+      json.popularityLeaderboard.forEach((entry: unknown, i: number) => {
+        const at = `popularityLeaderboard[${i}]`;
+        if (!isPlainObject(entry)) {
+          errors.push(`${at} must be an object`);
+          return;
+        }
+        // Each is sliced or interpolated into the prompt, so all must be strings.
+        if (!isNonEmptyString(entry.slug)) errors.push(`${at}.slug must be a non-empty string`);
+        if (!isNonEmptyString(entry.theme)) errors.push(`${at}.theme must be a non-empty string`);
+        if (!isNonEmptyString(entry.mechanicsSummary)) {
+          errors.push(`${at}.mechanicsSummary must be a non-empty string`);
+        }
+        if (!isFiniteNumber(entry.popularityScore)) {
+          errors.push(`${at}.popularityScore must be a number`);
+        }
+      });
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+/**
  * A JWT whose payload claims the privileged `service_role`.
  *
  * Matched against the base64url payload segment rather than decoded: this
@@ -175,22 +230,21 @@ function looksLikeServiceRoleKey(value: string): boolean {
  * an Actions secret, and is used only by `fetch-feedback.ts`.
  */
 export function validateReactionConfig(json: unknown): ValidationResult {
-  const errors: string[] = [];
-  if (!isPlainObject(json)) {
-    return { valid: false, errors: ['root must be an object'] };
+  // Shape from the shared guard; the checks below are deployment policy.
+  if (!isReactionConfig(json)) {
+    return {
+      valid: false,
+      errors: ['must be an object with endpointUrl and anonKey, each a string or null'],
+    };
   }
 
+  const errors: string[] = [];
   const { endpointUrl, anonKey } = json;
 
-  if (endpointUrl !== null && typeof endpointUrl !== 'string') {
-    errors.push('endpointUrl must be a string or null');
-  } else if (typeof endpointUrl === 'string' && !endpointUrl.startsWith('https://')) {
+  if (endpointUrl !== null && !endpointUrl.startsWith('https://')) {
     errors.push('endpointUrl must be https — a reaction must never travel in the clear');
   }
-
-  if (anonKey !== null && typeof anonKey !== 'string') {
-    errors.push('anonKey must be a string or null');
-  } else if (typeof anonKey === 'string' && looksLikeServiceRoleKey(anonKey)) {
+  if (anonKey !== null && looksLikeServiceRoleKey(anonKey)) {
     errors.push('anonKey looks like a service_role key — that key must never ship to the browser');
   }
 

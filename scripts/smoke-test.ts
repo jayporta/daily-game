@@ -6,6 +6,7 @@
 // *tries* to reach the network has broken the self-contained rule and is
 // rejected even though the request never left the machine.
 import { chromium, type Browser } from 'playwright';
+import { errorMessage } from '../lib/errors.ts';
 
 export interface SmokeTestResult {
   pass: boolean;
@@ -93,7 +94,7 @@ async function runSmokeTest(
       });
     });
   } catch (error) {
-    reasons.push(`page failed to load: ${(error as Error).message}`);
+    reasons.push(`page failed to load: ${errorMessage(error)}`);
   } finally {
     await context.close();
   }

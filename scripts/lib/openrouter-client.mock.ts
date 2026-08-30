@@ -23,10 +23,12 @@ export function createMockOpenRouterClient({
     async complete({ messages }: CompletionRequest): Promise<string> {
       if (isModerationRequest(messages)) return moderationVerdict;
 
-      if (callIndex >= fixtureSequence.length) {
+      const fixture = fixtureSequence[callIndex];
+      if (fixture === undefined) {
         throw new Error(`createMockOpenRouterClient: no fixture left for call #${callIndex + 1}`);
       }
-      return fixtureSequence[callIndex++] as string;
+      callIndex += 1;
+      return fixture;
     },
   };
 }

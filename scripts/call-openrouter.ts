@@ -10,6 +10,7 @@ import { pathToFileURL } from 'node:url';
 import { buildPrompt, SYSTEM_PROMPT, selectRemixSuggestion } from './build-prompt.ts';
 import { selectNextModel } from './select-model.ts';
 import { extractBundle } from '../lib/extract-bundle-shared.ts';
+import { errorMessage } from '../lib/errors.ts';
 import { moderate } from './moderate.ts';
 import { createSmokeTester, type SmokeTester } from './smoke-test.ts';
 import { publish, recordFailure } from './publish.ts';
@@ -114,7 +115,7 @@ export async function generateDailyGame({
         temperature,
       });
     } catch (error) {
-      const reason = `attempt ${attempt} (${model}): generation call failed — ${(error as Error).message}`;
+      const reason = `attempt ${attempt} (${model}): generation call failed — ${errorMessage(error)}`;
       reasons.push(reason);
       priorFailureFeedback = 'The previous request failed before returning a game. Return the two fenced blocks exactly as specified.';
       model = nextModelAfterFailure(modelsConfig, model, forceModel);

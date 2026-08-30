@@ -42,6 +42,13 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
+      # The smoke tests drive headless Chromium.
+      - name: Install Chromium for the smoke tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Test
+        run: npm test
+
       - name: Build and assemble the site
         run: npm run build:site
 

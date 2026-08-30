@@ -6,7 +6,7 @@
 // and the page avoids a second network round-trip plus a set of failure
 // states for a file that changes almost never.
 import raw from '../../config/reaction-config.json';
-import { isReactionConfig, type ReactionConfig } from './reaction.ts';
+import { isReactionConfig, type ReactionConfig } from '../../lib/reaction-types.ts';
 
 /** No store configured — the safe state, making no requests at all. */
 const UNCONFIGURED: ReactionConfig = { endpointUrl: null, anonKey: null };

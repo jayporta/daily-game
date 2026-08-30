@@ -8,6 +8,7 @@ import {
   validateGenresConfig,
   validateGenerationConfig,
   validateHistoryGames,
+  validateHistorySummary,
 } from './schema.ts';
 
 test('validateModelsConfig accepts a valid config', () => {
@@ -174,4 +175,57 @@ test('the reaction config this repo ships carries no privileged key', () => {
   const shipped: unknown = JSON.parse(readFileSync(paths.reactionConfig, 'utf8'));
 
   assert.equal(validateReactionConfig(shipped).valid, true);
+});
+
+test('validateHistorySummary accepts a summary with every field present', () => {
+  const result = validateHistorySummary({
+    genreCounts: { puzzle: 3 },
+    genreLastUsed: { puzzle: '2026-08-27' },
+    popularityLeaderboard: [
+      { slug: '2026-08-01-tide-garden', theme: 'tide clocks', mechanicsSummary: 'grow', popularityScore: 41 },
+    ],
+    lessons: 'Canvas resize handlers often forget to rescale entities.',
+  });
+
+  assert.deepEqual(result, { valid: true, errors: [] });
+});
+
+// An early run writes only what it knows; readSummary fills the rest in.
+test('validateHistorySummary accepts a partial summary', () => {
+  assert.equal(validateHistorySummary({ lessons: 'only lessons' }).valid, true);
+  assert.equal(validateHistorySummary({}).valid, true);
+});
+
+// selectRemixSuggestion calls .filter on this, so a non-array crashes the run.
+test('validateHistorySummary rejects a leaderboard that is not an array', () => {
+  const result = validateHistorySummary({ popularityLeaderboard: 'oops' });
+
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((e) => e.includes('popularityLeaderboard')));
+});
+
+test('validateHistorySummary rejects a leaderboard entry missing its slug', () => {
+  const result = validateHistorySummary({
+    popularityLeaderboard: [{ theme: 't', mechanicsSummary: 'm', popularityScore: 1 }],
+  });
+
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((e) => e.includes('[0].slug')));
+});
+
+test('validateHistorySummary rejects a non-numeric popularity score', () => {
+  const result = validateHistorySummary({
+    popularityLeaderboard: [{ slug: '2026-08-01-x', theme: 't', mechanicsSummary: 'm', popularityScore: 'high' }],
+  });
+
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((e) => e.includes('popularityScore')));
+});
+
+test('validateHistorySummary rejects lessons that are not a string', () => {
+  assert.equal(validateHistorySummary({ lessons: ['a', 'b'] }).valid, false);
+});
+
+test('validateHistorySummary rejects genre counts that are not numbers', () => {
+  assert.equal(validateHistorySummary({ genreCounts: { puzzle: 'three' } }).valid, false);
 });

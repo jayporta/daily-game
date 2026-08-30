@@ -56,6 +56,31 @@ describe('useCountdown', () => {
     expect(result.current).toBe('3h 0m');
   });
 
+  // The clock ticks every second; the label it produces changes once a minute.
+  it('does not re-render on every tick while the label it shows is unchanged', () => {
+    const TICKS = 30;
+    let renders = 0;
+    // Six hours and 45 seconds out: every tick below reads "6h 0m".
+    function Probe(): string {
+      renders += 1;
+      return useCountdown(expiryIn(6 * 3_600_000 + 45_000));
+    }
+    const { result } = renderHook(() => Probe());
+    const rendersAfterMount = renders;
+    expect(result.current).toBe('6h 0m');
+
+    // One flush per tick, since a browser never batches across tasks.
+    for (let second = 0; second < TICKS; second += 1) {
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+    }
+
+    expect(result.current).toBe('6h 0m');
+    // React bails out on an unchanged label, so this stays a small constant.
+    expect(renders - rendersAfterMount).toBeLessThan(TICKS / 2);
+  });
+
   it('stops its interval on unmount so nothing ticks after teardown', () => {
     const clearSpy = vi.spyOn(globalThis, 'clearInterval');
     const { unmount } = renderHook(() => useCountdown(expiryIn(60_000)));

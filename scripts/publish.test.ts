@@ -12,24 +12,9 @@ import {
   recordFailure,
   slugify,
 } from './publish.ts';
-import { loadFixtureBundle } from './lib/fixtures.ts';
-import type { GenerationConfig, GenresConfig, HistoryGameEntry } from './lib/types.ts';
+import { GENERATION_CONFIG, GENRES, loadFixtureBundle } from './lib/fixtures.ts';
+import type { HistoryGameEntry } from './lib/types.ts';
 import type { GeneratedMeta } from '../lib/types.ts';
-
-const GENERATION_CONFIG: GenerationConfig = {
-  historyHotWindowDays: 45,
-  rollupTriggerEntries: 60,
-  remixProbability: 0.2,
-  remixLookbackDays: 90,
-  retryTemperatures: [0.7, 0.9, 1.0],
-  sentryDsn: null,
-  cronSchedule: '0 13 * * *',
-};
-
-const GENRES: GenresConfig = [
-  { id: 'maze-adventure', label: 'Maze Adventure', examples: [] },
-  { id: 'puzzle', label: 'Puzzle', examples: [] },
-];
 
 const META: GeneratedMeta = {
   title: 'Beetle Maze',

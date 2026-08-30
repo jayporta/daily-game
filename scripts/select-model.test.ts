@@ -33,13 +33,15 @@ test('wraps around at the end of the rotation', () => {
   assert.equal(selectNextModel(CONFIG, 'c/model:free').id, 'a/model:free');
 });
 
-test('never returns a disabled model, even if it was the last used', () => {
-  assert.equal(selectNextModel(CONFIG, 'disabled/model:free').id, 'a/model:free');
-});
-
-test('falls back to the first active model for an unknown last-used id', () => {
-  assert.equal(selectNextModel(CONFIG, 'gone/model:free').id, 'a/model:free');
-});
+// Both are ids absent from the active rotation.
+for (const [scenario, lastUsed] of [
+  ['switched off', 'disabled/model:free'],
+  ['removed from the file', 'gone/model:free'],
+] as const) {
+  test(`restarts the rotation when the last-used model was ${scenario}`, () => {
+    assert.equal(selectNextModel(CONFIG, lastUsed).id, 'a/model:free');
+  });
+}
 
 test('throws when no model is active', () => {
   const noneActive: ModelsConfig = {

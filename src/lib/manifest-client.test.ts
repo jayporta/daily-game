@@ -1,19 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchGameHtml, fetchManifest, isManifest, manifestUrl } from './manifest-client.ts';
-
-const VALID = {
-  genreLabel: 'Maze Adventure',
-  controls: [{ action: 'Move', key: 'Arrow keys' }],
-  date: '2026-08-29',
-  slug: '2026-08-29-beetle',
-  path: 'games/archive/2026-08-29-beetle/game.html',
-  title: 'Beetle Maze',
-  genre: 'maze-adventure',
-  model: 'a/model:free',
-  generatedAt: '2026-08-29T13:04:00.000Z',
-  expiresAt: '2026-08-30T13:00:00.000Z',
-};
+import {
+  REQUIRED_STRING_FIELDS,
+  fetchGameHtml,
+  fetchManifest,
+  isManifest,
+  manifestUrl,
+} from './manifest-client.ts';
+import { MANIFEST as VALID } from './fixtures.ts';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
@@ -31,9 +25,10 @@ test('isManifest rejects an object missing required fields', () => {
   assert.equal(isManifest({ slug: 'x' }), false);
 });
 
-// Checked field by field: a guard that silently stopped validating one of
-// these would let a partial manifest through and render blank metadata.
-for (const field of ['date', 'slug', 'path', 'title', 'genre', 'model', 'generatedAt', 'expiresAt']) {
+// Checked field by field, over the guard's own list: a guard that silently
+// stopped validating one of these would let a partial manifest through and
+// render blank metadata.
+for (const field of REQUIRED_STRING_FIELDS) {
   test(`isManifest rejects a manifest missing ${field}`, () => {
     const partial: Record<string, unknown> = { ...VALID };
     delete partial[field];
@@ -93,12 +88,6 @@ test('fetchGameHtml throws on an HTTP error', async () => {
       }),
     /could not load game \(500\)/,
   );
-});
-
-test('isManifest requires the readable genre label', () => {
-  const { genreLabel: _omitted, ...withoutLabel } = VALID;
-
-  assert.equal(isManifest(withoutLabel), false);
 });
 
 test('isManifest requires the controls list', () => {

@@ -4,10 +4,13 @@ import {
   readReaction,
   rememberReaction,
   sendReaction,
-  type ReactionConfig,
-  type ReactionStorage,
 } from '../lib/reaction.ts';
-import type { DislikeReason, ReactionKind } from '../../lib/reaction-types.ts';
+import { localStorageOrNull } from '../lib/browser-storage.ts';
+import type {
+  DislikeReason,
+  ReactionConfig,
+  ReactionKind,
+} from '../../lib/reaction-types.ts';
 
 /**
  * Where the viewer is in rating today's game.
@@ -37,18 +40,6 @@ interface Session {
 }
 
 /**
- * `localStorage` is absent in some embedding contexts and throws outright
- * in Safari's private mode, so even reaching for it is guarded.
- */
-function reactionStorage(): ReactionStorage | null {
-  try {
-    return globalThis.localStorage ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Tracks the like/dislike reaction for one day's game.
  *
  * Rating is one-way — the store counts inserts and cannot be decremented,
@@ -68,7 +59,7 @@ export function useReaction(
   // Keyed by slug rather than a bare phase, and derived rather than
   // synchronized, so no effect is needed to reset it when the day rolls.
   const [session, setSession] = useState<Session | null>(null);
-  const storage = reactionStorage();
+  const storage = localStorageOrNull();
   const current = session?.slug === slug ? session : null;
   const phase: ReactionPhase =
     current?.phase ?? (readReaction(storage, slug) === null ? 'idle' : 'submitted');

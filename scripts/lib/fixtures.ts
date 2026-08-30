@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { extractBundle } from '../../lib/extract-bundle-shared.ts';
 import type { GeneratedMeta } from '../../lib/types.ts';
+import type { GenerationConfig, GenresConfig, HistoryGameEntry } from './types.ts';
 
 export const FIXTURES_DIR = fileURLToPath(new URL('../fixtures/mock-responses/', import.meta.url));
 
@@ -29,3 +30,47 @@ export function loadFixtureBundle(name: FixtureName): { meta: GeneratedMeta; htm
   }
   return { meta: result.meta, html: result.html };
 }
+
+/**
+ * A genre catalogue shaped like the real one — ids, readable labels and
+ * non-empty examples, so it also satisfies `validateGenresConfig`.
+ */
+export const GENRES: GenresConfig = [
+  { id: 'maze-adventure', label: 'Maze Adventure', examples: ['navigate a maze'] },
+  { id: 'platformer', label: 'Platformer', examples: ['jump between platforms'] },
+  { id: 'puzzle', label: 'Puzzle', examples: ['rearrange tiles'] },
+];
+
+/** The generation knobs, matching `config/generation.json`'s shape. */
+export const GENERATION_CONFIG: GenerationConfig = {
+  historyHotWindowDays: 45,
+  rollupTriggerEntries: 60,
+  remixProbability: 0.2,
+  remixLookbackDays: 90,
+  retryTemperatures: [0.7, 0.9, 1.0],
+  sentryDsn: null,
+  cronSchedule: '0 13 * * *',
+};
+
+/** The published day's slug. Separate because `slug` is optional on {@link HistoryGameEntry}. */
+export const PUBLISHED_SLUG = '2026-08-28-beetle';
+
+/** A day that published, as `publish.ts` records it. */
+export const PUBLISHED_ENTRY: HistoryGameEntry = {
+  date: '2026-08-28',
+  status: 'published',
+  model: 'a/model:free',
+  slug: PUBLISHED_SLUG,
+  genre: 'maze-adventure',
+  theme: 'glass beetles',
+  mechanics: ['move'],
+  title: 'Beetle Maze',
+};
+
+/** A day that gave up after three attempts and kept the previous game. */
+export const FAILED_ENTRY: HistoryGameEntry = {
+  date: '2026-08-29',
+  status: 'failed_kept_previous',
+  model: 'b/model:free',
+  attempts: 3,
+};
