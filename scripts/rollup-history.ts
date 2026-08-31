@@ -12,17 +12,13 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { errorMessage } from '../lib/errors.ts';
-import { loadGenerationConfig } from './lib/config-store.ts';
-import {
-  readHotWindow,
-  readSummary,
-  writeGamesJson,
-  writeGamesMd,
-} from './lib/history-store.ts';
+import { readHotWindow, readSummary, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
 import { join } from 'node:path';
 import { createPaths, paths as defaultPaths, type Paths } from './lib/paths.ts';
-import { validateHistorySummary } from './lib/schema.ts';
-import type { GenerationConfig, HistoryGameEntry, HistorySummary, PopularityEntry } from './lib/types.ts';
+import type { HistoryGameEntry, HistorySummary, PopularityEntry } from './lib/history-store.ts';
+import { loadGenerationConfig } from './lib/config/generation.ts';
+import type { GenerationConfig } from './lib/config/generation.ts';
+import { validateHistorySummary } from './lib/history-store.ts';
 
 const MS_PER_DAY = 86_400_000;
 

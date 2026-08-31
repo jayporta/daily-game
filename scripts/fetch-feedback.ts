@@ -24,7 +24,7 @@
 // never be committed.
 import { DISLIKE_REASONS, isPublishableSlug, type DislikeReason } from '../lib/reaction-types.ts';
 import { patchEntry } from './lib/history-store.ts';
-import type { HistoryGameEntry } from './lib/types.ts';
+import type { HistoryGameEntry } from './lib/history-store.ts';
 
 /** Reaction counts for one game. Integers only, by construction. */
 export interface ReactionTally {

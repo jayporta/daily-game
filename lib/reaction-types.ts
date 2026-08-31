@@ -80,7 +80,7 @@ export interface ReactionConfig {
 /**
  * Shape check for the hand-edited config file.
  *
- * `validateReactionConfig` in `scripts/lib/schema.ts` calls this for the
+ * `validateReactionConfig` in `scripts/lib/config/reactionConfig.ts` calls this for the
  * shape and adds its own deployment rules on top.
  */
 export function isReactionConfig(value: unknown): value is ReactionConfig {

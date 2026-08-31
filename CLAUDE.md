@@ -51,8 +51,8 @@ npm run build:site   # vite build + assemble-site.ts → deployable dist/
 
 First run also needs `npx playwright install chromium`.
 
-- One Node file: `node --experimental-strip-types --test scripts/moderate.test.ts`
-- One web file: `npx vitest run src/components/GameMeta.test.tsx`
+- One Node file: `node --experimental-strip-types --test scripts/__tests__/moderate.test.ts`
+- One web file: `npx vitest run src/components/__tests__/GameFacts.test.tsx`
 - By name under `node --test`, **always scope it to a file**: append
   `--test-name-pattern "fails closed"`. Repo-wide it hangs — the smoke-test
   file's `before()` launches a browser that its `after()` never closes when
@@ -78,9 +78,10 @@ First run also needs `npx playwright install chromium`.
   for a bare throw. Use `errorMessage()` from `lib/errors.ts`.
 - Data arriving from disk, the network or `localStorage` is validated and
   then used, never `JSON.parse(x) as T`. Config and history go through
-  `loadValidatedJson` with a validator from `scripts/lib/schema.ts`;
-  anything else gets a guard that narrows field by field. Every reader of a
-  given file validates, or the one that doesn't becomes the crash.
+  `loadValidatedJson` from `scripts/lib/validation.ts`, paired with the
+  validator that lives beside the file it describes; anything else gets a
+  guard that narrows field by field. Every reader of a given file validates,
+  or the one that doesn't becomes the crash.
 - `satisfies` to validate an object against a type without widening it.
 - Prefer `readonly` for parameters and fields that are never reassigned.
 
@@ -146,11 +147,24 @@ First run also needs `npx playwright install chromium`.
   stronger assertion nearby already covers it, it is documentation — put it
   in a comment, not a second run. This matters most where a test is
   expensive: the smoke tests each launch a browser.
-- Fixtures come from `scripts/lib/fixtures.ts` or `src/lib/fixtures.ts`.
-  Never paste a manifest, config or history entry into a second test file.
+- Fixtures come from `scripts/lib/testFixtures.ts` or
+  `src/lib/testFixtures.ts`. Never paste a manifest, config or history entry
+  into a second test file.
 - A test guarding an invariant must fail when that invariant is broken.
   Check it by breaking the code on purpose, not by reading the test.
-- Tests live beside the code. Two runners, split by what the code needs:
+- Tests live in a `__tests__/` directory beside the code they cover, so a
+  source directory lists only source. Test-only helpers and mock data keep
+  their `test`-prefixed camelCase name (`testFixtures.ts`) and stay *out* of
+  `__tests__/`, beside the code instead — they are imported by tests in
+  several directories.
+
+  Keep the `.test.ts`/`.test.tsx` suffix on every test file. `test:node` is
+  a bare `node --test` with no glob, so discovery is Node's default: it
+  matches the suffix at any depth, but would silently skip a file renamed to
+  `testFoo.ts` — a green run with the tests quietly gone. The `test` prefix
+  must never be hyphenated (`test-foo.ts`) for the mirror-image reason: Node
+  claims that pattern and would run a helper as a suite.
+- Two runners, split by what the code needs:
   `*.test.tsx` under **Vitest + jsdom** (rendering, hooks, interaction) and
   `*.test.ts` under **`node --test`** (pure logic and the Node pipeline).
   The patterns are disjoint, so nothing runs twice — keep them that way.
@@ -281,9 +295,33 @@ refactor.
   for Node-only. A type declared twice drifts — these already had to be
   merged back: `ReactionConfig`, the `localStorage` seam, and the shape
   check for `config/reaction-config.json`.
-- Shared helpers live in `scripts/lib/` (config loading, history I/O, path
-  building, validation, fixtures) and `src/lib/` on the browser side.
-  Extend them rather than re-reading or re-validating files in a new script.
+- Shared helpers live in `scripts/lib/` (history I/O, path building,
+  validation primitives) and `src/lib/` on the browser side. Extend them
+  rather than re-reading or re-validating files in a new script.
+- **Group by subject, not by kind of fact** — the Common Closure Principle,
+  and the organising rule for this whole repo, not just for config. A
+  subject's type, its rules, its behaviour and its I/O live in one module,
+  so answering "what is this and who reads it?" means opening one file.
+  `scripts/lib/config/models.ts` is the reference shape: it holds
+  `config/models.json`'s type, validator and loader together.
+
+  Never reintroduce a module that collects one *kind* of thing across many
+  subjects — a `schema.ts` of every validator, a `types.ts` of every type, a
+  `utils.ts`, a `constants.ts`. That shape was removed deliberately. It
+  reads as cohesive but isn't: nothing in it changes for the same reason, so
+  one conceptual change edits four files, and a function ends up so far from
+  its only caller that it looks like dead or test-only code. That is not
+  hypothetical — it happened here, and nearly got production validators
+  renamed as test helpers.
+
+  Three deliberate exceptions, each because something outside the subject
+  needs it: an isomorphic type and guard stay in `lib/` (`ReactionConfig`,
+  `ByokModelsConfig`) because both build targets compile it; paths stay
+  centralised in `scripts/lib/paths.ts` so `createPaths(root)` can redirect
+  the whole pipeline at a scratch directory; and `scripts/lib/validation.ts`
+  holds only primitives with many unrelated consumers. Anything else that
+  wants to be shared needs that many consumers first — two callers in one
+  area is local, not shared.
 - An npm script's name has to describe what it does. `dry-run` once wrote to
   disk, and the front-end told visitors to run it.
 - Keep I/O at the edges: pure functions for logic, thin wrappers for disk

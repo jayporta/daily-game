@@ -4,7 +4,39 @@
 //
 // Pure and dependency-free so it runs identically under Node (the daily
 // pipeline) and in a browser (BYOK mode) once compiled for that context.
-import type { ControlHint, ExtractedBundle, GeneratedMeta } from './types.ts';
+
+/**
+ * One input the game listens for, as the game itself reports it.
+ *
+ * The control scheme is the model's invention, not ours — the prompt asks
+ * it to describe what it built, never prescribes a mapping. `key` is
+ * whatever the player does, so it covers "Space" and "Click a tile" alike.
+ */
+export interface ControlHint {
+  /** What the input does, in the game's own words. */
+  action: string;
+  /** What the player presses, clicks or drags. */
+  key: string;
+}
+
+export interface GeneratedMeta {
+  title: string;
+  genre: string;
+  theme: string;
+  mechanics: string[];
+  /** Empty when the game reported none, or reported them unusably. */
+  controls: ControlHint[];
+}
+
+export type ExtractFailureReason =
+  | 'missing-meta-block'
+  | 'missing-html-block'
+  | 'invalid-json-meta'
+  | 'empty-html';
+
+export type ExtractedBundle =
+  | { ok: true; meta: GeneratedMeta; html: string }
+  | { ok: false; reason: ExtractFailureReason };
 
 const JSON_BLOCK_RE = /```json\s*\r?\n([\s\S]*?)```/i;
 const HTML_BLOCK_RE = /```html\s*\r?\n([\s\S]*?)```/i;

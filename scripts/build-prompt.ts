@@ -2,14 +2,8 @@
 // tested against fixed fixtures. Everything the model sees about past
 // games, guardrails and output format is decided here.
 import { isDislikeReason, type DislikeReason } from '../lib/reaction-types.ts';
-import type {
-  FailureKind,
-  GenreEntry,
-  GenresConfig,
-  HistoryGameEntry,
-  HistorySummary,
-  PopularityEntry,
-} from './lib/types.ts';
+import type { FailureKind, HistoryGameEntry, HistorySummary, PopularityEntry } from './lib/history-store.ts';
+import type { GenreEntry, GenresConfig } from './lib/config/genres.ts';
 
 /**
  * The two-fenced-block contract. This is the parsing contract enforced by
@@ -63,11 +57,6 @@ whatever you leave unfilled shows as blank space around your game.
 - Assume nothing about its shape. It is as wide and as tall as the visitor's
   window makes it, in any proportion, on a phone or on a desktop.
 - Keep the whole playfield inside it. Never require the player to scroll.`;
-
-export const SYSTEM_PROMPT = `You are a game designer and front-end engineer who invents small, complete,
-original browser games. You always return working, self-contained code that
-runs with no build step, no dependencies, and no network access. You follow
-content rules exactly and without exception.`;
 
 function formatGenreLine(genre: GenreEntry, isRecentlyUsed: boolean): string {
   const examples = genre.examples.join('; ');

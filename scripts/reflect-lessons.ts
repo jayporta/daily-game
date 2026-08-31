@@ -8,7 +8,6 @@
 import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { errorMessage } from '../lib/errors.ts';
-import { loadModelsConfig } from './lib/config-store.ts';
 import { getOpenRouterClient } from './lib/get-client.ts';
 import { readHotWindow, readSummary } from './lib/history-store.ts';
 import {
@@ -17,7 +16,8 @@ import {
 } from './lib/lessons-prompt.ts';
 import { createPaths, paths as defaultPaths } from './lib/paths.ts';
 import type { OpenRouterClient } from './lib/openrouter-client.ts';
-import type { HistoryGameEntry, HistorySummary } from './lib/types.ts';
+import type { HistoryGameEntry, HistorySummary } from './lib/history-store.ts';
+import { loadModelsConfig } from './lib/config/models.ts';
 
 /**
  * Asks the model for a rewritten lessons note.

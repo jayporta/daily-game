@@ -6,7 +6,7 @@
 // treated as a rejection. A false rejection costs one retry; a false
 // acceptance publishes banned content to a public site.
 import type { ChatMessage, OpenRouterClient } from './lib/openrouter-client.ts';
-import type { GeneratedMeta } from '../lib/types.ts';
+import type { GeneratedMeta } from '../lib/extract-bundle-shared.ts';
 import { errorMessage } from '../lib/errors.ts';
 
 /**
