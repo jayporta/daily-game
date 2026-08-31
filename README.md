@@ -22,13 +22,14 @@ cron job fires, that game is replaced by something completely different.
 
 ## Status
 
-**Built:** the core generation pipeline (Epic 1) and the front-end viewer
-(Epic 2), plus the Pages deploy workflow. The whole pipeline runs locally
-against a mock OpenRouter client — no API key needed — and everything is
-covered by 138 tests.
+Complete and running. The daily generation workflow, the moderation and
+smoke-test gates, history rollup and reflection, the front-end viewer,
+bring-your-own-key mode and Sentry error reporting are all built and live.
 
-**Not built yet:** the daily generation workflow, history rollup,
-bring-your-own-key mode, and Sentry error tracking.
+The whole pipeline also runs locally against a mock OpenRouter client with
+no API key: `scripts/lib/get-client.ts` is the only place that decides
+mock-vs-real, so `npm run dry-run` exercises exactly the code a real run
+does.
 
 ## How the pipeline works
 

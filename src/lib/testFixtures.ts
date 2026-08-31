@@ -29,3 +29,47 @@ export const MANIFEST: Manifest = {
 
 /** A minimal bundle: enough to be framed, not enough to do anything. */
 export const BUNDLE = '<!doctype html><html><body><canvas></canvas></body></html>';
+
+/** What a BYOK regeneration returns, distinguishable from {@link BUNDLE}. */
+export const BYOK_HTML = '<!doctype html><html><body>better game</body></html>';
+
+/**
+ * A model response in the two-fenced-block format `extractBundle` parses,
+ * carrying {@link BYOK_HTML}. Shared so the panel, the hook and the whole-app
+ * tests all exercise the same shape.
+ */
+export const BYOK_COMPLETION = [
+  '```json',
+  '{"title": "Regenerated Title", "genre": "maze-adventure", "theme": "th", "mechanics": ["m"], "controls": []}',
+  '```',
+  '',
+  '```html',
+  BYOK_HTML,
+  '```',
+].join('\n');
+
+/** An OpenAI-shaped completion envelope wrapping `content`. */
+export function completionResponse(content: string): Response {
+  return jsonResponse({ choices: [{ message: { content } }] });
+}
+
+/** A JSON response, as a provider or the site's own manifest endpoint sends one. */
+export function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status });
+}
+
+/**
+ * A `fetch` that answers everything with `response`.
+ *
+ * Annotated rather than cast: an arrow taking no parameters is assignable to
+ * `typeof fetch`, so the `as unknown as typeof fetch` these tests used to
+ * carry was never needed.
+ *
+ * A plain function, not a `vi.fn`: this module is imported by `*.test.ts`
+ * files running under `node --test`, which has no Vitest runtime. A suite
+ * that needs to count calls wraps its own spy.
+ */
+export function stubFetch(response: Response): typeof fetch {
+  return async () => response;
+}
+

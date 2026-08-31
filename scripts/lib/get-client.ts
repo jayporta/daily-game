@@ -26,7 +26,7 @@ export function getOpenRouterClient({
   forceMock = false,
   fixtureSequence,
 }: GetOpenRouterClientOptions = {}): OpenRouterClient {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env['OPENROUTER_API_KEY'];
   if (!forceMock && apiKey) {
     return createOpenRouterClient({ apiKey });
   }

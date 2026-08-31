@@ -32,9 +32,9 @@ export interface PillButtonProps {
   /** Which palette the pill wears. See {@link PillTone}. */
   readonly tone: PillTone;
   /** What pressing it does. */
-  onClick: () => void;
+  readonly onClick: () => void;
   /** The label. Text, not markup — these are our own words, not the model's. */
-  children: ReactNode;
+  readonly children: ReactNode;
   /** Disables the button, e.g. while a required input is missing. */
   readonly disabled?: boolean;
 }

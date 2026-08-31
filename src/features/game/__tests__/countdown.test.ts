@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatCountdown, formatGeneratedDate, msUntil } from '../countdown.ts';
+import {
+  formatCountdown,
+  formatGeneratedDate,
+  msUntil,
+  msUntilLabelChanges,
+} from '../countdown.ts';
 
 const NOW = Date.parse('2026-08-29T12:00:00.000Z');
 
@@ -39,4 +44,29 @@ test('formatGeneratedDate renders a stable, UTC-based date', () => {
 
 test('formatGeneratedDate degrades gracefully on bad input', () => {
   assert.equal(formatGeneratedDate('nonsense'), 'unknown date');
+});
+
+test('waits a minute at a time while the label is showing whole minutes', () => {
+  // 6h 12m 30s out: the label reads "6h 12m" until the 30s runs out.
+  assert.equal(msUntilLabelChanges(6 * 3_600_000 + 12 * 60_000 + 30_000), 30_000);
+});
+
+test('waits a second at a time once the label is showing seconds', () => {
+  assert.equal(msUntilLabelChanges(90_500), 500);
+});
+
+test('waits a full step when the remaining time sits exactly on a boundary', () => {
+  assert.equal(msUntilLabelChanges(2 * 3_600_000), 60_000);
+  assert.equal(msUntilLabelChanges(30_000), 1_000);
+});
+
+test('switches to seconds at the hour boundary formatCountdown uses', () => {
+  // At exactly an hour the label is "1h 0m"; a millisecond under it is "59m 59s".
+  assert.equal(msUntilLabelChanges(3_600_000), 60_000);
+  assert.equal(msUntilLabelChanges(3_599_999), 999);
+});
+
+test('stops scheduling once the game is due for replacement', () => {
+  assert.equal(msUntilLabelChanges(0), 0);
+  assert.equal(msUntilLabelChanges(-5_000), 0);
 });

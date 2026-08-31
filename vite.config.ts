@@ -93,5 +93,9 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    // Emitted so the frames in a Sentry event name real files and lines.
+    // Without them every report from the page shell arrives minified, which
+    // is most of the value of having wired Sentry up at all.
+    sourcemap: true,
   },
 }));

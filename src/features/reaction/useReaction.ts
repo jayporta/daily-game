@@ -39,6 +39,14 @@ interface Session {
   readonly phase: ReactionPhase;
 }
 
+/** Whether this visitor has already rated `slug`, read once per slug. */
+function initialSession(slug: string): Session {
+  return {
+    slug,
+    phase: readReaction(localStorageOrNull(), slug) === null ? 'idle' : 'submitted',
+  };
+}
+
 /**
  * Tracks the like/dislike reaction for one day's game.
  *
@@ -46,6 +54,11 @@ interface Session {
  * so there is no un-rating — and is scoped to `slug`, so nothing carries
  * over when tomorrow's game replaces today's, including when the manifest
  * is swapped in place without a remount.
+ *
+ * `localStorage` is read in the state initializer and, for a slug change,
+ * during the render that notices it — never on every render. Rendering has to
+ * be pure, and `localStorage` is an external mutable store: reading it each
+ * pass would also re-parse the stored JSON for no one.
  *
  * @param config Where to send the row. A `null` `endpointUrl` keeps
  *   everything local and issues no request. See {@link buildInsertRequest}.
@@ -56,34 +69,35 @@ export function useReaction(
   config: ReactionConfig,
   fetchImpl?: typeof fetch,
 ): UseReactionResult {
-  // Keyed by slug rather than a bare phase, and derived rather than
-  // synchronized, so no effect is needed to reset it when the day rolls.
-  const [session, setSession] = useState<Session | null>(null);
-  const storage = localStorageOrNull();
-  const current = session?.slug === slug ? session : null;
-  const phase: ReactionPhase =
-    current?.phase ?? (readReaction(storage, slug) === null ? 'idle' : 'submitted');
+  const [session, setSession] = useState<Session>(() => initialSession(slug));
+
+  // The day rolled over without a remount. Adjusting state during render is
+  // React's own supported pattern for deriving from a changed prop — it
+  // restarts this render before any child sees the stale phase, which an
+  // effect could not do.
+  const current = session.slug === slug ? session : initialSession(slug);
+  if (current !== session) setSession(current);
 
   const commit = (kind: ReactionKind, reasons: readonly DislikeReason[]): void => {
     setSession({ slug, phase: 'submitted' });
-    rememberReaction(storage, slug, { kind, reasons });
+    rememberReaction(localStorageOrNull(), slug, { kind, reasons });
     // Deliberately not awaited: the store is decoration, nothing on screen
     // waits for it, and `sendReaction` never rejects.
     void sendReaction(buildInsertRequest(config, { slug, reaction: kind, reasons }), { fetchImpl });
   };
 
   return {
-    phase,
+    phase: current.phase,
     like: () => {
-      if (phase !== 'idle') return;
+      if (current.phase !== 'idle') return;
       commit('like', []);
     },
     beginDislike: () => {
-      if (phase !== 'idle') return;
+      if (current.phase !== 'idle') return;
       setSession({ slug, phase: 'choosing' });
     },
     submitDislike: (reasons) => {
-      if (phase !== 'choosing') return;
+      if (current.phase !== 'choosing') return;
       commit('dislike', reasons);
     },
   };

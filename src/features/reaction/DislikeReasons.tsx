@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DISLIKE_REASONS, type DislikeReason } from '../../../lib/reaction-types.ts';
+import { CheckboxRow } from './CheckboxRow.tsx';
 import { PillButton } from '../../ui/PillButton.tsx';
 
 export interface DislikeReasonsProps {
@@ -40,29 +41,21 @@ export function DislikeReasons({ onSubmit }: DislikeReasonsProps) {
       <ul className="space-y-1">
         {DISLIKE_REASONS.map((reason) => (
           <li key={reason.id}>
-            <label className="flex items-center gap-2 text-label dark:text-slate-300">
-              <input
-                type="checkbox"
-                checked={chosen.includes(reason.id)}
-                onChange={() => toggle(reason.id)}
-                className="size-4 accent-rose-500"
-              />
-              {reason.label}
-            </label>
+            <CheckboxRow
+              label={reason.label}
+              checked={chosen.includes(reason.id)}
+              onToggle={() => toggle(reason.id)}
+            />
           </li>
         ))}
         {/* Set apart from the five: a convenience that ticks them all, not a
             sixth reason. What gets stored is always the concrete set. */}
         <li className="mt-2 border-t border-hairline pt-2 dark:border-slate-800">
-          <label className="flex items-center gap-2 text-label dark:text-slate-300">
-            <input
-              type="checkbox"
-              checked={allChosen}
-              onChange={() => setChosen(allChosen ? [] : ALL_REASON_IDS)}
-              className="size-4 accent-rose-500"
-            />
-            All of the above
-          </label>
+          <CheckboxRow
+            label="All of the above"
+            checked={allChosen}
+            onToggle={() => setChosen(allChosen ? [] : ALL_REASON_IDS)}
+          />
         </li>
       </ul>
 

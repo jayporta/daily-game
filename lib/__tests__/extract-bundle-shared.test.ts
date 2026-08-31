@@ -50,6 +50,18 @@ test('rejects malformed JSON in the meta block', () => {
   assert.equal(result.reason, 'invalid-json-meta');
 });
 
+// An array parses as JSON but carries none of the meta fields, so admitting
+// it only defers the failure to the field reads. Rejecting costs a retry —
+// what every other format violation here costs.
+test('rejects a meta block holding an array rather than an object', () => {
+  const response = '```json\n[{"title":"x"}]\n```\n```html\n<div>game</div>\n```';
+
+  const result = extractBundle(response);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, 'invalid-json-meta');
+});
+
 test('rejects an empty html block', () => {
   const result = extractBundle('```json\n{"title":"x"}\n```\n```html\n\n```');
   assert.equal(result.ok, false);

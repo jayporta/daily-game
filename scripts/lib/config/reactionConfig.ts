@@ -4,6 +4,7 @@
 // Its type and shape guard live in `lib/reaction-types.ts` instead, not here:
 // the browser POSTs the rows and so needs them too, and `lib/` is the only
 // directory both tsconfigs compile.
+import { isRecord } from '../../../lib/guards.ts';
 import { isReactionConfig, type ReactionConfig } from '../../../lib/reaction-types.ts';
 import { paths } from '../paths.ts';
 import { loadValidatedJson, type ValidationResult } from '../validation.ts';
@@ -20,7 +21,7 @@ function jwtRole(value: string): string | null {
   if (payload === undefined) return null;
   try {
     const parsed: unknown = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
-    if (typeof parsed !== 'object' || parsed === null || !('role' in parsed)) return null;
+    if (!isRecord(parsed) || !('role' in parsed)) return null;
     return typeof parsed.role === 'string' ? parsed.role : null;
   } catch {
     return null;

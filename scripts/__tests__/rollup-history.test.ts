@@ -370,6 +370,40 @@ test('readArchivedEntries skips a corrupt line rather than throwing', (t) => {
   assert.deepEqual(entries.map((entry) => entry.date), ['2026-06-01']);
 });
 
+// Valid JSON of the wrong shape is the case a `JSON.parse` cast misses:
+// the line parses, so the try/catch above never fires, and the bad value
+// reaches summariseEntries' `mechanics.join`.
+test('readArchivedEntries skips a well-formed line whose fields are the wrong type', (t) => {
+  const root = scratchRepo(t);
+  const paths = createPaths(root);
+  archiveEntries([published(0, { date: '2026-06-01' })], paths);
+  const file = paths.historyArchiveFile('2026-06');
+  const wrongShape = JSON.stringify({ ...published(0, { date: '2026-06-02' }), mechanics: 'move' });
+  writeFileSync(file, `${readFileSync(file, 'utf8')}${wrongShape}\n`, 'utf8');
+
+  const entries = readArchivedEntries(paths);
+
+  assert.deepEqual(entries.map((entry) => entry.date), ['2026-06-01']);
+});
+
+// `popularityScore` is what carries the entry past summariseEntries' early
+// `continue` and into `mechanics.join` — without it the bad line is skipped
+// for an unrelated reason and this test could not fail.
+test('a rollup survives an archive line whose fields are the wrong type', async (t) => {
+  const root = scratchRepo(t);
+  const paths = createPaths(root);
+  archiveEntries([published(0, { date: '2026-06-01', popularityScore: 1 })], paths);
+  const file = paths.historyArchiveFile('2026-06');
+  const wrongShape = JSON.stringify({
+    ...published(0, { date: '2026-06-02', popularityScore: 2 }),
+    mechanics: 'move',
+  });
+  writeFileSync(file, `${readFileSync(file, 'utf8')}${wrongShape}\n`, 'utf8');
+  seedHistory(root, 70);
+
+  await assert.doesNotReject(() => rollUpHistory(rollupOptions(root)));
+});
+
 test('readArchivedEntries is empty before anything has been archived', (t) => {
   assert.deepEqual(readArchivedEntries(createPaths(scratchRepo(t))), []);
 });

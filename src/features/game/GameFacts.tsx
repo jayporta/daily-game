@@ -7,7 +7,7 @@ import type { Manifest } from '../../../lib/manifest.ts';
 
 export interface GameFactsProps {
   /** The current day's manifest, as written by the publish step. */
-  manifest: Manifest;
+  readonly manifest: Manifest;
 }
 
 /** Provenance and the live countdown, on one line beneath the title. */

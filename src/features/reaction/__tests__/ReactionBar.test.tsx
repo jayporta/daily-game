@@ -13,7 +13,7 @@ const CONFIGURED: ReactionConfig = {
 };
 
 function okFetch(): typeof fetch {
-  return vi.fn(async () => new Response('', { status: 201 })) as unknown as typeof fetch;
+  return vi.fn<typeof fetch>(async () => new Response('', { status: 201 }));
 }
 
 /** The single row sent by a `fetch` stub, parsed. */
@@ -149,7 +149,7 @@ describe('ReactionBar', () => {
 
   it('never reads what the store sends back', async () => {
     const response = new Response('{"id": 1}', { status: 201 });
-    const fetchImpl = vi.fn(async () => response) as unknown as typeof fetch;
+    const fetchImpl = vi.fn<typeof fetch>(async () => response);
     render(<ReactionBar slug={SLUG} config={CONFIGURED} fetchImpl={fetchImpl} />);
 
     await userEvent.click(like());
@@ -158,9 +158,9 @@ describe('ReactionBar', () => {
   });
 
   it('still thanks the viewer when the store is unreachable', async () => {
-    const fetchImpl = vi.fn(async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => {
       throw new TypeError('Failed to fetch');
-    }) as unknown as typeof fetch;
+    });
     render(<ReactionBar slug={SLUG} config={CONFIGURED} fetchImpl={fetchImpl} />);
 
     await userEvent.click(like());

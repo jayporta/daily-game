@@ -6,6 +6,7 @@
 // these primitives are shared.
 import { readFileSync } from 'node:fs';
 import { errorMessage } from '../../lib/errors.ts';
+import { isRecord } from '../../lib/guards.ts';
 
 /** What every validator returns: a verdict plus every problem found, not just the first. */
 export interface ValidationResult {
@@ -21,9 +22,12 @@ export function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
 }
 
-export function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
+/**
+ * The validators' name for {@link isRecord}, which lives in `lib/` because
+ * the browser asks the same question of provider responses and stored JSON.
+ * Re-exported rather than redefined so the two can never drift.
+ */
+export const isPlainObject = isRecord;
 
 /** An object used as a lookup table, every value of which passes `isValid`. */
 export function isRecordOf(v: unknown, isValid: (entry: unknown) => boolean): boolean {

@@ -1,7 +1,7 @@
 import { DislikeReasons } from './DislikeReasons.tsx';
 import { PillButton } from '../../ui/PillButton.tsx';
 import { useReaction } from './useReaction.ts';
-import { reactionConfig } from './config.ts';
+import { reactionConfig } from './reactionStore.ts';
 import type { ReactionConfig } from '../../../lib/reaction-types.ts';
 
 export interface ReactionBarProps {
@@ -31,8 +31,10 @@ export function ReactionBar({ slug, config = reactionConfig, fetchImpl }: Reacti
 
   return (
     <div role="group" aria-label="Rate this game" className="ml-auto text-ui">
+      {/* The buttons that had focus are gone by the time this renders, so a
+          screen reader is told rather than left to discover it. */}
       {phase === 'submitted' && (
-        <p className="min-h-8 content-center text-meta dark:text-slate-400">
+        <p aria-live="polite" className="min-h-8 content-center text-meta dark:text-slate-400">
           Thanks — that helps tomorrow&rsquo;s game.
         </p>
       )}

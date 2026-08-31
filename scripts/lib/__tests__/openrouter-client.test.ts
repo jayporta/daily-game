@@ -33,9 +33,9 @@ test('real client shapes the request correctly and parses the response', async (
   assert.equal(result, 'generated text');
   assert.equal(capturedUrl, 'https://openrouter.ai/api/v1/chat/completions');
   assert.equal(capturedInit?.method, 'POST');
-  const headers = capturedInit?.headers as Record<string, string>;
-  assert.equal(headers.Authorization, 'Bearer test-key');
-  const body = JSON.parse(capturedInit?.body as string);
+  const headers = new Headers(capturedInit?.headers);
+  assert.equal(headers.get('Authorization'), 'Bearer test-key');
+  const body = JSON.parse(String(capturedInit?.body));
   assert.equal(body.model, 'a/model:free');
   assert.equal(body.temperature, 0.9);
 });

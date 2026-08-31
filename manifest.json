@@ -1,22 +1,22 @@
 {
   "date": "2026-08-31",
-  "slug": "2026-08-31-prism-garden",
-  "path": "games/archive/2026-08-31-prism-garden/game.html",
-  "promptPath": "games/archive/2026-08-31-prism-garden/prompt.txt",
-  "title": "Prism Garden",
-  "genre": "tile-matching",
-  "genreLabel": "Tile Matching",
+  "slug": "2026-08-31-stellar-sower",
+  "path": "games/archive/2026-08-31-stellar-sower/game.html",
+  "promptPath": "games/archive/2026-08-31-stellar-sower/prompt.txt",
+  "title": "Stellar Sower",
+  "genre": "physics-sandbox",
+  "genreLabel": "Physics Sandbox",
   "model": "minimax/minimax-m2.7:free",
-  "generatedAt": "2026-08-31T03:26:38.430Z",
-  "expiresAt": "2026-08-31T13:00:00.000Z",
+  "generatedAt": "2026-08-31T16:10:14.024Z",
+  "expiresAt": "2026-09-01T13:00:00.000Z",
   "controls": [
     {
-      "action": "Select crystal",
-      "key": "Click/Tap"
+      "action": "Aim and set power",
+      "key": "Click and drag"
     },
     {
-      "action": "Swap crystal",
-      "key": "Click/Tap adjacent crystal"
+      "action": "Launch seed",
+      "key": "Release click"
     }
   ]
 }

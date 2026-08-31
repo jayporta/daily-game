@@ -6,6 +6,7 @@
 // Hand-maintained like config/models.json's rotation: model ids drift as
 // providers release new ones, so this file needs periodic review rather
 // than one-time seeding.
+import { isRecord } from './guards.ts';
 
 /** The four providers a BYOK generation can run against. */
 export const BYOK_PROVIDERS = ['openrouter', 'anthropic', 'openai', 'gemini'] as const;
@@ -38,13 +39,13 @@ export interface ByokProviderConfig {
 export type ByokModelsConfig = readonly ByokProviderConfig[];
 
 function isByokModelEntry(value: unknown): value is ByokModelEntry {
-  if (typeof value !== 'object' || value === null) return false;
+  if (!isRecord(value)) return false;
   if (!('id' in value) || !('label' in value)) return false;
   return typeof value.id === 'string' && value.id.length > 0 && typeof value.label === 'string' && value.label.length > 0;
 }
 
 function isByokProviderConfig(value: unknown): value is ByokProviderConfig {
-  if (typeof value !== 'object' || value === null) return false;
+  if (!isRecord(value)) return false;
   if (!('provider' in value) || !('label' in value) || !('models' in value)) return false;
   const { provider, label, models } = value;
   if (!isByokProvider(provider)) return false;

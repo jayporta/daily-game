@@ -31,6 +31,6 @@ describe('GameFrame', () => {
       />,
     );
 
-    expect((globalThis as Record<string, unknown>).__escaped).toBeUndefined();
+    expect(Reflect.get(globalThis, '__escaped')).toBeUndefined();
   });
 });

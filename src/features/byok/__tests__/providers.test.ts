@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { completeByok, type ByokCompletionResult, type ByokRequest } from '../providers.ts';
+import { jsonResponse } from '../../../lib/testFixtures.ts';
 
 /** Narrows to the failure variant, failing the test if the call succeeded. */
 function failureMessage(result: ByokCompletionResult): string {
@@ -19,17 +20,13 @@ function baseRequest(overrides: Partial<ByokRequest> = {}): ByokRequest {
   };
 }
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status });
-}
-
 /** Captures the single fetch call a test makes, for asserting request shape. */
 function capturingFetch(response: Response): { fetchImpl: typeof fetch; calls: [string, RequestInit | undefined][] } {
   const calls: [string, RequestInit | undefined][] = [];
-  const fetchImpl = (async (url: string | URL, init?: RequestInit) => {
+  const fetchImpl: typeof fetch = async (url, init) => {
     calls.push([String(url), init]);
     return response;
-  }) as typeof fetch;
+  };
   return { fetchImpl, calls };
 }
 
@@ -42,8 +39,8 @@ test('completeByok sends OpenRouter requests to the documented url with a Bearer
 
   assert.deepEqual(result, { ok: true, text: 'the completion' });
   assert.equal(calls[0]?.[0], 'https://openrouter.ai/api/v1/chat/completions');
-  const headers = calls[0]?.[1]?.headers as Record<string, string>;
-  assert.equal(headers['Authorization'], 'Bearer test-key');
+  const headers = new Headers(calls[0]?.[1]?.headers);
+  assert.equal(headers.get('Authorization'), 'Bearer test-key');
   const body = JSON.parse(String(calls[0]?.[1]?.body));
   assert.equal(body.messages[0].content, 'system instructions');
   assert.equal(body.messages[1].content, 'user prompt text');
@@ -58,8 +55,8 @@ test('completeByok sends OpenAI requests to the documented url with a Bearer key
 
   assert.deepEqual(result, { ok: true, text: 'the completion' });
   assert.equal(calls[0]?.[0], 'https://api.openai.com/v1/chat/completions');
-  const headers = calls[0]?.[1]?.headers as Record<string, string>;
-  assert.equal(headers['Authorization'], 'Bearer test-key');
+  const headers = new Headers(calls[0]?.[1]?.headers);
+  assert.equal(headers.get('Authorization'), 'Bearer test-key');
 });
 
 // GPT-5 and the o-series reject `max_tokens` outright, so a direct OpenAI
@@ -96,9 +93,9 @@ test('completeByok sends Anthropic requests with the required browser-access hea
 
   assert.deepEqual(result, { ok: true, text: 'the completion' });
   assert.equal(calls[0]?.[0], 'https://api.anthropic.com/v1/messages');
-  const headers = calls[0]?.[1]?.headers as Record<string, string>;
-  assert.equal(headers['x-api-key'], 'test-key');
-  assert.equal(headers['anthropic-dangerous-direct-browser-access'], 'true');
+  const headers = new Headers(calls[0]?.[1]?.headers);
+  assert.equal(headers.get('x-api-key'), 'test-key');
+  assert.equal(headers.get('anthropic-dangerous-direct-browser-access'), 'true');
   const body = JSON.parse(String(calls[0]?.[1]?.body));
   assert.equal(body.system, 'system instructions');
   assert.equal(body.messages[0].content, 'user prompt text');
@@ -118,8 +115,8 @@ test('completeByok sends Gemini requests with the model id in the url path, not 
     calls[0]?.[0],
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
   );
-  const headers = calls[0]?.[1]?.headers as Record<string, string>;
-  assert.equal(headers['x-goog-api-key'], 'test-key');
+  const headers = new Headers(calls[0]?.[1]?.headers);
+  assert.equal(headers.get('x-goog-api-key'), 'test-key');
   const body = JSON.parse(String(calls[0]?.[1]?.body));
   assert.equal(body.model, undefined);
   assert.equal(body.systemInstruction.parts[0].text, 'system instructions');

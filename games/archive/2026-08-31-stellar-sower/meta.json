@@ -1,0 +1,20 @@
+{
+  "title": "Stellar Sower",
+  "genre": "physics-sandbox",
+  "theme": "A gentle space gardener launching seeds into floating pods among the stars",
+  "mechanics": [
+    "Click and drag from the slingshot to aim and set launch power",
+    "Seeds follow physics with gentle gravity, bouncing off walls",
+    "Fill each floating pod with seeds to grow them and complete the level"
+  ],
+  "controls": [
+    {
+      "action": "Aim and set power",
+      "key": "Click and drag"
+    },
+    {
+      "action": "Launch seed",
+      "key": "Release click"
+    }
+  ]
+}

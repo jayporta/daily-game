@@ -1,5 +1,7 @@
-// Everything about reporting a published game's runtime errors: reading the
-// DSN, and building the fixed snippet publish.ts appends to every bundle.
+// Everything about a published game's outbound traffic: the one origin it is
+// allowed to reach, the policy that pins it there, and the fixed snippet that
+// uses it. All three derive from config/generation.json's sentryDsn, so they
+// change together.
 //
 // The snippet is written HERE, not by the model, so a bad generation can
 // never omit or subvert it. It is appended *after* the smoke test, on
@@ -53,6 +55,30 @@ export function parseSentryDsn(dsn: string): SentryDsn | null {
  */
 function envelopeUrl(dsn: SentryDsn): string {
   return `${dsn.protocol}//${dsn.host}/api/${dsn.projectId}/envelope/?sentry_key=${dsn.publicKey}&sentry_version=7`;
+}
+
+/**
+ * A `connect-src` policy for one published bundle, for its `<head>`.
+ *
+ * A `srcdoc` iframe inherits the parent page's CSP, and `index.html` must
+ * list four BYOK provider origins there for the page's own requests — origins
+ * a generated game would otherwise inherit the right to reach. CSP policies
+ * intersect: a second policy inside the bundle narrows that back to the one
+ * origin a bundle legitimately needs.
+ *
+ * Only `connect-src`, for the reason `index.html` documents at length: a
+ * `default-src` or `script-src` here would block the inline `<script>` every
+ * generated game is built from. The frame's `sandbox` attribute is what
+ * contains that code; this only bounds where it can talk to.
+ *
+ * @param sentryDsn From `config/generation.json`. When it is null or
+ *   unparseable the bundle sends no reports either, so the policy is
+ *   `'none'` — the game may reach nothing at all.
+ */
+export function buildBundleCspMeta(sentryDsn: string | null): string {
+  const dsn = sentryDsn === null ? null : parseSentryDsn(sentryDsn);
+  const connectSrc = dsn === null ? "'none'" : `${dsn.protocol}//${dsn.host}`;
+  return `<meta http-equiv="Content-Security-Policy" content="connect-src ${connectSrc}">`;
 }
 
 /**

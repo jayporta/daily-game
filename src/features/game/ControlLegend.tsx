@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { controlIdentity } from '../../../lib/extract-bundle-shared.ts';
 import type { ControlHint } from '../../../lib/extract-bundle-shared.ts';
 
@@ -18,16 +19,17 @@ export interface ControlLegendProps {
  * this component so it disappears with them.
  */
 export function ControlLegend({ controls }: ControlLegendProps) {
+  // Generated, not fixed: a literal id would collide if the page ever showed
+  // two legends, silently pointing both labels at the first heading.
+  const headingId = useId();
+
   if (controls.length === 0) return null;
 
   return (
     // Named by its own visible heading rather than an aria-label, so screen
     // readers do not announce the word twice.
-    <section role="group" aria-labelledby="controls-heading">
-      <h2
-        id="controls-heading"
-        className="text-legend font-semibold text-meta dark:text-slate-400"
-      >
+    <section role="group" aria-labelledby={headingId}>
+      <h2 id={headingId} className="text-legend font-semibold text-meta dark:text-slate-400">
         Controls
       </h2>
       <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-legend text-label dark:text-slate-400">

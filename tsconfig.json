@@ -1,5 +1,10 @@
 // Node side: the daily pipeline in scripts/, plus the isomorphic lib/.
 // The browser side is checked separately by tsconfig.web.json.
+//
+// `src/**/*.test.ts` is included here, not there: those files run under
+// `node --test`, and tsconfig.web.json excludes the pattern. Without this
+// entry they would be checked by neither project — `node --test` strips
+// types rather than checking them, so a type error in them was invisible.
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
@@ -8,5 +13,5 @@
     "moduleResolution": "NodeNext",
     "types": ["node"]
   },
-  "include": ["scripts/**/*.ts", "lib/**/*.ts", "vite.config.ts"]
+  "include": ["scripts/**/*.ts", "lib/**/*.ts", "src/**/*.test.ts", "vite.config.ts"]
 }

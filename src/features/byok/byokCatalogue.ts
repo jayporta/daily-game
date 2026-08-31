@@ -1,6 +1,6 @@
-// The one place the shipped BYOK model catalogue is read. Isolated here so
-// the panel component stays free of an import the Node test runner cannot
-// resolve.
+// The one place the shipped BYOK model catalogue is read. Isolated from the
+// panel so that component stays free of a JSON import the Node test runner
+// cannot resolve.
 //
 // Imported at build time rather than fetched, for the same reason
 // reaction-config.ts is: `deploy-pages.yml` rebuilds the site on every push

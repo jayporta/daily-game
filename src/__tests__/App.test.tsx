@@ -2,21 +2,14 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from '../App.tsx';
-import { BUNDLE, MANIFEST } from '../lib/testFixtures.ts';
-
-const VALID_BYOK_COMPLETION = [
-  '```json',
-  '{"title": "Regenerated Title", "genre": "maze-adventure", "theme": "th", "mechanics": ["m"], "controls": []}',
-  '```',
-  '',
-  '```html',
-  '<!doctype html><html><body>better game</body></html>',
-  '```',
-].join('\n');
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status });
-}
+import {
+  BUNDLE,
+  BYOK_COMPLETION,
+  BYOK_HTML,
+  MANIFEST,
+  completionResponse,
+  jsonResponse,
+} from '../lib/testFixtures.ts';
 
 /**
  * Stubs global fetch, routing manifest, bundle and prompt requests
@@ -162,6 +155,22 @@ describe('App', () => {
     expect(screen.queryByRole('group', { name: /rate this game/i })).toBeNull();
   });
 
+  // Most visitors never open the BYOK panel, so the prompt is not part of
+  // loading the page. It used to be fetched on every visit.
+  it('does not fetch the prompt until the visitor engages with the panel', async () => {
+    const fetchImpl = stubFetch({ manifest: () => jsonResponse(MANIFEST) });
+    render(<App />);
+    await screen.findByTitle(MANIFEST.title);
+
+    const promptRequests = () =>
+      fetchImpl.mock.calls.filter(([url]: unknown[]) => String(url).endsWith('prompt.txt')).length;
+    expect(promptRequests()).toBe(0);
+
+    await userEvent.click(screen.getByText(/see the exact prompt/i));
+
+    await waitFor(() => expect(promptRequests()).toBe(1));
+  });
+
   it('shows the BYOK panel once the game is ready', async () => {
     stubFetch({ manifest: () => jsonResponse(MANIFEST) });
     render(<App />);
@@ -169,10 +178,22 @@ describe('App', () => {
     expect(await screen.findByRole('button', { name: /generate/i })).toBeVisible();
   });
 
+  // The panel exists to re-run the day's exact prompt. A game archived
+  // before prompts were has none, so there is nothing to re-run.
+  it('hides the BYOK panel for a game with no archived prompt', async () => {
+    const { promptPath: _omitted, ...withoutPrompt } = MANIFEST;
+    stubFetch({ manifest: () => jsonResponse(withoutPrompt) });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    expect(screen.queryByRole('button', { name: /generate/i })).toBeNull();
+    expect(screen.queryByText(/see the exact prompt/i)).toBeNull();
+  });
+
   it('a BYOK result replaces the iframe html/title without touching the original manifest state', async () => {
     stubFetch({
       manifest: () => jsonResponse(MANIFEST),
-      byokProvider: () => jsonResponse({ choices: [{ message: { content: VALID_BYOK_COMPLETION } }] }),
+      byokProvider: () => completionResponse(BYOK_COMPLETION),
     });
     render(<App />);
 
@@ -181,14 +202,39 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: /generate/i }));
 
     const frame = await screen.findByTitle('Regenerated Title');
-    expect(frame).toHaveAttribute('srcdoc', '<!doctype html><html><body>better game</body></html>');
+    expect(frame).toHaveAttribute('srcdoc', BYOK_HTML);
     expect(screen.getByRole('button', { name: /back to today/i })).toBeVisible();
+  });
+
+  // The legend describes whatever game is in the frame. It used to be wired
+  // to the manifest unconditionally, so a BYOK game was played with the
+  // published game's controls printed under it.
+  it('describes the regenerated game\u2019s own controls, not the published game\u2019s', async () => {
+    const withControls = BYOK_COMPLETION.replace(
+      '"controls": []',
+      '"controls": [{"action": "Fly", "key": "Space"}]',
+    );
+    stubFetch({
+      manifest: () => jsonResponse(MANIFEST),
+      byokProvider: () => completionResponse(withControls),
+    });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    expect(screen.getByText('Arrow keys')).toBeVisible();
+
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /generate/i }));
+    await screen.findByTitle('Regenerated Title');
+
+    expect(screen.getByText('Space')).toBeVisible();
+    expect(screen.queryByText('Arrow keys')).toBeNull();
   });
 
   it("back to today's game restores the original html/title with no new fetch", async () => {
     const fetchImpl = stubFetch({
       manifest: () => jsonResponse(MANIFEST),
-      byokProvider: () => jsonResponse({ choices: [{ message: { content: VALID_BYOK_COMPLETION } }] }),
+      byokProvider: () => completionResponse(BYOK_COMPLETION),
     });
     render(<App />);
 

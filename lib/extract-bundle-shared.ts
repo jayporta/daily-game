@@ -2,8 +2,9 @@
 // blocks: a ```json block (meta: title/genre/theme/mechanics) and a
 // ```html block (a single self-contained game HTML file).
 //
-// Pure and dependency-free so it runs identically under Node (the daily
+// Pure and free of I/O so it runs identically under Node (the daily
 // pipeline) and in a browser (BYOK mode) once compiled for that context.
+import { isRecord } from './guards.ts';
 
 /**
  * One input the game listens for, as the game itself reports it.
@@ -14,9 +15,9 @@
  */
 export interface ControlHint {
   /** What the input does, in the game's own words. */
-  action: string;
+  readonly action: string;
   /** What the player presses, clicks or drags. */
-  key: string;
+  readonly key: string;
 }
 
 export interface GeneratedMeta {
@@ -77,7 +78,7 @@ function extractControls(value: unknown): ControlHint[] {
   const seen = new Set<string>();
   for (const entry of value) {
     if (controls.length === MAX_CONTROLS) break;
-    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue;
+    if (!isRecord(entry)) continue;
     if (!('action' in entry) || !('key' in entry)) continue;
 
     const action = boundedText(entry.action);
@@ -98,13 +99,38 @@ function extractControls(value: unknown): ControlHint[] {
 
 /**
  * Deliberately permissive: any object passes, and missing fields are
- * coerced to empty defaults below rather than rejected. Extraction's job
- * is parsing the format, not judging the content — a game with a blank
- * title still has to clear moderation and the smoke test before it can
- * ever be published, so rejecting here would only cost a retry.
+ * coerced to empty defaults by {@link toGeneratedMeta} rather than
+ * rejected. Extraction's job is parsing the format, not judging the
+ * content — a game with a blank title still has to clear moderation and
+ * the smoke test before it can ever be published, so rejecting here would
+ * only cost a retry.
  */
 function isPartialMeta(value: unknown): value is Partial<GeneratedMeta> {
-  return typeof value === 'object' && value !== null;
+  return isRecord(value);
+}
+
+/**
+ * Coerces an untrusted record into a complete {@link GeneratedMeta}.
+ *
+ * Every field gets a value: an absent string becomes `''` and an absent or
+ * malformed list becomes `[]`, so no consumer has to re-check. Callers that
+ * do care whether the model said anything test the result — an empty
+ * `title` means it did not.
+ *
+ * Shared with `publish.ts`, which reads the same shape back out of an
+ * archived `meta.json` and must narrow it exactly as extraction did.
+ *
+ * @param value Parsed JSON of unknown shape.
+ */
+export function toGeneratedMeta(value: unknown): GeneratedMeta {
+  const parsed: Partial<GeneratedMeta> = isPartialMeta(value) ? value : {};
+  return {
+    title: String(parsed.title ?? ''),
+    genre: String(parsed.genre ?? ''),
+    theme: String(parsed.theme ?? ''),
+    mechanics: Array.isArray(parsed.mechanics) ? parsed.mechanics.map(String) : [],
+    controls: extractControls(parsed.controls),
+  };
 }
 
 export function extractBundle(rawText: unknown): ExtractedBundle {
@@ -138,13 +164,5 @@ export function extractBundle(rawText: unknown): ExtractedBundle {
     return { ok: false, reason: 'empty-html' };
   }
 
-  const meta: GeneratedMeta = {
-    title: String(parsed.title ?? ''),
-    genre: String(parsed.genre ?? ''),
-    theme: String(parsed.theme ?? ''),
-    mechanics: Array.isArray(parsed.mechanics) ? parsed.mechanics.map(String) : [],
-    controls: extractControls(parsed.controls),
-  };
-
-  return { ok: true, meta, html };
+  return { ok: true, meta: toGeneratedMeta(parsed), html };
 }

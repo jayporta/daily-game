@@ -1,48 +1,15 @@
-// Fetching and validating the manifest, kept free of React so it can be
-// unit tested with a stubbed fetch.
-import type { ControlHint } from '../../../lib/extract-bundle-shared.ts';
+// Fetching the manifest and the day's published files, kept free of React so
+// it can be unit tested with a stubbed fetch. The manifest's own shape guard
+// lives with its type in lib/manifest.ts, since the pipeline checks it too.
+import { isManifest } from '../../../lib/manifest.ts';
 import type { Manifest } from '../../../lib/manifest.ts';
 
 /**
- * The string-valued fields of {@link Manifest}, so the guard can't drift.
- * Exported for the test that deletes each one in turn.
- */
-export const REQUIRED_STRING_FIELDS = [
-  'date',
-  'slug',
-  'path',
-  'promptPath',
-  'title',
-  'genre',
-  'genreLabel',
-  'model',
-  'generatedAt',
-  'expiresAt',
-] as const satisfies readonly (keyof Manifest)[];
-
-function isControlHint(value: unknown): value is ControlHint {
-  if (typeof value !== 'object' || value === null) return false;
-  if (!('action' in value) || !('key' in value)) return false;
-  return typeof value.action === 'string' && typeof value.key === 'string';
-}
-
-/**
- * Full shape check. The manifest is written by our own pipeline, but the
- * seed-state file is `null` until the first game publishes, and a partial
- * one would otherwise render blank metadata rather than failing visibly.
+ * Cache-busted so a visitor never sees yesterday's game from cache.
  *
- * @param value Parsed JSON of unknown shape.
+ * The one URL on the site whose contents change: it is rewritten every day,
+ * at the same path. Everything it points at is per-day and immutable.
  */
-export function isManifest(value: unknown): value is Manifest {
-  if (typeof value !== 'object' || value === null) return false;
-  if (!REQUIRED_STRING_FIELDS.every((field) => typeof Reflect.get(value, field) === 'string')) {
-    return false;
-  }
-  const controls: unknown = Reflect.get(value, 'controls');
-  return Array.isArray(controls) && controls.every(isControlHint);
-}
-
-/** Cache-busted so a visitor never sees yesterday's game from cache. */
 export function manifestUrl(now: number = Date.now()): string {
   return `manifest.json?t=${now}`;
 }
@@ -72,6 +39,11 @@ export async function fetchManifest({
  * Loads a published, repo-relative text file — the game bundle's HTML or
  * its prompt file (see `Manifest.promptPath`).
  *
+ * Cached normally, unlike {@link fetchManifest}: these paths carry the day's
+ * slug, so a published file at a given URL never changes. `no-store` here
+ * re-downloaded the whole game on every refresh and ruled out a bfcache
+ * restore, to protect against staleness that cannot happen.
+ *
  * @param path Repo-relative path from the manifest, e.g.
  *   `games/archive/2026-08-29-slug/game.html`.
  * @throws If the file cannot be fetched.
@@ -80,7 +52,7 @@ export async function fetchText(
   path: string,
   { fetchImpl = fetch }: FetchOptions = {},
 ): Promise<string> {
-  const response = await fetchImpl(path, { cache: 'no-store' });
+  const response = await fetchImpl(path);
   if (!response.ok) {
     throw new Error(`could not load game (${response.status})`);
   }

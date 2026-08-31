@@ -1,14 +1,20 @@
 // Writes a successful generation to disk: the dated archive folder, the
-// manifest the front-end reads, and the history files.
+// manifest the front-end reads, and the history files. Also the only other
+// writer of manifest.json — `restoreManifestFromArchive` repoints it at the
+// newest surviving archive when it has stopped naming a game at all.
 //
-// The error-reporting snippet appended to game.html comes from
-// lib/errorReporting.ts — ours, never the model's. It is empty until
-// config/generation.json carries a Sentry DSN.
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+// Two things are added to game.html here, both ours and never the model's:
+// a `connect-src` policy in its <head>, and the error-reporting snippet at
+// the end. Both come from lib/errorReporting.ts and both are keyed off
+// config/generation.json's sentryDsn. This is the only point at which a
+// bundle is touched — nothing downstream may transform it again.
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { createPaths, paths as defaultPaths, type Paths } from './lib/paths.ts';
 import { appendEntry, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
-import { buildErrorReportingSnippet } from './lib/errorReporting.ts';
+import { buildBundleCspMeta, buildErrorReportingSnippet } from './lib/errorReporting.ts';
+import { toGeneratedMeta } from '../lib/extract-bundle-shared.ts';
+import { isManifest } from '../lib/manifest.ts';
 import type { GeneratedMeta } from '../lib/extract-bundle-shared.ts';
 import type { Manifest } from '../lib/manifest.ts';
 import type { FailureKind, HistoryGameEntry } from './lib/history-store.ts';
@@ -80,6 +86,24 @@ export function computeExpiresAt(cronSchedule: string, fromISO: string): string 
 
 export type { Manifest };
 
+/**
+ * Puts `meta` at the start of the document's `<head>`.
+ *
+ * A meta CSP is ignored outside `<head>`, so it cannot simply be prepended —
+ * and prepending before the doctype would drop the page into quirks mode.
+ * Falls back to just after `<html>`, where the parser hoists it into an
+ * implied head.
+ *
+ * @returns The document unchanged when it carries neither tag. The sandbox,
+ *   not this policy, is the control, and a bundle that has already cleared
+ *   moderation and the smoke test must not be lost to a missing tag.
+ */
+export function withHeadMeta(html: string, meta: string): string {
+  const inHead = html.replace(/<head\b[^>]*>/i, (tag) => `${tag}\n${meta}`);
+  if (inHead !== html) return inHead;
+  return html.replace(/<html\b[^>]*>/i, (tag) => `${tag}\n${meta}`);
+}
+
 export interface BuildManifestParams {
   date: string;
   slug: string;
@@ -89,6 +113,12 @@ export interface BuildManifestParams {
   cronSchedule: string;
   /** Genre catalogue, used to resolve {@link Manifest.genreLabel}. */
   genres: GenresConfig;
+  /**
+   * Whether the archive holds the prompt that produced this game. A game
+   * archived before prompts were has none, and its manifest must omit
+   * {@link Manifest.promptPath} rather than name a file that 404s.
+   */
+  hasArchivedPrompt?: boolean;
   paths?: Paths;
 }
 
@@ -100,13 +130,14 @@ export function buildManifest({
   generatedAt,
   cronSchedule,
   genres,
+  hasArchivedPrompt = true,
   paths = defaultPaths,
 }: BuildManifestParams): Manifest {
   return {
     date,
     slug,
     path: paths.archiveGameUrlPath(slug),
-    promptPath: paths.archiveGamePromptUrlPath(slug),
+    ...(hasArchivedPrompt ? { promptPath: paths.archiveGamePromptUrlPath(slug) } : {}),
     title: meta.title,
     genre: meta.genre,
     // An unknown id means the model ignored the catalogue; show what it
@@ -164,8 +195,9 @@ export function publish({
   const gameDir = paths.archiveGameDir(slug);
   mkdirSync(gameDir, { recursive: true });
 
+  const hardened = withHeadMeta(html, buildBundleCspMeta(generationConfig.sentryDsn));
   const snippet = buildErrorReportingSnippet(generationConfig.sentryDsn, slug);
-  writeFileSync(join(gameDir, 'game.html'), `${html}${snippet}`, 'utf8');
+  writeFileSync(join(gameDir, 'game.html'), `${hardened}${snippet}`, 'utf8');
   writeFileSync(join(gameDir, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
   writeFileSync(join(gameDir, 'prompt.txt'), prompt, 'utf8');
 
@@ -236,4 +268,130 @@ export function recordFailure({
   writeGamesJson(paths.historyGames, updatedEntries);
   writeGamesMd(paths.historyGamesMd, updatedEntries);
   return updatedEntries;
+}
+
+/**
+ * What {@link restoreManifestFromArchive} found.
+ *
+ * `intact` means the manifest was already naming a bundle that is on disk
+ * and nothing was written — the overwhelmingly common case, and the one
+ * that keeps a failed run from touching a live site.
+ */
+export type ManifestRestoreResult =
+  | { status: 'intact' }
+  | { status: 'restored'; manifest: Manifest }
+  | { status: 'no-candidate' };
+
+export interface RestoreManifestParams {
+  /** The hot window, oldest first, as {@link readHotWindow} returns it. */
+  historyEntries: readonly HistoryGameEntry[];
+  generationConfig: GenerationConfig;
+  /** Genre catalogue, used to resolve {@link Manifest.genreLabel}. */
+  genres: GenresConfig;
+  /** Repo root to write into — overridden in tests. */
+  root?: string;
+}
+
+/**
+ * Whether `manifest.json` currently names a bundle the site can actually
+ * serve — the one question that decides whether the manifest is left alone.
+ *
+ * The bundle has to sit inside the archive, not merely exist: assembly copies
+ * only `games/archive/` into `dist/`, so a path leading anywhere else names a
+ * file no visitor can reach. Compared as a resolved relative path rather than
+ * a string prefix, because `join` normalises `..` segments away first.
+ */
+function manifestServesAGame(paths: Paths): boolean {
+  if (!existsSync(paths.manifest)) return false;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(paths.manifest, 'utf8'));
+  } catch {
+    return false;
+  }
+  if (!isManifest(parsed)) return false;
+
+  const bundle = resolve(paths.root, parsed.path);
+  const withinArchive = relative(paths.archiveDir, bundle);
+  if (withinArchive.startsWith('..') || isAbsolute(withinArchive)) return false;
+  return existsSync(bundle);
+}
+
+/**
+ * The archived metadata for `slug`, if that day is still playable.
+ *
+ * @returns `null` when the directory, the bundle or a readable `meta.json`
+ *   is missing, or when the metadata names no title — a manifest built from
+ *   any of those would point the front-end at nothing, or at a blank card.
+ */
+function readArchivedMeta(paths: Paths, slug: string): GeneratedMeta | null {
+  const gameDir = paths.archiveGameDir(slug);
+  if (!existsSync(join(gameDir, 'game.html'))) return null;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(join(gameDir, 'meta.json'), 'utf8'));
+  } catch {
+    return null;
+  }
+
+  const meta = toGeneratedMeta(parsed);
+  return meta.title.length > 0 ? meta : null;
+}
+
+/**
+ * Repoints `manifest.json` at the newest archived game that is still on disk.
+ *
+ * A run that fails every attempt keeps the previous manifest, which is right
+ * while that manifest is serving a game. When it is the seed-state `null`,
+ * unparseable, or naming a bundle that is gone, "keeping" it leaves the site
+ * with nothing to show even though the archive still holds a playable game.
+ *
+ * Only ever fires in that case: a manifest whose bundle exists is returned as
+ * `intact` and never rewritten, so this cannot replace a live game with an
+ * older one.
+ *
+ * The restored `generatedAt` is the archived day's midnight UTC — the entry
+ * records a date, not a time — so `expiresAt` lands on that day's run and the
+ * countdown reads as already elapsed, exactly as a kept manifest does.
+ *
+ * @param historyEntries Searched newest-first for a `published` day.
+ * @returns What it found; a `restored` result has already been written.
+ */
+export function restoreManifestFromArchive({
+  historyEntries,
+  generationConfig,
+  genres,
+  root,
+}: RestoreManifestParams): ManifestRestoreResult {
+  const paths = root ? createPaths(root) : defaultPaths;
+  if (manifestServesAGame(paths)) return { status: 'intact' };
+
+  for (let index = historyEntries.length - 1; index >= 0; index -= 1) {
+    const entry = historyEntries[index];
+    if (entry === undefined || entry.status !== 'published') continue;
+
+    const slug = entry.slug;
+    if (slug === undefined) continue;
+
+    const meta = readArchivedMeta(paths, slug);
+    if (meta === null) continue;
+
+    const manifest = buildManifest({
+      date: entry.date,
+      slug,
+      meta,
+      model: entry.model,
+      generatedAt: `${entry.date}T00:00:00.000Z`,
+      cronSchedule: generationConfig.cronSchedule,
+      genres,
+      hasArchivedPrompt: existsSync(join(paths.archiveGameDir(slug), 'prompt.txt')),
+      paths,
+    });
+    writeFileSync(paths.manifest, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+    return { status: 'restored', manifest };
+  }
+
+  return { status: 'no-candidate' };
 }

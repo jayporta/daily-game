@@ -54,9 +54,9 @@ test('digestHistory lists every recent day, newest first', () => {
   const lines = digest.split('\n');
 
   assert.equal(lines.length, 3);
-  assert.match(lines[0] as string, /2026-08-28/);
-  assert.match(lines[1] as string, /2026-08-27/);
-  assert.match(lines[2] as string, /2026-08-26/);
+  assert.match(String(lines[0]), /2026-08-28/);
+  assert.match(String(lines[1]), /2026-08-27/);
+  assert.match(String(lines[2]), /2026-08-26/);
 });
 
 // Genres are only ever chosen by a published game, so a failed day must not
@@ -324,7 +324,7 @@ test('correctiveDirectives speaks up once a complaint recurs', () => {
   ]);
 
   assert.equal(directives.length, 1);
-  assert.match(directives[0] as string, /Goal unclear/);
+  assert.match(String(directives[0]), /Goal unclear/);
 });
 
 test('correctiveDirectives leads with the most frequent problem', () => {
@@ -334,8 +334,8 @@ test('correctiveDirectives leads with the most frequent problem', () => {
     received('2026-08-27', { dislikeReasons: { 'goal-unclear': 1 } }),
   ]);
 
-  assert.match(directives[0] as string, /Goal unclear/);
-  assert.match(directives[1] as string, /not working at all/);
+  assert.match(String(directives[0]), /Goal unclear/);
+  assert.match(String(directives[1]), /not working at all/);
 });
 
 test('correctiveDirectives responds to recurring generation failures', () => {
@@ -347,7 +347,7 @@ test('correctiveDirectives responds to recurring generation failures', () => {
   const directives = correctiveDirectives([failed('2026-08-29')]);
 
   assert.equal(directives.length, 1);
-  assert.match(directives[0] as string, /over the network/);
+  assert.match(String(directives[0]), /over the network/);
 });
 
 // Only ids from the closed vocabularies select wording, so nothing a visitor

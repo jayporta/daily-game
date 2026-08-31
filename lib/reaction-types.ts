@@ -5,6 +5,7 @@
 // the browser to render the choices, the pipeline to validate what comes
 // back from the store — and lib/ is compiled by both tsconfigs, so a
 // Node-only API here fails the web build.
+import { isRecord } from './guards.ts';
 
 /**
  * The closed set of reasons a visitor may give for disliking a game.
@@ -84,7 +85,7 @@ export interface ReactionConfig {
  * shape and adds its own deployment rules on top.
  */
 export function isReactionConfig(value: unknown): value is ReactionConfig {
-  if (typeof value !== 'object' || value === null) return false;
+  if (!isRecord(value)) return false;
   if (!('endpointUrl' in value) || !('anonKey' in value)) return false;
   const { endpointUrl, anonKey } = value;
   return (

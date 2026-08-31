@@ -1,8 +1,8 @@
 # Builds one game a day and publishes it.
 #
-# Runs on mocks until Epic 6 provisions credentials: scripts/lib/get-client.ts
-# falls back to fixture responses when OPENROUTER_API_KEY is unset, and no
-# step here branches on whether the secret exists.
+# No step here branches on whether OPENROUTER_API_KEY exists:
+# scripts/lib/get-client.ts falls back to fixture responses when it is unset,
+# so a fork with no credentials runs this workflow unchanged.
 name: Generate daily game
 
 on:
@@ -186,3 +186,7 @@ jobs:
       pages: write
       id-token: write
     uses: ./.github/workflows/deploy-pages.yml
+    # This job already installed Chromium and ran the suite against this very
+    # commit; running it again in the deploy adds minutes and no signal.
+    with:
+      skip_tests: true

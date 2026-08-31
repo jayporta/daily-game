@@ -113,9 +113,9 @@ test('gives up after three failures and keeps the previous game', async () => {
   assert.equal(result.status, 'failed_kept_previous');
   assert.equal(result.attempts, MAX_ATTEMPTS);
   assert.equal(result.reasons.length, MAX_ATTEMPTS);
-  assert.match(result.reasons[0] as string, /uncaught JS error/);
-  assert.match(result.reasons[1] as string, /not self-contained/);
-  assert.match(result.reasons[2] as string, /could not extract bundle/);
+  assert.match(String(result.reasons[0]), /uncaught JS error/);
+  assert.match(String(result.reasons[1]), /not self-contained/);
+  assert.match(String(result.reasons[2]), /could not extract bundle/);
 });
 
 // The kinds are what the next day's prompt keys its guidance off, so they
@@ -224,9 +224,9 @@ test('the previous failure is fed back into the next prompt', async () => {
 
   await generateDailyGame({ ...baseParams(), client });
   assert.equal(prompts.length, 2);
-  assert.doesNotMatch(prompts[0] as string, /previous attempt failed/);
-  assert.match(prompts[1] as string, /previous attempt failed/);
-  assert.match(prompts[1] as string, /thisFunctionDoesNotExist/);
+  assert.doesNotMatch(String(prompts[0]), /previous attempt failed/);
+  assert.match(String(prompts[1]), /previous attempt failed/);
+  assert.match(String(prompts[1]), /thisFunctionDoesNotExist/);
 });
 
 // The only reliable way to offer "the same prompt" to a BYOK visitor is to

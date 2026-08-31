@@ -4,8 +4,10 @@
 //
 // Each attempt: pick a model → build a prompt (feeding back the previous
 // attempt's specific failure) → generate → extract → moderate → smoke
-// test. Three failures is a normal outcome, not a CI failure: the live
-// site is left completely untouched and the run still exits green.
+// test. Three failures is a normal outcome, not a CI failure: a live site
+// keeps the game it is already serving, and the run still exits green. The
+// one write a failed run can make is repointing a manifest that has stopped
+// naming a game at all back at the archive.
 import { pathToFileURL } from 'node:url';
 import { buildPrompt, selectRemixSuggestion } from './build-prompt.ts';
 import { SYSTEM_PROMPT } from '../lib/system-prompt.ts';
@@ -14,14 +16,15 @@ import { extractBundle } from '../lib/extract-bundle-shared.ts';
 import { errorMessage } from '../lib/errors.ts';
 import { moderate } from './moderate.ts';
 import { createSmokeTester, type SmokeTester, type SmokeTestResult } from './smoke-test.ts';
-import { publish, recordFailure } from './publish.ts';
+import { publish, recordFailure, restoreManifestFromArchive } from './publish.ts';
 import { getOpenRouterClient } from './lib/get-client.ts';
 import { lastPublishedEntry, readHotWindow, readSummary, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
 import { applyFeedback } from './fetch-feedback.ts';
 import { paths } from './lib/paths.ts';
 import type { OpenRouterClient } from './lib/openrouter-client.ts';
-import type { GeneratedMeta } from '../lib/extract-bundle-shared.ts';
+import type { ExtractFailureReason, GeneratedMeta } from '../lib/extract-bundle-shared.ts';
 import type { FailureKind, HistoryGameEntry, HistorySummary } from './lib/history-store.ts';
+import type { ManifestRestoreResult } from './publish.ts';
 import type { GenerationConfig } from './lib/config/generation.ts';
 import type { GenresConfig } from './lib/config/genres.ts';
 import { loadAllConfig } from './lib/config/index.ts';
@@ -51,7 +54,7 @@ export type GenerateResult =
       model: string;
     };
 
-const EXTRACTION_FEEDBACK: Record<string, string> = {
+const EXTRACTION_FEEDBACK: Record<ExtractFailureReason, string> = {
   'missing-meta-block': 'Your response had no ```json block. Return both fenced blocks exactly as specified.',
   'missing-html-block': 'Your response had no ```html block. Return both fenced blocks exactly as specified.',
   'invalid-json-meta': 'The ```json block was not valid JSON. Return strictly valid JSON with no comments or trailing commas.',
@@ -138,7 +141,7 @@ export async function generateDailyGame({
     if (!extracted.ok) {
       reasons.push(`attempt ${attempt} (${model}): could not extract bundle — ${extracted.reason}`);
       kinds.push('extract');
-      priorFailureFeedback = EXTRACTION_FEEDBACK[extracted.reason] ?? 'Your response did not match the required format.';
+      priorFailureFeedback = EXTRACTION_FEEDBACK[extracted.reason];
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
       continue;
     }
@@ -294,7 +297,7 @@ export async function runDailyPipeline({
     });
     console.log(`Published ${published.slug} (model ${result.model}, ${result.attempts} attempt(s))`);
   } else {
-    recordFailure({
+    const recorded = recordFailure({
       date,
       model: result.model,
       attempts: result.attempts,
@@ -302,11 +305,31 @@ export async function runDailyPipeline({
       kinds: result.kinds,
       historyEntries,
     });
-    console.log(`All ${result.attempts} attempts failed — previous game kept. Reasons:`);
+    // Keeping the previous manifest only serves a game while it still names
+    // one. A seed-state or dangling manifest is repointed at the newest
+    // archived day so a failed run never leaves the site with nothing.
+    const restored = restoreManifestFromArchive({
+      historyEntries: recorded,
+      generationConfig: generation,
+      genres,
+    });
+    console.log(`All ${result.attempts} attempts failed — ${describeRestore(restored)}. Reasons:`);
     for (const reason of result.reasons) console.log(`  - ${reason}`);
   }
 
   return result;
+}
+
+/** How a failed run reports what the site is left showing. */
+function describeRestore(restored: ManifestRestoreResult): string {
+  switch (restored.status) {
+    case 'intact':
+      return 'previous game kept';
+    case 'restored':
+      return `manifest restored to ${restored.manifest.slug} from the archive`;
+    case 'no-candidate':
+      return 'no game to keep — the archive holds none';
+  }
 }
 
 const FORCE_MODEL_FLAG = '--force-model=';

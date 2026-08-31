@@ -12,7 +12,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { errorMessage } from '../lib/errors.ts';
-import { readHotWindow, readSummary, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
+import { isHistoryGameEntry, readHotWindow, readSummary, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
 import { join } from 'node:path';
 import { createPaths, paths as defaultPaths, type Paths } from './lib/paths.ts';
 import type { HistoryGameEntry, HistorySummary, PopularityEntry } from './lib/history-store.ts';
@@ -140,9 +140,10 @@ export function readArchivedEntries(paths: Paths): HistoryGameEntry[] {
       if (line.trim().length === 0) continue;
       try {
         const parsed: unknown = JSON.parse(line);
-        if (typeof parsed === 'object' && parsed !== null && 'date' in parsed) {
-          entries.push(parsed as HistoryGameEntry);
-        }
+        // Validated, not cast: summariseEntries calls `mechanics.join` and
+        // indexes by `genre`, so a line of the wrong shape would crash the
+        // rollup rather than be the skippable corruption this loop promises.
+        if (isHistoryGameEntry(parsed)) entries.push(parsed);
       } catch {
         // Skipped, and left in place for the next append to preserve.
       }

@@ -1,8 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ByokPanel } from '../ByokPanel.tsx';
 import type { ByokModelsConfig } from '../../../../lib/byok-config-types.ts';
+import {
+  BYOK_COMPLETION,
+  BYOK_HTML,
+  completionResponse,
+  jsonResponse,
+} from '../../../lib/testFixtures.ts';
 
 const CATALOGUE: ByokModelsConfig = [
   {
@@ -18,22 +24,16 @@ const CATALOGUE: ByokModelsConfig = [
   { provider: 'gemini', label: 'Gemini', models: [{ id: 'gemini-x', label: 'Gemini X' }] },
 ];
 
-const VALID_COMPLETION = [
-  '```json',
-  '{"title": "Regenerated Title", "genre": "maze-adventure", "theme": "th", "mechanics": ["m"], "controls": []}',
-  '```',
-  '',
-  '```html',
-  '<!doctype html><html><body>better game</body></html>',
-  '```',
-].join('\n');
+const PROMPT_PATH = 'games/archive/2026-08-29-beetle/prompt.txt';
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), { status });
-}
-
-function stubFetch(response: Response): typeof fetch {
-  return vi.fn(async () => response) as unknown as typeof fetch;
+/**
+ * The panel makes two kinds of request now — the day's prompt, then the
+ * provider — so a stub has to tell them apart.
+ */
+function routedFetch(provider: () => Response): ReturnType<typeof vi.fn<typeof fetch>> {
+  return vi.fn<typeof fetch>(async (input) =>
+    String(input).endsWith('prompt.txt') ? new Response('the prompt', { status: 200 }) : provider(),
+  );
 }
 
 const generateButton = (): HTMLElement => screen.getByRole('button', { name: /generate/i });
@@ -43,10 +43,10 @@ describe('ByokPanel', () => {
     render(
       <ByokPanel
         systemPrompt="system"
-        userPrompt="the prompt"
+        promptPath={PROMPT_PATH}
         onResult={() => {}}
         catalogue={CATALOGUE}
-        fetchImpl={stubFetch(jsonResponse({}))}
+        fetchImpl={routedFetch(() => jsonResponse({}))}
       />,
     );
 
@@ -63,10 +63,10 @@ describe('ByokPanel', () => {
     render(
       <ByokPanel
         systemPrompt="system"
-        userPrompt="the prompt"
+        promptPath={PROMPT_PATH}
         onResult={() => {}}
         catalogue={CATALOGUE}
-        fetchImpl={stubFetch(jsonResponse({}))}
+        fetchImpl={routedFetch(() => jsonResponse({}))}
       />,
     );
 
@@ -81,10 +81,10 @@ describe('ByokPanel', () => {
     render(
       <ByokPanel
         systemPrompt="system"
-        userPrompt={null}
+        promptPath={PROMPT_PATH}
         onResult={() => {}}
         catalogue={CATALOGUE}
-        fetchImpl={stubFetch(jsonResponse({}))}
+        fetchImpl={routedFetch(() => jsonResponse({}))}
       />,
     );
 
@@ -92,13 +92,11 @@ describe('ByokPanel', () => {
   });
 
   it('clears the key input immediately after submitting', async () => {
-    const fetchImpl = stubFetch(
-      jsonResponse({ choices: [{ message: { content: VALID_COMPLETION } }] }),
-    );
+    const fetchImpl = routedFetch(() => completionResponse(BYOK_COMPLETION));
     render(
       <ByokPanel
         systemPrompt="system"
-        userPrompt="the prompt"
+        promptPath={PROMPT_PATH}
         onResult={() => {}}
         catalogue={CATALOGUE}
         fetchImpl={fetchImpl}
@@ -113,14 +111,12 @@ describe('ByokPanel', () => {
   });
 
   it('calls onResult with the extracted bundle on success', async () => {
-    const fetchImpl = stubFetch(
-      jsonResponse({ choices: [{ message: { content: VALID_COMPLETION } }] }),
-    );
+    const fetchImpl = routedFetch(() => completionResponse(BYOK_COMPLETION));
     const onResult = vi.fn();
     render(
       <ByokPanel
         systemPrompt="system"
-        userPrompt="the prompt"
+        promptPath={PROMPT_PATH}
         onResult={onResult}
         catalogue={CATALOGUE}
         fetchImpl={fetchImpl}
@@ -130,22 +126,29 @@ describe('ByokPanel', () => {
     await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
     await userEvent.click(generateButton());
 
-    expect(onResult).toHaveBeenCalledWith(
-      expect.objectContaining({
-        html: '<!doctype html><html><body>better game</body></html>',
-        title: 'Regenerated Title',
-        providerLabel: 'OpenRouter',
-        modelId: 'or-a',
-      }),
+    await waitFor(() =>
+      expect(onResult).toHaveBeenCalledWith(
+        expect.objectContaining({
+          html: BYOK_HTML,
+          title: 'Regenerated Title',
+          providerLabel: 'OpenRouter',
+          modelId: 'or-a',
+        }),
+      ),
     );
   });
 
   it('shows a plain error and allows retrying without auto-retrying itself', async () => {
-    const fetchImpl = stubFetch(new Response('', { status: 401 }));
+    // Counts provider calls, to prove the panel does not retry on its own.
+    let providerCalls = 0;
+    const fetchImpl = routedFetch(() => {
+      providerCalls += 1;
+      return new Response('', { status: 401 });
+    });
     render(
       <ByokPanel
         systemPrompt="system"
-        userPrompt="the prompt"
+        promptPath={PROMPT_PATH}
         onResult={() => {}}
         catalogue={CATALOGUE}
         fetchImpl={fetchImpl}
@@ -155,12 +158,12 @@ describe('ByokPanel', () => {
     await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
     await userEvent.click(generateButton());
 
-    expect(screen.getByText(/401/)).toBeVisible();
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/401/)).toBeVisible();
+    expect(providerCalls).toBe(1);
 
     await userEvent.type(screen.getByLabelText(/api key/i), 'sk-another-key');
     await userEvent.click(generateButton());
 
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    await waitFor(() => expect(providerCalls).toBe(2));
   });
 });

@@ -52,7 +52,7 @@ npm run build:site   # vite build + assemble-site.ts → deployable dist/
 First run also needs `npx playwright install chromium`.
 
 - One Node file: `node --experimental-strip-types --test scripts/__tests__/moderate.test.ts`
-- One web file: `npx vitest run src/components/__tests__/GameFacts.test.tsx`
+- One web file: `npx vitest run src/features/game/__tests__/GameFacts.test.tsx`
 - By name under `node --test`, **always scope it to a file**: append
   `--test-name-pattern "fails closed"`. Repo-wide it hangs — the smoke-test
   file's `before()` launches a browser that its `after()` never closes when
@@ -206,7 +206,7 @@ Breaking any of these is a correctness or safety regression, not a
 refactor.
 
 - **The iframe sandbox.** `sandbox="allow-scripts"` with `srcDoc`, in
-  `src/components/GameFrame.tsx`. Never add `allow-same-origin`,
+  `src/features/game/GameFrame.tsx`. Never add `allow-same-origin`,
   `allow-top-navigation`, or `allow-popups` — with allow-scripts they let
   the frame escape. This, not React, is the trust boundary.
 - **Moderation and the smoke test fail closed.** An unreachable moderator,
@@ -214,8 +214,26 @@ refactor.
   all count as rejections. A false rejection costs a retry; a false
   acceptance publishes banned content to a public site.
 - **Three failed attempts is a successful run.** It records
-  `failed_kept_previous`, leaves `manifest.json` and the live site
-  untouched, and exits green. Only an unexpected crash is a CI failure.
+  `failed_kept_previous`, leaves the live site serving the game it already
+  had, and exits green. Only an unexpected crash is a CI failure.
+
+  `manifest.json` is untouched *while it is serving a game* — that is the
+  guarantee, and `restoreManifestFromArchive` in `scripts/publish.ts` is
+  written to preserve it: it returns `intact` and writes nothing whenever the
+  manifest parses and the bundle it names is on disk. It only writes when the
+  manifest has stopped naming a game at all — the seed-state `null`, an
+  unparseable file, or a bundle that is gone — and then repoints it at the
+  newest `published` history entry whose archive survives. Without that, a
+  failed run "keeps" a manifest that shows nothing while a playable game sits
+  in `games/archive/`. Loosen the `intact` check and a failed run can replace
+  today's live game with an older one.
+
+- **A manifest may omit `promptPath`, and never anything else.** A game
+  archived before `prompt.txt` was (the BYOK commit) has no prompt to re-run.
+  `isManifest` accepts it absent, `missingPublishedFiles` checks it only when
+  declared — a *declared* prompt that is missing still fails the assembly —
+  and `GameView` hides the BYOK panel rather than offering a Generate button
+  that fetches a 404.
 - **The prompt contract and the extractor must agree.**
   `OUTPUT_FORMAT_CONTRACT` in `scripts/build-prompt.ts` describes the two
   fenced blocks that `lib/extract-bundle-shared.ts` parses. Change them
@@ -236,12 +254,23 @@ refactor.
   archived `game.html` between the pipeline writing it and the browser
   running it; the dev server has a plugin specifically to prevent Vite
   injecting into them.
+
+  `publish.ts` is on the writing side of that line and makes exactly two
+  additions, both ours and both keyed off `sentryDsn`: a `connect-src` meta
+  in the document's `<head>`, and the error-reporting snippet at the end.
+  Both come from `scripts/lib/errorReporting.ts`. The meta has to go *inside*
+  `<head>` — a meta CSP is ignored anywhere else, and prepending it before
+  the doctype would drop the game into quirks mode. A bundle carrying neither
+  `<head>` nor `<html>` is published without it rather than failed: the
+  sandbox is the control, this is defence in depth.
 - **Nothing downstream branches on mock-vs-real.**
   `scripts/lib/get-client.ts` is the only place that decides, so setting
   `OPENROUTER_API_KEY` flips the pipeline live with no code change.
 - **`connect-src` must list the Sentry ingest origin.** A `srcdoc` iframe
   inherits the parent's CSP, so the snippet `publish.ts` appends runs under
-  `index.html`'s policy. Drop
+  `index.html`'s policy — intersected with the per-bundle `connect-src`
+  `publish.ts` injects, which narrows a game back to that one origin so the
+  BYOK provider origins listed for the page are not inherited by game code. Drop
   `https://o4512003238199296.ingest.us.sentry.io` from `connect-src` and the
   browser blocks every report from both the page and the game frame, with
   nothing anywhere saying so — an error reporter cannot report that it could

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 export interface CodeChipProps {
   /** The literal text — a command to type, or a model identifier. */
-  children: ReactNode;
+  readonly children: ReactNode;
 }
 
 /**

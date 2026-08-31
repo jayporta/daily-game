@@ -52,3 +52,26 @@ export function formatGeneratedDate(isoDate: string): string {
     timeZone: 'UTC',
   });
 }
+
+/**
+ * How long until {@link formatCountdown} would return a different string.
+ *
+ * The label is coarse at a distance and precise near the end, so a caller
+ * that wakes once a second spends all day recomputing a string that reads
+ * the same 59 times out of 60. Waking on the label's own granularity shows
+ * the same label at every instant for a fraction of the wakeups.
+ *
+ * The first wait after a granularity change only aligns to the boundary, so
+ * it can land on the same label — every wait after it changes one.
+ *
+ * @param remainingMs Output of {@link msUntil}.
+ * @returns Milliseconds to wait, or `0` once the label has reached "any
+ *   moment now" and can never change again.
+ */
+export function msUntilLabelChanges(remainingMs: number): number {
+  if (remainingMs <= 0) return 0;
+  // Matches formatCountdown's own `hours > 0` boundary: at or above an hour
+  // the label carries minutes, below it seconds.
+  const step = remainingMs >= HOUR ? MINUTE : SECOND;
+  return remainingMs % step || step;
+}

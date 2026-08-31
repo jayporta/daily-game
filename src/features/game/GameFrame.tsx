@@ -12,9 +12,9 @@
 
 export interface GameFrameProps {
   /** The AI-authored bundle, rendered inline via `srcDoc`. Never trusted. */
-  html: string;
+  readonly html: string;
   /** Accessible name for the frame; also what screen readers announce. */
-  title: string;
+  readonly title: string;
 }
 
 /** Renders the untrusted game inside its sandbox. */

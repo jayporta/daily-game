@@ -1,5 +1,6 @@
-// The one place the shipped reaction config is read. Isolated here so
-// `reaction.ts` stays free of imports the Node test runner cannot resolve.
+// Where this build sends reactions: the one place the shipped config is read.
+// Isolated from `reaction.ts` so that module stays free of a JSON import the
+// Node test runner cannot resolve.
 //
 // Imported at build time rather than fetched: `deploy-pages.yml` rebuilds
 // the site on every push to `main`, so an edit to the JSON always ships,

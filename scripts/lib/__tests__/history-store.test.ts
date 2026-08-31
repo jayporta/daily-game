@@ -101,6 +101,25 @@ test('readHotWindow rejects a structurally invalid history file', (t) => {
   assert.throws(() => readHotWindow(file), /invalid/);
 });
 
+// The hot window has the same exposure the archive does: renderGamesMd and
+// summariseEntries both call `mechanics.join`, so a hand-edit that makes it a
+// string has to be refused at read time rather than crash a later writer.
+test('readHotWindow rejects an entry whose optional field is the wrong type', (t) => {
+  const dir = scratchDir(t);
+  const file = join(dir, 'games.json');
+  writeFileSync(file, JSON.stringify([{ ...PUBLISHED, mechanics: 'move' }]), 'utf8');
+
+  assert.throws(() => readHotWindow(file), /mechanics must be an array of strings/);
+});
+
+test('readHotWindow rejects a failureKinds entry outside the closed vocabulary', (t) => {
+  const dir = scratchDir(t);
+  const file = join(dir, 'games.json');
+  writeFileSync(file, JSON.stringify([{ ...FAILED, failureKinds: ['not-a-kind'] }]), 'utf8');
+
+  assert.throws(() => readHotWindow(file), /failureKinds must be an array of/);
+});
+
 test('renderGamesMd describes published and failed runs differently', () => {
   const md = renderGamesMd([PUBLISHED, FAILED]);
   assert.match(md, /## 2026-08-28 — Beetle Maze/);

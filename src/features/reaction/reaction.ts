@@ -18,6 +18,7 @@ import {
   type ReactionKind,
   type ReactionPayload,
 } from '../../../lib/reaction-types.ts';
+import { isRecord } from '../../../lib/guards.ts';
 import type { WebStorage } from '../../lib/browser-storage.ts';
 
 /** A visitor's own recorded choice for one game. */
@@ -119,7 +120,7 @@ function storageKey(slug: string): string {
 }
 
 function toStoredReaction(value: unknown): StoredReaction | null {
-  if (typeof value !== 'object' || value === null) return null;
+  if (!isRecord(value)) return null;
   if (!('kind' in value) || !('reasons' in value)) return null;
 
   const { kind, reasons } = value;

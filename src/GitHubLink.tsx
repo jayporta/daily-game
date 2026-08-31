@@ -1,4 +1,4 @@
-import { IconButton } from './IconButton.tsx';
+import { IconButton } from './ui/IconButton.tsx';
 
 /** Where the source lives. Opens in a new tab so a game in play is not lost. */
 const SOURCE_URL = 'https://github.com/jayporta/daily-game';

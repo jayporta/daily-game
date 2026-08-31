@@ -56,8 +56,9 @@ describe('useCountdown', () => {
     expect(result.current).toBe('3h 0m');
   });
 
-  // The clock ticks every second; the label it produces changes once a minute.
-  it('does not re-render on every tick while the label it shows is unchanged', () => {
+  // Above an hour the label carries minutes, so the hook waits a minute at a
+  // time. A 1 Hz clock produced the same labels and 59 wasted wakeups a minute.
+  it('does not re-render on every second while the label it shows is unchanged', () => {
     const TICKS = 30;
     let renders = 0;
     // Six hours and 45 seconds out: every tick below reads "6h 0m".
@@ -81,14 +82,22 @@ describe('useCountdown', () => {
     expect(renders - rendersAfterMount).toBeLessThan(TICKS / 2);
   });
 
-  it('stops its interval on unmount so nothing ticks after teardown', () => {
-    const clearSpy = vi.spyOn(globalThis, 'clearInterval');
+  // Asserted on the timer count rather than on which clearing function ran:
+  // what matters is that nothing is left pending, not how it was cancelled.
+  it('leaves no pending timer after unmount', () => {
     const { unmount } = renderHook(() => useCountdown(expiryIn(60_000)));
-    const pendingBefore = vi.getTimerCount();
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
 
     unmount();
 
-    expect(clearSpy).toHaveBeenCalled();
-    expect(vi.getTimerCount()).toBeLessThan(pendingBefore);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  // Nothing about the label can change once it reads "any moment now", so the
+  // hook stops rescheduling rather than waking every second until midnight.
+  it('schedules nothing once the game is already due for replacement', () => {
+    renderHook(() => useCountdown(expiryIn(-1_000)));
+
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

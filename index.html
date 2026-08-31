@@ -13,12 +13,12 @@
       `default-src` alone would do it silently. It would break the whole
       site in production while every test still passed. The `sandbox`
       attribute on the frame is what contains that code, not this policy;
-      see src/components/GameFrame.tsx.
+      see src/features/game/GameFrame.tsx.
 
       What is listed cannot reach scripts or styles. `connect-src` is
-      inherited by the frame, where it reinforces the no-network rule the
-      smoke test already enforces — add the reaction store's origin here
-      when config/reaction-config.json gains an endpoint.
+      inherited by the frame, so every origin added here is also an origin
+      a published game could reach. publish.ts narrows that back down with a
+      per-bundle `connect-src` of its own — see buildBundleCspMeta.
 
       The Sentry ingest origin is listed because that inheritance cuts both
       ways: the error-reporting snippet publish.ts appends runs *inside* the
@@ -27,7 +27,7 @@
       config/generation.json's sentryDsn.
 
       The four BYOK provider origins are listed for the same reason: those
-      requests are made from this parent page (src/lib/byok-providers.ts),
+      requests are made from this parent page (src/features/byok/providers.ts),
       not from inside the sandboxed frame, so without them here the browser
       blocks every BYOK generation in production even though every test —
       none of which enforces CSP — stays green.
@@ -61,9 +61,10 @@
       AI-generated bundle and break the site. The sandbox contains that
       code, not this policy.
 
-      Cannot import src/lib/theme.ts, so the key and attribute names are
-      hardcoded here; a test in src/lib/theme.test.ts fails if they drift
-      apart from the module's exports.
+      Cannot import src/features/theme/theme.ts, so the storage key and the
+      attribute name are hardcoded here; a test in
+      src/features/theme/__tests__/theme.test.ts fails if they drift apart
+      from that module's exports.
     -->
     <script>
       (function () {

@@ -7,10 +7,11 @@
 // gitignored, the second is committed by the daily job. Pages needs them
 // merged. Doing that here rather than in workflow YAML means it can be run
 // and verified locally exactly as CI runs it.
-import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createPaths, paths as defaultPaths, REPO_ROOT } from './lib/paths.ts';
+import { isManifest } from '../lib/manifest.ts';
 
 export interface AssembleSiteParams {
   /** Repo root to read from — overridden in tests. */
@@ -23,6 +24,34 @@ export interface AssembleSiteResult {
   outDir: string;
   copiedManifest: boolean;
   copiedArchive: boolean;
+}
+
+/**
+ * The files `manifest.json` points at that are not actually here.
+ *
+ * The manifest and the archive are written together by `publish.ts`, but they
+ * are separate files, and a commit carrying one without the other deploys a
+ * site whose only page 404s — with the pipeline green, the build green, and
+ * nothing to notice until a visitor does.
+ *
+ * Checked here rather than in `npm run validate`: validate runs *before* the
+ * daily generation, and failing there would block the very run that would
+ * publish the missing bundle. Assembly is the moment the two must agree.
+ *
+ * @returns An empty array when no manifest exists, or when it is the
+ *   seed-state `null` — nothing has been published yet.
+ */
+export function missingPublishedFiles(manifestPath: string, root: string): string[] {
+  if (!existsSync(manifestPath)) return [];
+
+  const parsed: unknown = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  if (parsed === null) return [];
+  if (!isManifest(parsed)) return ['manifest.json is neither null nor a complete manifest'];
+
+  // An absent promptPath is a game archived before prompts were, not an
+  // omission; a declared one must be on disk like any other file.
+  const declared = parsed.promptPath === undefined ? [parsed.path] : [parsed.path, parsed.promptPath];
+  return declared.filter((file) => !existsSync(join(root, file)));
 }
 
 export function assembleSite({
@@ -39,6 +68,14 @@ export function assembleSite({
   // Pages would otherwise run the output through Jekyll, which strips
   // directories beginning with an underscore and can mangle asset paths.
   writeFileSync(join(target, '.nojekyll'), '', 'utf8');
+
+  const missing = missingPublishedFiles(paths.manifest, root);
+  if (missing.length > 0) {
+    throw new Error(
+      `assemble-site: manifest.json points at ${missing.join(', ')}, ` +
+        'which the repo does not contain — the deployed site would 404',
+    );
+  }
 
   const copiedManifest = existsSync(paths.manifest);
   if (copiedManifest) {

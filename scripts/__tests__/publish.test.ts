@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -9,9 +9,15 @@ import {
   computeExpiresAt,
   publish,
   recordFailure,
+  restoreManifestFromArchive,
   slugify,
+  withHeadMeta,
 } from '../publish.ts';
 import { GENERATION_CONFIG, GENRES, loadFixtureBundle } from '../lib/testFixtures.ts';
+import { buildBundleCspMeta } from '../lib/errorReporting.ts';
+import { readHotWindow } from '../lib/history-store.ts';
+import { extractBundle } from '../../lib/extract-bundle-shared.ts';
+import { isManifest } from '../../lib/manifest.ts';
 import type { HistoryGameEntry } from '../lib/history-store.ts';
 import type { GeneratedMeta } from '../../lib/extract-bundle-shared.ts';
 
@@ -114,6 +120,29 @@ test('publish writes the archive folder, manifest and history', (t) => {
   assert.match(readFileSync(join(root, 'history', 'games.md'), 'utf8'), /Beetle of a Thousand Mirrors/);
 });
 
+const DSN = 'https://pub1ickey@o1.ingest.example/4567';
+const withDsn = { ...GENERATION_CONFIG, sentryDsn: DSN };
+
+function baseParams(root: string, meta: GeneratedMeta, html: string) {
+  return {
+    date: '2026-08-29',
+    meta,
+    html,
+    model: 'a/model:free',
+    attempts: 1,
+    prompt: 'the exact prompt sent to the model',
+    generationConfig: GENERATION_CONFIG,
+    genres: GENRES,
+    historyEntries: [],
+    root,
+  };
+}
+
+/** The published file with the injected policy line taken back out. */
+function withoutCspMeta(published: string, dsn: string | null): string {
+  return published.replace(`\n${buildBundleCspMeta(dsn)}`, '');
+}
+
 test('publish appends no Sentry snippet while the dsn is null', (t) => {
   const root = scratchRoot(t);
   const { meta, html } = loadFixtureBundle('good-maze');
@@ -132,7 +161,10 @@ test('publish appends no Sentry snippet while the dsn is null', (t) => {
   });
 
   const published = readFileSync(join(root, 'games', 'archive', result.slug, 'game.html'), 'utf8');
-  assert.equal(published, html);
+  assert.doesNotMatch(published, /ingest/);
+  // The head policy is still added; with no DSN there is nowhere to reach.
+  assert.match(published, /connect-src 'none'/);
+  assert.equal(withoutCspMeta(published, null), html);
 });
 
 test('publish appends the snippet once a dsn is configured', (t) => {
@@ -146,15 +178,77 @@ test('publish appends the snippet once a dsn is configured', (t) => {
     model: 'a/model:free',
     attempts: 1,
     prompt: 'the exact prompt sent to the model',
-    generationConfig: { ...GENERATION_CONFIG, sentryDsn: 'https://pub1ickey@o1.ingest.example/4567' },
+    generationConfig: withDsn,
     genres: GENRES,
     historyEntries: [],
     root,
   });
 
   const published = readFileSync(join(root, 'games', 'archive', result.slug, 'game.html'), 'utf8');
-  assert.ok(published.startsWith(html));
+  assert.ok(withoutCspMeta(published, DSN).startsWith(html));
   assert.match(published, /o1\.ingest\.example\/api\/4567\/envelope\//);
+});
+
+test('publish pins a bundle to the Sentry origin and nothing else', (t) => {
+  const root = scratchRoot(t);
+  const { meta, html } = loadFixtureBundle('good-maze');
+
+  const result = publish({ ...baseParams(root, meta, html), generationConfig: withDsn });
+
+  const published = readFileSync(join(root, 'games', 'archive', result.slug, 'game.html'), 'utf8');
+  assert.match(published, /content="connect-src https:\/\/o1\.ingest\.example"/);
+  // The four BYOK provider origins index.html has to allow are inherited by
+  // the frame; this policy is what takes them back off a generated game.
+  assert.doesNotMatch(published, /connect-src[^"]*openai/);
+});
+
+// A meta CSP outside <head> is ignored, so where it lands is the whole point.
+test('the bundle policy lands inside the document head', (t) => {
+  const root = scratchRoot(t);
+  const { meta, html } = loadFixtureBundle('good-maze');
+
+  const result = publish({ ...baseParams(root, meta, html), generationConfig: withDsn });
+
+  const published = readFileSync(join(root, 'games', 'archive', result.slug, 'game.html'), 'utf8');
+  const head = published.slice(published.indexOf('<head'), published.indexOf('</head>'));
+  assert.match(head, /Content-Security-Policy/);
+  // Ahead of everything else in the head, so it covers the whole document.
+  assert.ok(published.indexOf('Content-Security-Policy') < published.indexOf('<style'));
+});
+
+test('the doctype still opens the published document', (t) => {
+  const root = scratchRoot(t);
+  const { meta, html } = loadFixtureBundle('good-maze');
+
+  const result = publish({ ...baseParams(root, meta, html), generationConfig: withDsn });
+
+  const published = readFileSync(join(root, 'games', 'archive', result.slug, 'game.html'), 'utf8');
+  assert.ok(published.startsWith('<!doctype html>'), 'a meta before the doctype means quirks mode');
+});
+
+test('withHeadMeta falls back to just after <html> when there is no head', () => {
+  const injected = withHeadMeta('<!doctype html><html><body>hi</body></html>', '<meta id="m">');
+
+  assert.equal(injected, '<!doctype html><html>\n<meta id="m"><body>hi</body></html>');
+});
+
+// The sandbox is the control; the policy is defence in depth. A bundle that
+// has already cleared moderation and the smoke test must not be lost to one.
+test('withHeadMeta leaves a document carrying neither tag alone', () => {
+  assert.equal(withHeadMeta('<body>just a fragment</body>', '<meta id="m">'), '<body>just a fragment</body>');
+});
+
+test('publish still writes a bundle that has no head or html tag', (t) => {
+  const root = scratchRoot(t);
+  const { meta } = loadFixtureBundle('good-maze');
+
+  const result = publish({
+    ...baseParams(root, meta, '<body>just a fragment</body>'),
+    generationConfig: withDsn,
+  });
+
+  const published = readFileSync(join(root, 'games', 'archive', result.slug, 'game.html'), 'utf8');
+  assert.ok(published.startsWith('<body>just a fragment</body>'));
 });
 
 test('publish preserves earlier history entries', (t) => {
@@ -339,4 +433,155 @@ test('buildManifest carries the reported controls through to the front-end', () 
   });
 
   assert.deepEqual(manifest.controls, [{ action: 'Steer', key: 'Arrow keys' }]);
+});
+
+// The unrecoverable shape: extractBundle coerces a meta field the model
+// omitted to '', publish commits that to history/games.json, and if the
+// reader were stricter than the writer every later run would throw on a file
+// nothing can repair. Whatever publish writes, readHotWindow must accept.
+test('history readers accept an entry published from a sparse meta block', (t) => {
+  const root = scratchRoot(t);
+  const sparse = extractBundle(
+    '```json\n{"genre":"puzzle"}\n```\n```html\n<!doctype html><html></html>\n```',
+  );
+  assert.equal(sparse.ok, true);
+  if (!sparse.ok) return;
+
+  publish({ ...baseParams(root, sparse.meta, sparse.html), generationConfig: withDsn });
+
+  assert.doesNotThrow(() => readHotWindow(join(root, 'history', 'games.json')));
+});
+
+// --- restoring a manifest that has stopped pointing at a game ---
+//
+// A run that fails all three attempts keeps the previous manifest. When that
+// manifest is the seed-state `null`, or names a bundle no longer on disk,
+// "keeping" it leaves the site with nothing to show even though the archive
+// still holds a playable game.
+
+/** Publishes `count` days into `root`, oldest first, and returns the history. */
+function publishDays(root: string, count: number): HistoryGameEntry[] {
+  const { meta, html } = loadFixtureBundle('good-maze');
+  let entries: HistoryGameEntry[] = [];
+  for (let day = 0; day < count; day += 1) {
+    entries = publish({
+      ...baseParams(root, { ...meta, title: `Game ${day}` }, html),
+      date: `2026-08-2${day}`,
+      historyEntries: entries,
+      root,
+    }).historyEntries;
+  }
+  return entries;
+}
+
+const restoreParams = { generationConfig: GENERATION_CONFIG, genres: GENRES };
+
+test('restoreManifestFromArchive leaves a manifest that is serving a game alone', (t) => {
+  const root = scratchRoot(t);
+  const entries = publishDays(root, 1);
+  const before = readFileSync(join(root, 'manifest.json'), 'utf8');
+
+  const result = restoreManifestFromArchive({ ...restoreParams, historyEntries: entries, root });
+
+  assert.equal(result.status, 'intact');
+  assert.equal(readFileSync(join(root, 'manifest.json'), 'utf8'), before);
+});
+
+test('restoreManifestFromArchive rebuilds the seed-state null manifest from the archive', (t) => {
+  const root = scratchRoot(t);
+  const entries = publishDays(root, 1);
+  writeFileSync(join(root, 'manifest.json'), 'null', 'utf8');
+
+  const result = restoreManifestFromArchive({ ...restoreParams, historyEntries: entries, root });
+
+  assert.equal(result.status, 'restored');
+  const written: unknown = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
+  assert.equal(isManifest(written), true);
+  if (!isManifest(written)) return;
+  assert.equal(written.slug, entries[0]?.slug);
+  assert.equal(written.title, 'Game 0');
+  assert.equal(written.model, 'a/model:free');
+  assert.equal(written.genreLabel, 'Maze Adventure');
+});
+
+test('restoreManifestFromArchive falls back past a bundle that is no longer on disk', (t) => {
+  const root = scratchRoot(t);
+  const entries = publishDays(root, 2);
+  const newest = entries[1]?.slug ?? '';
+  rmSync(join(root, 'games', 'archive', newest), { recursive: true });
+
+  const result = restoreManifestFromArchive({ ...restoreParams, historyEntries: entries, root });
+
+  assert.equal(result.status, 'restored');
+  assert.equal(result.status === 'restored' && result.manifest.slug, entries[0]?.slug);
+});
+
+test('restoreManifestFromArchive omits promptPath when the archive kept no prompt', (t) => {
+  const root = scratchRoot(t);
+  const entries = publishDays(root, 1);
+  rmSync(join(root, 'games', 'archive', entries[0]?.slug ?? '', 'prompt.txt'));
+  writeFileSync(join(root, 'manifest.json'), 'null', 'utf8');
+
+  const result = restoreManifestFromArchive({ ...restoreParams, historyEntries: entries, root });
+
+  assert.equal(result.status, 'restored');
+  assert.equal(result.status === 'restored' && result.manifest.promptPath, undefined);
+  assert.equal('promptPath' in JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')), false);
+});
+
+test('restoreManifestFromArchive skips an archive whose meta.json is unreadable', (t) => {
+  const root = scratchRoot(t);
+  const entries = publishDays(root, 2);
+  writeFileSync(join(root, 'games', 'archive', entries[1]?.slug ?? '', 'meta.json'), '{oops', 'utf8');
+  writeFileSync(join(root, 'manifest.json'), 'null', 'utf8');
+
+  const result = restoreManifestFromArchive({ ...restoreParams, historyEntries: entries, root });
+
+  assert.equal(result.status === 'restored' && result.manifest.slug, entries[0]?.slug);
+});
+
+// The card and the frame title both read from the manifest, so a restored
+// day with no title would show as a blank heading over a working game.
+test('restoreManifestFromArchive skips an archive whose metadata names no title', (t) => {
+  const root = scratchRoot(t);
+  const entries = publishDays(root, 2);
+  const newest = join(root, 'games', 'archive', entries[1]?.slug ?? '', 'meta.json');
+  writeFileSync(newest, JSON.stringify({ ...META, title: '' }), 'utf8');
+  writeFileSync(join(root, 'manifest.json'), 'null', 'utf8');
+
+  const result = restoreManifestFromArchive({ ...restoreParams, historyEntries: entries, root });
+
+  assert.equal(result.status === 'restored' && result.manifest.slug, entries[0]?.slug);
+});
+
+// Only games/archive/ is copied into dist/, so a manifest naming anything
+// outside it names a bundle the deployed site cannot serve, however real the
+// file is locally. `..` segments normalise away, so the check cannot be a
+// prefix test on the raw string.
+test('restoreManifestFromArchive replaces a manifest naming a bundle outside the archive', (t) => {
+  const root = scratchRoot(t);
+  const entries = publishDays(root, 1);
+  mkdirSync(join(root, 'decoy'), { recursive: true });
+  writeFileSync(join(root, 'decoy', 'game.html'), '<html>not published</html>', 'utf8');
+  const live: unknown = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
+  writeFileSync(
+    join(root, 'manifest.json'),
+    JSON.stringify({ ...(live as object), path: 'games/archive/../../decoy/game.html' }),
+    'utf8',
+  );
+
+  const result = restoreManifestFromArchive({ ...restoreParams, historyEntries: entries, root });
+
+  assert.equal(result.status, 'restored');
+  assert.equal(result.status === 'restored' && result.manifest.slug, entries[0]?.slug);
+});
+
+test('restoreManifestFromArchive leaves the seed state alone when the archive is empty', (t) => {
+  const root = scratchRoot(t);
+  writeFileSync(join(root, 'manifest.json'), 'null', 'utf8');
+
+  const result = restoreManifestFromArchive({ ...restoreParams, historyEntries: [], root });
+
+  assert.equal(result.status, 'no-candidate');
+  assert.equal(readFileSync(join(root, 'manifest.json'), 'utf8'), 'null');
 });

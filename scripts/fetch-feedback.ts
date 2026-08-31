@@ -22,6 +22,7 @@
 // with an empty array rather than an error, so the status alone proves
 // nothing. The privileged read key belongs in REACTION_STORE_KEY and must
 // never be committed.
+import { isRecord } from '../lib/guards.ts';
 import { DISLIKE_REASONS, isPublishableSlug, type DislikeReason } from '../lib/reaction-types.ts';
 import { patchEntry } from './lib/history-store.ts';
 import type { HistoryGameEntry } from './lib/history-store.ts';
@@ -56,7 +57,7 @@ export function tallyReactions(rows: unknown, slug: string): ReactionTally {
   if (!Array.isArray(rows)) return { likes, dislikes, dislikeReasons };
 
   for (const row of rows) {
-    if (typeof row !== 'object' || row === null) continue;
+    if (!isRecord(row)) continue;
     if (!('slug' in row) || row.slug !== slug) continue;
     if (!('reaction' in row)) continue;
 

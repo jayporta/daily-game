@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { assembleSite } from '../assemble-site.ts';
+import { assembleSite, missingPublishedFiles } from '../assemble-site.ts';
+import { MANIFEST } from '../../src/lib/testFixtures.ts';
 
 function scratchRepo(t: { after(fn: () => void): void }): string {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-assemble-'));
@@ -13,11 +14,21 @@ function scratchRepo(t: { after(fn: () => void): void }): string {
   return dir;
 }
 
-function seedPublishedContent(root: string): void {
-  writeFileSync(join(root, 'manifest.json'), JSON.stringify({ slug: 'x' }), 'utf8');
-  const gameDir = join(root, 'games', 'archive', '2026-08-29-thing');
+const SLUG = '2026-08-29-thing';
+
+/** A manifest and the files it points at, as one published day. */
+function seedPublishedContent(root: string, { withPrompt = true } = {}): void {
+  const manifest = {
+    ...MANIFEST,
+    slug: SLUG,
+    path: `games/archive/${SLUG}/game.html`,
+    promptPath: `games/archive/${SLUG}/prompt.txt`,
+  };
+  writeFileSync(join(root, 'manifest.json'), JSON.stringify(manifest), 'utf8');
+  const gameDir = join(root, 'games', 'archive', SLUG);
   mkdirSync(gameDir, { recursive: true });
   writeFileSync(join(gameDir, 'game.html'), '<html>game</html>', 'utf8');
+  if (withPrompt) writeFileSync(join(gameDir, 'prompt.txt'), 'the prompt', 'utf8');
 }
 
 test('assembles the build output with the published content', (t) => {
@@ -30,7 +41,7 @@ test('assembles the build output with the published content', (t) => {
   assert.equal(result.copiedArchive, true);
   assert.ok(existsSync(join(root, 'dist', 'index.html')), 'build output is preserved');
   assert.ok(existsSync(join(root, 'dist', 'manifest.json')));
-  assert.ok(existsSync(join(root, 'dist', 'games', 'archive', '2026-08-29-thing', 'game.html')));
+  assert.ok(existsSync(join(root, 'dist', 'games', 'archive', SLUG, 'game.html')));
 });
 
 test('always writes .nojekyll so Pages serves the output untouched', (t) => {
@@ -42,11 +53,11 @@ test('always writes .nojekyll so Pages serves the output untouched', (t) => {
 test('copies published bundles byte-for-byte', (t) => {
   const root = scratchRepo(t);
   seedPublishedContent(root);
-  const original = readFileSync(join(root, 'games', 'archive', '2026-08-29-thing', 'game.html'));
+  const original = readFileSync(join(root, 'games', 'archive', SLUG, 'game.html'));
 
   assembleSite({ root });
 
-  const copied = readFileSync(join(root, 'dist', 'games', 'archive', '2026-08-29-thing', 'game.html'));
+  const copied = readFileSync(join(root, 'dist', 'games', 'archive', SLUG, 'game.html'));
   assert.deepEqual(copied, original);
 });
 
@@ -62,4 +73,49 @@ test('fails loudly when the build has not been run', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-assemble-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   assert.throws(() => assembleSite({ root: dir }), /run `vite build` first/);
+});
+
+// The failure this exists to stop: manifest.json committed without the
+// bundle it names. Every other check stays green and the deployed site 404s
+// on its only page.
+test('refuses to assemble a site whose manifest names a missing bundle', (t) => {
+  const root = scratchRepo(t);
+  seedPublishedContent(root);
+  rmSync(join(root, 'games', 'archive', SLUG, 'game.html'));
+
+  assert.throws(() => assembleSite({ root }), /would 404/);
+});
+
+test('refuses to assemble when only the prompt is missing', (t) => {
+  const root = scratchRepo(t);
+  seedPublishedContent(root, { withPrompt: false });
+
+  assert.throws(() => assembleSite({ root }), /prompt\.txt/);
+});
+
+// A manifest that names no prompt is a game archived before prompts were,
+// not a half-written one — distinct from the case above, where the manifest
+// declares a prompt.txt that is not there.
+test('missingPublishedFiles accepts a manifest that declares no prompt', (t) => {
+  const root = scratchRepo(t);
+  seedPublishedContent(root, { withPrompt: false });
+  const { promptPath: _omitted, ...withoutPrompt } = JSON.parse(
+    readFileSync(join(root, 'manifest.json'), 'utf8'),
+  ) as Record<string, unknown>;
+  writeFileSync(join(root, 'manifest.json'), JSON.stringify(withoutPrompt), 'utf8');
+
+  assert.deepEqual(missingPublishedFiles(join(root, 'manifest.json'), root), []);
+});
+
+test('missingPublishedFiles accepts the seed-state null manifest', (t) => {
+  const root = scratchRepo(t);
+  writeFileSync(join(root, 'manifest.json'), 'null', 'utf8');
+
+  assert.deepEqual(missingPublishedFiles(join(root, 'manifest.json'), root), []);
+});
+
+test('missingPublishedFiles accepts a repo with no manifest at all', (t) => {
+  const root = scratchRepo(t);
+
+  assert.deepEqual(missingPublishedFiles(join(root, 'manifest.json'), root), []);
 });

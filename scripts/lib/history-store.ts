@@ -107,31 +107,112 @@ export const EMPTY_SUMMARY: HistorySummary = {
 
 const VALID_HISTORY_STATUSES = new Set(['published', 'failed_kept_previous']);
 
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const FAILURE_KIND_IDS: ReadonlySet<string> = new Set(FAILURE_KINDS);
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+}
+
+/**
+ * Everything wrong with one entry, each problem naming its own field.
+ *
+ * Checks *types*, and emptiness only where the pipeline guarantees it. That
+ * line matters more than it looks: this file is written by `publish.ts` and
+ * read back by the next day's run, so a rule stricter than the writer is a
+ * permanent outage — `extractBundle` coerces a missing `theme`, `title` or
+ * `genre` to `''`, publish commits that, and every later `readHotWindow`
+ * throws on a file nothing can now repair. `model` and `slug` are exempt
+ * because the pipeline fills both itself (`buildSlug` falls back to
+ * `untitled`).
+ *
+ * Optional fields are still type-checked, because downstream readers use them
+ * structurally: `renderGamesMd` and `summariseEntries` call `mechanics.join`,
+ * and `build-prompt.ts` indexes `FAILURE_DIRECTIVES` by `failureKinds`.
+ */
+function historyGameEntryErrors(value: unknown): string[] {
+  if (!isPlainObject(value)) return ['must be an object'];
+
+  const errors: string[] = [];
+  const required = (ok: boolean, message: string): void => {
+    if (!ok) errors.push(message);
+  };
+  /** Absent is always fine; present has to be the right shape. */
+  const optional = (field: unknown, ok: boolean, message: string): void => {
+    if (field !== undefined && !ok) errors.push(message);
+  };
+
+  required(
+    DATE_PATTERN.test(typeof value.date === 'string' ? value.date : ''),
+    'date must be a YYYY-MM-DD string',
+  );
+  required(
+    isNonEmptyString(value.status) && VALID_HISTORY_STATUSES.has(value.status),
+    `status must be one of: ${[...VALID_HISTORY_STATUSES].join(', ')}`,
+  );
+  required(isNonEmptyString(value.model), 'model must be a non-empty string');
+
+  if (value.status === 'published') {
+    required(isNonEmptyString(value.slug), 'slug must be a non-empty string when published');
+    // Present, but not necessarily non-empty — see the note above.
+    required(typeof value.genre === 'string', 'genre must be a string when published');
+  }
+
+  optional(value.theme, typeof value.theme === 'string', 'theme must be a string');
+  optional(value.title, typeof value.title === 'string', 'title must be a string');
+  optional(value.mechanics, isStringArray(value.mechanics), 'mechanics must be an array of strings');
+  optional(value.errors, isStringArray(value.errors), 'errors must be an array of strings');
+  optional(
+    value.failureReasons,
+    isStringArray(value.failureReasons),
+    'failureReasons must be an array of strings',
+  );
+  optional(
+    value.failureKinds,
+    Array.isArray(value.failureKinds) &&
+      value.failureKinds.every((kind: unknown) => typeof kind === 'string' && FAILURE_KIND_IDS.has(kind)),
+    `failureKinds must be an array of: ${FAILURE_KINDS.join(', ')}`,
+  );
+  optional(value.attempts, isFiniteNumber(value.attempts), 'attempts must be a number');
+  optional(value.likes, isFiniteNumber(value.likes), 'likes must be a number');
+  optional(value.dislikes, isFiniteNumber(value.dislikes), 'dislikes must be a number');
+  optional(
+    value.popularityScore,
+    isFiniteNumber(value.popularityScore),
+    'popularityScore must be a number',
+  );
+  optional(value.canvasDrawn, typeof value.canvasDrawn === 'boolean', 'canvasDrawn must be a boolean');
+  optional(
+    value.dislikeReasons,
+    isRecordOf(value.dislikeReasons, isFiniteNumber),
+    'dislikeReasons must be an object whose values are numbers',
+  );
+
+  return errors;
+}
+
+/**
+ * Whether one value is a usable entry.
+ *
+ * Shares {@link historyGameEntryErrors} with {@link validateHistoryGames} so
+ * the hot window and the archive can never disagree about what an entry is —
+ * `rollup-history.ts` reads lines this file's writer produced, but a hand-edit
+ * or a half-written line has to be caught rather than cast.
+ */
+export function isHistoryGameEntry(value: unknown): value is HistoryGameEntry {
+  return historyGameEntryErrors(value).length === 0;
+}
+
 /** Rules for `history/games.json` — the hot window {@link readHotWindow} reads. */
 export function validateHistoryGames(json: unknown): ValidationResult {
-  const errors: string[] = [];
   if (!Array.isArray(json)) {
     return { valid: false, errors: ['root must be an array'] };
   }
 
-  json.forEach((entry: unknown, i: number) => {
-    if (!isPlainObject(entry)) {
-      errors.push(`games[${i}] must be an object`);
-      return;
-    }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(typeof entry.date === 'string' ? entry.date : '')) {
-      errors.push(`games[${i}].date must be a YYYY-MM-DD string`);
-    }
-    if (!isNonEmptyString(entry.status) || !VALID_HISTORY_STATUSES.has(entry.status)) {
-      errors.push(`games[${i}].status must be one of: ${[...VALID_HISTORY_STATUSES].join(', ')}`);
-    }
-    if (!isNonEmptyString(entry.model)) {
-      errors.push(`games[${i}].model must be a non-empty string`);
-    }
-    if (entry.status === 'published') {
-      if (!isNonEmptyString(entry.slug)) errors.push(`games[${i}].slug must be a non-empty string when published`);
-      if (!isNonEmptyString(entry.genre)) errors.push(`games[${i}].genre must be a non-empty string when published`);
-    }
+  const errors = json.flatMap((entry: unknown, i: number) => {
+    if (!isPlainObject(entry)) return [`games[${i}] must be an object`];
+    return historyGameEntryErrors(entry).map((error) => `games[${i}].${error}`);
   });
 
   return { valid: errors.length === 0, errors };
