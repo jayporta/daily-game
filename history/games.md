@@ -2,13 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-08-31 — Prism Garden
+## 2026-08-31 — generation failed, previous game kept
 
-- genre: tile-matching
-- theme: A cosmic garden of geometric crystal formations that shimmer and glow
-- mechanics: Swap adjacent crystals to match 3 or more of the same type, Create special crystals by matching 4+ tiles, Chain reactions cascade for bonus points, Score as high as possible before running out of moves
-- model: minimax/minimax-m2.7:free
+- model: cohere/north-mini-code:free
 - attempts: 3
+- attempt 1 (cohere/north-mini-code:free): could not extract bundle — missing-html-block
+- attempt 2 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error
+- attempt 3 (minimax/minimax-m2.7:free): moderation rejected — moderation model rejected the game: moderation call failed: OpenRouter response missing choices[0].message.content
 
 ## 2026-08-30 — Construct Critters
 
