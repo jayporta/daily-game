@@ -1,20 +1,11 @@
 import { useRef, useState } from 'react';
 import { completeByok } from './providers.ts';
+import { describeByokFailure, type ByokFailure } from './byokFailure.ts';
 import { useGenerationStream } from './useGenerationStream.ts';
+import { reportError } from '../../lib/sentry.ts';
 import { extractBundle } from '../../../lib/extract-bundle-shared.ts';
 import type { ByokProvider } from '../../../lib/byok-config-types.ts';
-import type { ExtractFailureReason, GeneratedMeta } from '../../../lib/extract-bundle-shared.ts';
-
-/**
- * End-user-facing copy for a response that did not parse — distinct from the
- * model-corrective wording `call-openrouter.ts` uses for retries.
- */
-const EXTRACTION_FEEDBACK: Record<ExtractFailureReason, string> = {
-  'missing-meta-block': 'The response had no game details block. Try a different model.',
-  'missing-html-block': 'The response had no game code block. Try a different model.',
-  'invalid-json-meta': 'The response’s game details were not valid. Try a different model.',
-  'empty-html': 'The response’s game code was empty. Try a different model.',
-};
+import type { GeneratedMeta } from '../../../lib/extract-bundle-shared.ts';
 
 /**
  * What the page renders while a visitor's own generation runs.
@@ -72,6 +63,23 @@ export interface ByokGenerateRequest {
 export interface UseByokResult {
   readonly status: ByokStatus;
   /**
+   * Corrective wording from the last failed run, for the next prompt.
+   *
+   * Exposed rather than applied here because the panel composes the prompt —
+   * it is the only place that also knows whether the visitor asked to include
+   * the current game.
+   */
+  readonly priorFailureFeedback: string | undefined;
+  /**
+   * Drops that correction.
+   *
+   * The panel calls this when the visitor picks a different model: a note
+   * describing what the last model got wrong is not addressed to a model that
+   * has not tried yet. Clearing beats remembering which model earned it —
+   * there is then no model identity to keep in step with the menus.
+   */
+  clearFeedback: () => void;
+  /**
    * Ends the current run and returns to the day's game.
    *
    * Serves both the Stop control during a run and the way back after a
@@ -100,6 +108,7 @@ export function useByok({ systemPrompt, fetchImpl }: UseByokParams): UseByokResu
   // component is a silent no-op, so guarding it would add a branch nothing
   // can observe.
   const [phase, setPhase] = useState<Phase>({ phase: 'idle' });
+  const [priorFailureFeedback, setPriorFailureFeedback] = useState<string | undefined>(undefined);
   const stream = useGenerationStream();
   // Identifies the run in flight. A stopped or superseded run still settles —
   // its request is already out — and without this its late failure would
@@ -143,22 +152,52 @@ export function useByok({ systemPrompt, fetchImpl }: UseByokParams): UseByokResu
     // frame that may never come.
     stream.flush();
 
-    if (!completion.ok) {
-      setPhase({ phase: 'error', run, message: completion.message });
+    // Explains the failure, records it, and leaves the panel showing why.
+    const fail = (failure: ByokFailure): null => {
+      const report = describeByokFailure(failure);
+
+      // Both of these were missing until now: a failed generation said one
+      // sentence on screen and was recorded nowhere at all.
+      console.error(`[byok] ${provider}/${modelId} failed (${report.cause}): ${report.message}`);
+      if (report.worthReporting) {
+        // Identifies the shape of the failure and nothing else — no key, no
+        // prompt, and none of the model's output.
+        reportError(new Error(`BYOK generation failed: ${report.cause}`), {
+          area: 'byok',
+          provider,
+          model: modelId,
+          cause: report.cause,
+        });
+      }
+
+      setPriorFailureFeedback(report.retryNote);
+      setPhase({ phase: 'error', run, message: report.message });
       return null;
+    };
+
+    if (!completion.ok) {
+      return fail({ source: 'request', kind: completion.kind, message: completion.message });
     }
 
+    // A run cut short still parses when the model closed both fences in time,
+    // and a game that extracted is a game worth playing however it ended.
     const extracted = extractBundle(completion.text);
     if (!extracted.ok) {
-      setPhase({ phase: 'error', run, message: EXTRACTION_FEEDBACK[extracted.reason] });
-      return null;
+      return fail({ source: 'response', stop: completion.stop, reason: extracted.reason });
     }
 
+    setPriorFailureFeedback(undefined);
     setPhase({ phase: 'idle' });
     return { html: extracted.html, meta: extracted.meta, providerLabel, modelId };
   };
 
-  return { status: toStatus(phase, stream.output), generate, stop };
+  return {
+    status: toStatus(phase, stream.output),
+    priorFailureFeedback,
+    clearFeedback: () => setPriorFailureFeedback(undefined),
+    generate,
+    stop,
+  };
 }
 
 /** The lifecycle alone. The output is the stream's, and is joined on below. */

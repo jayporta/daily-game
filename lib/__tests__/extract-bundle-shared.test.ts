@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractBundle } from '../extract-bundle-shared.ts';
+import {
+  EXTRACTION_RETRY_FEEDBACK,
+  extractBundle,
+  type ExtractFailureReason,
+} from '../extract-bundle-shared.ts';
 
 const GOOD_RESPONSE = `Here is your game:
 
@@ -212,4 +216,17 @@ test('duplicates are removed before the cap, not after', () => {
   // Without dedup-before-cap, 40 identical entries eat the whole budget and
   // the five real controls never appear.
   assert.equal(result.ok === true && result.meta.controls.length, 6);
+});
+
+test('every extraction failure has corrective wording naming what to fix', () => {
+  const reasons: ExtractFailureReason[] = [
+    'missing-meta-block',
+    'missing-html-block',
+    'invalid-json-meta',
+    'empty-html',
+  ];
+
+  for (const reason of reasons) {
+    assert.match(EXTRACTION_RETRY_FEEDBACK[reason], /block/, reason);
+  }
 });

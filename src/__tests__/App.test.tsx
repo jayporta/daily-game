@@ -371,15 +371,38 @@ describe('App', () => {
     expect(screen.getByText(BYOK_HTML, { exact: false })).toBeVisible();
   });
 
-  // The day's published game ships byte-for-byte and is already in the repo;
-  // only a visitor's own generation gets a source view here.
-  it('offers no code view for the published game', async () => {
+  // The viewer answers "what am I playing", so it follows the frame rather
+  // than the origin of what is in it. With no generation of the visitor's own,
+  // that is the day's published game.
+  it('shows the published game’s code when the visitor has generated nothing', async () => {
     stubFetch({ manifest: () => jsonResponse(MANIFEST) });
     render(<App />);
 
     await screen.findByTitle(MANIFEST.title);
+    await userEvent.click(screen.getByText(/view generated code/i));
 
-    expect(screen.queryByText(/view generated code/i)).toBeNull();
+    expect(screen.getByText(BUNDLE, { exact: false })).toBeVisible();
+  });
+
+  // The failure this guards is a viewer left on the previous document: the
+  // frame swaps to the new game and the code below it still shows the old one.
+  it('swaps the code view to the visitor’s game once one is generated', async () => {
+    stubFetch({
+      manifest: () => jsonResponse(MANIFEST),
+      byokProvider: () => completionResponse(BYOK_COMPLETION),
+    });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    await userEvent.click(screen.getByText(/view generated code/i));
+    expect(screen.getByText(BUNDLE, { exact: false })).toBeVisible();
+
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /^generate$/i }));
+    await screen.findByTitle('Regenerated Title');
+
+    expect(screen.getByText(BYOK_HTML, { exact: false })).toBeVisible();
+    expect(screen.queryByText(BUNDLE, { exact: false })).toBeNull();
   });
 
   it('opens the generated code full screen and closes it again', async () => {

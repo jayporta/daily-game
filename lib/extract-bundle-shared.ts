@@ -39,6 +39,30 @@ export type ExtractedBundle =
   | { ok: true; meta: GeneratedMeta; html: string }
   | { ok: false; reason: ExtractFailureReason };
 
+/**
+ * Corrective wording addressed to the model whose response failed to parse,
+ * for the retry that follows.
+ *
+ * Beside the reasons it is keyed on, and in `lib/` because both build targets
+ * retry: the pipeline in `scripts/call-openrouter.ts` and a visitor's own
+ * re-run in `src/features/byok/useByok.ts`. Held apart from the wording each
+ * shows a *person*, which has a different job — this text is an instruction,
+ * not an explanation.
+ *
+ * Our own fixed wording keyed off a closed vocabulary, never the model's text
+ * quoted back at it, so nothing a previous generation authored can steer the
+ * next one.
+ */
+export const EXTRACTION_RETRY_FEEDBACK: Record<ExtractFailureReason, string> = {
+  'missing-meta-block':
+    'Your response had no ```json block. Return both fenced blocks exactly as specified.',
+  'missing-html-block':
+    'Your response had no ```html block. Return both fenced blocks exactly as specified.',
+  'invalid-json-meta':
+    'The ```json block was not valid JSON. Return strictly valid JSON with no comments or trailing commas.',
+  'empty-html': 'The ```html block was empty. It must contain the complete game document.',
+};
+
 const JSON_BLOCK_RE = /```json\s*\r?\n([\s\S]*?)```/i;
 const HTML_BLOCK_RE = /```html\s*\r?\n([\s\S]*?)```/i;
 

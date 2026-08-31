@@ -31,7 +31,79 @@ export interface ByokRequest {
   readonly userPrompt: string;
 }
 
-export type ByokCompletionResult = { ok: true; text: string } | { ok: false; message: string };
+/**
+ * Why a provider stopped producing text.
+ *
+ * Read from the stream's own stop field rather than inferred from the text,
+ * because a response cut off at the output cap and one the model finished
+ * deliberately are indistinguishable by inspection — and they call for
+ * opposite advice.
+ */
+export type ByokStopReason = 'complete' | 'truncated' | 'refused';
+
+/**
+ * What went wrong, as a closed vocabulary rather than a message to match on.
+ *
+ * Drives two decisions the wording cannot: what to tell the visitor, and
+ * whether the failure is worth reporting. See {@link isExpectedFailure}.
+ */
+export type ByokFailureKind =
+  | 'auth'
+  | 'rate-limit'
+  | 'quota'
+  | 'refused'
+  | 'provider'
+  | 'network'
+  | 'stream'
+  | 'empty';
+
+export type ByokCompletionResult =
+  | { ok: true; text: string; stop: ByokStopReason }
+  | { ok: false; message: string; kind: ByokFailureKind };
+
+/**
+ * Whether a failure is a normal part of using someone else's API key, rather
+ * than a defect worth a Sentry event.
+ *
+ * A rejected key, an exhausted quota, a rate limit, a model declining the
+ * request and an unreachable network are all the visitor's side of the call:
+ * reporting them would bury the failures that are actually ours under events
+ * nobody can act on.
+ */
+export function isExpectedFailure(kind: ByokFailureKind): boolean {
+  switch (kind) {
+    case 'auth':
+    case 'rate-limit':
+    case 'quota':
+    case 'refused':
+    case 'network':
+      return true;
+    case 'provider':
+    case 'stream':
+    case 'empty':
+      return false;
+  }
+}
+
+/**
+ * The failure a non-ok HTTP status represents.
+ *
+ * The three statuses every provider here uses for the visitor's own account
+ * are named; anything else is a provider fault and is reported.
+ */
+function failureKindForStatus(status: number): ByokFailureKind {
+  switch (status) {
+    case 401:
+    case 403:
+      return 'auth';
+    case 402:
+      return 'quota';
+    case 429:
+      return 'rate-limit';
+    default:
+      return 'provider';
+  }
+}
 
 export interface ByokFetchOptions {
   /** Replaces global `fetch`. */
@@ -50,8 +122,26 @@ export interface ByokFetchOptions {
   signal?: AbortSignal;
 }
 
-/** Generous enough for a full self-contained game HTML file, for every provider. */
-const MAX_OUTPUT_TOKENS = 16000;
+/**
+ * The output cap per provider.
+ *
+ * Per-provider because this is not the size of a game. Every reasoning model
+ * in the catalogue — the Gemini 3 line, the GPT-5.x line — spends this one
+ * budget on its thinking *and* its answer, so a cap sized for a game leaves
+ * nothing to answer with once the model has thought: the response is cut off
+ * mid-document and arrives with no closing fence. A game is roughly 5,000
+ * output tokens, so the three direct providers get room for both, within
+ * every catalogue model's documented maximum output.
+ *
+ * OpenRouter keeps the smaller cap: it fronts small free models that may
+ * refuse a request asking for more than they can produce.
+ */
+const MAX_OUTPUT_TOKENS: Record<ByokProvider, number> = {
+  openrouter: 16000,
+  openai: 64000,
+  anthropic: 64000,
+  gemini: 64000,
+};
 
 interface PreparedRequest {
   readonly url: string;
@@ -88,7 +178,7 @@ function buildOpenAiCompatibleRequest(
           { role: 'system', content: request.systemPrompt },
           { role: 'user', content: request.userPrompt },
         ],
-        [tokenLimitField]: MAX_OUTPUT_TOKENS,
+        [tokenLimitField]: MAX_OUTPUT_TOKENS[request.provider],
         stream: true,
       }),
     },
@@ -110,7 +200,7 @@ function buildAnthropicRequest(request: ByokRequest): PreparedRequest {
       },
       body: JSON.stringify({
         model: request.model,
-        max_tokens: MAX_OUTPUT_TOKENS,
+        max_tokens: MAX_OUTPUT_TOKENS[request.provider],
         system: request.systemPrompt,
         messages: [{ role: 'user', content: request.userPrompt }],
         stream: true,
@@ -133,7 +223,7 @@ function buildGeminiRequest(request: ByokRequest): PreparedRequest {
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: request.userPrompt }] }],
         systemInstruction: { parts: [{ text: request.systemPrompt }] },
-        generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS },
+        generationConfig: { maxOutputTokens: MAX_OUTPUT_TOKENS[request.provider] },
       }),
     },
   };
@@ -189,6 +279,62 @@ function extractDelta(provider: ByokProvider, data: unknown): string | null {
   }
 }
 
+/**
+ * Every spelling of "I ran out of room" and "I declined", across the three
+ * API shapes.
+ *
+ * Matched case-insensitively against one lowercased token so the OpenAI-style
+ * `length` and Gemini's `MAX_TOKENS` need no per-provider branch here.
+ */
+const TRUNCATED_STOPS: ReadonlySet<string> = new Set(['length', 'max_tokens', 'model_length']);
+const REFUSED_STOPS: ReadonlySet<string> = new Set([
+  'content_filter',
+  'refusal',
+  'safety',
+  'recitation',
+  'blocklist',
+  'prohibited_content',
+  'spii',
+  'image_safety',
+]);
+
+/**
+ * Classifies a provider's own stop token.
+ *
+ * @param raw The stop field as sent, in any case.
+ * @returns `null` for a frame carrying no stop field, so a caller can keep
+ *   the last one it saw rather than overwrite it with every intermediate
+ *   frame.
+ */
+function classifyStop(raw: string | null): ByokStopReason | null {
+  if (raw === null) return null;
+  const token = raw.toLowerCase();
+  if (TRUNCATED_STOPS.has(token)) return 'truncated';
+  if (REFUSED_STOPS.has(token)) return 'refused';
+  return 'complete';
+}
+
+/**
+ * The stop reason a single frame reports, or `null` if it reports none.
+ *
+ * Every provider sends this on its own final frame, separately from the text:
+ * OpenAI-shaped APIs on the last `choices[0]`, Anthropic on a `message_delta`
+ * event, Gemini on every candidate once the run ends. Ignoring it is what
+ * makes a response cut off at the output cap look like a model that ignored
+ * the output format.
+ */
+function extractStopReason(provider: ByokProvider, data: unknown): ByokStopReason | null {
+  switch (provider) {
+    case 'openrouter':
+    case 'openai':
+      return classifyStop(stringAt(arrayAt(data, 'choices')?.[0], 'finish_reason'));
+    case 'anthropic':
+      return classifyStop(stringAt(recordAt(data, 'delta'), 'stop_reason'));
+    case 'gemini':
+      return classifyStop(stringAt(arrayAt(data, 'candidates')?.[0], 'finishReason'));
+  }
+}
+
 /** The OpenAI-shaped sentinel closing a stream. Carries no JSON. */
 const STREAM_DONE = '[DONE]';
 
@@ -215,9 +361,11 @@ function streamedError(data: unknown): string | null {
  *   returned as well, so a caller that only wants the result can ignore it.
  * @param signal Abandons the request. An abort surfaces as a failure here;
  *   telling that apart from a real one is the caller's job.
- * @returns The assembled completion, or the reason it could not be had. A
- *   stream that ends having produced nothing is a failure: an empty game is
- *   not a game, and the visitor has paid for the call either way.
+ * @returns The assembled completion and how it ended, or the reason it could
+ *   not be had. A stream that ends having produced nothing is a failure: an
+ *   empty game is not a game, and the visitor has paid for the call either
+ *   way. Text that arrived is returned even when the run was cut short —
+ *   `stop` is what says so, and a partial document is still worth showing.
  */
 export async function completeByok(
   request: ByokRequest,
@@ -229,15 +377,26 @@ export async function completeByok(
   try {
     response = await fetchImpl(url, { ...init, ...(signal ? { signal } : {}) });
   } catch (error) {
-    return { ok: false, message: `Could not reach ${request.provider}: ${errorMessage(error)}` };
+    return {
+      ok: false,
+      kind: 'network',
+      message: `Could not reach ${request.provider}: ${errorMessage(error)}`,
+    };
   }
 
   if (!response.ok) {
     const detail = await responseErrorDetail(response, MAX_ERROR_DETAIL);
-    return { ok: false, message: `${request.provider} request failed (${response.status}): ${detail}` };
+    return {
+      ok: false,
+      kind: failureKindForStatus(response.status),
+      message: `${request.provider} request failed (${response.status}): ${detail}`,
+    };
   }
 
   let text = '';
+  // The last stop reason any frame reported. Providers send it on a final
+  // frame that carries no text, so it cannot be read from the fragments.
+  let stop: ByokStopReason = 'complete';
   try {
     for await (const payload of readSseData(response)) {
       if (payload === STREAM_DONE) break;
@@ -255,8 +414,13 @@ export async function completeByok(
 
       const failure = streamedError(data);
       if (failure !== null) {
-        return { ok: false, message: `${request.provider} reported: ${failure}` };
+        return { ok: false, kind: 'refused', message: `${request.provider} reported: ${failure}` };
       }
+
+      // Read before the text, and kept rather than overwritten: the frame
+      // announcing the stop usually carries no fragment, and on Gemini every
+      // frame after it repeats one.
+      stop = extractStopReason(request.provider, data) ?? stop;
 
       const fragment = extractDelta(request.provider, data);
       if (fragment === null || fragment.length === 0) continue;
@@ -266,6 +430,7 @@ export async function completeByok(
   } catch (error) {
     return {
       ok: false,
+      kind: 'stream',
       message: `${request.provider} stream ended early: ${errorMessage(error)}`,
     };
   }
@@ -274,12 +439,13 @@ export async function completeByok(
     const hint = errorDetail(await unreadBody(response));
     return {
       ok: false,
+      kind: stop === 'refused' ? 'refused' : 'empty',
       message: hint.length > 0
         ? `${request.provider} returned no output: ${hint}`
         : `${request.provider} returned no output`,
     };
   }
-  return { ok: true, text };
+  return { ok: true, text, stop };
 }
 
 /**

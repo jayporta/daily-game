@@ -3,6 +3,7 @@ import { FIELD_CONTROL, FormField } from './FormField.tsx';
 import { Panel } from '../../ui/Panel.tsx';
 import { PillButton } from '../../ui/PillButton.tsx';
 import { Disclosure } from './Disclosure.tsx';
+import { composeByokPrompt, type ByokPromptParts } from './composeByokPrompt.ts';
 import { usePromptText, type PromptTextState } from './usePromptText.ts';
 import type { UseByokResult } from './useByok.ts';
 import { byokModelsConfig } from './byokCatalogue.ts';
@@ -33,6 +34,13 @@ export interface ByokPanelProps {
    * visitors never open it.
    */
   readonly promptPath: string;
+  /**
+   * The game currently on screen — today's, or the visitor's own once they
+   * have generated one. Sent only when the visitor ticks the box asking for
+   * it, which is what makes generating twice a refinement rather than a
+   * restart.
+   */
+  readonly currentGameHtml: string;
   /** Called with the regenerated bundle on success. */
   readonly onResult: (result: ByokResult) => void;
   /** Overridden in tests; defaults to the config this site shipped with. */
@@ -45,11 +53,17 @@ function firstModelId(catalogue: ByokModelsConfig, provider: ByokProvider): stri
   return catalogue.find((entry) => entry.provider === provider)?.models[0]?.id ?? '';
 }
 
-/** What the disclosure shows, including while there is nothing to show yet. */
-function promptText(prompt: PromptTextState): string {
+/**
+ * What the disclosure shows, including while there is nothing to show yet.
+ *
+ * Composed with the same additions `handleSubmit` sends, because the summary
+ * above it promises the exact prompt — a second assembly here would be a
+ * promise that drifts.
+ */
+function promptText(prompt: PromptTextState, additions: Omit<ByokPromptParts, 'basePrompt'>): string {
   switch (prompt.status) {
     case 'ready':
-      return prompt.text;
+      return composeByokPrompt({ basePrompt: prompt.text, ...additions });
     case 'failed':
       return 'Could not load the prompt.';
     case 'unrequested':
@@ -71,12 +85,13 @@ function promptText(prompt: PromptTextState): string {
 export function ByokPanel({
   byok,
   promptPath,
+  currentGameHtml,
   onResult,
   catalogue = byokModelsConfig,
   fetchImpl,
 }: ByokPanelProps) {
   const { state: prompt, load: loadPrompt } = usePromptText(promptPath, fetchImpl);
-  const { status, generate, stop } = byok;
+  const { status, priorFailureFeedback, clearFeedback, generate, stop } = byok;
   // Lazy: both initial values are a scan of the catalogue, and a non-lazy
   // initializer runs that scan on every render to discard the result.
   // The `?? 'openrouter'` is unreachable past the empty-catalogue guard below;
@@ -84,6 +99,7 @@ export function ByokPanel({
   const [provider, setProvider] = useState<ByokProvider>(() => catalogue[0]?.provider ?? 'openrouter');
   const [modelId, setModelId] = useState(() => catalogue[0]?.models[0]?.id ?? '');
   const [apiKey, setApiKey] = useState('');
+  const [includeCurrentGame, setIncludeCurrentGame] = useState(false);
 
   // One lookup, not three: the entry answers both what to list and what to label.
   const selected = catalogue.find((entry) => entry.provider === provider);
@@ -91,9 +107,23 @@ export function ByokPanel({
   const generating = status.status === 'streaming';
   const canSubmit = apiKey.length > 0 && modelId.length > 0 && !generating;
 
+  // What this run adds to the archived prompt. Shared by the disclosure and
+  // the submit handler so the two cannot describe different requests.
+  const additions = {
+    priorFailureFeedback,
+    ...(includeCurrentGame ? { currentGameHtml } : {}),
+  };
+
+  const handleModelChange = (nextModelId: string): void => {
+    setModelId(nextModelId);
+    // A correction describes what the last model got wrong; it is addressed
+    // to nobody once a different one is picked.
+    clearFeedback();
+  };
+
   const handleProviderChange = (nextProvider: ByokProvider): void => {
     setProvider(nextProvider);
-    setModelId(firstModelId(catalogue, nextProvider));
+    handleModelChange(firstModelId(catalogue, nextProvider));
   };
 
   const handleSubmit = async (): Promise<void> => {
@@ -101,15 +131,15 @@ export function ByokPanel({
 
     // Awaited rather than gating the button: warmed on first contact with the
     // panel, so this has almost always already resolved.
-    const userPrompt = await loadPrompt();
-    if (userPrompt === null) return;
+    const basePrompt = await loadPrompt();
+    if (basePrompt === null) return;
 
     const generated = await generate({
       provider,
       modelId,
       providerLabel: selected?.label ?? provider,
       apiKey,
-      userPrompt,
+      userPrompt: composeByokPrompt({ basePrompt, ...additions }),
     });
     // Kept on a failure so Generate still works: a run that did not produce a
     // game is one the visitor will want to retry, and clearing the field
@@ -153,7 +183,7 @@ export function ByokPanel({
 
         <Disclosure summary="See the exact prompt this will send" onToggle={() => void loadPrompt()}>
           <pre className="max-h-48 overflow-auto rounded-lg bg-chip p-2 text-xs whitespace-pre-wrap dark:bg-slate-800">
-            {promptText(prompt)}
+            {promptText(prompt, additions)}
           </pre>
         </Disclosure>
 
@@ -179,7 +209,7 @@ export function ByokPanel({
           <FormField label="Model">
             <select
               value={modelId}
-              onChange={(e) => setModelId(e.target.value)}
+              onChange={(e) => handleModelChange(e.target.value)}
               className={FIELD_CONTROL}
             >
               {models.map((model) => (
@@ -233,6 +263,16 @@ export function ByokPanel({
             )}
           </div>
         </div>
+
+        <label className="mt-3 flex w-fit items-center gap-2 text-meta dark:text-slate-400">
+          <input
+            type="checkbox"
+            checked={includeCurrentGame}
+            onChange={(e) => setIncludeCurrentGame(e.target.checked)}
+            className="size-4"
+          />
+          Include the current game&rsquo;s code, and ask for an improvement on it
+        </label>
 
         {status.status === 'error' && (
           <p role="alert" className="mt-2 text-meta text-rose-600 dark:text-rose-400">

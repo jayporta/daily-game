@@ -49,6 +49,23 @@ export const BYOK_COMPLETION = [
 ].join('\n');
 
 /**
+ * A response cut off at the provider's output cap.
+ *
+ * The `json` block completed, the `html` block did not, and the stream ends
+ * with the provider saying why. The exact shape that made extraction report a
+ * missing html block and the panel advise a different model — which never
+ * helped, because the cap belonged to the request, not to the model.
+ */
+export function truncatedCompletionResponse(): Response {
+  const partial = ['```json', '{"title": "Half a Game", "genre": "g", "theme": "t", "mechanics": []}', '```', '', '```html', '<!doctype html><html><body>half a g'].join('\n');
+  const frames = [
+    `data: ${JSON.stringify({ choices: [{ delta: { content: partial } }] })}\n\n`,
+    `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'length' }] })}\n\n`,
+  ].join('');
+  return new Response(`${frames}data: [DONE]\n\n`, { status: 200 });
+}
+
+/**
  * `content` as an OpenAI-shaped event stream, the way every BYOK call now
  * reads its answer.
  *

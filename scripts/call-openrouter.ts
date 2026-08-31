@@ -12,7 +12,7 @@ import { pathToFileURL } from 'node:url';
 import { buildPrompt, selectRemixSuggestion } from './build-prompt.ts';
 import { SYSTEM_PROMPT } from '../lib/system-prompt.ts';
 import { selectNextModel } from './select-model.ts';
-import { extractBundle } from '../lib/extract-bundle-shared.ts';
+import { EXTRACTION_RETRY_FEEDBACK, extractBundle } from '../lib/extract-bundle-shared.ts';
 import { errorMessage } from '../lib/errors.ts';
 import { moderate } from './moderate.ts';
 import { createSmokeTester, type SmokeTester, type SmokeTestResult } from './smoke-test.ts';
@@ -22,7 +22,7 @@ import { lastPublishedEntry, readHotWindow, readSummary, writeGamesJson, writeGa
 import { applyFeedback } from './fetch-feedback.ts';
 import { paths } from './lib/paths.ts';
 import type { OpenRouterClient } from './lib/openrouter-client.ts';
-import type { ExtractFailureReason, GeneratedMeta } from '../lib/extract-bundle-shared.ts';
+import type { GeneratedMeta } from '../lib/extract-bundle-shared.ts';
 import type { FailureKind, HistoryGameEntry, HistorySummary } from './lib/history-store.ts';
 import type { ManifestRestoreResult } from './publish.ts';
 import type { GenerationConfig } from './lib/config/generation.ts';
@@ -53,13 +53,6 @@ export type GenerateResult =
       kinds: FailureKind[];
       model: string;
     };
-
-const EXTRACTION_FEEDBACK: Record<ExtractFailureReason, string> = {
-  'missing-meta-block': 'Your response had no ```json block. Return both fenced blocks exactly as specified.',
-  'missing-html-block': 'Your response had no ```html block. Return both fenced blocks exactly as specified.',
-  'invalid-json-meta': 'The ```json block was not valid JSON. Return strictly valid JSON with no comments or trailing commas.',
-  'empty-html': 'The ```html block was empty. It must contain the complete game document.',
-};
 
 export interface GenerateDailyGameParams {
   client: OpenRouterClient;
@@ -141,7 +134,7 @@ export async function generateDailyGame({
     if (!extracted.ok) {
       reasons.push(`attempt ${attempt} (${model}): could not extract bundle — ${extracted.reason}`);
       kinds.push('extract');
-      priorFailureFeedback = EXTRACTION_FEEDBACK[extracted.reason];
+      priorFailureFeedback = EXTRACTION_RETRY_FEEDBACK[extracted.reason];
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
       continue;
     }

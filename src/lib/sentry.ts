@@ -41,20 +41,46 @@ export interface ReactErrorInfo {
  */
 const MAX_BUFFERED = 20;
 
+/** Short, low-cardinality labels attached to an event, for filtering. */
+export type ErrorTags = Readonly<Record<string, string>>;
+
 interface PendingError {
   readonly error: unknown;
   readonly info: ReactErrorInfo | undefined;
+  readonly tags: ErrorTags | undefined;
 }
 
-let deliver: ((error: unknown, info: ReactErrorInfo | undefined) => void) | null = null;
+type Deliver = (error: unknown, info: ReactErrorInfo | undefined, tags: ErrorTags | undefined) => void;
+
+let deliver: Deliver | null = null;
 const buffered: PendingError[] = [];
 
-function report(error: unknown, info?: ReactErrorInfo): void {
+function report(error: unknown, info?: ReactErrorInfo, tags?: ErrorTags): void {
   if (deliver !== null) {
-    deliver(error, info);
+    deliver(error, info, tags);
     return;
   }
-  if (buffered.length < MAX_BUFFERED) buffered.push({ error, info });
+  if (buffered.length < MAX_BUFFERED) buffered.push({ error, info, tags });
+}
+
+/**
+ * Reports an error the app caught and handled itself, rather than one that
+ * reached a global handler.
+ *
+ * For failures that are recovered from — a request that failed and was turned
+ * into a message on screen — which no `error` event ever sees. Buffered like
+ * any other until the SDK loads, and a no-op for the whole session when no DSN
+ * is configured.
+ *
+ * Callers decide what is worth reporting: an expected failure of someone
+ * else's API key is not a defect, and reporting every one would bury the
+ * events that are.
+ *
+ * @param tags Low-cardinality labels to filter by. Never put a secret, a URL
+ *   carrying one, or anything a visitor typed in here.
+ */
+export function reportError(error: unknown, tags?: ErrorTags): void {
+  report(error, undefined, tags);
 }
 
 /**
@@ -133,9 +159,9 @@ export async function startErrorMonitoring(
   globalThis.removeEventListener('unhandledrejection', onRejection);
 
   const handleReactError = reactErrorHandler();
-  deliver = (error, info) => {
-    if (info === undefined) captureException(error);
+  deliver = (error, info, tags) => {
+    if (info === undefined) captureException(error, tags === undefined ? undefined : { tags });
     else handleReactError(error, info);
   };
-  for (const pending of buffered.splice(0)) deliver(pending.error, pending.info);
+  for (const pending of buffered.splice(0)) deliver(pending.error, pending.info, pending.tags);
 }

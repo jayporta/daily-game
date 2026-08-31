@@ -106,22 +106,28 @@ export function GameView({
           <ControlLegend controls={shown.controls} />
         </div>
 
-        <GeneratedCode html={byokOverride?.html ?? shown?.html} title={byokOverride?.title ?? shown.title} />
-            <div className="mt-4">
-              {
-                byokOverride !== null && (
-                  <PillButton tone="neutral" onClick={onDismissByok}>
-                    Back to today&rsquo;s game
-                  </PillButton>
-                )
-              }
-            </div>
+        {/* `shown.html`, not the override: the viewer and the frame read the
+            one value, so the code on display is always the code running. */}
+        <GeneratedCode html={shown.html} title={shown.title} />
+
+        {byokOverride !== null && (
+          <div className="mt-4">
+            <PillButton tone="neutral" onClick={onDismissByok}>
+              Back to today&rsquo;s game
+            </PillButton>
+          </div>
+        )}
       </Panel>
 
       {/* The panel re-runs the day's exact prompt, so a game archived before
           prompts were has nothing for it to send. */}
       {manifest.promptPath !== undefined && (
-        <ByokPanel byok={byok} promptPath={manifest.promptPath} onResult={onByokResult} />
+        <ByokPanel
+          byok={byok}
+          promptPath={manifest.promptPath}
+          currentGameHtml={shown.html}
+          onResult={onByokResult}
+        />
       )}
     </>
   );

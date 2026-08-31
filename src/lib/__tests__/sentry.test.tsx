@@ -2,20 +2,24 @@
 // touch window during construction.
 import { describe, expect, test, vi } from 'vitest';
 import { getClient } from '@sentry/react';
-import { reactErrorReporter, sentryOptions, startErrorMonitoring } from '../sentry.ts';
+import { reactErrorReporter, reportError, sentryOptions, startErrorMonitoring } from '../sentry.ts';
 
 /**
  * What the SDK was actually handed. The real `init` still runs — only the two
  * delivery calls are intercepted, so `getClient()` below still sees a client.
  */
-const { reported } = vi.hoisted(() => ({ reported: [] as unknown[] }));
+const { reported, scopes } = vi.hoisted(() => ({
+  reported: [] as unknown[],
+  scopes: [] as unknown[],
+}));
 
 vi.mock('@sentry/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@sentry/react')>();
   return {
     ...actual,
-    captureException: (error: unknown) => {
+    captureException: (error: unknown, scope?: unknown) => {
       reported.push(error);
+      scopes.push(scope);
       return '';
     },
     reactErrorHandler: () => (error: unknown) => {
@@ -70,4 +74,18 @@ test('an error thrown before the SDK arrives is replayed into it', async () => {
   await startErrorMonitoring(DSN, 'test');
 
   expect(reported).toEqual([beforeLoad]);
+});
+
+// A handled failure never reaches a global error handler, so without an
+// explicit entry point it is reported nowhere at all.
+test('reportError delivers a handled error with its tags', async () => {
+  await startErrorMonitoring(DSN, 'test');
+  reported.length = 0;
+  scopes.length = 0;
+
+  const handled = new Error('gemini returned no output');
+  reportError(handled, { area: 'byok', provider: 'gemini' });
+
+  expect(reported).toEqual([handled]);
+  expect(scopes).toEqual([{ tags: { area: 'byok', provider: 'gemini' } }]);
 });

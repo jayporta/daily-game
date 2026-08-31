@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { completeByok, type ByokCompletionResult, type ByokRequest } from '../providers.ts';
+import {
+  completeByok,
+  isExpectedFailure,
+  type ByokCompletionResult,
+  type ByokRequest,
+} from '../providers.ts';
 import type { ByokProvider } from '../../../../lib/byok-config-types.ts';
 
 const PROVIDERS = ['openrouter', 'openai', 'anthropic', 'gemini'] as const satisfies readonly ByokProvider[];
@@ -61,7 +66,7 @@ test('completeByok sends OpenRouter requests to the documented url with a Bearer
 
   const result = await completeByok(baseRequest({ provider: 'openrouter' }), { fetchImpl });
 
-  assert.deepEqual(result, { ok: true, text: 'the completion' });
+  assert.deepEqual(result, { ok: true, text: 'the completion', stop: 'complete' });
   assert.equal(calls[0]?.[0], 'https://openrouter.ai/api/v1/chat/completions');
   const headers = new Headers(calls[0]?.[1]?.headers);
   assert.equal(headers.get('Authorization'), 'Bearer test-key');
@@ -75,7 +80,7 @@ test('completeByok sends OpenAI requests to the documented url with a Bearer key
 
   const result = await completeByok(baseRequest({ provider: 'openai' }), { fetchImpl });
 
-  assert.deepEqual(result, { ok: true, text: 'the completion' });
+  assert.deepEqual(result, { ok: true, text: 'the completion', stop: 'complete' });
   assert.equal(calls[0]?.[0], 'https://api.openai.com/v1/chat/completions');
   const headers = new Headers(calls[0]?.[1]?.headers);
   assert.equal(headers.get('Authorization'), 'Bearer test-key');
@@ -109,7 +114,7 @@ test('completeByok sends Anthropic requests with the required browser-access hea
 
   const result = await completeByok(baseRequest({ provider: 'anthropic' }), { fetchImpl });
 
-  assert.deepEqual(result, { ok: true, text: 'the completion' });
+  assert.deepEqual(result, { ok: true, text: 'the completion', stop: 'complete' });
   assert.equal(calls[0]?.[0], 'https://api.anthropic.com/v1/messages');
   const headers = new Headers(calls[0]?.[1]?.headers);
   assert.equal(headers.get('x-api-key'), 'test-key');
@@ -126,7 +131,7 @@ test('completeByok sends Gemini requests with the model id in the url path, not 
     fetchImpl,
   });
 
-  assert.deepEqual(result, { ok: true, text: 'the completion' });
+  assert.deepEqual(result, { ok: true, text: 'the completion', stop: 'complete' });
   const headers = new Headers(calls[0]?.[1]?.headers);
   assert.equal(headers.get('x-goog-api-key'), 'test-key');
   const body = JSON.parse(String(calls[0]?.[1]?.body));
@@ -154,7 +159,7 @@ for (const provider of PROVIDERS) {
 
     const result = await completeByok(baseRequest({ provider }), { fetchImpl });
 
-    assert.deepEqual(result, { ok: true, text: 'Hello, world' });
+    assert.deepEqual(result, { ok: true, text: 'Hello, world', stop: 'complete' });
   });
 
   test(`completeByok(${provider}) reports each fragment as it arrives`, async () => {
@@ -217,7 +222,7 @@ test('completeByok ignores the frames around the text that carry none', async ()
 
   const result = await completeByok(baseRequest({ provider: 'openrouter' }), { fetchImpl });
 
-  assert.deepEqual(result, { ok: true, text: 'the game' });
+  assert.deepEqual(result, { ok: true, text: 'the game', stop: 'complete' });
 });
 
 test('completeByok stops at the end-of-stream sentinel', async () => {
@@ -226,7 +231,7 @@ test('completeByok stops at the end-of-stream sentinel', async () => {
 
   const result = await completeByok(baseRequest(), { fetchImpl });
 
-  assert.deepEqual(result, { ok: true, text: 'kept' });
+  assert.deepEqual(result, { ok: true, text: 'kept', stop: 'complete' });
 });
 
 // OpenRouter answers 200 and then reports an exhausted balance or an upstream
@@ -337,4 +342,140 @@ test('completeByok ends the run when the caller aborts mid-stream', async () => 
   controller.abort();
 
   assert.match(failureMessage(await finished), /aborted/);
+});
+
+/**
+ * The final frame each provider sends to report why it stopped. Separate from
+ * `deltaFrame` because none of these carries any text — which is precisely
+ * why reading the stop reason off the fragments cannot work.
+ */
+function stopFrame(provider: ByokProvider, stop: string): string {
+  switch (provider) {
+    case 'openrouter':
+    case 'openai':
+      return `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: stop }] })}\n\n`;
+    case 'anthropic':
+      return `data: ${JSON.stringify({ type: 'message_delta', delta: { stop_reason: stop } })}\n\n`;
+    case 'gemini':
+      return `data: ${JSON.stringify({ candidates: [{ finishReason: stop }] })}\n\n`;
+  }
+}
+
+/** How each provider spells "I hit the output cap". */
+const TRUNCATION_STOP: Record<ByokProvider, string> = {
+  openrouter: 'length',
+  openai: 'length',
+  anthropic: 'max_tokens',
+  gemini: 'MAX_TOKENS',
+};
+
+for (const provider of PROVIDERS) {
+  test(`completeByok reports ${provider} cutting a response off at the output cap`, async () => {
+    const body = deltaFrame(provider, '```html\n<!doctype html><body>half a g')
+      + stopFrame(provider, TRUNCATION_STOP[provider]);
+    const { fetchImpl } = capturingFetch(new Response(body, { status: 200 }));
+
+    const result = await completeByok(baseRequest({ provider }), { fetchImpl });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.ok && result.stop, 'truncated');
+  });
+
+  test(`completeByok reports ${provider} finishing normally as complete`, async () => {
+    const normalStop = provider === 'anthropic' ? 'end_turn' : provider === 'gemini' ? 'STOP' : 'stop';
+    const body = deltaFrame(provider, 'the completion') + stopFrame(provider, normalStop);
+    const { fetchImpl } = capturingFetch(new Response(body, { status: 200 }));
+
+    const result = await completeByok(baseRequest({ provider }), { fetchImpl });
+
+    assert.equal(result.ok && result.stop, 'complete');
+  });
+}
+
+test('completeByok keeps the text a truncated run did produce', async () => {
+  const body = deltaFrame('gemini', 'half a game') + stopFrame('gemini', 'MAX_TOKENS');
+  const { fetchImpl } = capturingFetch(new Response(body, { status: 200 }));
+
+  const result = await completeByok(baseRequest({ provider: 'gemini' }), { fetchImpl });
+
+  assert.equal(result.ok && result.text, 'half a game');
+});
+
+test('completeByok reports a content-filtered response as refused', async () => {
+  const body = deltaFrame('gemini', 'some text') + stopFrame('gemini', 'SAFETY');
+  const { fetchImpl } = capturingFetch(new Response(body, { status: 200 }));
+
+  const result = await completeByok(baseRequest({ provider: 'gemini' }), { fetchImpl });
+
+  assert.equal(result.ok && result.stop, 'refused');
+});
+
+test('a stop reason survives the frames that follow it', async () => {
+  // Gemini repeats a finishReason on every candidate once the run ends, and
+  // OpenAI-shaped APIs send `[DONE]` after theirs. Neither may reset it.
+  const body = deltaFrame('gemini', 'text')
+    + stopFrame('gemini', 'MAX_TOKENS')
+    + deltaFrame('gemini', ' more');
+  const { fetchImpl } = capturingFetch(new Response(body, { status: 200 }));
+
+  const result = await completeByok(baseRequest({ provider: 'gemini' }), { fetchImpl });
+
+  assert.equal(result.ok && result.stop, 'truncated');
+});
+
+test('a rejected key is an auth failure, not a provider fault', async () => {
+  const { fetchImpl } = capturingFetch(
+    new Response(JSON.stringify({ error: { message: 'invalid api key' } }), { status: 401 }),
+  );
+
+  const result = await completeByok(baseRequest(), { fetchImpl });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.ok === false && result.kind, 'auth');
+  assert.equal(isExpectedFailure('auth'), true);
+});
+
+test('a rate limit and an exhausted quota are expected failures', async () => {
+  for (const [status, kind] of [[429, 'rate-limit'], [402, 'quota']] as const) {
+    const { fetchImpl } = capturingFetch(new Response('{}', { status }));
+    const result = await completeByok(baseRequest(), { fetchImpl });
+
+    assert.equal(result.ok === false && result.kind, kind);
+    assert.equal(isExpectedFailure(kind), true);
+  }
+});
+
+test('a provider fault, a broken stream and an empty response are worth reporting', () => {
+  for (const kind of ['provider', 'stream', 'empty'] as const) {
+    assert.equal(isExpectedFailure(kind), false, kind);
+  }
+});
+
+test('an unexpected status is a provider fault', async () => {
+  const { fetchImpl } = capturingFetch(new Response('upstream exploded', { status: 500 }));
+
+  const result = await completeByok(baseRequest(), { fetchImpl });
+
+  assert.equal(result.ok === false && result.kind, 'provider');
+});
+
+test('reasoning providers get an output cap with room to think as well as answer', async () => {
+  // A game is ~5,000 output tokens; these providers spend one budget on
+  // thinking and answering both, so a cap sized for the game alone truncates.
+  for (const provider of ['openai', 'anthropic', 'gemini'] as const) {
+    const { fetchImpl, calls } = capturingFetch(streamOf(provider, ['x']));
+    await completeByok(baseRequest({ provider }), { fetchImpl });
+
+    const body = JSON.parse(String(calls[0]?.[1]?.body));
+    const cap = body.max_tokens ?? body.max_completion_tokens ?? body.generationConfig?.maxOutputTokens;
+    assert.equal(cap, 64000, provider);
+  }
+});
+
+test('OpenRouter keeps the smaller cap its free models accept', async () => {
+  const { fetchImpl, calls } = capturingFetch(streamOf('openrouter', ['x']));
+
+  await completeByok(baseRequest({ provider: 'openrouter' }), { fetchImpl });
+
+  assert.equal(JSON.parse(String(calls[0]?.[1]?.body)).max_tokens, 16000);
 });
