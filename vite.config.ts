@@ -3,6 +3,7 @@ import { join, resolve, sep } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { loadGenerationConfig } from './scripts/lib/config/generation.ts';
 
 const GAMES_DIR = resolve(import.meta.dirname, 'games');
 
@@ -71,11 +72,26 @@ function serveArchivedGamesRaw(): Plugin {
 //
 // `base: './'` keeps asset URLs relative, so the build works whether it's
 // served from a domain root or from /daily-game/.
-export default defineConfig({
+//
+// Config is a function so `mode` can be read: it becomes the Sentry
+// environment tag, which is what keeps a local run's errors filterable
+// apart from real visitors'. tsconfig.web.json sets `types: []`, so
+// `import.meta.env` is deliberately not available to src/.
+export default defineConfig(({ mode }) => ({
   base: './',
+  define: {
+    // config/generation.json is the DSN's single source of truth — publish.ts
+    // reads the same field for the snippet it appends to game bundles.
+    // Inlined at build time rather than written into src/, where
+    // .github/workflows/secret-scan.yml treats a DSN literal as a leaked
+    // credential. Read through the validating loader, so a malformed DSN
+    // fails the build instead of shipping a client that posts nowhere.
+    __SENTRY_DSN__: JSON.stringify(loadGenerationConfig().sentryDsn),
+    __SENTRY_ENVIRONMENT__: JSON.stringify(mode),
+  },
   plugins: [serveArchivedGamesRaw(), react(), tailwindcss()],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
   },
-});
+}));

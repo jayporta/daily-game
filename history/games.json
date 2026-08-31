@@ -13,6 +13,27 @@
     ],
     "title": "Construct Critters",
     "attempts": 3,
+    "canvasDrawn": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-08-31",
+    "status": "published",
+    "model": "minimax/minimax-m2.7:free",
+    "slug": "2026-08-31-prism-garden",
+    "genre": "tile-matching",
+    "theme": "A cosmic garden of geometric crystal formations that shimmer and glow",
+    "mechanics": [
+      "Swap adjacent crystals to match 3 or more of the same type",
+      "Create special crystals by matching 4+ tiles",
+      "Chain reactions cascade for bonus points",
+      "Score as high as possible before running out of moves"
+    ],
+    "title": "Prism Garden",
+    "attempts": 3,
     "canvasDrawn": true
   }
 ]

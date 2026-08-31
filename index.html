@@ -20,6 +20,12 @@
       smoke test already enforces — add the reaction store's origin here
       when config/reaction-config.json gains an endpoint.
 
+      The Sentry ingest origin is listed because that inheritance cuts both
+      ways: the error-reporting snippet publish.ts appends runs *inside* the
+      frame, so without it here the browser blocks every report and nothing
+      says so. `npm run validate` cross-checks this origin against
+      config/generation.json's sentryDsn.
+
       The four BYOK provider origins are listed for the same reason: those
       requests are made from this parent page (src/lib/byok-providers.ts),
       not from inside the sandboxed frame, so without them here the browser
@@ -31,7 +37,7 @@
     -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="connect-src 'self' https://ixmnxcnxxyoyglthknmk.supabase.co https://openrouter.ai https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com; form-action 'none'; base-uri 'none'; object-src 'none'"
+      content="connect-src 'self' https://ixmnxcnxxyoyglthknmk.supabase.co https://o4512003238199296.ingest.us.sentry.io https://openrouter.ai https://api.anthropic.com https://api.openai.com https://generativelanguage.googleapis.com; form-action 'none'; base-uri 'none'; object-src 'none'"
     />
     <!--
       Quicksand for the title, Nunito for the interface, JetBrains Mono for

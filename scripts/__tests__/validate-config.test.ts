@@ -10,6 +10,9 @@ const CSP_SELF_ONLY = '<meta content="connect-src \'self\'; form-action \'none\'
 const CSP_WITH_STORE =
   '<meta content="connect-src \'self\' https://proj.supabase.co; form-action \'none\'" />';
 
+/** Stands in for the caller-supplied consequence; the wording is not under test. */
+const BLOCKED = 'drop the data silently';
+
 /** A copy of the real repo's config and history, safe to corrupt. */
 function scratchRepo(t: { after(fn: () => void): void }): string {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-validate-'));
@@ -109,6 +112,40 @@ test('a configured store the CSP does permit passes validation', (t) => {
   assert.deepEqual(report.failures, []);
 });
 
+// The mirror image of the reaction-store trap, and the reason the Sentry
+// check exists: the appended snippet runs inside the sandboxed frame, which
+// inherits this CSP, so an unlisted ingest origin means no game ever reports
+// an error and nothing anywhere says so.
+test('a configured Sentry DSN the CSP does not permit fails validation', (t) => {
+  const root = scratchRepo(t);
+  const indexPath = join(root, 'index.html');
+  writeFileSync(
+    indexPath,
+    readFileSync(indexPath, 'utf8').replace(' https://o4512003238199296.ingest.us.sentry.io', ''),
+    'utf8',
+  );
+
+  const report = validateAll(createPaths(root));
+
+  assert.ok(
+    report.failures.some((failure) => failure.startsWith('index.html (CSP allows Sentry ingest)')),
+    `expected a Sentry CSP failure, got: ${report.failures.join(' | ')}`,
+  );
+});
+
+// A DSN carries its public key as URL userinfo. That is why the check can
+// take one unchanged — but only because `origin` drops the userinfo, so a
+// DSN and a bare endpoint on the same host resolve identically.
+test('validateCspAllowsEndpoint ignores a DSN\'s userinfo when matching', () => {
+  const result = validateCspAllowsEndpoint(
+    'https://pubkey@proj.supabase.co/12345',
+    CSP_WITH_STORE,
+    BLOCKED,
+  );
+
+  assert.equal(result.valid, true);
+});
+
 // BYOK calls are made from the parent page, not the sandboxed frame, so a
 // missing origin here would silently block every generation in production
 // while every other test — none of which enforces CSP — stayed green.
@@ -148,7 +185,10 @@ test('every failure is reported, not just the first', (t) => {
 });
 
 test('validateCspAllowsEndpoint passes when no store is configured', () => {
-  assert.deepEqual(validateCspAllowsEndpoint(null, CSP_SELF_ONLY), { valid: true, errors: [] });
+  assert.deepEqual(validateCspAllowsEndpoint(null, CSP_SELF_ONLY, BLOCKED), {
+    valid: true,
+    errors: [],
+  });
 });
 
 // The trap this exists for: a configured store the CSP does not permit means
@@ -158,6 +198,7 @@ test('validateCspAllowsEndpoint rejects a store the CSP would block', () => {
   const result = validateCspAllowsEndpoint(
     'https://proj.supabase.co/rest/v1/reactions',
     CSP_SELF_ONLY,
+    BLOCKED,
   );
 
   assert.equal(result.valid, false);
@@ -168,6 +209,7 @@ test('validateCspAllowsEndpoint passes once the origin is listed', () => {
   const result = validateCspAllowsEndpoint(
     'https://proj.supabase.co/rest/v1/reactions',
     CSP_WITH_STORE,
+    BLOCKED,
   );
 
   assert.equal(result.valid, true);
@@ -178,17 +220,22 @@ test('validateCspAllowsEndpoint matches whole origins, not substrings', () => {
   const result = validateCspAllowsEndpoint(
     'https://proj.supabase.co.evil.test/rest/v1/reactions',
     CSP_WITH_STORE,
+    BLOCKED,
   );
 
   assert.equal(result.valid, false);
 });
 
 test('validateCspAllowsEndpoint rejects an endpoint that is not a URL', () => {
-  assert.equal(validateCspAllowsEndpoint('not a url', CSP_WITH_STORE).valid, false);
+  assert.equal(validateCspAllowsEndpoint('not a url', CSP_WITH_STORE, BLOCKED).valid, false);
 });
 
 test('validateCspAllowsEndpoint reports a page with no connect-src at all', () => {
-  const result = validateCspAllowsEndpoint('https://proj.supabase.co/x', '<meta content="" />');
+  const result = validateCspAllowsEndpoint(
+    'https://proj.supabase.co/x',
+    '<meta content="" />',
+    BLOCKED,
+  );
 
   assert.equal(result.valid, false);
   assert.match(result.errors.join(' '), /no connect-src/);

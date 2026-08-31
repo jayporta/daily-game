@@ -20,20 +20,26 @@ import { paths as defaultPaths, type Paths } from './lib/paths.ts';
 import type { ValidationResult } from './lib/validation.ts';
 
 /**
- * Checks that `index.html`'s CSP permits the configured reaction store.
+ * Checks that `index.html`'s CSP permits a cross-origin endpoint the site
+ * has to reach.
  *
  * A `srcdoc` iframe inherits the parent's CSP and `connect-src` starts as
- * `'self'`, so a cross-origin store is blocked unless its origin is listed.
- * `sendReaction` swallows that failure by design, which means a missing
- * origin drops every reaction with nothing anywhere reporting it — hence a
- * check rather than a comment.
+ * `'self'`, so a cross-origin endpoint is blocked unless its origin is
+ * listed. Every caller swallows that failure by design — `sendReaction`
+ * drops the reaction, and an error reporter cannot report that it failed to
+ * report — so a missing origin is invisible at runtime and shows up only as
+ * data that never arrives. Hence a check rather than a comment.
  *
- * @param endpointUrl From `config/reaction-config.json`; `null` means no
- *   store is configured and there is nothing to permit.
+ * @param endpointUrl The URL whose origin must be permitted; `null` means
+ *   nothing is configured and there is nothing to permit. A Sentry DSN is
+ *   accepted as-is, since its userinfo does not change the origin.
+ * @param blockedConsequence What breaks silently when the origin is absent,
+ *   completing the sentence "the browser would ...".
  */
 export function validateCspAllowsEndpoint(
   endpointUrl: string | null,
   indexHtml: string,
+  blockedConsequence: string,
 ): ValidationResult {
   if (endpointUrl === null) return { valid: true, errors: [] };
 
@@ -57,7 +63,7 @@ export function validateCspAllowsEndpoint(
       valid: false,
       errors: [
         `index.html's connect-src does not list ${origin} — the browser would ` +
-          'block every reaction, and sendReaction swallows that failure silently',
+          blockedConsequence,
       ],
     };
   }
@@ -92,10 +98,26 @@ function checksFor(paths: Paths): readonly Check[] {
     { label: 'history/games.json', load: () => readHotWindow(paths.historyGames) },
     { label: 'history/summary.json', load: () => readSummary(paths.historySummary) },
     {
-      label: "index.html (CSP allows the reaction store)",
+      label: 'index.html (CSP allows the reaction store)',
       load: () => {
         const { endpointUrl } = loadReactionConfig(paths.reactionConfig);
-        const result = validateCspAllowsEndpoint(endpointUrl, readFileSync(paths.indexHtml, 'utf8'));
+        const result = validateCspAllowsEndpoint(
+          endpointUrl,
+          readFileSync(paths.indexHtml, 'utf8'),
+          'block every reaction, and sendReaction swallows that failure silently',
+        );
+        if (!result.valid) throw new Error(result.errors.join('; '));
+      },
+    },
+    {
+      label: 'index.html (CSP allows Sentry ingest)',
+      load: () => {
+        const { sentryDsn } = loadGenerationConfig(paths.generationConfig);
+        const result = validateCspAllowsEndpoint(
+          sentryDsn,
+          readFileSync(paths.indexHtml, 'utf8'),
+          'block every error report from both the page and the sandboxed game frame',
+        );
         if (!result.valid) throw new Error(result.errors.join('; '));
       },
     },

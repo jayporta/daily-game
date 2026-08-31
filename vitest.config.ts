@@ -10,8 +10,11 @@ import viteConfig from './vite.config.ts';
 //
 // Because the patterns are disjoint, neither runner picks up the other's
 // files and nothing is executed twice.
+// vite.config.ts exports a function so it can read `mode`; mergeConfig cannot
+// merge a callback, so it is called here with the test environment. That is
+// what gives Sentry events from a test run their own `environment` tag.
 export default mergeConfig(
-  viteConfig,
+  viteConfig({ command: 'serve', mode: 'test' }),
   defineConfig({
     test: {
       include: ['src/**/*.test.tsx'],

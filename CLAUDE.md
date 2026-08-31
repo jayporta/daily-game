@@ -239,6 +239,14 @@ refactor.
 - **Nothing downstream branches on mock-vs-real.**
   `scripts/lib/get-client.ts` is the only place that decides, so setting
   `OPENROUTER_API_KEY` flips the pipeline live with no code change.
+- **`connect-src` must list the Sentry ingest origin.** A `srcdoc` iframe
+  inherits the parent's CSP, so the snippet `publish.ts` appends runs under
+  `index.html`'s policy. Drop
+  `https://o4512003238199296.ingest.us.sentry.io` from `connect-src` and the
+  browser blocks every report from both the page and the game frame, with
+  nothing anywhere saying so — an error reporter cannot report that it could
+  not report. `npm run validate` cross-checks the two files; change the DSN
+  and the origin together.
 - **The page's CSP must never restrict scripts or styles.** `index.html`
   carries a deliberately partial policy with no `default-src`, `script-src`
   or `style-src`. A `srcdoc` iframe inherits the parent's CSP, so any of
@@ -333,5 +341,9 @@ refactor.
   the commit history is the record of how the work was split into
   reviewable chunks. Don't reintroduce them, and don't add
   cross-references to them from code.
-- Sentry is deliberately stubbed (`sentryDsn: null`,
-  `buildErrorReportingSnippet` returns `''`) until credentials exist.
+- Sentry is live. `config/generation.json`'s `sentryDsn` is the one copy of
+  the DSN: `publish.ts` reads it for the snippet it appends to bundles, and
+  `vite.config.ts` inlines it into the browser build as `__SENTRY_DSN__`.
+  Never paste the DSN into `src/` — `secret-scan.yml` treats a literal there
+  as a leaked credential. A fork with `sentryDsn: null` still runs: both
+  `buildErrorReportingSnippet` and `startErrorMonitoring` no-op.

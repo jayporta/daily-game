@@ -4,6 +4,6 @@
   "remixProbability": 0.2,
   "remixLookbackDays": 90,
   "retryTemperatures": [0.7, 0.9, 1.0],
-  "sentryDsn": null,
+  "sentryDsn": "https://536c04a3fdaba8575a4e05b9f4f930a0@o4512003238199296.ingest.us.sentry.io/4512003246194688",
   "cronSchedule": "0 13 * * *"
 }
