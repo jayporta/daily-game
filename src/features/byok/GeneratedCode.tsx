@@ -25,6 +25,7 @@ export function GeneratedCode({ html, title }: GeneratedCodeProps) {
 
   return (
     <>
+    <div className="text-ui">
       <Disclosure
         summary="View generated code"
         action={
@@ -46,7 +47,7 @@ export function GeneratedCode({ html, title }: GeneratedCodeProps) {
       >
         <CodeViewer code={html} size="inline" />
       </Disclosure>
-
+      </div>
       <CodeOverlay
         title={title}
         code={html}

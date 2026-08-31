@@ -106,16 +106,16 @@ export function GameView({
           <ControlLegend controls={shown.controls} />
         </div>
 
-        {byokOverride !== null && (
-          <>
-            <GeneratedCode html={byokOverride.html} title={byokOverride.title} />
+        <GeneratedCode html={byokOverride?.html ?? shown?.html} title={byokOverride?.title ?? shown.title} />
             <div className="mt-4">
-              <PillButton tone="neutral" onClick={onDismissByok}>
-                Back to today&rsquo;s game
-              </PillButton>
+              {
+                byokOverride !== null && (
+                  <PillButton tone="neutral" onClick={onDismissByok}>
+                    Back to today&rsquo;s game
+                  </PillButton>
+                )
+              }
             </div>
-          </>
-        )}
       </Panel>
 
       {/* The panel re-runs the day's exact prompt, so a game archived before
