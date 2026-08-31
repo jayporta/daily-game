@@ -21,8 +21,6 @@ export interface SmokeTestResult {
 export interface SmokeTestOptions {
   /** How long to let the page run before judging it. */
   settleMs?: number;
-  /** Origins the bundle is permitted to contact (Epic 6 adds Sentry's ingest host). */
-  allowedNetworkOrigins?: string[];
 }
 
 /** Only real remote schemes count as network use; data:/blob: are self-contained. */
@@ -30,18 +28,11 @@ function isRemoteRequest(url: string): boolean {
   return url.startsWith('http://') || url.startsWith('https://');
 }
 
-function originOf(url: string): string {
-  try {
-    return new URL(url).origin;
-  } catch {
-    return '';
-  }
-}
 
 async function runSmokeTest(
   browser: Browser,
   html: string,
-  { settleMs = 1500, allowedNetworkOrigins = [] }: SmokeTestOptions,
+  { settleMs = 1500 }: SmokeTestOptions,
 ): Promise<SmokeTestResult> {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -60,10 +51,6 @@ async function runSmokeTest(
   await page.route('**/*', async (route) => {
     const url = route.request().url();
     if (!isRemoteRequest(url)) {
-      await route.continue();
-      return;
-    }
-    if (allowedNetworkOrigins.includes(originOf(url))) {
       await route.continue();
       return;
     }

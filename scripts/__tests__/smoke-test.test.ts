@@ -40,14 +40,6 @@ test('rejects a bundle that attempts a network request', async () => {
   assert.match(result.networkAttempts.join(' '), /example\.com/);
 });
 
-test('an allowlisted origin does not fail the bundle', async () => {
-  // Epic 6 relies on this to permit exactly Sentry's ingest domain.
-  const { html } = loadFixtureBundle('bad-fetch-attempt');
-  const result = await tester.test(html, { allowedNetworkOrigins: ['https://example.com'] });
-  assert.deepEqual(result.networkAttempts, []);
-  assert.doesNotMatch(result.reasons.join(' '), /not self-contained/);
-});
-
 test('reports a blank canvas as a soft warning, not a failure', async () => {
   const blank = '<!doctype html><html><body><canvas id="c" width="50" height="50"></canvas></body></html>';
   const result = await tester.test(blank, { settleMs: 300 });

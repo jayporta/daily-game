@@ -4,7 +4,6 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
-  buildErrorReportingSnippet,
   buildManifest,
   buildSlug,
   computeExpiresAt,
@@ -56,17 +55,6 @@ test('computeExpiresAt falls back to +24h for an unsupported cron shape', () => 
 
 test('computeExpiresAt rejects an invalid date', () => {
   assert.throws(() => computeExpiresAt('0 13 * * *', 'not-a-date'), /invalid date/);
-});
-
-test('buildErrorReportingSnippet is empty while Sentry is unprovisioned', () => {
-  assert.equal(buildErrorReportingSnippet(null, '2026-08-29-x'), '');
-});
-
-test('buildErrorReportingSnippet embeds the dsn and slug once provisioned', () => {
-  const snippet = buildErrorReportingSnippet('https://ingest.example/123', '2026-08-29-x');
-  assert.match(snippet, /ingest\.example/);
-  assert.match(snippet, /2026-08-29-x/);
-  assert.match(snippet, /addEventListener\('error'/);
 });
 
 test('buildManifest records the url-facing path and computed expiry', () => {
@@ -158,7 +146,7 @@ test('publish appends the snippet once a dsn is configured', (t) => {
     model: 'a/model:free',
     attempts: 1,
     prompt: 'the exact prompt sent to the model',
-    generationConfig: { ...GENERATION_CONFIG, sentryDsn: 'https://ingest.example/123' },
+    generationConfig: { ...GENERATION_CONFIG, sentryDsn: 'https://pub1ickey@o1.ingest.example/4567' },
     genres: GENRES,
     historyEntries: [],
     root,
@@ -166,7 +154,7 @@ test('publish appends the snippet once a dsn is configured', (t) => {
 
   const published = readFileSync(join(root, 'games', 'archive', result.slug, 'game.html'), 'utf8');
   assert.ok(published.startsWith(html));
-  assert.match(published, /ingest\.example/);
+  assert.match(published, /o1\.ingest\.example\/api\/4567\/envelope\//);
 });
 
 test('publish preserves earlier history entries', (t) => {

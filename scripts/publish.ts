@@ -1,13 +1,14 @@
 // Writes a successful generation to disk: the dated archive folder, the
 // manifest the front-end reads, and the history files.
 //
-// The error-reporting snippet appended to game.html is written HERE, not
-// by the model, so a bad generation can never omit or subvert it. Until
-// Epic 6 provisions a Sentry DSN it is deliberately empty.
+// The error-reporting snippet appended to game.html comes from
+// lib/errorReporting.ts — ours, never the model's. It is empty until
+// config/generation.json carries a Sentry DSN.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createPaths, paths as defaultPaths, type Paths } from './lib/paths.ts';
 import { appendEntry, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
+import { buildErrorReportingSnippet } from './lib/errorReporting.ts';
 import type { GeneratedMeta } from '../lib/extract-bundle-shared.ts';
 import type { Manifest } from '../lib/manifest.ts';
 import type { FailureKind, HistoryGameEntry } from './lib/history-store.ts';
@@ -116,30 +117,6 @@ export function buildManifest({
     expiresAt: computeExpiresAt(cronSchedule, generatedAt),
     controls: meta.controls,
   };
-}
-
-/**
- * Fixed, trusted snippet appended to every published game.
- * Returns '' while `sentryDsn` is null, which is the case until a Sentry
- * account exists.
- */
-export function buildErrorReportingSnippet(sentryDsn: string | null, slug: string): string {
-  if (!sentryDsn) return '';
-  return `
-<!-- Error reporting appended by publish.ts — not model-authored. -->
-<script>
-window.addEventListener('error', function (event) {
-  try {
-    navigator.sendBeacon(${JSON.stringify(sentryDsn)}, JSON.stringify({
-      slug: ${JSON.stringify(slug)},
-      message: String(event.message),
-      source: String(event.filename),
-      line: event.lineno
-    }));
-  } catch (e) {}
-});
-</script>
-`;
 }
 
 export interface PublishParams {

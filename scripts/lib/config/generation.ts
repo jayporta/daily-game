@@ -1,6 +1,7 @@
 // Everything about `config/generation.json`: its shape, its rules, and how
 // it is read. These are the knobs on the daily run — window sizes, retry
 // temperatures, the cron the countdown is computed from.
+import { parseSentryDsn } from '../errorReporting.ts';
 import { paths } from '../paths.ts';
 import {
   isFiniteNumber,
@@ -50,8 +51,15 @@ export function validateGenerationConfig(json: unknown): ValidationResult {
   ) {
     errors.push('retryTemperatures must be a non-empty array of numbers');
   }
-  if (json.sentryDsn !== null && !isNonEmptyString(json.sentryDsn)) {
-    errors.push('sentryDsn must be null or a non-empty string');
+  if (json.sentryDsn !== null) {
+    // Checked for shape, not just presence: an unparseable DSN makes
+    // buildErrorReportingSnippet return '', which would silently ship games
+    // with no error reporting at all.
+    if (!isNonEmptyString(json.sentryDsn)) {
+      errors.push('sentryDsn must be null or a non-empty string');
+    } else if (parseSentryDsn(json.sentryDsn) === null) {
+      errors.push('sentryDsn must look like https://<publicKey>@<host>/<projectId>');
+    }
   }
   if (!isNonEmptyString(json.cronSchedule)) {
     errors.push('cronSchedule must be a non-empty string');
