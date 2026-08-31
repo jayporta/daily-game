@@ -7,7 +7,8 @@
 // test. Three failures is a normal outcome, not a CI failure: the live
 // site is left completely untouched and the run still exits green.
 import { pathToFileURL } from 'node:url';
-import { buildPrompt, SYSTEM_PROMPT, selectRemixSuggestion } from './build-prompt.ts';
+import { buildPrompt, selectRemixSuggestion } from './build-prompt.ts';
+import { SYSTEM_PROMPT } from '../lib/system-prompt.ts';
 import { selectNextModel } from './select-model.ts';
 import { extractBundle } from '../lib/extract-bundle-shared.ts';
 import { errorMessage } from '../lib/errors.ts';
@@ -15,26 +16,17 @@ import { moderate } from './moderate.ts';
 import { createSmokeTester, type SmokeTester, type SmokeTestResult } from './smoke-test.ts';
 import { publish, recordFailure } from './publish.ts';
 import { getOpenRouterClient } from './lib/get-client.ts';
-import { loadAllConfig, loadReactionConfigOrUnconfigured } from './lib/config-store.ts';
-import {
-  lastPublishedEntry,
-  readHotWindow,
-  readSummary,
-  writeGamesJson,
-  writeGamesMd,
-} from './lib/history-store.ts';
+import { lastPublishedEntry, readHotWindow, readSummary, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
 import { applyFeedback } from './fetch-feedback.ts';
 import { paths } from './lib/paths.ts';
 import type { OpenRouterClient } from './lib/openrouter-client.ts';
-import type { GeneratedMeta } from '../lib/types.ts';
-import type {
-  FailureKind,
-  GenerationConfig,
-  GenresConfig,
-  HistoryGameEntry,
-  HistorySummary,
-  ModelsConfig,
-} from './lib/types.ts';
+import type { GeneratedMeta } from '../lib/extract-bundle-shared.ts';
+import type { FailureKind, HistoryGameEntry, HistorySummary } from './lib/history-store.ts';
+import type { GenerationConfig } from './lib/config/generation.ts';
+import type { GenresConfig } from './lib/config/genres.ts';
+import { loadAllConfig } from './lib/config/index.ts';
+import type { ModelsConfig } from './lib/config/models.ts';
+import { loadReactionConfigOrUnconfigured } from './lib/config/reactionConfig.ts';
 
 export const MAX_ATTEMPTS = 3;
 
@@ -47,6 +39,8 @@ export type GenerateResult =
       attempts: number;
       /** Whether the game painted anything during the smoke test. */
       canvasDrawn: boolean;
+      /** The exact user-turn prompt that produced this bundle — persisted by publish.ts. */
+      prompt: string;
     }
   | {
       status: 'failed_kept_previous';
@@ -179,6 +173,7 @@ export async function generateDailyGame({
       model,
       attempts: attempt,
       canvasDrawn: smoke.canvasDrawn,
+      prompt,
     };
   }
 
@@ -291,6 +286,7 @@ export async function runDailyPipeline({
       model: result.model,
       attempts: result.attempts,
       canvasDrawn: result.canvasDrawn,
+      prompt: result.prompt,
       generationConfig: generation,
       genres,
       historyEntries,

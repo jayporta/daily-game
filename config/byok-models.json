@@ -1,0 +1,35 @@
+[
+  {
+    "provider": "openrouter",
+    "label": "OpenRouter",
+    "models": [
+      { "id": "cohere/north-mini-code:free", "label": "Cohere North Mini Code (free)" },
+      { "id": "minimax/minimax-m2.7:free", "label": "MiniMax M2.7 (free)" }
+    ]
+  },
+  {
+    "provider": "anthropic",
+    "label": "Anthropic",
+    "models": [
+      { "id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5" },
+      { "id": "claude-sonnet-5", "label": "Claude Sonnet 5" },
+      { "id": "claude-opus-5", "label": "Claude Opus 5" }
+    ]
+  },
+  {
+    "provider": "openai",
+    "label": "OpenAI",
+    "models": [
+      { "id": "gpt-4o-mini", "label": "GPT-4o mini" },
+      { "id": "gpt-4o", "label": "GPT-4o" }
+    ]
+  },
+  {
+    "provider": "gemini",
+    "label": "Gemini",
+    "models": [
+      { "id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash" },
+      { "id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro" }
+    ]
+  }
+]

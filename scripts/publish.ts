@@ -8,8 +8,11 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createPaths, paths as defaultPaths, type Paths } from './lib/paths.ts';
 import { appendEntry, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
-import type { GeneratedMeta, Manifest } from '../lib/types.ts';
-import type { FailureKind, GenerationConfig, GenresConfig, HistoryGameEntry } from './lib/types.ts';
+import type { GeneratedMeta } from '../lib/extract-bundle-shared.ts';
+import type { Manifest } from '../lib/manifest.ts';
+import type { FailureKind, HistoryGameEntry } from './lib/history-store.ts';
+import type { GenerationConfig } from './lib/config/generation.ts';
+import type { GenresConfig } from './lib/config/genres.ts';
 
 const MS_PER_DAY = 86_400_000;
 
@@ -102,6 +105,7 @@ export function buildManifest({
     date,
     slug,
     path: paths.archiveGameUrlPath(slug),
+    promptPath: paths.archiveGamePromptUrlPath(slug),
     title: meta.title,
     genre: meta.genre,
     // An unknown id means the model ignored the catalogue; show what it
@@ -146,6 +150,8 @@ export interface PublishParams {
   attempts: number;
   /** Whether the game painted anything during the smoke test. */
   canvasDrawn?: boolean;
+  /** The exact user-turn prompt that produced `html` — see BYOK. */
+  prompt: string;
   generationConfig: GenerationConfig;
   /** Genre catalogue, used to resolve {@link Manifest.genreLabel}. */
   genres: GenresConfig;
@@ -168,6 +174,7 @@ export function publish({
   model,
   attempts,
   canvasDrawn,
+  prompt,
   generationConfig,
   genres,
   historyEntries,
@@ -183,6 +190,7 @@ export function publish({
   const snippet = buildErrorReportingSnippet(generationConfig.sentryDsn, slug);
   writeFileSync(join(gameDir, 'game.html'), `${html}${snippet}`, 'utf8');
   writeFileSync(join(gameDir, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
+  writeFileSync(join(gameDir, 'prompt.txt'), prompt, 'utf8');
 
   const manifest = buildManifest({
     date,

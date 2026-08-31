@@ -9,6 +9,7 @@ export const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 export interface Paths {
   root: string;
   modelsConfig: string;
+  byokModelsConfig: string;
   genresConfig: string;
   generationConfig: string;
   reactionConfig: string;
@@ -26,12 +27,15 @@ export interface Paths {
   archiveGameDir(slug: string): string;
   /** Path recorded inside manifest.json — always POSIX-style, URL-facing. */
   archiveGameUrlPath(slug: string): string;
+  /** Where the exact prompt that produced this game is published — see BYOK. */
+  archiveGamePromptUrlPath(slug: string): string;
 }
 
 export function createPaths(root: string = REPO_ROOT): Paths {
   return {
     root,
     modelsConfig: join(root, 'config', 'models.json'),
+    byokModelsConfig: join(root, 'config', 'byok-models.json'),
     genresConfig: join(root, 'config', 'genres.json'),
     generationConfig: join(root, 'config', 'generation.json'),
     reactionConfig: join(root, 'config', 'reaction-config.json'),
@@ -46,6 +50,7 @@ export function createPaths(root: string = REPO_ROOT): Paths {
     archiveDir: join(root, 'games', 'archive'),
     archiveGameDir: (slug: string) => join(root, 'games', 'archive', slug),
     archiveGameUrlPath: (slug: string) => `games/archive/${slug}/game.html`,
+    archiveGamePromptUrlPath: (slug: string) => `games/archive/${slug}/prompt.txt`,
   };
 }
 
