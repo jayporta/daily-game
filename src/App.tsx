@@ -5,6 +5,8 @@ import { GameView } from './GameView.tsx';
 import { GitHubLink } from './GitHubLink.tsx';
 import { ThemeToggle } from './features/theme/ThemeToggle.tsx';
 import { fetchText, fetchManifest } from './features/game/manifest-client.ts';
+import { useByok } from './features/byok/useByok.ts';
+import { SYSTEM_PROMPT } from '../lib/system-prompt.ts';
 import { errorMessage } from '../lib/errors.ts';
 import type { ByokResult } from './features/byok/ByokPanel.tsx';
 import type { Manifest } from '../lib/manifest.ts';
@@ -23,6 +25,9 @@ type LoadState =
 export function App() {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [byokOverride, setByokOverride] = useState<ByokResult | null>(null);
+  // Owned here rather than in the panel: the live output renders in the
+  // game's place, above the panel that starts it.
+  const byok = useByok({ systemPrompt: SYSTEM_PROMPT });
 
   useEffect(() => {
     let cancelled = false;
@@ -91,6 +96,7 @@ export function App() {
             manifest={state.manifest}
             html={state.html}
             byokOverride={byokOverride}
+            byok={byok}
             onByokResult={setByokOverride}
             onDismissByok={() => setByokOverride(null)}
           />

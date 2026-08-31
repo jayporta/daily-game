@@ -1,0 +1,58 @@
+import { useState } from 'react';
+import { CodeOverlay } from './CodeOverlay.tsx';
+import { CodeViewer } from './CodeViewer.tsx';
+import { Disclosure } from './Disclosure.tsx';
+import { IconButton } from '../../ui/IconButton.tsx';
+
+export interface GeneratedCodeProps {
+  /** The bundle the visitor's own model produced. */
+  readonly html: string;
+  /** The game's title, used to label the full-screen view. */
+  readonly title: string;
+}
+
+/**
+ * Lets a visitor read the code behind the game they just generated —
+ * collapsed under the game by default, full screen on request.
+ *
+ * Shown only for a BYOK result. The day's published game is already
+ * browsable in the repo, and its bundle is the one thing on this page that
+ * ships byte-for-byte; reading it here would invite comparing a rendering of
+ * it against the file.
+ */
+export function GeneratedCode({ html, title }: GeneratedCodeProps) {
+  const [fullScreen, setFullScreen] = useState(false);
+
+  return (
+    <>
+      <Disclosure
+        summary="View generated code"
+        action={
+          <IconButton label="View code full screen" onClick={() => setFullScreen(true)}>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-4.5"
+            >
+              <path d="M9 4H4v5M15 4h5v5M15 20h5v-5M9 20H4v-5" />
+            </svg>
+          </IconButton>
+        }
+      >
+        <CodeViewer code={html} size="inline" />
+      </Disclosure>
+
+      <CodeOverlay
+        title={title}
+        code={html}
+        open={fullScreen}
+        onClose={() => setFullScreen(false)}
+      />
+    </>
+  );
+}

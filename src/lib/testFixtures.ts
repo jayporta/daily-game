@@ -48,9 +48,57 @@ export const BYOK_COMPLETION = [
   '```',
 ].join('\n');
 
-/** An OpenAI-shaped completion envelope wrapping `content`. */
+/**
+ * `content` as an OpenAI-shaped event stream, the way every BYOK call now
+ * reads its answer.
+ *
+ * Split into three frames rather than one, so a test that watches fragments
+ * arrive sees more than a single delivery. The shape is OpenRouter's, which
+ * is the provider the panel selects first.
+ */
 export function completionResponse(content: string): Response {
-  return jsonResponse({ choices: [{ message: { content } }] });
+  const third = Math.ceil(content.length / 3) || 1;
+  const frames = [content.slice(0, third), content.slice(third, third * 2), content.slice(third * 2)]
+    .filter((fragment) => fragment.length > 0)
+    .map((fragment) => `data: ${JSON.stringify({ choices: [{ delta: { content: fragment } }] })}\n\n`)
+    .join('');
+  return new Response(`${frames}data: [DONE]\n\n`, { status: 200 });
+}
+
+/**
+ * A provider whose stream the test drives, fragment by fragment.
+ *
+ * Lets a test observe a generation while it is still running — the state the
+ * live console exists for — rather than only its finished result.
+ *
+ * @returns `response`, the provider response to hand a stubbed fetch — one
+ *   instance, since a body can only be read once; `push`, which delivers one
+ *   fragment and waits for it to be consumed; and `close`, which ends it.
+ */
+export function openProviderStream(): {
+  response: Response;
+  push: (fragment: string) => Promise<void>;
+  close: () => void;
+} {
+  const encoder = new TextEncoder();
+  let controller: ReadableStreamDefaultController<Uint8Array> | undefined;
+  const body = new ReadableStream<Uint8Array>({
+    start(source) {
+      controller = source;
+    },
+  });
+
+  return {
+    response: new Response(body, { status: 200 }),
+    push: async (fragment: string) => {
+      const frame = JSON.stringify({ choices: [{ delta: { content: fragment } }] });
+      controller?.enqueue(encoder.encode(`data: ${frame}\n\n`));
+      // A macrotask, so the reader has drained the chunk before the caller
+      // asserts on what the console shows.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    },
+    close: () => controller?.close(),
+  };
 }
 
 /** A JSON response, as a provider or the site's own manifest endpoint sends one. */

@@ -238,6 +238,24 @@ refactor.
   `OUTPUT_FORMAT_CONTRACT` in `scripts/build-prompt.ts` describes the two
   fenced blocks that `lib/extract-bundle-shared.ts` parses. Change them
   together or every generation fails.
+- **`renderAttemptFeedback` and `stripAttemptFeedback` must agree.** Both
+  live in `lib/attempt-feedback.ts`, with the heading they share, precisely so
+  they cannot drift. An archived `prompt.txt` is the exact prompt that
+  produced that day's game — corrections to the attempt before it included —
+  and BYOK replays it as a fresh first attempt, where an instruction to fix a
+  failure that never happened describes nothing. The round-trip test in
+  `scripts/__tests__/build-prompt.test.ts` is the guard: strip what the
+  builder added and the result must equal a first-attempt prompt byte for
+  byte. Only that section goes; the history-derived `## Fix what has been
+  going wrong` is guidance any generation can still act on.
+
+- **BYOK streams, and there is no second transport.** Every provider is asked
+  for SSE (`stream: true`, or `alt=sse` for Gemini) and read by `readSseData`,
+  because the visitor watches the output arrive in place of the game. Drop the
+  stream flag from a request and that provider answers with one JSON document
+  carrying no `data:` frames — which reads as a model that returned nothing,
+  not as an error.
+
 - **`cronSchedule` is duplicated by hand** in `config/generation.json` and
   `generate-daily-game.yml`'s `on.schedule.cron`, because Actions triggers
   can't read config. Both copies exist now; change them together. The config

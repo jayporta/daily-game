@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { DislikeReasons } from './DislikeReasons.tsx';
 import { PillButton } from '../../ui/PillButton.tsx';
 import { useReaction } from './useReaction.ts';
@@ -27,19 +28,49 @@ export interface ReactionBarProps {
  * which is what keeps store content out of this page entirely.
  */
 export function ReactionBar({ slug, config = reactionConfig, fetchImpl }: ReactionBarProps) {
-  const { phase, like, beginDislike, submitDislike } = useReaction(slug, config, fetchImpl);
+  const { phase, like, beginDislike, cancelDislike, submitDislike } = useReaction(
+    slug,
+    config,
+    fetchImpl,
+  );
+  const bar = useRef<HTMLDivElement>(null);
+
+  // Dismissal for the reasons panel, which nothing in React models: a
+  // dropdown whose only exit committed a rating would trap a viewer who
+  // opened it by accident.
+  useEffect(() => {
+    if (phase !== 'choosing') return;
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') cancelDislike();
+    };
+    // `pointerdown`, not `click`: a press that starts outside should dismiss
+    // even if the pointer is released somewhere else.
+    const onPointerDown = (event: PointerEvent): void => {
+      const target = event.target;
+      const inside = target instanceof Node && bar.current?.contains(target) === true;
+      if (!inside) cancelDislike();
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [phase, cancelDislike]);
 
   return (
-    <div role="group" aria-label="Rate this game" className="ml-auto text-ui">
+    <div ref={bar} role="group" aria-label="Rate this game" className="relative ml-auto text-ui">
       {/* The buttons that had focus are gone by the time this renders, so a
           screen reader is told rather than left to discover it. */}
       {phase === 'submitted' && (
         <p aria-live="polite" className="min-h-8 content-center text-meta dark:text-slate-400">
-          Thanks — that helps tomorrow&rsquo;s game.
+          Feedback sent
         </p>
       )}
 
-      {phase === 'idle' && (
+      {phase !== 'submitted' && (
         <div className="flex items-center gap-2">
           <PillButton tone="neutral" onClick={beginDislike}>
             Dislike
@@ -50,7 +81,15 @@ export function ReactionBar({ slug, config = reactionConfig, fetchImpl }: Reacti
         </div>
       )}
 
-      {phase === 'choosing' && <DislikeReasons onSubmit={submitDislike} />}
+      {phase === 'choosing' && (
+        // Hung below the buttons rather than placed in the flow, so opening
+        // it does not push the metadata card and the panel below it down.
+        // It paints its own background deliberately: it overlaps content it
+        // would otherwise be read through.
+        <div className="absolute top-full right-0 z-20 mt-2 w-72 rounded-xl border border-hairline bg-panel p-3 text-left shadow-lg dark:border-slate-800 dark:bg-slate-900">
+          <DislikeReasons onSubmit={submitDislike} />
+        </div>
+      )}
     </div>
   );
 }

@@ -5,12 +5,16 @@ import {
   BYOK_COMPLETION,
   BYOK_HTML,
   completionResponse,
+  openProviderStream,
   stubFetch,
 } from '../../../lib/testFixtures.ts';
 
 function baseParams(fetchImpl: typeof fetch) {
   return { systemPrompt: 'system', fetchImpl };
 }
+
+/** The run identity `request()` implies, as the status reports it back. */
+const RUN = { providerLabel: 'OpenRouter', modelId: 'a/model:free' };
 
 function request(over: Partial<ByokGenerateRequest> = {}): ByokGenerateRequest {
   return {
@@ -33,14 +37,80 @@ describe('useByok', () => {
     expect(result.current.status).toEqual({ status: 'idle' });
   });
 
-  it('transitions to loading synchronously when generate is called', () => {
+  // Synchronous, so the Generate button disables on the click that started
+  // the run rather than a tick later.
+  it('transitions to streaming synchronously when generate is called', () => {
     const { result } = renderHook(() => useByok(succeeding()));
 
     act(() => {
       void result.current.generate(request());
     });
 
-    expect(result.current.status).toEqual({ status: 'loading' });
+    expect(result.current.status).toEqual({ status: 'streaming', run: RUN, output: '' });
+  });
+
+  // What the live console renders, and the reason the whole streaming path
+  // exists: without it the visitor watches a disabled button with no way to
+  // tell a working model from a hung one.
+  it('exposes the model output while the run is still going', async () => {
+    // Frames run inline, so a fragment is published the moment it lands and
+    // the assertions below do not race the browser's paint schedule.
+    vi.stubGlobal('requestAnimationFrame', (callback: () => void) => {
+      callback();
+      return 1;
+    });
+    const stream = openProviderStream();
+    const params = baseParams(stubFetch(stream.response));
+    const { result } = renderHook(() => useByok(params));
+
+    let finished: Promise<unknown> = Promise.resolve();
+    act(() => {
+      finished = result.current.generate(request());
+    });
+
+    await act(async () => {
+      await stream.push('Hello');
+    });
+    expect(result.current.status).toEqual({ status: 'streaming', run: RUN, output: 'Hello' });
+
+    await act(async () => {
+      await stream.push(', world');
+    });
+    expect(result.current.status).toEqual({ status: 'streaming', run: RUN, output: 'Hello, world' });
+
+    await act(async () => {
+      stream.close();
+      await finished;
+    });
+    vi.unstubAllGlobals();
+  });
+
+  // A run that dies part-way is exactly when the output matters: it is the
+  // only evidence of what the model actually produced.
+  it('keeps the partial output alongside a failure', async () => {
+    const partial = 'the model started writing';
+    const { result } = renderHook(() =>
+      useByok(baseParams(stubFetch(completionResponse(partial)))),
+    );
+
+    await act(async () => {
+      await result.current.generate(request());
+    });
+
+    expect(result.current.status).toMatchObject({ status: 'error', output: partial });
+  });
+
+  it('clears the previous run output when a new one starts', async () => {
+    const { result } = renderHook(() => useByok(succeeding()));
+
+    await act(async () => {
+      await result.current.generate(request());
+    });
+    act(() => {
+      void result.current.generate(request());
+    });
+
+    expect(result.current.status).toEqual({ status: 'streaming', run: RUN, output: '' });
   });
 
   it('returns the generation on a successful adapter and extraction pass', async () => {

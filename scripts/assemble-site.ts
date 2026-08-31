@@ -10,7 +10,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createPaths, paths as defaultPaths, REPO_ROOT } from './lib/paths.ts';
+import { createPaths, paths as defaultPaths, REPO_ROOT, type Paths } from './lib/paths.ts';
 import { isManifest } from '../lib/manifest.ts';
 
 export interface AssembleSiteParams {
@@ -38,20 +38,26 @@ export interface AssembleSiteResult {
  * daily generation, and failing there would block the very run that would
  * publish the missing bundle. Assembly is the moment the two must agree.
  *
+ * A file counts as missing when it is not on disk, and equally when it
+ * resolves outside `games/archive/` — assembly copies only that directory, so
+ * a bundle anywhere else would 404 for every visitor.
+ *
  * @returns An empty array when no manifest exists, or when it is the
  *   seed-state `null` — nothing has been published yet.
  */
-export function missingPublishedFiles(manifestPath: string, root: string): string[] {
-  if (!existsSync(manifestPath)) return [];
+export function missingPublishedFiles(paths: Paths): string[] {
+  if (!existsSync(paths.manifest)) return [];
 
-  const parsed: unknown = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  const parsed: unknown = JSON.parse(readFileSync(paths.manifest, 'utf8'));
   if (parsed === null) return [];
   if (!isManifest(parsed)) return ['manifest.json is neither null nor a complete manifest'];
 
   // An absent promptPath is a game archived before prompts were, not an
   // omission; a declared one must be on disk like any other file.
   const declared = parsed.promptPath === undefined ? [parsed.path] : [parsed.path, parsed.promptPath];
-  return declared.filter((file) => !existsSync(join(root, file)));
+  return declared.filter(
+    (file) => !paths.isArchivedFile(file) || !existsSync(join(paths.root, file)),
+  );
 }
 
 export function assembleSite({
@@ -69,7 +75,7 @@ export function assembleSite({
   // directories beginning with an underscore and can mangle asset paths.
   writeFileSync(join(target, '.nojekyll'), '', 'utf8');
 
-  const missing = missingPublishedFiles(paths.manifest, root);
+  const missing = missingPublishedFiles(paths);
   if (missing.length > 0) {
     throw new Error(
       `assemble-site: manifest.json points at ${missing.join(', ')}, ` +

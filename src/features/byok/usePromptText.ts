@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { fetchText } from '../game/manifest-client.ts';
+import { stripAttemptFeedback } from '../../../lib/attempt-feedback.ts';
 
 /** What the disclosure shows about the day's prompt. */
 export type PromptTextState =
@@ -31,7 +32,12 @@ export interface UsePromptTextResult {
 }
 
 /**
- * Loads the exact prompt that produced today's game, on demand.
+ * Loads the prompt that produced today's game, on demand, ready to re-send.
+ *
+ * The archived file records the attempt that actually succeeded, so it may
+ * carry a correction addressed to the attempt before it. A visitor's run is
+ * a fresh first attempt with nothing to correct, so that one section is
+ * removed — see {@link stripAttemptFeedback}.
  *
  * Deferred rather than fetched with the page: most visitors never open this
  * panel, and the prompt is only needed to show it or to send it. Awaited at
@@ -61,7 +67,10 @@ export function usePromptText(promptPath: string, fetchImpl?: typeof fetch): Use
 
     setProgress({ path, state: { status: 'loading' } });
     const promise = fetchText(path, { fetchImpl }).then(
-      (text) => {
+      (archived) => {
+        // Stripped here, once, so the disclosure shows exactly what the
+        // Generate button sends — the two must never diverge.
+        const text = stripAttemptFeedback(archived);
         settle({ status: 'ready', text });
         return text;
       },

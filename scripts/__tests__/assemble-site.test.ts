@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { assembleSite, missingPublishedFiles } from '../assemble-site.ts';
+import { createPaths } from '../lib/paths.ts';
 import { MANIFEST } from '../../src/lib/testFixtures.ts';
 
 function scratchRepo(t: { after(fn: () => void): void }): string {
@@ -96,6 +97,42 @@ test('refuses to assemble when only the prompt is missing', (t) => {
 // A manifest that names no prompt is a game archived before prompts were,
 // not a half-written one — distinct from the case above, where the manifest
 // declares a prompt.txt that is not there.
+/** Repoints the seeded manifest's `path` at `urlPath`, leaving the rest. */
+function repointManifest(root: string, urlPath: string): void {
+  const parsed: unknown = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
+  writeFileSync(
+    join(root, 'manifest.json'),
+    JSON.stringify({ ...(parsed as object), path: urlPath }),
+    'utf8',
+  );
+}
+
+// Only games/archive/ is copied into dist/, so a bundle anywhere else is one
+// the deployed site cannot serve however real the file is in the repo. The
+// `..` segments normalise away when the path is resolved, so this cannot be
+// caught by a prefix test on the raw string.
+test('missingPublishedFiles reports a bundle that resolves outside the archive', (t) => {
+  const root = scratchRepo(t);
+  seedPublishedContent(root);
+  mkdirSync(join(root, 'decoy'), { recursive: true });
+  writeFileSync(join(root, 'decoy', 'game.html'), '<html>not published</html>', 'utf8');
+  repointManifest(root, 'games/archive/../../decoy/game.html');
+
+  assert.deepEqual(missingPublishedFiles(createPaths(root)), [
+    'games/archive/../../decoy/game.html',
+  ]);
+});
+
+test('assembleSite refuses a manifest naming a bundle outside the archive', (t) => {
+  const root = scratchRepo(t);
+  seedPublishedContent(root);
+  mkdirSync(join(root, 'decoy'), { recursive: true });
+  writeFileSync(join(root, 'decoy', 'game.html'), '<html>not published</html>', 'utf8');
+  repointManifest(root, 'games/archive/../../decoy/game.html');
+
+  assert.throws(() => assembleSite({ root }), /would 404/);
+});
+
 test('missingPublishedFiles accepts a manifest that declares no prompt', (t) => {
   const root = scratchRepo(t);
   seedPublishedContent(root, { withPrompt: false });
@@ -104,18 +141,18 @@ test('missingPublishedFiles accepts a manifest that declares no prompt', (t) => 
   ) as Record<string, unknown>;
   writeFileSync(join(root, 'manifest.json'), JSON.stringify(withoutPrompt), 'utf8');
 
-  assert.deepEqual(missingPublishedFiles(join(root, 'manifest.json'), root), []);
+  assert.deepEqual(missingPublishedFiles(createPaths(root)), []);
 });
 
 test('missingPublishedFiles accepts the seed-state null manifest', (t) => {
   const root = scratchRepo(t);
   writeFileSync(join(root, 'manifest.json'), 'null', 'utf8');
 
-  assert.deepEqual(missingPublishedFiles(join(root, 'manifest.json'), root), []);
+  assert.deepEqual(missingPublishedFiles(createPaths(root)), []);
 });
 
 test('missingPublishedFiles accepts a repo with no manifest at all', (t) => {
   const root = scratchRepo(t);
 
-  assert.deepEqual(missingPublishedFiles(join(root, 'manifest.json'), root), []);
+  assert.deepEqual(missingPublishedFiles(createPaths(root)), []);
 });

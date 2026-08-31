@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { FIELD_CONTROL, FormField } from './FormField.tsx';
 import { Panel } from '../../ui/Panel.tsx';
 import { PillButton } from '../../ui/PillButton.tsx';
-import { useByok } from './useByok.ts';
+import { Disclosure } from './Disclosure.tsx';
 import { usePromptText, type PromptTextState } from './usePromptText.ts';
+import type { UseByokResult } from './useByok.ts';
 import { byokModelsConfig } from './byokCatalogue.ts';
 import { isByokProvider, type ByokModelsConfig, type ByokProvider } from '../../../lib/byok-config-types.ts';
 import type { ControlHint } from '../../../lib/extract-bundle-shared.ts';
@@ -21,8 +22,11 @@ export interface ByokResult {
 }
 
 export interface ByokPanelProps {
-  /** The fixed system prompt, imported directly — never per-game. */
-  readonly systemPrompt: string;
+  /**
+   * The generation the page is running. Owned above this panel because the
+   * live output renders in the game's place, which this panel sits under.
+   */
+  readonly byok: UseByokResult;
   /**
    * Where the exact prompt that produced today's published game is published.
    * Fetched on first engagement with this panel, not with the page — most
@@ -65,14 +69,14 @@ function promptText(prompt: PromptTextState): string {
  * `useByok`'s state.
  */
 export function ByokPanel({
-  systemPrompt,
+  byok,
   promptPath,
   onResult,
   catalogue = byokModelsConfig,
   fetchImpl,
 }: ByokPanelProps) {
   const { state: prompt, load: loadPrompt } = usePromptText(promptPath, fetchImpl);
-  const { status, generate } = useByok({ systemPrompt, fetchImpl });
+  const { status, generate, stop } = byok;
   // Lazy: both initial values are a scan of the catalogue, and a non-lazy
   // initializer runs that scan on every render to discard the result.
   // The `?? 'openrouter'` is unreachable past the empty-catalogue guard below;
@@ -84,7 +88,8 @@ export function ByokPanel({
   // One lookup, not three: the entry answers both what to list and what to label.
   const selected = catalogue.find((entry) => entry.provider === provider);
   const models = selected?.models ?? [];
-  const canSubmit = apiKey.length > 0 && modelId.length > 0 && status.status !== 'loading';
+  const generating = status.status === 'streaming';
+  const canSubmit = apiKey.length > 0 && modelId.length > 0 && !generating;
 
   const handleProviderChange = (nextProvider: ByokProvider): void => {
     setProvider(nextProvider);
@@ -94,8 +99,6 @@ export function ByokPanel({
   const handleSubmit = async (): Promise<void> => {
     if (!canSubmit) return;
 
-    const key = apiKey;
-    setApiKey('');
     // Awaited rather than gating the button: warmed on first contact with the
     // panel, so this has almost always already resolved.
     const userPrompt = await loadPrompt();
@@ -105,10 +108,15 @@ export function ByokPanel({
       provider,
       modelId,
       providerLabel: selected?.label ?? provider,
-      apiKey: key,
+      apiKey,
       userPrompt,
     });
+    // Kept on a failure so Generate still works: a run that did not produce a
+    // game is one the visitor will want to retry, and clearing the field
+    // would leave them with a control they cannot use. Cleared on success,
+    // and never written anywhere but this input either way.
     if (generated === null) return;
+    setApiKey('');
 
     onResult({
       html: generated.html,
@@ -130,28 +138,24 @@ export function ByokPanel({
         <h2 className="font-display text-lg font-semibold">Generate your own</h2>
         <p className="mt-1 text-meta dark:text-slate-400">
           Paste your own API key and re-run today&rsquo;s exact prompt against your own model. The
-          key is read only when you click Generate, used for that one request, and never stored —
-          not in this browser, not anywhere else. See for yourself:{' '}
+          key is read-only, used for that one request, and never stored anywhere (view source{' '}
           <a
             href="https://github.com/jayporta/daily-game/blob/main/src/features/byok/ByokPanel.tsx"
             className="underline"
             target="_blank"
             rel="noreferrer noopener"
           >
-            this component&rsquo;s source
+            here)
           </a>
-          . The result is not moderated before it renders — it runs in the same sandboxed frame as
+          . The result is not moderated before it renders; it runs in the same sandboxed frame as
           today&rsquo;s game.
         </p>
 
-        <details className="mt-2" onToggle={() => void loadPrompt()}>
-          <summary className="cursor-pointer text-meta dark:text-slate-400">
-            See the exact prompt this will send
-          </summary>
-          <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-chip p-2 text-xs dark:bg-slate-800">
+        <Disclosure summary="See the exact prompt this will send" onToggle={() => void loadPrompt()}>
+          <pre className="max-h-48 overflow-auto rounded-lg bg-chip p-2 text-xs whitespace-pre-wrap dark:bg-slate-800">
             {promptText(prompt)}
           </pre>
-        </details>
+        </Disclosure>
 
         {/* Warmed when the visitor first reaches for the form, so the await in
             handleSubmit has almost always already resolved. */}
@@ -196,9 +200,38 @@ export function ByokPanel({
             />
           </FormField>
 
-          <PillButton tone="strong" onClick={() => void handleSubmit()} disabled={!canSubmit}>
-            {status.status === 'loading' ? 'Generating…' : 'Generate'}
-          </PillButton>
+          <div className="flex items-center gap-2">
+            {/* The spinner sits over the button rather than beside it, so
+                the control the visitor just pressed is what shows it is
+                working. Wrapping only the button makes the overlay take the
+                button's own box, which a fixed width would not: the label
+                changes with the state and a guessed width lands off centre. */}
+            <span className="relative inline-flex">
+              <PillButton tone="strong" onClick={() => void handleSubmit()} disabled={!canSubmit}>
+                {/* Transparent rather than `invisible` or removed: the
+                    button keeps its width so nothing shifts, and it keeps its
+                    accessible name, which `visibility: hidden` would strip —
+                    leaving a disabled, unnamed button. */}
+                <span className={generating ? 'text-transparent' : undefined}>Generate</span>
+              </PillButton>
+
+              {generating && (
+                <span
+                  role="status"
+                  aria-label="Generating"
+                  className="pointer-events-none absolute inset-0 grid place-items-center"
+                >
+                  <span className="size-4 animate-spin rounded-full border-2 border-body border-t-transparent dark:border-slate-100 dark:border-t-transparent" />
+                </span>
+              )}
+            </span>
+
+            {generating && (
+              <PillButton tone="neutral" onClick={stop}>
+                Stop
+              </PillButton>
+            )}
+          </div>
         </div>
 
         {status.status === 'error' && (

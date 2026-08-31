@@ -1,7 +1,7 @@
 // Single source of truth for repo-relative paths, so no other module
 // hardcodes a directory layout that might change. Built as a factory so
 // tests can point the whole pipeline at a scratch directory.
-import { join } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
@@ -29,6 +29,20 @@ export interface Paths {
   archiveGameUrlPath(slug: string): string;
   /** Where the exact prompt that produced this game is published — see BYOK. */
   archiveGamePromptUrlPath(slug: string): string;
+  /**
+   * Whether a manifest's repo-relative path names a file inside the archive.
+   *
+   * Assembly copies only `games/archive/` into `dist/`, so a path leading
+   * anywhere else names a file no visitor can reach, however real it is in
+   * the repo. Resolved and compared as a relative path rather than matched as
+   * a string prefix, because `..` segments normalise away when a path is
+   * resolved — `games/archive/../../elsewhere` starts with the archive and
+   * does not live in it.
+   *
+   * @param urlPath A POSIX-style path as a manifest records it, e.g.
+   *   `games/archive/2026-08-30-thing/game.html`.
+   */
+  isArchivedFile(urlPath: string): boolean;
 }
 
 export function createPaths(root: string = REPO_ROOT): Paths {
@@ -51,6 +65,10 @@ export function createPaths(root: string = REPO_ROOT): Paths {
     archiveGameDir: (slug: string) => join(root, 'games', 'archive', slug),
     archiveGameUrlPath: (slug: string) => `games/archive/${slug}/game.html`,
     archiveGamePromptUrlPath: (slug: string) => `games/archive/${slug}/prompt.txt`,
+    isArchivedFile: (urlPath: string) => {
+      const within = relative(join(root, 'games', 'archive'), resolve(root, urlPath));
+      return within.length > 0 && !within.startsWith('..') && !isAbsolute(within);
+    },
   };
 }
 

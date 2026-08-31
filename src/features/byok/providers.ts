@@ -1,9 +1,13 @@
 // Browser-only request/response adapters for BYOK's four providers.
 //
 // Each provider shapes its request differently, so there is one builder per
-// provider. Responses collapse further: OpenRouter and OpenAI share the same
-// envelope, read by `firstChoiceContent` in lib/provider-response.ts — the
-// same function the daily pipeline's OpenRouter client uses.
+// provider, and each streams its output back in its own frame shape, so
+// there is one delta reader per provider too. OpenRouter and OpenAI share
+// both, through lib/provider-response.ts — the same module the daily
+// pipeline's OpenRouter client reads its non-streaming responses with.
+//
+// Every call streams. The visitor watches the output arrive, so there is no
+// second, non-streaming path to keep working.
 //
 // This never touches OPENROUTER_API_KEY or scripts/lib/get-client.ts's
 // mock-vs-real decision — a visitor's pasted key is a wholly separate,
@@ -12,9 +16,11 @@ import { errorMessage } from '../../../lib/errors.ts';
 import { arrayAt, recordAt, stringAt } from '../../../lib/guards.ts';
 import {
   MAX_ERROR_DETAIL,
-  firstChoiceContent,
+  errorDetail,
+  firstChoiceDelta,
   responseErrorDetail,
 } from '../../../lib/provider-response.ts';
+import { readSseData } from './sseStream.ts';
 import type { ByokProvider } from '../../../lib/byok-config-types.ts';
 
 export interface ByokRequest {
@@ -30,6 +36,18 @@ export type ByokCompletionResult = { ok: true; text: string } | { ok: false; mes
 export interface ByokFetchOptions {
   /** Replaces global `fetch`. */
   fetchImpl?: typeof fetch;
+  /**
+   * Called with each fragment as it arrives, for the live console.
+   *
+   * Fires many times per second on a fast model, so a caller that renders it
+   * must batch — see `useGenerationStream`.
+   */
+  onDelta?: (fragment: string) => void;
+  /**
+   * Abandons the request. Aborting mid-stream ends the run as a failure,
+   * which the caller distinguishes from a real one.
+   */
+  signal?: AbortSignal;
 }
 
 /** Generous enough for a full self-contained game HTML file, for every provider. */
@@ -71,6 +89,7 @@ function buildOpenAiCompatibleRequest(
           { role: 'user', content: request.userPrompt },
         ],
         [tokenLimitField]: MAX_OUTPUT_TOKENS,
+        stream: true,
       }),
     },
   };
@@ -94,6 +113,7 @@ function buildAnthropicRequest(request: ByokRequest): PreparedRequest {
         max_tokens: MAX_OUTPUT_TOKENS,
         system: request.systemPrompt,
         messages: [{ role: 'user', content: request.userPrompt }],
+        stream: true,
       }),
     },
   };
@@ -101,7 +121,9 @@ function buildAnthropicRequest(request: ByokRequest): PreparedRequest {
 
 function buildGeminiRequest(request: ByokRequest): PreparedRequest {
   return {
-    url: `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(request.model)}:generateContent`,
+    // `alt=sse` is what makes streamGenerateContent frame its output as SSE
+    // rather than as one incrementally-delivered JSON array.
+    url: `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(request.model)}:streamGenerateContent?alt=sse`,
     init: {
       method: 'POST',
       headers: {
@@ -130,43 +152,82 @@ function buildRequest(request: ByokRequest): PreparedRequest {
   }
 }
 
-/** Reads `content[0].text`, as Anthropic's Messages API shapes it. */
-function extractAnthropicText(data: unknown): string | null {
-  return stringAt(arrayAt(data, 'content')?.[0], 'text');
+/**
+ * Reads a text fragment from one of Anthropic's stream events.
+ *
+ * Only `content_block_delta` carries text; the run also emits
+ * `message_start`, `content_block_start`, `ping` and the stop events, none
+ * of which is an error.
+ */
+function extractAnthropicDelta(data: unknown): string | null {
+  if (stringAt(data, 'type') !== 'content_block_delta') return null;
+  return stringAt(recordAt(data, 'delta'), 'text');
 }
 
-/** Reads `candidates[0].content.parts[0].text`, as Gemini's generateContent shapes it. */
-function extractGeminiText(data: unknown): string | null {
+/**
+ * Reads `candidates[0].content.parts[0].text`.
+ *
+ * Gemini frames a streamed chunk exactly like a whole response, so this is
+ * the same read either way.
+ */
+function extractGeminiDelta(data: unknown): string | null {
   const candidate: unknown = arrayAt(data, 'candidates')?.[0];
   const parts = arrayAt(recordAt(candidate, 'content'), 'parts');
   return stringAt(parts?.[0], 'text');
 }
 
-function extractText(provider: ByokProvider, data: unknown): string | null {
+/** The text a single stream frame contributes, or `null` if it carries none. */
+function extractDelta(provider: ByokProvider, data: unknown): string | null {
   switch (provider) {
     case 'openrouter':
     case 'openai':
-      return firstChoiceContent(data);
+      return firstChoiceDelta(data);
     case 'anthropic':
-      return extractAnthropicText(data);
+      return extractAnthropicDelta(data);
     case 'gemini':
-      return extractGeminiText(data);
+      return extractGeminiDelta(data);
   }
 }
 
+/** The OpenAI-shaped sentinel closing a stream. Carries no JSON. */
+const STREAM_DONE = '[DONE]';
+
 /**
- * Runs one BYOK completion request. Single attempt, no retry — it is the
- * visitor's own credits.
+ * A provider's error reported mid-stream rather than as an HTTP status.
+ *
+ * OpenRouter in particular answers 200 and then sends the failure — an
+ * exhausted credit balance, an upstream refusal — as a frame. Without this
+ * the run would look like a model that simply said nothing.
+ */
+function streamedError(data: unknown): string | null {
+  const error: unknown = recordAt(data, 'error') ?? stringAt(data, 'error');
+  if (error === null) return null;
+  return typeof error === 'string'
+    ? error.slice(0, MAX_ERROR_DETAIL)
+    : (stringAt(error, 'message')?.slice(0, MAX_ERROR_DETAIL) ?? 'unspecified error');
+}
+
+/**
+ * Runs one BYOK completion request, streaming. Single attempt, no retry — it
+ * is the visitor's own credits.
+ *
+ * @param onDelta Called with each fragment as it arrives. The full text is
+ *   returned as well, so a caller that only wants the result can ignore it.
+ * @param signal Abandons the request. An abort surfaces as a failure here;
+ *   telling that apart from a real one is the caller's job.
+ * @returns The assembled completion, or the reason it could not be had. A
+ *   stream that ends having produced nothing is a failure: an empty game is
+ *   not a game, and the visitor has paid for the call either way.
  */
 export async function completeByok(
   request: ByokRequest,
-  { fetchImpl = fetch }: ByokFetchOptions = {},
+  { fetchImpl = fetch, onDelta, signal }: ByokFetchOptions = {},
 ): Promise<ByokCompletionResult> {
   const { url, init } = buildRequest(request);
 
   let response: Response;
   try {
-    response = await fetchImpl(url, init);
+    response = await fetchImpl(url, { ...init, ...(signal ? { signal } : {}) });
   } catch (error) {
     return { ok: false, message: `Could not reach ${request.provider}: ${errorMessage(error)}` };
   }
@@ -176,16 +237,58 @@ export async function completeByok(
     return { ok: false, message: `${request.provider} request failed (${response.status}): ${detail}` };
   }
 
-  let data: unknown;
+  let text = '';
   try {
-    data = await response.json();
-  } catch {
-    return { ok: false, message: `${request.provider} returned a response that was not JSON` };
+    for await (const payload of readSseData(response)) {
+      if (payload === STREAM_DONE) break;
+
+      let data: unknown;
+      try {
+        data = JSON.parse(payload);
+      } catch {
+        // A frame that is not JSON is not fatal on its own; a stream made
+        // entirely of them ends as the empty-output failure below. This is
+        // also where a provider answering with a plain error body instead of
+        // a stream lands.
+        continue;
+      }
+
+      const failure = streamedError(data);
+      if (failure !== null) {
+        return { ok: false, message: `${request.provider} reported: ${failure}` };
+      }
+
+      const fragment = extractDelta(request.provider, data);
+      if (fragment === null || fragment.length === 0) continue;
+      text += fragment;
+      onDelta?.(fragment);
+    }
+  } catch (error) {
+    return {
+      ok: false,
+      message: `${request.provider} stream ended early: ${errorMessage(error)}`,
+    };
   }
 
-  const text = extractText(request.provider, data);
-  if (text === null) {
-    return { ok: false, message: `${request.provider} response did not carry the expected completion text` };
+  if (text.length === 0) {
+    const hint = errorDetail(await unreadBody(response));
+    return {
+      ok: false,
+      message: hint.length > 0
+        ? `${request.provider} returned no output: ${hint}`
+        : `${request.provider} returned no output`,
+    };
   }
   return { ok: true, text };
+}
+
+/**
+ * A best-effort look at a response that produced no fragments, so the visitor
+ * sees why rather than a bare "no output".
+ *
+ * @returns The unread body, or `''` once the stream has consumed it — which
+ *   is the usual case, and why the caller treats this as optional detail.
+ */
+async function unreadBody(response: Response): Promise<string> {
+  return response.bodyUsed ? '' : await response.text().catch(() => '');
 }

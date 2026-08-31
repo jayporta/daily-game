@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ByokPanel } from '../ByokPanel.tsx';
+import { ByokPanel, type ByokPanelProps } from '../ByokPanel.tsx';
+import { useByok } from '../useByok.ts';
 import type { ByokModelsConfig } from '../../../../lib/byok-config-types.ts';
 import {
   BYOK_COMPLETION,
@@ -36,13 +37,24 @@ function routedFetch(provider: () => Response): ReturnType<typeof vi.fn<typeof f
   );
 }
 
+/**
+ * The panel with a real generation hook behind it.
+ *
+ * The hook lives in `App` in production, because its live output renders
+ * above this panel. Standing one up here keeps these tests exercising the
+ * genuine request path rather than a hand-written stub of it.
+ */
+function PanelWithByok(props: Omit<ByokPanelProps, 'byok'>) {
+  const byok = useByok({ systemPrompt: 'system', fetchImpl: props.fetchImpl });
+  return <ByokPanel byok={byok} {...props} />;
+}
+
 const generateButton = (): HTMLElement => screen.getByRole('button', { name: /generate/i });
 
 describe('ByokPanel', () => {
   it('narrows the model list to the selected provider', async () => {
     render(
-      <ByokPanel
-        systemPrompt="system"
+      <PanelWithByok
         promptPath={PROMPT_PATH}
         onResult={() => {}}
         catalogue={CATALOGUE}
@@ -61,8 +73,7 @@ describe('ByokPanel', () => {
 
   it('disables Generate until a key is entered', async () => {
     render(
-      <ByokPanel
-        systemPrompt="system"
+      <PanelWithByok
         promptPath={PROMPT_PATH}
         onResult={() => {}}
         catalogue={CATALOGUE}
@@ -79,8 +90,7 @@ describe('ByokPanel', () => {
 
   it('disables Generate while the prompt has not loaded yet', () => {
     render(
-      <ByokPanel
-        systemPrompt="system"
+      <PanelWithByok
         promptPath={PROMPT_PATH}
         onResult={() => {}}
         catalogue={CATALOGUE}
@@ -94,8 +104,7 @@ describe('ByokPanel', () => {
   it('clears the key input immediately after submitting', async () => {
     const fetchImpl = routedFetch(() => completionResponse(BYOK_COMPLETION));
     render(
-      <ByokPanel
-        systemPrompt="system"
+      <PanelWithByok
         promptPath={PROMPT_PATH}
         onResult={() => {}}
         catalogue={CATALOGUE}
@@ -114,8 +123,7 @@ describe('ByokPanel', () => {
     const fetchImpl = routedFetch(() => completionResponse(BYOK_COMPLETION));
     const onResult = vi.fn();
     render(
-      <ByokPanel
-        systemPrompt="system"
+      <PanelWithByok
         promptPath={PROMPT_PATH}
         onResult={onResult}
         catalogue={CATALOGUE}
@@ -146,8 +154,7 @@ describe('ByokPanel', () => {
       return new Response('', { status: 401 });
     });
     render(
-      <ByokPanel
-        systemPrompt="system"
+      <PanelWithByok
         promptPath={PROMPT_PATH}
         onResult={() => {}}
         catalogue={CATALOGUE}

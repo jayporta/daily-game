@@ -29,6 +29,22 @@ export function firstChoiceContent(data: unknown): string | null {
 }
 
 /**
+ * One streamed fragment from an OpenAI-shaped response, read out of
+ * `choices[0].delta.content`.
+ *
+ * The streaming twin of {@link firstChoiceContent}: the same envelope, with
+ * the assistant's text arriving under `delta` instead of `message`.
+ *
+ * @returns The fragment, or `null` for a frame that carries none — the first
+ *   frame announces the role and no text, and the last carries a finish
+ *   reason. Neither is an error.
+ */
+export function firstChoiceDelta(data: unknown): string | null {
+  const choice: unknown = arrayAt(data, 'choices')?.[0];
+  return stringAt(recordAt(choice, 'delta'), 'content');
+}
+
+/**
  * The human-readable part of a failed response, truncated.
  *
  * Understands both envelope shapes providers use — `{"error": {"message":

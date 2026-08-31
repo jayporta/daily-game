@@ -12,7 +12,9 @@ import { GameTitle } from './features/game/GameTitle.tsx';
 import { ReactionBar } from './features/reaction/ReactionBar.tsx';
 import { ByokFacts } from './features/byok/ByokFacts.tsx';
 import { ByokPanel, type ByokResult } from './features/byok/ByokPanel.tsx';
-import { SYSTEM_PROMPT } from '../lib/system-prompt.ts';
+import { GeneratedCode } from './features/byok/GeneratedCode.tsx';
+import { GenerationConsole } from './features/byok/GenerationConsole.tsx';
+import type { UseByokResult } from './features/byok/useByok.ts';
 import type { Manifest } from '../lib/manifest.ts';
 
 export interface GameViewProps {
@@ -20,6 +22,8 @@ export interface GameViewProps {
   readonly html: string;
   /** A visitor's own generation, shown in place of the day's game. */
   readonly byokOverride: ByokResult | null;
+  /** The visitor's generation, whose live output takes the frame's place. */
+  readonly byok: UseByokResult;
   readonly onByokResult: (result: ByokResult) => void;
   readonly onDismissByok: () => void;
 }
@@ -36,6 +40,7 @@ export function GameView({
   manifest,
   html,
   byokOverride,
+  byok,
   onByokResult,
   onDismissByok,
 }: GameViewProps) {
@@ -56,7 +61,27 @@ export function GameView({
 
   return (
     <>
-      <GameFrame html={shown.html} title={shown.title} />
+      {/* One box, two occupants: while a visitor's own generation runs, its
+          output stands where the game will appear, so nothing on the page
+          moves when the game takes over. */}
+      {byok.status.status === 'idle' ? (
+        <GameFrame html={shown.html} title={shown.title} />
+      ) : (
+        <GenerationConsole
+          providerLabel={byok.status.run.providerLabel}
+          modelId={byok.status.run.modelId}
+          output={byok.status.output}
+          failure={byok.status.status === 'error' ? byok.status.message : null}
+        />
+      )}
+
+      {byok.status.status === 'error' && (
+        <div className="mt-3">
+          <PillButton tone="neutral" onClick={byok.stop}>
+            Back to today&rsquo;s game
+          </PillButton>
+        </div>
+      )}
 
       <Panel>
         {/* `items-start` so a wrapped title does not drag the rating
@@ -82,22 +107,21 @@ export function GameView({
         </div>
 
         {byokOverride !== null && (
-          <div className="mt-4">
-            <PillButton tone="neutral" onClick={onDismissByok}>
-              Back to today&rsquo;s game
-            </PillButton>
-          </div>
+          <>
+            <GeneratedCode html={byokOverride.html} title={byokOverride.title} />
+            <div className="mt-4">
+              <PillButton tone="neutral" onClick={onDismissByok}>
+                Back to today&rsquo;s game
+              </PillButton>
+            </div>
+          </>
         )}
       </Panel>
 
       {/* The panel re-runs the day's exact prompt, so a game archived before
           prompts were has nothing for it to send. */}
       {manifest.promptPath !== undefined && (
-        <ByokPanel
-          systemPrompt={SYSTEM_PROMPT}
-          promptPath={manifest.promptPath}
-          onResult={onByokResult}
-        />
+        <ByokPanel byok={byok} promptPath={manifest.promptPath} onResult={onByokResult} />
       )}
     </>
   );

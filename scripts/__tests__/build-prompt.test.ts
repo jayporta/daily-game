@@ -12,7 +12,9 @@ import {
   selectRemixSuggestion,
 } from '../build-prompt.ts';
 import { extractBundle } from '../../lib/extract-bundle-shared.ts';
+import { stripAttemptFeedback } from '../../lib/attempt-feedback.ts';
 import { GENRES } from '../lib/testFixtures.ts';
+import { EMPTY_SUMMARY } from '../lib/history-store.ts';
 import type { HistoryGameEntry, HistorySummary } from '../lib/history-store.ts';
 
 const HISTORY: HistoryGameEntry[] = [
@@ -385,4 +387,26 @@ test('buildPrompt omits the directives section when nothing recurs', () => {
   });
 
   assert.doesNotMatch(prompt, /Fix what has been going wrong/);
+});
+
+
+// The strongest guard on the pair: whatever wording `renderAttemptFeedback`
+// emits, `stripAttemptFeedback` has to take back out exactly, leaving a
+// prompt byte-identical to the one a first attempt would have been given.
+// A heading edited on one side and not the other fails here.
+test('stripping the attempt feedback restores a first-attempt prompt exactly', () => {
+  const params = {
+    guardrailsText: 'be nice',
+    genres: GENRES,
+    historyEntries: [] as HistoryGameEntry[],
+    summary: EMPTY_SUMMARY,
+  };
+  const firstAttempt = buildPrompt(params);
+  const retry = buildPrompt({
+    ...params,
+    priorFailureFeedback: 'Your previous game made a network request.',
+  });
+
+  assert.notEqual(retry, firstAttempt);
+  assert.equal(stripAttemptFeedback(retry), firstAttempt);
 });

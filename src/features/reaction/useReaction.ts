@@ -29,6 +29,14 @@ export interface UseReactionResult {
   like: () => void;
   /** Opens the reasons panel. A no-op unless the phase is `idle`. */
   beginDislike: () => void;
+  /**
+   * Closes the reasons panel without rating anything.
+   *
+   * Nothing has been committed at this point, so dismissing the panel has to
+   * leave the viewer able to rate the game afterwards. A no-op unless the
+   * phase is `choosing`.
+   */
+  cancelDislike: () => void;
   /** Commits a dislike with `reasons`. A no-op unless the phase is `choosing`. */
   submitDislike: (reasons: readonly DislikeReason[]) => void;
 }
@@ -95,6 +103,10 @@ export function useReaction(
     beginDislike: () => {
       if (current.phase !== 'idle') return;
       setSession({ slug, phase: 'choosing' });
+    },
+    cancelDislike: () => {
+      if (current.phase !== 'choosing') return;
+      setSession({ slug, phase: 'idle' });
     },
     submitDislike: (reasons) => {
       if (current.phase !== 'choosing') return;

@@ -2,6 +2,7 @@
 // tested against fixed fixtures. Everything the model sees about past
 // games, guardrails and output format is decided here.
 import { isDislikeReason, type DislikeReason } from '../lib/reaction-types.ts';
+import { renderAttemptFeedback } from '../lib/attempt-feedback.ts';
 import type { FailureKind, HistoryGameEntry, HistorySummary, PopularityEntry } from './lib/history-store.ts';
 import type { GenreEntry, GenresConfig } from './lib/config/genres.ts';
 
@@ -178,17 +179,6 @@ core mechanic. It must never be a repeat of that game.
 `;
 }
 
-function failureFeedbackSection(priorFailureFeedback?: string): string {
-  if (!priorFailureFeedback) return '';
-  return `
-## Fix this — your previous attempt failed
-
-${priorFailureFeedback}
-
-Be more defensive this time. Re-read the rules above before you start.
-`;
-}
-
 function lessonsSection(lessons: string): string {
   const trimmed = lessons.trim();
   if (trimmed.length === 0) return '';
@@ -345,7 +335,7 @@ Do not repeat these themes or mechanic combinations, and learn from how they
 were received.
 
 ${digestHistory(historyEntries, historyDigestLimit)}
-${directivesSection(correctiveDirectives(historyEntries, historyDigestLimit))}${lessonsSection(summary.lessons)}${remixSection(remixSuggestion)}${failureFeedbackSection(priorFailureFeedback)}
+${directivesSection(correctiveDirectives(historyEntries, historyDigestLimit))}${lessonsSection(summary.lessons)}${remixSection(remixSuggestion)}${renderAttemptFeedback(priorFailureFeedback)}
 ## How your game is displayed
 
 ${DISPLAY_CONTRACT}

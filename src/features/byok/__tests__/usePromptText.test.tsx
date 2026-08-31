@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { usePromptText } from '../usePromptText.ts';
+import {
+  ATTEMPT_FEEDBACK_HEADING,
+  renderAttemptFeedback,
+} from '../../../../lib/attempt-feedback.ts';
 
 const PATH_A = 'games/archive/2026-08-29-a/prompt.txt';
 const PATH_B = 'games/archive/2026-08-30-b/prompt.txt';
@@ -40,6 +44,41 @@ describe('usePromptText', () => {
 
     expect(calls).toBe(1);
     expect(result.current.state).toEqual({ status: 'ready', text: `prompt for ${PATH_A}` });
+  });
+
+  // The archived prompt records the attempt that succeeded, corrections to
+  // the attempt before it included. A visitor's run is a first attempt, so
+  // being told to fix a failure that never happened describes nothing.
+  it('drops the correction addressed to a previous failed attempt', async () => {
+    const archived = `## Genre catalog\n\n- puzzle\n${renderAttemptFeedback(
+      'Your previous game made a network request.',
+    )}\n## Output format\n\nTwo fenced blocks.\n`;
+    const fetchImpl: typeof fetch = async () => new Response(archived, { status: 200 });
+    const { result } = renderHook(() => usePromptText(PATH_A, fetchImpl));
+
+    let sent: string | null = null;
+    await act(async () => {
+      sent = await result.current.load();
+    });
+
+    expect(sent).not.toContain(ATTEMPT_FEEDBACK_HEADING);
+    expect(sent).not.toContain('made a network request');
+    expect(sent).toContain('## Output format');
+  });
+
+  // The panel promises "the exact prompt this will send", so what the
+  // disclosure renders and what Generate posts have to be one string.
+  it('shows the disclosure the same text it sends', async () => {
+    const archived = `## Genre catalog\n${renderAttemptFeedback('Be defensive.')}\n## Output format\n`;
+    const fetchImpl: typeof fetch = async () => new Response(archived, { status: 200 });
+    const { result } = renderHook(() => usePromptText(PATH_A, fetchImpl));
+
+    let sent: string | null = null;
+    await act(async () => {
+      sent = await result.current.load();
+    });
+
+    expect(result.current.state).toEqual({ status: 'ready', text: sent });
   });
 
   it('reports a prompt that could not be loaded', async () => {

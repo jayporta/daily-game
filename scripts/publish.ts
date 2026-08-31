@@ -9,7 +9,7 @@
 // config/generation.json's sentryDsn. This is the only point at which a
 // bundle is touched — nothing downstream may transform it again.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { join } from 'node:path';
 import { createPaths, paths as defaultPaths, type Paths } from './lib/paths.ts';
 import { appendEntry, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
 import { buildBundleCspMeta, buildErrorReportingSnippet } from './lib/errorReporting.ts';
@@ -296,10 +296,9 @@ export interface RestoreManifestParams {
  * Whether `manifest.json` currently names a bundle the site can actually
  * serve — the one question that decides whether the manifest is left alone.
  *
- * The bundle has to sit inside the archive, not merely exist: assembly copies
- * only `games/archive/` into `dist/`, so a path leading anywhere else names a
- * file no visitor can reach. Compared as a resolved relative path rather than
- * a string prefix, because `join` normalises `..` segments away first.
+ * The bundle has to sit inside the archive, not merely exist — see
+ * {@link Paths.isArchivedFile}, which `assemble-site.ts` asks the same
+ * question of before a deploy.
  */
 function manifestServesAGame(paths: Paths): boolean {
   if (!existsSync(paths.manifest)) return false;
@@ -311,11 +310,7 @@ function manifestServesAGame(paths: Paths): boolean {
     return false;
   }
   if (!isManifest(parsed)) return false;
-
-  const bundle = resolve(paths.root, parsed.path);
-  const withinArchive = relative(paths.archiveDir, bundle);
-  if (withinArchive.startsWith('..') || isAbsolute(withinArchive)) return false;
-  return existsSync(bundle);
+  return paths.isArchivedFile(parsed.path) && existsSync(join(paths.root, parsed.path));
 }
 
 /**

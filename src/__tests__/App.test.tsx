@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from '../App.tsx';
 import {
@@ -9,6 +9,7 @@ import {
   MANIFEST,
   completionResponse,
   jsonResponse,
+  openProviderStream,
 } from '../lib/testFixtures.ts';
 
 /**
@@ -204,6 +205,206 @@ describe('App', () => {
     const frame = await screen.findByTitle('Regenerated Title');
     expect(frame).toHaveAttribute('srcdoc', BYOK_HTML);
     expect(screen.getByRole('button', { name: /back to today/i })).toBeVisible();
+  });
+
+  // The complaint this answers: a disabled button, no indication of life,
+  // and eventually nothing. The output has to be visible while it arrives.
+  it('shows the model output in place of the game while it generates', async () => {
+    const stream = openProviderStream();
+    stubFetch({ manifest: () => jsonResponse(MANIFEST), byokProvider: () => stream.response });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /generate/i }));
+
+    const console_ = await screen.findByRole('log', { name: /generation output/i });
+    expect(console_).toHaveTextContent('connecting to OpenRouter');
+
+    await act(async () => {
+      await stream.push('<!doctype html>');
+    });
+    // Fragments are published on an animation frame, not on arrival — that
+    // batching is what keeps a fast model from queueing a render per token.
+    await waitFor(() => expect(console_).toHaveTextContent('<!doctype html>'));
+    // The game it will replace is gone from the page while it runs.
+    expect(screen.queryByTitle(MANIFEST.title)).toBeNull();
+
+    await act(async () => {
+      stream.close();
+    });
+  });
+
+  // A failed run is exactly when the output matters — it is the only record
+  // of what the model actually said before it stopped.
+  it('leaves the failure and the partial output on screen', async () => {
+    stubFetch({
+      manifest: () => jsonResponse(MANIFEST),
+      byokProvider: () => completionResponse('nowhere near a game bundle'),
+    });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /generate/i }));
+
+    const console_ = await screen.findByRole('log', { name: /generation output/i });
+    expect(console_).toHaveTextContent('nowhere near a game bundle');
+    expect(console_).toHaveTextContent(/failed:/);
+
+    await userEvent.click(screen.getByRole('button', { name: /back to today/i }));
+    expect(await screen.findByTitle(MANIFEST.title)).toBeVisible();
+  });
+
+  // The reported bug: the key was cleared the moment Generate was pressed,
+  // so a failed run left the button permanently disabled with no way back.
+  it('lets the viewer try again after a failed generation', async () => {
+    stubFetch({
+      manifest: () => jsonResponse(MANIFEST),
+      byokProvider: () => completionResponse('nowhere near a game bundle'),
+    });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /^generate$/i }));
+    await screen.findByRole('log', { name: /generation output/i });
+
+    expect(screen.getByRole('button', { name: /^generate$/i })).toBeEnabled();
+  });
+
+  it('clears the key once a generation succeeds', async () => {
+    stubFetch({
+      manifest: () => jsonResponse(MANIFEST),
+      byokProvider: () => completionResponse(BYOK_COMPLETION),
+    });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /^generate$/i }));
+    await screen.findByTitle('Regenerated Title');
+
+    expect(screen.getByLabelText(/api key/i)).toHaveValue('');
+  });
+
+  it('offers a spinner and a stop control only while generating', async () => {
+    const stream = openProviderStream();
+    stubFetch({ manifest: () => jsonResponse(MANIFEST), byokProvider: () => stream.response });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    expect(screen.queryByRole('button', { name: /^stop$/i })).toBeNull();
+
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /^generate$/i }));
+
+    expect(screen.getByRole('button', { name: /^stop$/i })).toBeVisible();
+    expect(screen.getByRole('button', { name: /^generate$/i })).toBeDisabled();
+    expect(screen.getByRole('status', { name: /generating/i })).toBeInTheDocument();
+
+    await act(async () => {
+      stream.close();
+    });
+  });
+
+  it('stops a run and goes back to the day\u2019s game', async () => {
+    const stream = openProviderStream();
+    stubFetch({ manifest: () => jsonResponse(MANIFEST), byokProvider: () => stream.response });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /^generate$/i }));
+    await act(async () => {
+      await stream.push('half a game');
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: /^stop$/i }));
+
+    expect(screen.queryByRole('log', { name: /generation output/i })).toBeNull();
+    expect(screen.getByTitle(MANIFEST.title)).toBeVisible();
+    expect(screen.queryByRole('button', { name: /^stop$/i })).toBeNull();
+
+    // The abandoned request still settles — it was already in flight — and
+    // its late failure must not overwrite the game the visitor is now
+    // looking at.
+    await act(async () => {
+      stream.close();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByRole('log', { name: /generation output/i })).toBeNull();
+    expect(screen.getByTitle(MANIFEST.title)).toBeVisible();
+  });
+
+  it('offers no stop control once a run has failed', async () => {
+    stubFetch({
+      manifest: () => jsonResponse(MANIFEST),
+      byokProvider: () => completionResponse('nowhere near a game bundle'),
+    });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /^generate$/i }));
+    await screen.findByRole('log', { name: /generation output/i });
+
+    expect(screen.queryByRole('button', { name: /^stop$/i })).toBeNull();
+  });
+
+  it('lets the viewer read the code their model generated', async () => {
+    stubFetch({
+      manifest: () => jsonResponse(MANIFEST),
+      byokProvider: () => completionResponse(BYOK_COMPLETION),
+    });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /generate/i }));
+    await screen.findByTitle('Regenerated Title');
+
+    await userEvent.click(screen.getByText(/view generated code/i));
+
+    expect(screen.getByText(BYOK_HTML, { exact: false })).toBeVisible();
+  });
+
+  // The day's published game ships byte-for-byte and is already in the repo;
+  // only a visitor's own generation gets a source view here.
+  it('offers no code view for the published game', async () => {
+    stubFetch({ manifest: () => jsonResponse(MANIFEST) });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+
+    expect(screen.queryByText(/view generated code/i)).toBeNull();
+  });
+
+  it('opens the generated code full screen and closes it again', async () => {
+    stubFetch({
+      manifest: () => jsonResponse(MANIFEST),
+      byokProvider: () => completionResponse(BYOK_COMPLETION),
+    });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /generate/i }));
+    await screen.findByTitle('Regenerated Title');
+    await userEvent.click(screen.getByText(/view generated code/i));
+
+    await userEvent.click(screen.getByRole('button', { name: /view code full screen/i }));
+
+    const overlay = screen.getByRole('dialog');
+    expect(overlay).toBeVisible();
+    // Rendered over the page, not instead of it: the game keeps running.
+    expect(screen.getByTitle('Regenerated Title')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /close full screen code/i }));
+
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   // The legend describes whatever game is in the frame. It used to be wired

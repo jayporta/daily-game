@@ -37,12 +37,12 @@ describe('ReactionBar', () => {
     expect(dislike()).toBeVisible();
   });
 
-  it('thanks the viewer once they like the game', async () => {
+  it('confirms the feedback once the viewer likes the game', async () => {
     render(<ReactionBar slug={SLUG} config={UNCONFIGURED} />);
 
     await userEvent.click(like());
 
-    expect(screen.getByText(/thanks/i)).toBeVisible();
+    expect(screen.getByText(/feedback sent/i)).toBeVisible();
     expect(screen.queryByRole('button', { name: /^like$/i })).toBeNull();
   });
 
@@ -54,6 +54,58 @@ describe('ReactionBar', () => {
     for (const reason of DISLIKE_REASONS) {
       expect(screen.getByRole('checkbox', { name: reason.label })).toBeVisible();
     }
+  });
+
+  // The reasons hang below the button rather than taking a place in the
+  // flow: opening them used to push the game's whole metadata card down.
+  it('keeps the rating buttons in place while the reasons are open', async () => {
+    render(<ReactionBar slug={SLUG} config={UNCONFIGURED} />);
+
+    await userEvent.click(dislike());
+
+    expect(dislike()).toBeVisible();
+    expect(like()).toBeVisible();
+  });
+
+  // Nothing else can close the panel without committing a dislike, and a
+  // viewer who opened it by accident should not have to rate the game.
+  it('closes the reasons on Escape without rating the game', async () => {
+    const fetchImpl = okFetch();
+    render(<ReactionBar slug={SLUG} config={CONFIGURED} fetchImpl={fetchImpl} />);
+    await userEvent.click(dislike());
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(dislike()).toBeVisible();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('closes the reasons when the viewer clicks away, without rating', async () => {
+    const fetchImpl = okFetch();
+    render(
+      <div>
+        <button type="button">elsewhere</button>
+        <ReactionBar slug={SLUG} config={CONFIGURED} fetchImpl={fetchImpl} />
+      </div>,
+    );
+    await userEvent.click(dislike());
+
+    await userEvent.click(screen.getByRole('button', { name: 'elsewhere' }));
+
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('still rates the game when the viewer sends from the open reasons', async () => {
+    const fetchImpl = okFetch();
+    render(<ReactionBar slug={SLUG} config={CONFIGURED} fetchImpl={fetchImpl} />);
+    await userEvent.click(dislike());
+
+    await userEvent.click(screen.getByRole('button', { name: /^send$/i }));
+
+    expect(screen.getByText(/feedback sent/i)).toBeVisible();
+    expect(fetchImpl).toHaveBeenCalled();
   });
 
   // The dislike is only committed on Send or Skip, so the reasons travel
@@ -133,7 +185,7 @@ describe('ReactionBar', () => {
     await userEvent.click(screen.getByRole('button', { name: /skip/i }));
 
     expect(fetchImpl).not.toHaveBeenCalled();
-    expect(screen.getByText(/thanks/i)).toBeVisible();
+    expect(screen.getByText(/feedback sent/i)).toBeVisible();
   });
 
   it('sends no cookies and forces a preflight', async () => {
@@ -157,7 +209,7 @@ describe('ReactionBar', () => {
     expect(response.bodyUsed).toBe(false);
   });
 
-  it('still thanks the viewer when the store is unreachable', async () => {
+  it('still confirms the feedback when the store is unreachable', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => {
       throw new TypeError('Failed to fetch');
     });
@@ -165,7 +217,7 @@ describe('ReactionBar', () => {
 
     await userEvent.click(like());
 
-    expect(screen.getByText(/thanks/i)).toBeVisible();
+    expect(screen.getByText(/feedback sent/i)).toBeVisible();
   });
 
   it('still shows the game as rated after the viewer returns', async () => {
@@ -175,7 +227,7 @@ describe('ReactionBar', () => {
 
     render(<ReactionBar slug={SLUG} config={UNCONFIGURED} />);
 
-    expect(screen.getByText(/thanks/i)).toBeVisible();
+    expect(screen.getByText(/feedback sent/i)).toBeVisible();
   });
 
   it('does not carry a reaction over to the next day', async () => {
@@ -205,7 +257,7 @@ describe('ReactionBar', () => {
     render(<ReactionBar slug={SLUG} config={CONFIGURED} fetchImpl={fetchImpl} />);
 
     await userEvent.click(like());
-    await userEvent.click(screen.getByText(/thanks/i));
+    await userEvent.click(screen.getByText(/feedback sent/i));
 
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });

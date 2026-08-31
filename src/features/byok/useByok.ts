@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { completeByok } from './providers.ts';
+import { useGenerationStream } from './useGenerationStream.ts';
 import { extractBundle } from '../../../lib/extract-bundle-shared.ts';
 import type { ByokProvider } from '../../../lib/byok-config-types.ts';
 import type { ExtractFailureReason, GeneratedMeta } from '../../../lib/extract-bundle-shared.ts';
@@ -16,16 +17,26 @@ const EXTRACTION_FEEDBACK: Record<ExtractFailureReason, string> = {
 };
 
 /**
- * What the panel renders.
+ * What the page renders while a visitor's own generation runs.
  *
  * Carries no success case: a finished generation is handed straight back from
- * {@link UseByokResult.generate} and rendered by the page, not by the panel,
- * so holding it here would be state nothing reads.
+ * {@link UseByokResult.generate} and rendered as a game, so holding it here
+ * would be state nothing reads.
+ *
+ * `streaming` and `error` both carry `output` — the model's raw text as far
+ * as it got — because a run that fails part-way is exactly when seeing what
+ * it did say matters most.
  */
 export type ByokStatus =
   | { status: 'idle' }
-  | { status: 'loading' }
-  | { status: 'error'; message: string };
+  | { status: 'streaming'; run: ByokRun; output: string }
+  | { status: 'error'; run: ByokRun; message: string; output: string };
+
+/** Which provider and model a run is using, for the console's header. */
+export interface ByokRun {
+  readonly providerLabel: string;
+  readonly modelId: string;
+}
 
 /** One completed generation, returned to the caller rather than stored. */
 export interface ByokGeneration {
@@ -61,6 +72,19 @@ export interface ByokGenerateRequest {
 export interface UseByokResult {
   readonly status: ByokStatus;
   /**
+   * Ends the current run and returns to the day's game.
+   *
+   * Serves both the Stop control during a run and the way back after a
+   * failed one, because they want the same thing: drop the output, abort
+   * anything still in flight so a long generation is not left running
+   * against the visitor's credits, and show the game again. Neither reports
+   * a failure — the visitor asked for this.
+   *
+   * A successful run needs no such control: it leaves on its own, replaced
+   * by the game it produced.
+   */
+  stop: () => void;
+  /**
    * Runs one generation. Single attempt, no retry: it is the visitor's own
    * credits.
    *
@@ -75,7 +99,21 @@ export function useByok({ systemPrompt, fetchImpl }: UseByokParams): UseByokResu
   // navigates mid-request, but since React 18 a setState on an unmounted
   // component is a silent no-op, so guarding it would add a branch nothing
   // can observe.
-  const [status, setStatus] = useState<ByokStatus>({ status: 'idle' });
+  const [phase, setPhase] = useState<Phase>({ phase: 'idle' });
+  const stream = useGenerationStream();
+  // Identifies the run in flight. A stopped or superseded run still settles —
+  // its request is already out — and without this its late failure would
+  // overwrite the state the visitor is now looking at.
+  const currentRun = useRef(0);
+  const abort = useRef<AbortController | null>(null);
+
+  const stop = (): void => {
+    currentRun.current += 1;
+    abort.current?.abort();
+    abort.current = null;
+    stream.reset();
+    setPhase({ phase: 'idle' });
+  };
 
   const generate = async ({
     provider,
@@ -84,26 +122,64 @@ export function useByok({ systemPrompt, fetchImpl }: UseByokParams): UseByokResu
     apiKey,
     userPrompt,
   }: ByokGenerateRequest): Promise<ByokGeneration | null> => {
-    setStatus({ status: 'loading' });
+    const run: ByokRun = { providerLabel, modelId };
+    const id = currentRun.current + 1;
+    currentRun.current = id;
+    const controller = new AbortController();
+    abort.current = controller;
+
+    stream.reset();
+    setPhase({ phase: 'streaming', run });
 
     const completion = await completeByok(
       { provider, model: modelId, apiKey, systemPrompt, userPrompt },
-      { fetchImpl },
+      { fetchImpl, onDelta: stream.append, signal: controller.signal },
     );
+
+    // Stopped, or replaced by a newer run, while this one was in flight.
+    if (currentRun.current !== id) return null;
+
+    // The run is over, so the tail is shown now rather than at the next
+    // frame that may never come.
+    stream.flush();
+
     if (!completion.ok) {
-      setStatus({ status: 'error', message: completion.message });
+      setPhase({ phase: 'error', run, message: completion.message });
       return null;
     }
 
     const extracted = extractBundle(completion.text);
     if (!extracted.ok) {
-      setStatus({ status: 'error', message: EXTRACTION_FEEDBACK[extracted.reason] });
+      setPhase({ phase: 'error', run, message: EXTRACTION_FEEDBACK[extracted.reason] });
       return null;
     }
 
-    setStatus({ status: 'idle' });
+    setPhase({ phase: 'idle' });
     return { html: extracted.html, meta: extracted.meta, providerLabel, modelId };
   };
 
-  return { status, generate };
+  return { status: toStatus(phase, stream.output), generate, stop };
+}
+
+/** The lifecycle alone. The output is the stream's, and is joined on below. */
+type Phase =
+  | { phase: 'idle' }
+  | { phase: 'streaming'; run: ByokRun }
+  | { phase: 'error'; run: ByokRun; message: string };
+
+/**
+ * Joins the lifecycle to the text received so far.
+ *
+ * Kept apart in state so a fragment arriving does not have to rewrite the
+ * phase, and the phase changing does not have to carry the text along.
+ */
+function toStatus(phase: Phase, output: string): ByokStatus {
+  switch (phase.phase) {
+    case 'idle':
+      return { status: 'idle' };
+    case 'streaming':
+      return { status: 'streaming', run: phase.run, output };
+    case 'error':
+      return { status: 'error', run: phase.run, message: phase.message, output };
+  }
 }
