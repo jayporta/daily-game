@@ -62,6 +62,33 @@ test('completeByok sends OpenAI requests to the documented url with a Bearer key
   assert.equal(headers['Authorization'], 'Bearer test-key');
 });
 
+// GPT-5 and the o-series reject `max_tokens` outright, so a direct OpenAI
+// call that sent it would fail for every model currently offered.
+test('completeByok caps OpenAI output with max_completion_tokens, not max_tokens', async () => {
+  const { fetchImpl, calls } = capturingFetch(
+    jsonResponse({ choices: [{ message: { content: 'the completion' } }] }),
+  );
+
+  await completeByok(baseRequest({ provider: 'openai' }), { fetchImpl });
+
+  const body = JSON.parse(String(calls[0]?.[1]?.body));
+  assert.ok(body.max_completion_tokens > 0);
+  assert.equal(body.max_tokens, undefined);
+});
+
+// OpenRouter normalises the older name across every provider it fronts.
+test('completeByok caps OpenRouter output with max_tokens', async () => {
+  const { fetchImpl, calls } = capturingFetch(
+    jsonResponse({ choices: [{ message: { content: 'the completion' } }] }),
+  );
+
+  await completeByok(baseRequest({ provider: 'openrouter' }), { fetchImpl });
+
+  const body = JSON.parse(String(calls[0]?.[1]?.body));
+  assert.ok(body.max_tokens > 0);
+  assert.equal(body.max_completion_tokens, undefined);
+});
+
 test('completeByok sends Anthropic requests with the required browser-access header', async () => {
   const { fetchImpl, calls } = capturingFetch(jsonResponse({ content: [{ text: 'the completion' }] }));
 

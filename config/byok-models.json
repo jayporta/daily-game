@@ -4,32 +4,35 @@
     "label": "OpenRouter",
     "models": [
       { "id": "cohere/north-mini-code:free", "label": "Cohere North Mini Code (free)" },
-      { "id": "minimax/minimax-m2.7:free", "label": "MiniMax M2.7 (free)" }
+      { "id": "minimax/minimax-m2.7:free", "label": "MiniMax M2.7 (free)" },
+      { "id": "minimax/minimax-m3:free", "label": "MiniMax M3 (free)" }
     ]
   },
   {
     "provider": "anthropic",
     "label": "Anthropic",
     "models": [
-      { "id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5" },
-      { "id": "claude-sonnet-5", "label": "Claude Sonnet 5" },
-      { "id": "claude-opus-5", "label": "Claude Opus 5" }
+      { "id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5 (fastest)" },
+      { "id": "claude-sonnet-5", "label": "Claude Sonnet 5 (balanced)" },
+      { "id": "claude-opus-5", "label": "Claude Opus 5 (most capable)" }
     ]
   },
   {
     "provider": "openai",
     "label": "OpenAI",
     "models": [
-      { "id": "gpt-4o-mini", "label": "GPT-4o mini" },
-      { "id": "gpt-4o", "label": "GPT-4o" }
+      { "id": "gpt-5.6-luna", "label": "GPT-5.6 Luna (fastest)" },
+      { "id": "gpt-5.6-terra", "label": "GPT-5.6 Terra (balanced)" },
+      { "id": "gpt-5.6-sol", "label": "GPT-5.6 Sol (most capable)" }
     ]
   },
   {
     "provider": "gemini",
     "label": "Gemini",
     "models": [
-      { "id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash" },
-      { "id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro" }
+      { "id": "gemini-3.7-flash", "label": "Gemini 3.7 Flash (fastest)" },
+      { "id": "gemini-3.5-flash", "label": "Gemini 3.5 Flash" },
+      { "id": "gemini-3.1-pro-preview", "label": "Gemini 3.1 Pro (preview)" }
     ]
   }
 ]
