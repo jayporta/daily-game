@@ -5,7 +5,7 @@
 // the identical answer — the Generate button, and the disclosure promising
 // "See the exact prompt this will send". A prompt composed twice is a
 // disclosure that eventually lies.
-import { renderAttemptFeedback } from '../../../lib/attempt-feedback.ts';
+import { renderAttemptFeedback } from '#lib/attempt-feedback.ts';
 
 export interface ByokPromptParts {
   /** The archived prompt, already stripped of its own attempt feedback. */

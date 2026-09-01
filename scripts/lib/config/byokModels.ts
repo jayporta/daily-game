@@ -4,14 +4,14 @@
 // Its type and shape guard live in `lib/byok-config-types.ts` instead, not
 // here: the browser renders these pickers and so needs them too, and `lib/`
 // is the only directory both tsconfigs compile.
-import { BYOK_PROVIDERS, isByokProvider, type ByokModelsConfig } from '../../../lib/byok-config-types.ts';
-import { paths } from '../paths.ts';
+import { BYOK_PROVIDERS, isByokProvider, type ByokModelsConfig } from '#lib/byok-config-types.ts';
+import { paths } from '#scripts/lib/paths.ts';
 import {
   isNonEmptyString,
   isPlainObject,
   loadValidatedJson,
   type ValidationResult,
-} from '../validation.ts';
+} from '#scripts/lib/validation.ts';
 
 /**
  * Every provider in {@link BYOK_PROVIDERS} must appear exactly once, since

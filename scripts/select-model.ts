@@ -1,4 +1,4 @@
-import type { ModelEntry, ModelsConfig } from './lib/config/models.ts';
+import type { ModelEntry, ModelsConfig } from '#scripts/lib/config/models.ts';
 // Round-robin model selection over the active entries in models.json.
 // Disabled entries are skipped entirely, so the user can turn a model off
 // by flipping `active: false` without removing it from the rotation list.

@@ -1,4 +1,5 @@
-import { CodeChip } from '../../ui/CodeChip.tsx';
+import { CodeChip } from '@/shared_components/CodeChip.tsx';
+import { MetaText } from '@/shared_components/MetaText.tsx';
 
 export interface ByokFactsProps {
   /** Readable provider name, e.g. "Anthropic". */
@@ -14,11 +15,11 @@ export interface ByokFactsProps {
  */
 export function ByokFacts({ providerLabel, modelId }: ByokFactsProps) {
   return (
-    <p className="text-ui text-meta dark:text-slate-400">
+    <MetaText>
       Generated just now via{' '}
       <CodeChip>
         {providerLabel} · {modelId}
       </CodeChip>
-    </p>
+    </MetaText>
   );
 }

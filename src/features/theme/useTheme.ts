@@ -5,8 +5,8 @@ import {
   rememberTheme,
   resolveInitialTheme,
   type Theme,
-} from './theme.ts';
-import { localStorageOrNull } from '../../lib/browser-storage.ts';
+} from '#src/features/theme/theme.ts';
+import { localStorageOrNull } from '#src/lib/browser-storage.ts';
 
 /** The active theme, and the one thing a visitor can do to it. */
 export interface UseThemeResult {

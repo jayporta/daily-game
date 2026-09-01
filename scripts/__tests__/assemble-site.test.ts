@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { assembleSite, missingPublishedFiles } from '../assemble-site.ts';
-import { createPaths } from '../lib/paths.ts';
-import { MANIFEST } from '../../src/lib/testFixtures.ts';
+import { assembleSite, missingPublishedFiles } from '#scripts/assemble-site.ts';
+import { createPaths } from '#scripts/lib/paths.ts';
+import { MANIFEST } from '#src/lib/testFixtures.ts';
 
 function scratchRepo(t: { after(fn: () => void): void }): string {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-assemble-'));

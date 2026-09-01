@@ -11,11 +11,11 @@ import {
   rollUpHistory,
   shouldRollUp,
   splitAging,
-} from '../rollup-history.ts';
-import { createPaths } from '../lib/paths.ts';
-import { EMPTY_SUMMARY } from '../lib/history-store.ts';
-import { GENERATION_CONFIG } from '../lib/testFixtures.ts';
-import type { HistoryGameEntry } from '../lib/history-store.ts';
+} from '#scripts/rollup-history.ts';
+import { createPaths } from '#scripts/lib/paths.ts';
+import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
+import { GENERATION_CONFIG } from '#scripts/lib/testFixtures.ts';
+import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
 
 const NOW = new Date('2026-08-30T12:00:00.000Z');
 
@@ -414,6 +414,6 @@ test('the summary a rollup writes is one readSummary accepts', async (t) => {
 
   await rollUpHistory(rollupOptions(root));
 
-  const { readSummary } = await import('../lib/history-store.ts');
+  const { readSummary } = await import('#scripts/lib/history-store.ts');
   assert.doesNotThrow(() => readSummary(createPaths(root).historySummary));
 });

@@ -1,12 +1,12 @@
 // Everything about `config/genres.json`: its shape, its rules, and how it is
 // read. The prompt hands the model this catalogue and lets it choose.
-import { paths } from '../paths.ts';
+import { paths } from '#scripts/lib/paths.ts';
 import {
   isNonEmptyString,
   isPlainObject,
   loadValidatedJson,
   type ValidationResult,
-} from '../validation.ts';
+} from '#scripts/lib/validation.ts';
 
 export interface GenreEntry {
   id: string;

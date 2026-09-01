@@ -5,9 +5,9 @@ import {
   readReaction,
   rememberReaction,
   sendReaction,
-} from '../reaction.ts';
-import type { WebStorage } from '../../../lib/browser-storage.ts';
-import type { ReactionConfig } from '../../../../lib/reaction-types.ts';
+} from '#src/features/reaction/reaction.ts';
+import type { WebStorage } from '#src/lib/browser-storage.ts';
+import type { ReactionConfig } from '#lib/reaction-types.ts';
 
 const SLUG = '2026-08-29-beetle';
 const CONFIGURED: ReactionConfig = {
@@ -173,7 +173,7 @@ test('readReaction is null for a game the visitor has not reacted to', () => {
 test('a remembered reaction is readable back for the same game', () => {
   const storage = memoryStorage();
 
-  rememberReaction(storage, SLUG, { kind: 'dislike', reasons: ['broken'] });
+  rememberReaction({ storage, slug: SLUG, reaction: { kind: 'dislike', reasons: ['broken'] } });
 
   assert.deepEqual(readReaction(storage, SLUG), { kind: 'dislike', reasons: ['broken'] });
 });
@@ -181,7 +181,7 @@ test('a remembered reaction is readable back for the same game', () => {
 test('a reaction to one game does not apply to another', () => {
   const storage = memoryStorage();
 
-  rememberReaction(storage, SLUG, { kind: 'like', reasons: [] });
+  rememberReaction({ storage, slug: SLUG, reaction: { kind: 'like', reasons: [] } });
 
   assert.equal(readReaction(storage, '2026-08-30-otter'), null);
 });
@@ -190,7 +190,7 @@ test('a reaction to one game does not apply to another', () => {
 // so this store is not exclusively ours to trust.
 test('readReaction discards a stored value of the wrong shape', () => {
   const storage = memoryStorage();
-  rememberReaction(storage, SLUG, { kind: 'like', reasons: [] });
+  rememberReaction({ storage, slug: SLUG, reaction: { kind: 'like', reasons: [] } });
   storage.setItem(`daily-game:reaction:${SLUG}`, '{"kind":"adore","reasons":[]}');
 
   assert.equal(readReaction(storage, SLUG), null);
@@ -222,5 +222,11 @@ test('readReaction is null when storage access throws', () => {
 });
 
 test('rememberReaction swallows a storage that refuses to write', () => {
-  assert.doesNotThrow(() => rememberReaction(throwingStorage, SLUG, { kind: 'like', reasons: [] }));
+  assert.doesNotThrow(() =>
+    rememberReaction({
+      storage: throwingStorage,
+      slug: SLUG,
+      reaction: { kind: 'like', reasons: [] },
+    }),
+  );
 });

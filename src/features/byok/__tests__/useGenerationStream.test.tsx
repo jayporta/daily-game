@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { useGenerationStream } from '../useGenerationStream.ts';
+import { useGenerationStream } from '@/features/byok/useGenerationStream.ts';
 
 /**
  * Takes manual control of the frame callbacks.

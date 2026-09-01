@@ -1,12 +1,12 @@
 // Everything about `config/models.json`: its shape, its rules, and how it
 // is read. The daily pipeline picks each attempt's model from this rotation.
-import { paths } from '../paths.ts';
+import { paths } from '#scripts/lib/paths.ts';
 import {
   isNonEmptyString,
   isPlainObject,
   loadValidatedJson,
   type ValidationResult,
-} from '../validation.ts';
+} from '#scripts/lib/validation.ts';
 
 export interface ModelEntry {
   id: string;

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { App } from '../App.tsx';
+import { App } from '@/App.tsx';
 import {
   BUNDLE,
   BYOK_COMPLETION,
@@ -10,7 +10,17 @@ import {
   completionResponse,
   jsonResponse,
   openProviderStream,
-} from '../lib/testFixtures.ts';
+} from '@/lib/testFixtures.ts';
+
+/** What the app asked to have recorded. */
+const { reported } = vi.hoisted(() => ({ reported: [] as unknown[] }));
+
+vi.mock('@/lib/sentry.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/sentry.ts')>()),
+  reportError: (error: unknown) => {
+    reported.push(error);
+  },
+}));
 
 /**
  * Stubs global fetch, routing manifest, bundle and prompt requests
@@ -70,6 +80,18 @@ describe('App', () => {
     render(<App />);
 
     expect(await screen.findByText(/could not load manifest \(500\)/)).toBeVisible();
+  });
+
+  // Turned into a message on screen, so no global handler ever sees it — and
+  // a site that cannot load its own game is the failure most worth knowing
+  // about.
+  it('records a failure to load the manifest', async () => {
+    reported.length = 0;
+    stubFetch({ manifest: () => jsonResponse({}, 500) });
+    render(<App />);
+    await screen.findByText(/could not load manifest \(500\)/);
+
+    expect(reported).toHaveLength(1);
   });
 
   // The two requests fail independently; a good manifest with a missing

@@ -1,14 +1,14 @@
 import { useState } from 'react';
-import { DISLIKE_REASONS, type DislikeReason } from '../../../lib/reaction-types.ts';
-import { CheckboxRow } from './CheckboxRow.tsx';
-import { PillButton } from '../../ui/PillButton.tsx';
+import { DISLIKE_REASONS, type DislikeReason } from '#lib/reaction-types.ts';
+import { CheckboxRow } from '@/features/reaction/CheckboxRow.tsx';
+import { PillButton } from '@/shared_components/PillButton.tsx';
 
 export interface DislikeReasonsProps {
   /**
    * Commits the dislike. Called with the chosen reasons, or an empty list
    * when the viewer skips — a dislike counts either way.
    */
-  onSubmit: (reasons: readonly DislikeReason[]) => void;
+  readonly onSubmit: (reasons: readonly DislikeReason[]) => void;
 }
 
 const ALL_REASON_IDS: readonly DislikeReason[] = DISLIKE_REASONS.map((reason) => reason.id);

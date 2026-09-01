@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchText, fetchManifest, manifestUrl } from '../manifest-client.ts';
-import { MANIFEST as VALID, jsonResponse } from '../../../lib/testFixtures.ts';
+import { fetchText, fetchManifest, manifestUrl } from '#src/features/game/manifest-client.ts';
+import { MANIFEST as VALID, jsonResponse } from '#src/lib/testFixtures.ts';
 
 test('manifestUrl is cache-busted', () => {
   assert.equal(manifestUrl(1234), 'manifest.json?t=1234');

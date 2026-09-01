@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateModelsConfig } from '../models.ts';
+import { validateModelsConfig } from '#scripts/lib/config/models.ts';
 
 test('validateModelsConfig accepts a valid config', () => {
   const result = validateModelsConfig({

@@ -3,7 +3,7 @@
 // files and must agree on their shape and formatting.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { paths } from './paths.ts';
+import { paths } from '#scripts/lib/paths.ts';
 import {
   isFiniteNumber,
   isNonEmptyString,
@@ -11,8 +11,8 @@ import {
   isRecordOf,
   loadValidatedJson,
   type ValidationResult,
-} from './validation.ts';
-import type { DislikeReason } from '../../lib/reaction-types.ts';
+} from '#scripts/lib/validation.ts';
+import type { DislikeReason } from '#lib/reaction-types.ts';
 
 export type HistoryStatus = 'published' | 'failed_kept_previous';
 

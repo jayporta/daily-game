@@ -1,10 +1,20 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { usePromptText } from '../usePromptText.ts';
+import { usePromptText } from '@/features/byok/usePromptText.ts';
 import {
   ATTEMPT_FEEDBACK_HEADING,
   renderAttemptFeedback,
-} from '../../../../lib/attempt-feedback.ts';
+} from '#lib/attempt-feedback.ts';
+
+/** What the hook asked to have recorded. */
+const { reported } = vi.hoisted(() => ({ reported: [] as unknown[] }));
+
+vi.mock('@/lib/sentry.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/sentry.ts')>()),
+  reportError: (error: unknown) => {
+    reported.push(error);
+  },
+}));
 
 const PATH_A = 'games/archive/2026-08-29-a/prompt.txt';
 const PATH_B = 'games/archive/2026-08-30-b/prompt.txt';
@@ -90,6 +100,20 @@ describe('usePromptText', () => {
     });
 
     expect(result.current.state).toEqual({ status: 'failed' });
+  });
+
+  // A missing prompt disables the whole BYOK panel while the rest of the page
+  // looks healthy, so nothing else on the page would ever surface it.
+  it('records a prompt that could not be loaded', async () => {
+    reported.length = 0;
+    const fetchImpl: typeof fetch = async () => new Response('', { status: 404 });
+    const { result } = renderHook(() => usePromptText(PATH_A, fetchImpl));
+
+    await act(async () => {
+      await result.current.load();
+    });
+
+    expect(reported).toHaveLength(1);
   });
 
   // A superseded request cannot be cancelled — it is already in flight — so

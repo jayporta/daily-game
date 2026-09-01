@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readSseData } from '../sseStream.ts';
+import { readSseData } from '#src/features/byok/sseStream.ts';
 
 /** A streaming response that emits `chunks` exactly as given. */
 function streamingResponse(chunks: readonly string[]): Response {

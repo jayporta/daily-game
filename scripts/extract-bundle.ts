@@ -3,7 +3,7 @@
 // for manually debugging a real model response:
 //   node scripts/extract-bundle.ts < response.txt
 import { pathToFileURL } from 'node:url';
-import { extractBundle } from '../lib/extract-bundle-shared.ts';
+import { extractBundle } from '#lib/extract-bundle-shared.ts';
 
 export { extractBundle };
 

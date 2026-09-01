@@ -2,8 +2,8 @@
 // these confirm known-broken bundles are actually rejected.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSmokeTester, type SmokeTester } from '../smoke-test.ts';
-import { loadFixtureBundle } from '../lib/testFixtures.ts';
+import { createSmokeTester, type SmokeTester } from '#scripts/smoke-test.ts';
+import { loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
 
 let tester: SmokeTester;
 

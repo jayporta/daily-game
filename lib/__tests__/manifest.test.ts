@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { REQUIRED_STRING_FIELDS, isManifest } from '../manifest.ts';
-import { MANIFEST as VALID } from '../../src/lib/testFixtures.ts';
+import { REQUIRED_STRING_FIELDS, isManifest } from '#lib/manifest.ts';
+import { MANIFEST as VALID } from '#src/lib/testFixtures.ts';
 
 test('isManifest accepts a well-formed manifest', () => {
   assert.equal(isManifest(VALID), true);

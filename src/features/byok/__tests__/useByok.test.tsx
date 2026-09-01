@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { useByok, type ByokGenerateRequest } from '../useByok.ts';
+import { useByok, type ByokGenerateRequest } from '@/features/byok/useByok.ts';
 import {
   BYOK_COMPLETION,
   BYOK_HTML,
   completionResponse,
   openProviderStream,
   stubFetch,
-} from '../../../lib/testFixtures.ts';
+} from '@/lib/testFixtures.ts';
 
 function baseParams(fetchImpl: typeof fetch) {
   return { systemPrompt: 'system', fetchImpl };

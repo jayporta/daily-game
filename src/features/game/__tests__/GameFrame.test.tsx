@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { GameFrame } from '../GameFrame.tsx';
-import { BUNDLE } from '../../../lib/testFixtures.ts';
+import { GameFrame } from '@/features/game/GameFrame.tsx';
+import { BUNDLE } from '@/lib/testFixtures.ts';
 
 describe('GameFrame', () => {
   it('renders the bundle inline via srcdoc rather than a navigable src', () => {

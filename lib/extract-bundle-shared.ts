@@ -4,7 +4,7 @@
 //
 // Pure and free of I/O so it runs identically under Node (the daily
 // pipeline) and in a browser (BYOK mode) once compiled for that context.
-import { isRecord } from './guards.ts';
+import { isRecord } from '#lib/guards.ts';
 
 /**
  * One input the game listens for, as the game itself reports it.
@@ -20,21 +20,36 @@ export interface ControlHint {
   readonly key: string;
 }
 
+/**
+ * What the model said about the game it just wrote, read from the `json`
+ * block. Every field is total: {@link toGeneratedMeta} coerces a missing or
+ * wrongly-typed one to an empty default rather than rejecting the response.
+ */
 export interface GeneratedMeta {
+  /** The game's name. */
   title: string;
+  /** The genre id it was asked to write in, echoed back. */
   genre: string;
+  /** One line on the setting or subject. */
   theme: string;
+  /** The mechanics it says it implemented, for the history log. */
   mechanics: string[];
   /** Empty when the game reported none, or reported them unusably. */
   controls: ControlHint[];
 }
 
+/**
+ * Why a response could not be read as a game, as a closed vocabulary rather
+ * than a message. Keys both {@link EXTRACTION_RETRY_FEEDBACK} and the wording
+ * shown to a visitor.
+ */
 export type ExtractFailureReason =
   | 'missing-meta-block'
   | 'missing-html-block'
   | 'invalid-json-meta'
   | 'empty-html';
 
+/** A parsed response, or the reason it could not be parsed. */
 export type ExtractedBundle =
   | { ok: true; meta: GeneratedMeta; html: string }
   | { ok: false; reason: ExtractFailureReason };
@@ -157,6 +172,20 @@ export function toGeneratedMeta(value: unknown): GeneratedMeta {
   };
 }
 
+/**
+ * Reads a model's reply as the two fenced blocks the prompt asked for: a
+ * `json` block of metadata and an `html` block holding the whole game.
+ *
+ * The contract it parses is `OUTPUT_FORMAT_CONTRACT` in
+ * `scripts/build-prompt.ts` — change the two together or every generation
+ * fails.
+ *
+ * @param rawText The reply. Typed `unknown` because it comes from a provider
+ *   response; anything that is not a string is a missing meta block.
+ * @returns The game, or why it could not be read. Never throws: a malformed
+ *   reply is the expected case, and the reason drives both the retry and what
+ *   the visitor is told.
+ */
 export function extractBundle(rawText: unknown): ExtractedBundle {
   if (typeof rawText !== 'string') {
     return { ok: false, reason: 'missing-meta-block' };

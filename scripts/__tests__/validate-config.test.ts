@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { validateAll, validateCspAllowsEndpoint } from '../validate-config.ts';
-import { createPaths, REPO_ROOT, paths } from '../lib/paths.ts';
+import { validateAll, validateCspAllowsEndpoint } from '#scripts/validate-config.ts';
+import { createPaths, REPO_ROOT, paths } from '#scripts/lib/paths.ts';
 
 const CSP_SELF_ONLY = '<meta content="connect-src \'self\'; form-action \'none\'" />';
 const CSP_WITH_STORE =

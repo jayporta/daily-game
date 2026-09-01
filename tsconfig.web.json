@@ -8,7 +8,14 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "types": []
+    "types": [],
+    "baseUrl": ".",
+    "paths": {
+      "#lib/*": ["./lib/*"],
+      "#src/*": ["./src/*"],
+      "#config/*": ["./config/*"],
+      "@/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "lib/**/*.ts"],
   // `*.test.ts` runs under node --test and uses node: builtins, so it is

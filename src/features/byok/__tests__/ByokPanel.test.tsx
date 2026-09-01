@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { ByokPanel, type ByokPanelProps } from '../ByokPanel.tsx';
-import { useByok } from '../useByok.ts';
-import type { ByokModelsConfig } from '../../../../lib/byok-config-types.ts';
+import { ByokPanel, type ByokPanelProps } from '@/features/byok/ByokPanel.tsx';
+import { useByok } from '@/features/byok/useByok.ts';
+import type { ByokModelsConfig } from '#lib/byok-config-types.ts';
 import {
   BYOK_COMPLETION,
   BYOK_HTML,
   completionResponse,
   jsonResponse,
   truncatedCompletionResponse,
-} from '../../../lib/testFixtures.ts';
+} from '@/lib/testFixtures.ts';
 
 const CATALOGUE: ByokModelsConfig = [
   {
@@ -76,6 +76,32 @@ describe('ByokPanel', () => {
 
     expect(screen.getByRole('option', { name: 'Claude X' })).toBeInTheDocument();
     expect(screen.queryByRole('option', { name: 'OR Model A' })).toBeNull();
+  });
+
+  // The list narrowing above does not prove this: a stale model id survives a
+  // provider change invisibly, because the `<select>` simply shows nothing
+  // selected while the request still carries the old provider's model.
+  it('sends the new provider a model that provider has', async () => {
+    const fetchImpl = routedFetch(() => completionResponse(BYOK_COMPLETION));
+    render(
+      <PanelWithByok
+        promptPath={PROMPT_PATH}
+        onResult={() => {}}
+        catalogue={CATALOGUE}
+        fetchImpl={fetchImpl}
+      />,
+    );
+
+    await userEvent.selectOptions(screen.getByLabelText(/provider/i), 'Anthropic');
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(generateButton());
+
+    await waitFor(() => {
+      const providerCall = fetchImpl.mock.calls.find(
+        ([input]) => !String(input).endsWith('prompt.txt'),
+      );
+      expect(String(providerCall?.[1]?.body)).toContain('claude-x');
+    });
   });
 
   it('disables Generate until a key is entered', async () => {

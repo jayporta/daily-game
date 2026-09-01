@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createOpenRouterClient } from '../openrouter-client.ts';
-import { createMockOpenRouterClient } from '../openrouter-client.mock.ts';
+import { createOpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
 
 test('mock client returns fixtures in sequence', async () => {
   const client = createMockOpenRouterClient({ fixtureSequence: ['first', 'second'] });

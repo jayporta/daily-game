@@ -1,10 +1,10 @@
 // Pure prompt assembly — no network, no file I/O, so it can be snapshot
 // tested against fixed fixtures. Everything the model sees about past
 // games, guardrails and output format is decided here.
-import { isDislikeReason, type DislikeReason } from '../lib/reaction-types.ts';
-import { renderAttemptFeedback } from '../lib/attempt-feedback.ts';
-import type { FailureKind, HistoryGameEntry, HistorySummary, PopularityEntry } from './lib/history-store.ts';
-import type { GenreEntry, GenresConfig } from './lib/config/genres.ts';
+import { isDislikeReason, type DislikeReason } from '#lib/reaction-types.ts';
+import { renderAttemptFeedback } from '#lib/attempt-feedback.ts';
+import type { FailureKind, HistoryGameEntry, HistorySummary, PopularityEntry } from '#scripts/lib/history-store.ts';
+import type { GenreEntry, GenresConfig } from '#scripts/lib/config/genres.ts';
 
 /**
  * The two-fenced-block contract. This is the parsing contract enforced by

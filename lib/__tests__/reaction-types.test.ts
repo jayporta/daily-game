@@ -5,7 +5,7 @@ import {
   isDislikeReason,
   isPublishableSlug,
   isReactionConfig,
-} from '../reaction-types.ts';
+} from '#lib/reaction-types.ts';
 
 test('every dislike reason has a distinct id', () => {
   const ids = DISLIKE_REASONS.map((reason) => reason.id);

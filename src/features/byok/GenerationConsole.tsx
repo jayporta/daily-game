@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { GameBox } from '@/features/game/GameBox.tsx';
 
 export interface GenerationConsoleProps {
   /** Readable provider name, for the opening line. */
@@ -45,7 +46,7 @@ export function GenerationConsole({
   }, [tail, failure]);
 
   return (
-    <div className="aspect-game w-full overflow-hidden rounded-xl bg-slate-950 shadow-frame">
+    <GameBox ground="console">
       <div
         ref={scroller}
         role="log"
@@ -67,7 +68,7 @@ export function GenerationConsole({
           <p className="mt-2 text-rose-400">{`● failed: ${failure}`}</p>
         )}
       </div>
-    </div>
+    </GameBox>
   );
 }
 

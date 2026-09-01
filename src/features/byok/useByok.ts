@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
-import { completeByok } from './providers.ts';
-import { describeByokFailure, type ByokFailure } from './byokFailure.ts';
-import { useGenerationStream } from './useGenerationStream.ts';
-import { reportError } from '../../lib/sentry.ts';
-import { extractBundle } from '../../../lib/extract-bundle-shared.ts';
-import type { ByokProvider } from '../../../lib/byok-config-types.ts';
-import type { GeneratedMeta } from '../../../lib/extract-bundle-shared.ts';
+import { completeByok } from '#src/features/byok/providers.ts';
+import { describeByokFailure, type ByokFailure } from '#src/features/byok/byokFailure.ts';
+import { useGenerationStream } from '#src/features/byok/useGenerationStream.ts';
+import { reportError } from '#src/lib/sentry.ts';
+import { errorMessage } from '#lib/errors.ts';
+import { extractBundle } from '#lib/extract-bundle-shared.ts';
+import type { ByokProvider } from '#lib/byok-config-types.ts';
+import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 
 /**
  * What the page renders while a visitor's own generation runs.
@@ -38,6 +39,7 @@ export interface ByokGeneration {
   readonly modelId: string;
 }
 
+/** What {@link useByok} needs for every run it will make. */
 export interface UseByokParams {
   /** The fixed system prompt, imported directly — never per-game. */
   readonly systemPrompt: string;
@@ -102,6 +104,17 @@ export interface UseByokResult {
   generate: (request: ByokGenerateRequest) => Promise<ByokGeneration | null>;
 }
 
+/**
+ * Runs a visitor's own generation against their own API key.
+ *
+ * Owned above the panel that starts it, because the live output renders in
+ * the game's place rather than inside the panel.
+ *
+ * Holds no finished game and no key: a completed run is handed straight back
+ * from {@link UseByokResult.generate}, and the key is a parameter of that one
+ * call. What it does hold is the lifecycle, the streamed text, and the
+ * correction a failed run leaves for the next attempt.
+ */
 export function useByok({ systemPrompt, fetchImpl }: UseByokParams): UseByokResult {
   // No unmount guard: a generation can outlive the panel if the visitor
   // navigates mid-request, but since React 18 a setState on an unmounted
@@ -140,24 +153,13 @@ export function useByok({ systemPrompt, fetchImpl }: UseByokParams): UseByokResu
     stream.reset();
     setPhase({ phase: 'streaming', run });
 
-    const completion = await completeByok(
-      { provider, model: modelId, apiKey, systemPrompt, userPrompt },
-      { fetchImpl, onDelta: stream.append, signal: controller.signal },
-    );
-
-    // Stopped, or replaced by a newer run, while this one was in flight.
-    if (currentRun.current !== id) return null;
-
-    // The run is over, so the tail is shown now rather than at the next
-    // frame that may never come.
-    stream.flush();
-
     // Explains the failure, records it, and leaves the panel showing why.
     const fail = (failure: ByokFailure): null => {
       const report = describeByokFailure(failure);
 
-      // Both of these were missing until now: a failed generation said one
-      // sentence on screen and was recorded nowhere at all.
+      // Local diagnosis only. Console breadcrumbs are dropped before they
+      // reach Sentry (see `sentryOptions`), because `report.message` can
+      // carry the provider's verbatim error body.
       console.error(`[byok] ${provider}/${modelId} failed (${report.cause}): ${report.message}`);
       if (report.worthReporting) {
         // Identifies the shape of the failure and nothing else — no key, no
@@ -175,20 +177,42 @@ export function useByok({ systemPrompt, fetchImpl }: UseByokParams): UseByokResu
       return null;
     };
 
-    if (!completion.ok) {
-      return fail({ source: 'request', kind: completion.kind, message: completion.message });
-    }
+    try {
+      const completion = await completeByok(
+        { provider, model: modelId, apiKey, systemPrompt, userPrompt },
+        { fetchImpl, onDelta: stream.append, signal: controller.signal },
+      );
 
-    // A run cut short still parses when the model closed both fences in time,
-    // and a game that extracted is a game worth playing however it ended.
-    const extracted = extractBundle(completion.text);
-    if (!extracted.ok) {
-      return fail({ source: 'response', stop: completion.stop, reason: extracted.reason });
-    }
+      // Stopped, or replaced by a newer run, while this one was in flight.
+      if (currentRun.current !== id) return null;
 
-    setPriorFailureFeedback(undefined);
-    setPhase({ phase: 'idle' });
-    return { html: extracted.html, meta: extracted.meta, providerLabel, modelId };
+      // The run is over, so the tail is shown now rather than at the next
+      // frame that may never come.
+      stream.flush();
+
+      if (!completion.ok) {
+        return fail({ source: 'request', kind: completion.kind, message: completion.message });
+      }
+
+      // A run cut short still parses when the model closed both fences in
+      // time, and a game that extracted is a game worth playing however it
+      // ended.
+      const extracted = extractBundle(completion.text);
+      if (!extracted.ok) {
+        return fail({ source: 'response', stop: completion.stop, reason: extracted.reason });
+      }
+
+      setPriorFailureFeedback(undefined);
+      setPhase({ phase: 'idle' });
+      return { html: extracted.html, meta: extracted.meta, providerLabel, modelId };
+    } catch (error) {
+      // A defect on our side of the call rather than a provider's answer.
+      // Without this the phase would stay `streaming` and the panel would
+      // show a spinner that never stops.
+      if (currentRun.current !== id) return null;
+      stream.flush();
+      return fail({ source: 'request', kind: 'provider', message: errorMessage(error) });
+    }
   };
 
   return {

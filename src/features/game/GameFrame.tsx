@@ -9,6 +9,7 @@
 //
 // `srcDoc` (not `src`) keeps the document inline, so it inherits the
 // sandbox rather than loading as a same-origin page.
+import { GameBox } from '@/features/game/GameBox.tsx';
 
 export interface GameFrameProps {
   /** The AI-authored bundle, rendered inline via `srcDoc`. Never trusted. */
@@ -20,17 +21,15 @@ export interface GameFrameProps {
 /** Renders the untrusted game inside its sandbox. */
 export function GameFrame({ html, title }: GameFrameProps) {
   return (
-    // Presentation only — the wrapper rounds and lifts the frame, and the
-    // parent centres it. It grants nothing: `overflow-hidden` is what makes
-    // the corners round, since the frame cannot be clipped by its own
-    // `border-radius` once the game paints to its edges.
-    <div className="aspect-game w-full overflow-hidden rounded-xl shadow-frame">
+    // Presentation only. The box grants nothing — the `sandbox` attribute
+    // below is the whole boundary.
+    <GameBox ground="none">
       <iframe
         title={title}
         srcDoc={html}
         sandbox="allow-scripts"
         className="h-full w-full border-0 bg-white"
       />
-    </div>
+    </GameBox>
   );
 }

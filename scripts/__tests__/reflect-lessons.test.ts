@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { reflectLessons, rewriteLessons } from '../reflect-lessons.ts';
-import { buildLessonsMessages, isLessonsRequest } from '../lib/lessons-prompt.ts';
-import { EMPTY_SUMMARY } from '../lib/history-store.ts';
-import { createMockOpenRouterClient } from '../lib/openrouter-client.mock.ts';
-import { loadFixture } from '../lib/testFixtures.ts';
-import type { OpenRouterClient } from '../lib/openrouter-client.ts';
-import type { HistoryGameEntry, HistorySummary } from '../lib/history-store.ts';
+import { reflectLessons, rewriteLessons } from '#scripts/reflect-lessons.ts';
+import { buildLessonsMessages, isLessonsRequest } from '#scripts/lib/lessons-prompt.ts';
+import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
+import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
+import { loadFixture } from '#scripts/lib/testFixtures.ts';
+import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import type { HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
 
 const NOW = new Date('2026-08-30T12:00:00.000Z');
 

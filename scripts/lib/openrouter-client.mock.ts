@@ -5,9 +5,9 @@
 // Generation, moderation and reflection share one client, so the mock
 // answers the latter two with fixed replies and reserves the fixture
 // sequence for generation calls only.
-import { isModerationRequest } from '../moderate.ts';
-import { isLessonsRequest } from './lessons-prompt.ts';
-import type { CompletionRequest, OpenRouterClient } from './openrouter-client.ts';
+import { isModerationRequest } from '#scripts/moderate.ts';
+import { isLessonsRequest } from '#scripts/lib/lessons-prompt.ts';
+import type { CompletionRequest, OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 
 export interface CreateMockOpenRouterClientOptions {
   fixtureSequence?: string[];

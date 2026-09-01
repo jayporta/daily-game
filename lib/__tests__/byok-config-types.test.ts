@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { BYOK_PROVIDERS, isByokModelsConfig, isByokProvider } from '../byok-config-types.ts';
+import { BYOK_PROVIDERS, isByokModelsConfig, isByokProvider } from '#lib/byok-config-types.ts';
 
 const VALID = [
   { provider: 'openrouter', label: 'OpenRouter', models: [{ id: 'a/model:free', label: 'A' }] },

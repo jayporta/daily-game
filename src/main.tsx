@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App.tsx';
-import { reactErrorReporter, startErrorMonitoring } from './lib/sentry.ts';
+import { App } from '@/App.tsx';
+import { reactErrorReporter, startErrorMonitoring } from '@/lib/sentry.ts';
 import './index.css';
 
 // Started before anything mounts, so a throw during the first render is

@@ -7,6 +7,12 @@
   "engines": {
     "node": ">=23.6.0"
   },
+  "imports": {
+    "#lib/*": "./lib/*",
+    "#scripts/*": "./scripts/*",
+    "#src/*": "./src/*",
+    "#config/*": "./config/*"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",

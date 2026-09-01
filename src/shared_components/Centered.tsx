@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { MetaText } from '@/shared_components/MetaText.tsx';
 
 export interface CenteredProps {
   /** Message to centre in the viewer area. */
@@ -13,9 +14,5 @@ export interface CenteredProps {
  * stands in for.
  */
 export function Centered({ children }: CenteredProps) {
-  return (
-    <p className="mx-auto max-w-sm text-center text-ui text-meta dark:text-slate-400">
-      {children}
-    </p>
-  );
+  return <MetaText layout="mx-auto max-w-sm text-center">{children}</MetaText>;
 }

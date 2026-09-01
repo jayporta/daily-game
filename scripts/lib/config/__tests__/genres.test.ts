@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { validateGenresConfig } from '../genres.ts';
+import { validateGenresConfig } from '#scripts/lib/config/genres.ts';
 
 test('validateGenresConfig accepts a valid config', () => {
   const result = validateGenresConfig([{ id: 'maze', label: 'Maze', examples: ['ex1', 'ex2'] }]);

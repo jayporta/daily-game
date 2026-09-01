@@ -99,6 +99,12 @@ export function sentryOptions(dsn: string, environment: string): BrowserOptions 
   return {
     dsn,
     environment,
+    // Console output never leaves the browser. The SDK captures it as
+    // breadcrumbs by default, and a console line here can carry a provider's
+    // verbatim error body — which on a rejected key echoes back part of the
+    // key the visitor pasted. Dropping the whole category is the control;
+    // filtering by message would depend on wording no provider promises.
+    beforeBreadcrumb: (breadcrumb) => (breadcrumb.category === 'console' ? null : breadcrumb),
     // Empty on purpose: propagation adds `sentry-trace` and `baggage`
     // headers to outgoing requests, which would turn every BYOK call into a
     // preflighted cross-origin request against providers that never asked
@@ -146,22 +152,32 @@ export async function startErrorMonitoring(
   globalThis.addEventListener('error', onError);
   globalThis.addEventListener('unhandledrejection', onRejection);
 
-  // Destructured, not `const Sentry = await import(...)`. Rollup can only
-  // tree-shake a dynamic import whose bindings it can see: taking the
-  // namespace object instead pulls in the whole SDK and triples this chunk
-  // (28.9 kB gzip against 155.9 kB, measured).
-  const { captureException, init, reactErrorHandler } = await import('@sentry/react');
-  init(sentryOptions(dsn, environment));
+  try {
+    // Destructured, not `const Sentry = await import(...)`. Rollup can only
+    // tree-shake a dynamic import whose bindings it can see: taking the
+    // namespace object instead pulls in the whole SDK and triples this chunk
+    // (28.9 kB gzip against 155.9 kB, measured).
+    const { captureException, init, reactErrorHandler } = await import('@sentry/react');
+    init(sentryOptions(dsn, environment));
 
-  // Dropped now that the SDK's own global handlers are installed, so a later
-  // error is not reported twice.
-  globalThis.removeEventListener('error', onError);
-  globalThis.removeEventListener('unhandledrejection', onRejection);
-
-  const handleReactError = reactErrorHandler();
-  deliver = (error, info, tags) => {
-    if (info === undefined) captureException(error, tags === undefined ? undefined : { tags });
-    else handleReactError(error, info);
-  };
-  for (const pending of buffered.splice(0)) deliver(pending.error, pending.info, pending.tags);
+    const handleReactError = reactErrorHandler();
+    deliver = (error, info, tags) => {
+      if (info === undefined) captureException(error, tags === undefined ? undefined : { tags });
+      else handleReactError(error, info);
+    };
+    for (const pending of buffered.splice(0)) deliver(pending.error, pending.info, pending.tags);
+  } catch {
+    // The SDK never arrived — a blocked or failed chunk request. Nothing can
+    // be reported from here, least of all this: an error reporter that
+    // rejects on startup takes the page's own unhandledrejection handler with
+    // it. The buffer is dropped so a page that keeps throwing does not hold
+    // MAX_BUFFERED errors for a client that is never coming.
+    buffered.length = 0;
+  } finally {
+    // Dropped either way: on success the SDK's own global handlers have taken
+    // over and a later error would be reported twice; on failure these would
+    // buffer for a client that will never drain them.
+    globalThis.removeEventListener('error', onError);
+    globalThis.removeEventListener('unhandledrejection', onRejection);
+  }
 }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { describeByokFailure } from '../byokFailure.ts';
+import { describeByokFailure } from '#src/features/byok/byokFailure.ts';
 
 test('a response cut off at the output cap says so, rather than blaming the format', () => {
   // The failure this whole module exists for: the model wrote a fine game and

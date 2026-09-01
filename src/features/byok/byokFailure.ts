@@ -4,10 +4,10 @@
 // Kept out of useByok.ts because none of it needs React — this is the part
 // worth testing exhaustively, and it runs under node --test as plain
 // functions rather than through a rendered hook.
-import { EXTRACTION_RETRY_FEEDBACK } from '../../../lib/extract-bundle-shared.ts';
-import { isExpectedFailure } from './providers.ts';
-import type { ExtractFailureReason } from '../../../lib/extract-bundle-shared.ts';
-import type { ByokFailureKind, ByokStopReason } from './providers.ts';
+import { EXTRACTION_RETRY_FEEDBACK } from '#lib/extract-bundle-shared.ts';
+import { isExpectedFailure } from '#src/features/byok/providers.ts';
+import type { ExtractFailureReason } from '#lib/extract-bundle-shared.ts';
+import type { ByokFailureKind, ByokStopReason } from '#src/features/byok/providers.ts';
 
 /**
  * A run that did not produce a game, and which half of the call it failed in.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { GenerationConsole } from '../GenerationConsole.tsx';
+import { GenerationConsole } from '@/features/byok/GenerationConsole.tsx';
 
 const RUNNING = {
   providerLabel: 'Anthropic',

@@ -5,7 +5,7 @@ import {
   formatGeneratedDate,
   msUntil,
   msUntilLabelChanges,
-} from '../countdown.ts';
+} from '#src/features/game/countdown.ts';
 
 const NOW = Date.parse('2026-08-29T12:00:00.000Z');
 

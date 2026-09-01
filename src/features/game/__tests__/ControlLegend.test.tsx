@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ControlLegend } from '../ControlLegend.tsx';
+import { ControlLegend } from '@/features/game/ControlLegend.tsx';
 
 describe('ControlLegend', () => {
   it('shows what each input does and how to perform it', () => {

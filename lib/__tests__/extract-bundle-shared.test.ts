@@ -4,7 +4,7 @@ import {
   EXTRACTION_RETRY_FEEDBACK,
   extractBundle,
   type ExtractFailureReason,
-} from '../extract-bundle-shared.ts';
+} from '#lib/extract-bundle-shared.ts';
 
 const GOOD_RESPONSE = `Here is your game:
 

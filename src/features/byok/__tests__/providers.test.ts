@@ -5,8 +5,8 @@ import {
   isExpectedFailure,
   type ByokCompletionResult,
   type ByokRequest,
-} from '../providers.ts';
-import type { ByokProvider } from '../../../../lib/byok-config-types.ts';
+} from '#src/features/byok/providers.ts';
+import type { ByokProvider } from '#lib/byok-config-types.ts';
 
 const PROVIDERS = ['openrouter', 'openai', 'anthropic', 'gemini'] as const satisfies readonly ByokProvider[];
 

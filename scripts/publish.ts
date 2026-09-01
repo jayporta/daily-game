@@ -10,16 +10,16 @@
 // bundle is touched — nothing downstream may transform it again.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createPaths, paths as defaultPaths, type Paths } from './lib/paths.ts';
-import { appendEntry, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
-import { buildBundleCspMeta, buildErrorReportingSnippet } from './lib/errorReporting.ts';
-import { toGeneratedMeta } from '../lib/extract-bundle-shared.ts';
-import { isManifest } from '../lib/manifest.ts';
-import type { GeneratedMeta } from '../lib/extract-bundle-shared.ts';
-import type { Manifest } from '../lib/manifest.ts';
-import type { FailureKind, HistoryGameEntry } from './lib/history-store.ts';
-import type { GenerationConfig } from './lib/config/generation.ts';
-import type { GenresConfig } from './lib/config/genres.ts';
+import { createPaths, paths as defaultPaths, type Paths } from '#scripts/lib/paths.ts';
+import { appendEntry, writeGamesJson, writeGamesMd } from '#scripts/lib/history-store.ts';
+import { buildBundleCspMeta, buildErrorReportingSnippet } from '#scripts/lib/errorReporting.ts';
+import { toGeneratedMeta } from '#lib/extract-bundle-shared.ts';
+import { isManifest } from '#lib/manifest.ts';
+import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
+import type { Manifest } from '#lib/manifest.ts';
+import type { FailureKind, HistoryGameEntry } from '#scripts/lib/history-store.ts';
+import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
+import type { GenresConfig } from '#scripts/lib/config/genres.ts';
 
 const MS_PER_DAY = 86_400_000;
 

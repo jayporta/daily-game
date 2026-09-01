@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { CodeViewer } from './CodeViewer.tsx';
-import { IconButton } from '../../ui/IconButton.tsx';
+import { CodeViewer } from '@/features/byok/CodeViewer.tsx';
+import { Icon } from '@/shared_components/Icon.tsx';
+import { IconButton } from '@/shared_components/IconButton.tsx';
 
 export interface CodeOverlayProps {
   /** Named in the heading and as the dialog's accessible label. */
@@ -49,17 +50,9 @@ export function CodeOverlay({ title, code, open, onClose }: CodeOverlayProps) {
           <div className="flex items-center justify-between border-b border-slate-800 px-4 py-2">
             <span className="font-mono text-xs text-slate-400">{title}</span>
             <IconButton label="Close full screen code" onClick={onClose}>
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                className="size-4.5"
-              >
+              <Icon>
                 <path d="M6 6l12 12M18 6L6 18" />
-              </svg>
+              </Icon>
             </IconButton>
           </div>
           <div className="min-h-0 grow">

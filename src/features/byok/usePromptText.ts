@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
-import { fetchText } from '../game/manifest-client.ts';
-import { stripAttemptFeedback } from '../../../lib/attempt-feedback.ts';
+import { fetchText } from '#src/features/game/manifest-client.ts';
+import { reportError } from '#src/lib/sentry.ts';
+import { stripAttemptFeedback } from '#lib/attempt-feedback.ts';
 
 /** What the disclosure shows about the day's prompt. */
 export type PromptTextState =
@@ -50,6 +51,10 @@ export interface UsePromptTextResult {
 export function usePromptText(promptPath: string, fetchImpl?: typeof fetch): UsePromptTextResult {
   // Both the state and the in-flight request carry the path they belong to,
   // so a day rollover cannot show yesterday's prompt under today's game.
+  //
+  // No unmount guard: a request can outlive the panel, but since React 18 a
+  // setState on an unmounted component is a silent no-op, so guarding it
+  // would add a branch nothing can observe.
   const [progress, setProgress] = useState<Progress>({ path: promptPath, state: UNREQUESTED });
   const inFlight = useRef<{ path: string; promise: Promise<string | null> } | null>(null);
 
@@ -74,7 +79,10 @@ export function usePromptText(promptPath: string, fetchImpl?: typeof fetch): Use
         settle({ status: 'ready', text });
         return text;
       },
-      () => {
+      (error: unknown) => {
+        // A missing prompt disables the whole panel while the rest of the
+        // page looks healthy, so nothing else would ever surface it.
+        reportError(error, { area: 'byok', stage: 'prompt-fetch' });
         settle({ status: 'failed' });
         return null;
       },

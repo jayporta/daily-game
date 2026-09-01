@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { errorMessage } from '../errors.ts';
+import { errorMessage } from '#lib/errors.ts';
 
 test('errorMessage reports an Error by its message', () => {
   assert.equal(errorMessage(new Error('rate limited')), 'rate limited');

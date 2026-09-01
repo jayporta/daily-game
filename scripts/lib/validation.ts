@@ -5,8 +5,8 @@
 // beside the thing they describe (see config/ and history-store.ts), and only
 // these primitives are shared.
 import { readFileSync } from 'node:fs';
-import { errorMessage } from '../../lib/errors.ts';
-import { isRecord } from '../../lib/guards.ts';
+import { errorMessage } from '#lib/errors.ts';
+import { isRecord } from '#lib/guards.ts';
 
 /** What every validator returns: a verdict plus every problem found, not just the first. */
 export interface ValidationResult {

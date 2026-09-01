@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyFeedback, tallyReactions } from '../fetch-feedback.ts';
-import { PUBLISHED_ENTRY as PUBLISHED, PUBLISHED_SLUG as SLUG } from '../lib/testFixtures.ts';
+import { applyFeedback, tallyReactions } from '#scripts/fetch-feedback.ts';
+import { PUBLISHED_ENTRY as PUBLISHED, PUBLISHED_SLUG as SLUG } from '#scripts/lib/testFixtures.ts';
 
 const ENDPOINT = 'https://proj.supabase.co/rest/v1/reactions';
 

@@ -14,9 +14,9 @@ import {
   validateHistorySummary,
   writeGamesJson,
   writeGamesMd,
-} from '../history-store.ts';
-import { FAILED_ENTRY as FAILED, PUBLISHED_ENTRY as PUBLISHED } from '../testFixtures.ts';
-import type { HistoryGameEntry } from '../history-store.ts';
+} from '#scripts/lib/history-store.ts';
+import { FAILED_ENTRY as FAILED, PUBLISHED_ENTRY as PUBLISHED } from '#scripts/lib/testFixtures.ts';
+import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
 
 function scratchDir(t: { after(fn: () => void): void }): string {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-history-'));

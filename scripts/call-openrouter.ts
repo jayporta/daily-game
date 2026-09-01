@@ -9,27 +9,27 @@
 // one write a failed run can make is repointing a manifest that has stopped
 // naming a game at all back at the archive.
 import { pathToFileURL } from 'node:url';
-import { buildPrompt, selectRemixSuggestion } from './build-prompt.ts';
-import { SYSTEM_PROMPT } from '../lib/system-prompt.ts';
-import { selectNextModel } from './select-model.ts';
-import { EXTRACTION_RETRY_FEEDBACK, extractBundle } from '../lib/extract-bundle-shared.ts';
-import { errorMessage } from '../lib/errors.ts';
-import { moderate } from './moderate.ts';
-import { createSmokeTester, type SmokeTester, type SmokeTestResult } from './smoke-test.ts';
-import { publish, recordFailure, restoreManifestFromArchive } from './publish.ts';
-import { getOpenRouterClient } from './lib/get-client.ts';
-import { lastPublishedEntry, readHotWindow, readSummary, writeGamesJson, writeGamesMd } from './lib/history-store.ts';
-import { applyFeedback } from './fetch-feedback.ts';
-import { paths } from './lib/paths.ts';
-import type { OpenRouterClient } from './lib/openrouter-client.ts';
-import type { GeneratedMeta } from '../lib/extract-bundle-shared.ts';
-import type { FailureKind, HistoryGameEntry, HistorySummary } from './lib/history-store.ts';
-import type { ManifestRestoreResult } from './publish.ts';
-import type { GenerationConfig } from './lib/config/generation.ts';
-import type { GenresConfig } from './lib/config/genres.ts';
-import { loadAllConfig } from './lib/config/index.ts';
-import type { ModelsConfig } from './lib/config/models.ts';
-import { loadReactionConfigOrUnconfigured } from './lib/config/reactionConfig.ts';
+import { buildPrompt, selectRemixSuggestion } from '#scripts/build-prompt.ts';
+import { SYSTEM_PROMPT } from '#lib/system-prompt.ts';
+import { selectNextModel } from '#scripts/select-model.ts';
+import { EXTRACTION_RETRY_FEEDBACK, extractBundle } from '#lib/extract-bundle-shared.ts';
+import { errorMessage } from '#lib/errors.ts';
+import { moderate } from '#scripts/moderate.ts';
+import { createSmokeTester, type SmokeTester, type SmokeTestResult } from '#scripts/smoke-test.ts';
+import { publish, recordFailure, restoreManifestFromArchive } from '#scripts/publish.ts';
+import { getOpenRouterClient } from '#scripts/lib/get-client.ts';
+import { lastPublishedEntry, readHotWindow, readSummary, writeGamesJson, writeGamesMd } from '#scripts/lib/history-store.ts';
+import { applyFeedback } from '#scripts/fetch-feedback.ts';
+import { paths } from '#scripts/lib/paths.ts';
+import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
+import type { FailureKind, HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
+import type { ManifestRestoreResult } from '#scripts/publish.ts';
+import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
+import type { GenresConfig } from '#scripts/lib/config/genres.ts';
+import { loadAllConfig } from '#scripts/lib/config/index.ts';
+import type { ModelsConfig } from '#scripts/lib/config/models.ts';
+import { loadReactionConfigOrUnconfigured } from '#scripts/lib/config/reactionConfig.ts';
 
 export const MAX_ATTEMPTS = 3;
 

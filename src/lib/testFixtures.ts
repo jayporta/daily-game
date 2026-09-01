@@ -4,7 +4,7 @@
 // The `test` prefix must stay camelCase, never `test-`: node --test's
 // default glob claims the hyphenated prefix and would run this file as a
 // suite of its own.
-import type { Manifest } from '../../lib/manifest.ts';
+import type { Manifest } from '#lib/manifest.ts';
 
 /**
  * A published day, as `publish.ts` writes it.

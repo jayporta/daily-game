@@ -12,22 +12,34 @@
 // This never touches OPENROUTER_API_KEY or scripts/lib/get-client.ts's
 // mock-vs-real decision — a visitor's pasted key is a wholly separate,
 // client-side-only path.
-import { errorMessage } from '../../../lib/errors.ts';
-import { arrayAt, recordAt, stringAt } from '../../../lib/guards.ts';
+import { errorMessage } from '#lib/errors.ts';
+import { arrayAt, recordAt, stringAt } from '#lib/guards.ts';
 import {
   MAX_ERROR_DETAIL,
   errorDetail,
   firstChoiceDelta,
   responseErrorDetail,
-} from '../../../lib/provider-response.ts';
-import { readSseData } from './sseStream.ts';
-import type { ByokProvider } from '../../../lib/byok-config-types.ts';
+} from '#lib/provider-response.ts';
+import { readSseData } from '#src/features/byok/sseStream.ts';
+import type { ByokProvider } from '#lib/byok-config-types.ts';
 
+/** One generation, in the form every provider's request is built from. */
 export interface ByokRequest {
+  /** Which provider's API shape and endpoint to use. */
   readonly provider: ByokProvider;
+  /** The provider's own model id, sent verbatim. */
   readonly model: string;
+  /**
+   * The visitor's key.
+   *
+   * Written into a request header and nowhere else — never a URL, never
+   * state, never a log or an error message. It lives for the duration of this
+   * one call.
+   */
   readonly apiKey: string;
+  /** The fixed system prompt every generation shares. */
   readonly systemPrompt: string;
+  /** The archived prompt, plus whatever this run adds to it. */
   readonly userPrompt: string;
 }
 

@@ -6,7 +6,7 @@
 // *tries* to reach the network has broken the self-contained rule and is
 // rejected even though the request never left the machine.
 import { chromium, type Browser } from 'playwright';
-import { errorMessage } from '../lib/errors.ts';
+import { errorMessage } from '#lib/errors.ts';
 
 export interface SmokeTestResult {
   pass: boolean;

@@ -16,7 +16,7 @@ import {
   REACTION_KINDS,
   SLUG_PATTERN,
   type DislikeReason,
-} from '../lib/reaction-types.ts';
+} from '#lib/reaction-types.ts';
 
 /** Renders `['a', 'b']` as the SQL literal list `'a','b'`. */
 function sqlList(values: readonly string[]): string {

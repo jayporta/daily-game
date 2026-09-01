@@ -1,15 +1,15 @@
 // Everything about `config/generation.json`: its shape, its rules, and how
 // it is read. These are the knobs on the daily run — window sizes, retry
 // temperatures, the cron the countdown is computed from.
-import { parseSentryDsn } from '../errorReporting.ts';
-import { paths } from '../paths.ts';
+import { parseSentryDsn } from '#scripts/lib/errorReporting.ts';
+import { paths } from '#scripts/lib/paths.ts';
 import {
   isFiniteNumber,
   isNonEmptyString,
   isPlainObject,
   loadValidatedJson,
   type ValidationResult,
-} from '../validation.ts';
+} from '#scripts/lib/validation.ts';
 
 export interface GenerationConfig {
   historyHotWindowDays: number;

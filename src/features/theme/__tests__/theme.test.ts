@@ -9,8 +9,8 @@ import {
   readTheme,
   rememberTheme,
   resolveInitialTheme,
-} from '../theme.ts';
-import type { WebStorage } from '../../../lib/browser-storage.ts';
+} from '#src/features/theme/theme.ts';
+import type { WebStorage } from '#src/lib/browser-storage.ts';
 
 /** A working storage, plus the raw record so a test can inspect what landed. */
 function fakeStorage(seed: Record<string, string> = {}): WebStorage & {

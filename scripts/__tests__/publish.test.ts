@@ -12,14 +12,14 @@ import {
   restoreManifestFromArchive,
   slugify,
   withHeadMeta,
-} from '../publish.ts';
-import { GENERATION_CONFIG, GENRES, loadFixtureBundle } from '../lib/testFixtures.ts';
-import { buildBundleCspMeta } from '../lib/errorReporting.ts';
-import { readHotWindow } from '../lib/history-store.ts';
-import { extractBundle } from '../../lib/extract-bundle-shared.ts';
-import { isManifest } from '../../lib/manifest.ts';
-import type { HistoryGameEntry } from '../lib/history-store.ts';
-import type { GeneratedMeta } from '../../lib/extract-bundle-shared.ts';
+} from '#scripts/publish.ts';
+import { GENERATION_CONFIG, GENRES, loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
+import { buildBundleCspMeta } from '#scripts/lib/errorReporting.ts';
+import { readHotWindow } from '#scripts/lib/history-store.ts';
+import { extractBundle } from '#lib/extract-bundle-shared.ts';
+import { isManifest } from '#lib/manifest.ts';
+import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
+import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 
 const META: GeneratedMeta = {
   title: 'Beetle Maze',

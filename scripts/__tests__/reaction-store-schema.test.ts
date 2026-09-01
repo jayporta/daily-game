@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DISLIKE_REASONS, REACTION_KINDS, SLUG_PATTERN } from '../../lib/reaction-types.ts';
-import { buildReactionStoreDdl } from '../reaction-store-schema.ts';
+import { DISLIKE_REASONS, REACTION_KINDS, SLUG_PATTERN } from '#lib/reaction-types.ts';
+import { buildReactionStoreDdl } from '#scripts/reaction-store-schema.ts';
 
 test('the schema allows every reason the app can send', () => {
   const ddl = buildReactionStoreDdl();

@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { paths } from '../../paths.ts';
-import { loadReactionConfig, loadReactionConfigOrUnconfigured, validateReactionConfig } from '../reactionConfig.ts';
+import { paths } from '#scripts/lib/paths.ts';
+import { loadReactionConfig, loadReactionConfigOrUnconfigured, validateReactionConfig } from '#scripts/lib/config/reactionConfig.ts';
 
 function scratchFile(t: { after(fn: () => void): void }, contents: string): string {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-config-'));

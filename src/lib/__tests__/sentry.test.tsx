@@ -2,21 +2,27 @@
 // touch window during construction.
 import { describe, expect, test, vi } from 'vitest';
 import { getClient } from '@sentry/react';
-import { reactErrorReporter, reportError, sentryOptions, startErrorMonitoring } from '../sentry.ts';
+import { reactErrorReporter, reportError, sentryOptions, startErrorMonitoring } from '@/lib/sentry.ts';
 
 /**
  * What the SDK was actually handed. The real `init` still runs — only the two
  * delivery calls are intercepted, so `getClient()` below still sees a client.
  */
-const { reported, scopes } = vi.hoisted(() => ({
+const { reported, scopes, sdkUnavailable } = vi.hoisted(() => ({
   reported: [] as unknown[],
   scopes: [] as unknown[],
+  /** Stands in for a chunk request that never arrives. */
+  sdkUnavailable: { value: false },
 }));
 
 vi.mock('@sentry/react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@sentry/react')>();
   return {
     ...actual,
+    init: (options: Parameters<typeof actual.init>[0]) => {
+      if (sdkUnavailable.value) throw new Error('chunk request failed');
+      return actual.init(options);
+    },
     captureException: (error: unknown, scope?: unknown) => {
       reported.push(error);
       scopes.push(scope);
@@ -50,6 +56,23 @@ describe('sentryOptions', () => {
 
     expect(options.tracesSampleRate).toBeUndefined();
     expect(options.integrations).toBeUndefined();
+  });
+
+  // A BYOK failure logs the provider's verbatim error body, and a provider
+  // rejecting a key echoes part of that key back. The SDK captures console
+  // output as breadcrumbs by default, which would carry that text out of the
+  // browser attached to some later event.
+  test('drops console breadcrumbs', () => {
+    const beforeBreadcrumb = sentryOptions(DSN, 'production').beforeBreadcrumb;
+
+    expect(beforeBreadcrumb?.({ category: 'console', message: 'sk-live-abc' }, {})).toBeNull();
+  });
+
+  test('keeps breadcrumbs that are not console output', () => {
+    const beforeBreadcrumb = sentryOptions(DSN, 'production').beforeBreadcrumb;
+    const navigation = { category: 'navigation' };
+
+    expect(beforeBreadcrumb?.(navigation, {})).toBe(navigation);
   });
 });
 
@@ -88,4 +111,16 @@ test('reportError delivers a handled error with its tags', async () => {
 
   expect(reported).toEqual([handled]);
   expect(scopes).toEqual([{ tags: { area: 'byok', provider: 'gemini' } }]);
+});
+
+// main.tsx fires this as `void startErrorMonitoring()`, so a rejection here
+// is an unhandled rejection and nothing else — in the one function whose job
+// is to make sure those are seen.
+test('startErrorMonitoring resolves when the SDK cannot be loaded', async () => {
+  sdkUnavailable.value = true;
+  try {
+    await expect(startErrorMonitoring(DSN, 'test')).resolves.toBeUndefined();
+  } finally {
+    sdkUnavailable.value = false;
+  }
 });

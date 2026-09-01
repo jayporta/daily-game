@@ -9,7 +9,7 @@
 // This is the site's chrome only. The game itself is AI-authored HTML
 // behind an opaque origin and ships byte-for-byte, so it brings its own
 // colours and does not follow the toggle. See src/features/game/GameFrame.tsx.
-import type { WebStorage } from '../../lib/browser-storage.ts';
+import type { WebStorage } from '#src/lib/browser-storage.ts';
 
 /** The palettes on offer. A visitor toggles between them; there is no third, system-following state past the first visit. */
 export const THEMES = ['light', 'dark'] as const;

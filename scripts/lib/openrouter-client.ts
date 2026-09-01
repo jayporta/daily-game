@@ -5,7 +5,7 @@
 // Reading the response — the completion text and the error body — lives in
 // lib/provider-response.ts, shared with the browser's BYOK path, which calls
 // the same OpenAI-shaped API.
-import { firstChoiceContent, responseErrorDetail } from '../../lib/provider-response.ts';
+import { firstChoiceContent, responseErrorDetail } from '#lib/provider-response.ts';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';

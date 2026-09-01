@@ -4,10 +4,10 @@
 // Its type and shape guard live in `lib/reaction-types.ts` instead, not here:
 // the browser POSTs the rows and so needs them too, and `lib/` is the only
 // directory both tsconfigs compile.
-import { isRecord } from '../../../lib/guards.ts';
-import { isReactionConfig, type ReactionConfig } from '../../../lib/reaction-types.ts';
-import { paths } from '../paths.ts';
-import { loadValidatedJson, type ValidationResult } from '../validation.ts';
+import { isRecord } from '#lib/guards.ts';
+import { isReactionConfig, type ReactionConfig } from '#lib/reaction-types.ts';
+import { paths } from '#scripts/lib/paths.ts';
+import { loadValidatedJson, type ValidationResult } from '#scripts/lib/validation.ts';
 
 /**
  * The `role` a legacy Supabase JWT claims, or `null` if it is not one.

@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { DislikeReasons } from './DislikeReasons.tsx';
-import { PillButton } from '../../ui/PillButton.tsx';
-import { useReaction } from './useReaction.ts';
-import { reactionConfig } from './reactionStore.ts';
-import type { ReactionConfig } from '../../../lib/reaction-types.ts';
+import { DislikeReasons } from '@/features/reaction/DislikeReasons.tsx';
+import { PillButton } from '@/shared_components/PillButton.tsx';
+import { useReaction } from '@/features/reaction/useReaction.ts';
+import { reactionConfig } from '@/features/reaction/reactionStore.ts';
+import type { ReactionConfig } from '#lib/reaction-types.ts';
 
 export interface ReactionBarProps {
   /** Manifest slug of the game being rated — the row's key in the store. */
@@ -28,11 +28,11 @@ export interface ReactionBarProps {
  * which is what keeps store content out of this page entirely.
  */
 export function ReactionBar({ slug, config = reactionConfig, fetchImpl }: ReactionBarProps) {
-  const { phase, like, beginDislike, cancelDislike, submitDislike } = useReaction(
+  const { phase, like, beginDislike, cancelDislike, submitDislike } = useReaction({
     slug,
     config,
     fetchImpl,
-  );
+  });
   const bar = useRef<HTMLDivElement>(null);
 
   // Dismissal for the reasons panel, which nothing in React models: a
@@ -86,7 +86,12 @@ export function ReactionBar({ slug, config = reactionConfig, fetchImpl }: Reacti
         // it does not push the metadata card and the panel below it down.
         // It paints its own background deliberately: it overlaps content it
         // would otherwise be read through.
-        <div className="absolute top-full right-0 z-20 mt-2 w-72 rounded-xl border border-hairline bg-panel p-3 text-left shadow-lg dark:border-slate-800 dark:bg-slate-900">
+        //
+        // Narrow first, then wider from `sm:`. Anchored to `right-0`, so its
+        // width is spent leftwards: at 320px the roomier size would put its
+        // left edge past the edge of the screen, where `max-w-full` cannot
+        // help — the containing block is this bar, not the content column.
+        <div className="absolute top-full right-0 z-20 mt-2 w-56 rounded-xl border border-hairline bg-panel p-3 text-left shadow-lg sm:w-72 dark:border-slate-800 dark:bg-slate-900">
           <DislikeReasons onSubmit={submitDislike} />
         </div>
       )}

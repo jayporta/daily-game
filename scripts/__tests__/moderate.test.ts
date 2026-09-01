@@ -8,11 +8,11 @@ import {
   keywordScan,
   moderate,
   moderatableText,
-} from '../moderate.ts';
-import { loadFixtureBundle } from '../lib/testFixtures.ts';
-import type { OpenRouterClient } from '../lib/openrouter-client.ts';
-import type { GeneratedMeta } from '../../lib/extract-bundle-shared.ts';
-import { loadGuardrails } from '../lib/config/guardrails.ts';
+} from '#scripts/moderate.ts';
+import { loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
+import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
+import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
 
 const GUARDRAILS = loadGuardrails();
 

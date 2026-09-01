@@ -3,9 +3,9 @@
 //
 // In lib/ because two callers need the identical reading, on opposite sides
 // of the build: `scripts/lib/openrouter-client.ts` in the daily pipeline and
-// `src/features/byok/providers.ts` in the browser. They talk to the same
-// OpenAI-shaped API and used to carry a copy of this each.
-import { arrayAt, recordAt, stringAt } from './guards.ts';
+// `src/features/byok/providers.ts` in the browser. Both talk to the same
+// OpenAI-shaped API, so both read a response the same way.
+import { arrayAt, recordAt, stringAt } from '#lib/guards.ts';
 
 /**
  * Cap on any provider text shown to a visitor or written to history.

@@ -4,7 +4,7 @@ import {
   ATTEMPT_FEEDBACK_HEADING,
   renderAttemptFeedback,
   stripAttemptFeedback,
-} from '../attempt-feedback.ts';
+} from '#lib/attempt-feedback.ts';
 
 /** A prompt shaped like the real one: sections separated by `## ` headings. */
 function promptAround(middle: string): string {

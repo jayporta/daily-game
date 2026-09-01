@@ -17,9 +17,9 @@ import {
   type ReactionConfig,
   type ReactionKind,
   type ReactionPayload,
-} from '../../../lib/reaction-types.ts';
-import { isRecord } from '../../../lib/guards.ts';
-import type { WebStorage } from '../../lib/browser-storage.ts';
+} from '#lib/reaction-types.ts';
+import { isRecord } from '#lib/guards.ts';
+import type { WebStorage } from '#src/lib/browser-storage.ts';
 
 /** A visitor's own recorded choice for one game. */
 export interface StoredReaction {
@@ -151,12 +151,18 @@ export function readReaction(storage: WebStorage | null, slug: string): StoredRe
   }
 }
 
+/** One visitor's choice, and where to keep it. */
+export interface RememberReactionParams {
+  /** `null` when storage cannot be reached, in which case nothing is kept. */
+  readonly storage: WebStorage | null;
+  /** Manifest slug of the game being rated. */
+  readonly slug: string;
+  /** What to record against it. */
+  readonly reaction: StoredReaction;
+}
+
 /** Records this visitor's choice for `slug`. Never throws. */
-export function rememberReaction(
-  storage: WebStorage | null,
-  slug: string,
-  reaction: StoredReaction,
-): void {
+export function rememberReaction({ storage, slug, reaction }: RememberReactionParams): void {
   if (storage === null) return;
   try {
     storage.setItem(storageKey(slug), JSON.stringify(reaction));

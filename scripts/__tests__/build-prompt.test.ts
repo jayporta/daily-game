@@ -10,12 +10,12 @@ import {
   formatGenreCatalog,
   recentlyUsedGenreIds,
   selectRemixSuggestion,
-} from '../build-prompt.ts';
-import { extractBundle } from '../../lib/extract-bundle-shared.ts';
-import { stripAttemptFeedback } from '../../lib/attempt-feedback.ts';
-import { GENRES } from '../lib/testFixtures.ts';
-import { EMPTY_SUMMARY } from '../lib/history-store.ts';
-import type { HistoryGameEntry, HistorySummary } from '../lib/history-store.ts';
+} from '#scripts/build-prompt.ts';
+import { extractBundle } from '#lib/extract-bundle-shared.ts';
+import { stripAttemptFeedback } from '#lib/attempt-feedback.ts';
+import { GENRES } from '#scripts/lib/testFixtures.ts';
+import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
+import type { HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
 
 const HISTORY: HistoryGameEntry[] = [
   {

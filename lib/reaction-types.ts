@@ -5,7 +5,7 @@
 // the browser to render the choices, the pipeline to validate what comes
 // back from the store — and lib/ is compiled by both tsconfigs, so a
 // Node-only API here fails the web build.
-import { isRecord } from './guards.ts';
+import { isRecord } from '#lib/guards.ts';
 
 /**
  * The closed set of reasons a visitor may give for disliking a game.

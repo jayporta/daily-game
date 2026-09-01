@@ -10,8 +10,8 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createPaths, paths as defaultPaths, REPO_ROOT, type Paths } from './lib/paths.ts';
-import { isManifest } from '../lib/manifest.ts';
+import { createPaths, paths as defaultPaths, REPO_ROOT, type Paths } from '#scripts/lib/paths.ts';
+import { isManifest } from '#lib/manifest.ts';
 
 export interface AssembleSiteParams {
   /** Repo root to read from — overridden in tests. */

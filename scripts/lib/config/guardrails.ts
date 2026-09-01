@@ -4,7 +4,7 @@
 // empty. Injected verbatim into both the generation and the moderation
 // prompt, which is what keeps the two from drifting apart.
 import { readFileSync } from 'node:fs';
-import { paths } from '../paths.ts';
+import { paths } from '#scripts/lib/paths.ts';
 
 /** @throws If the file is missing or contains nothing but whitespace. */
 export function loadGuardrails(filePath: string = paths.guardrails): string {

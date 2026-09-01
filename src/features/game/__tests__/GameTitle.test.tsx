@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { GameTitle } from '../GameTitle.tsx';
-import { MANIFEST } from '../../../lib/testFixtures.ts';
+import { GameTitle } from '@/features/game/GameTitle.tsx';
+import { MANIFEST } from '@/lib/testFixtures.ts';
 
 describe('GameTitle', () => {
   it('shows the title and genre', () => {

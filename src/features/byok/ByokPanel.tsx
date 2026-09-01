@@ -1,14 +1,15 @@
-import { useState } from 'react';
-import { FIELD_CONTROL, FormField } from './FormField.tsx';
-import { Panel } from '../../ui/Panel.tsx';
-import { PillButton } from '../../ui/PillButton.tsx';
-import { Disclosure } from './Disclosure.tsx';
-import { composeByokPrompt, type ByokPromptParts } from './composeByokPrompt.ts';
-import { usePromptText, type PromptTextState } from './usePromptText.ts';
-import type { UseByokResult } from './useByok.ts';
-import { byokModelsConfig } from './byokCatalogue.ts';
-import { isByokProvider, type ByokModelsConfig, type ByokProvider } from '../../../lib/byok-config-types.ts';
-import type { ControlHint } from '../../../lib/extract-bundle-shared.ts';
+import { useReducer, useState } from 'react';
+import { FIELD_CONTROL, FormField } from '@/features/byok/FormField.tsx';
+import { Panel } from '@/shared_components/Panel.tsx';
+import { PillButton } from '@/shared_components/PillButton.tsx';
+import { Disclosure } from '@/features/byok/Disclosure.tsx';
+import { reportError } from '@/lib/sentry.ts';
+import { composeByokPrompt, type ByokPromptParts } from '@/features/byok/composeByokPrompt.ts';
+import { usePromptText, type PromptTextState } from '@/features/byok/usePromptText.ts';
+import type { UseByokResult } from '@/features/byok/useByok.ts';
+import { byokModelsConfig } from '@/features/byok/byokCatalogue.ts';
+import { isByokProvider, type ByokModelsConfig, type ByokProvider } from '#lib/byok-config-types.ts';
+import type { ControlHint } from '#lib/extract-bundle-shared.ts';
 
 export interface ByokResult {
   readonly html: string;
@@ -53,6 +54,43 @@ function firstModelId(catalogue: ByokModelsConfig, provider: ByokProvider): stri
   return catalogue.find((entry) => entry.provider === provider)?.models[0]?.id ?? '';
 }
 
+/** Which provider and model this run will use. */
+interface Selection {
+  readonly provider: ByokProvider;
+  readonly modelId: string;
+}
+
+/**
+ * A provider carries its model with it, because a provider left beside
+ * another provider's model would describe a request no catalogue entry
+ * covers. The action supplies both, so the pair cannot be moved by halves.
+ */
+type SelectionAction =
+  | { type: 'provider'; provider: ByokProvider; modelId: string }
+  | { type: 'model'; modelId: string };
+
+function reduceSelection(selection: Selection, action: SelectionAction): Selection {
+  switch (action.type) {
+    case 'provider':
+      return { provider: action.provider, modelId: action.modelId };
+    case 'model':
+      return { provider: selection.provider, modelId: action.modelId };
+  }
+}
+
+/**
+ * The first entry in the catalogue.
+ *
+ * The `?? 'openrouter'` is unreachable past the empty-catalogue guard in the
+ * panel; it is there because the type has no empty case.
+ */
+function initialSelection(catalogue: ByokModelsConfig): Selection {
+  return {
+    provider: catalogue[0]?.provider ?? 'openrouter',
+    modelId: catalogue[0]?.models[0]?.id ?? '',
+  };
+}
+
 /**
  * What the disclosure shows, including while there is nothing to show yet.
  *
@@ -92,12 +130,13 @@ export function ByokPanel({
 }: ByokPanelProps) {
   const { state: prompt, load: loadPrompt } = usePromptText(promptPath, fetchImpl);
   const { status, priorFailureFeedback, clearFeedback, generate, stop } = byok;
-  // Lazy: both initial values are a scan of the catalogue, and a non-lazy
+  // Lazy: the initial value is a scan of the catalogue, and a non-lazy
   // initializer runs that scan on every render to discard the result.
-  // The `?? 'openrouter'` is unreachable past the empty-catalogue guard below;
-  // it is there because the type has no empty case.
-  const [provider, setProvider] = useState<ByokProvider>(() => catalogue[0]?.provider ?? 'openrouter');
-  const [modelId, setModelId] = useState(() => catalogue[0]?.models[0]?.id ?? '');
+  const [{ provider, modelId }, select] = useReducer(
+    reduceSelection,
+    catalogue,
+    initialSelection,
+  );
   const [apiKey, setApiKey] = useState('');
   const [includeCurrentGame, setIncludeCurrentGame] = useState(false);
 
@@ -114,47 +153,60 @@ export function ByokPanel({
     ...(includeCurrentGame ? { currentGameHtml } : {}),
   };
 
+  // A correction describes what the last model got wrong; it is addressed to
+  // nobody once a different one is picked. Both handlers clear it, because
+  // both land on a different model.
   const handleModelChange = (nextModelId: string): void => {
-    setModelId(nextModelId);
-    // A correction describes what the last model got wrong; it is addressed
-    // to nobody once a different one is picked.
+    select({ type: 'model', modelId: nextModelId });
     clearFeedback();
   };
 
   const handleProviderChange = (nextProvider: ByokProvider): void => {
-    setProvider(nextProvider);
-    handleModelChange(firstModelId(catalogue, nextProvider));
+    select({
+      type: 'provider',
+      provider: nextProvider,
+      modelId: firstModelId(catalogue, nextProvider),
+    });
+    clearFeedback();
   };
 
   const handleSubmit = async (): Promise<void> => {
     if (!canSubmit) return;
 
-    // Awaited rather than gating the button: warmed on first contact with the
-    // panel, so this has almost always already resolved.
-    const basePrompt = await loadPrompt();
-    if (basePrompt === null) return;
+    try {
+      // Awaited rather than gating the button: warmed on first contact with
+      // the panel, so this has almost always already resolved.
+      const basePrompt = await loadPrompt();
+      if (basePrompt === null) return;
 
-    const generated = await generate({
-      provider,
-      modelId,
-      providerLabel: selected?.label ?? provider,
-      apiKey,
-      userPrompt: composeByokPrompt({ basePrompt, ...additions }),
-    });
-    // Kept on a failure so Generate still works: a run that did not produce a
-    // game is one the visitor will want to retry, and clearing the field
-    // would leave them with a control they cannot use. Cleared on success,
-    // and never written anywhere but this input either way.
-    if (generated === null) return;
-    setApiKey('');
+      const generated = await generate({
+        provider,
+        modelId,
+        providerLabel: selected?.label ?? provider,
+        apiKey,
+        userPrompt: composeByokPrompt({ basePrompt, ...additions }),
+      });
+      // Kept on a failure so Generate still works: a run that did not produce
+      // a game is one the visitor will want to retry, and clearing the field
+      // would leave them with a control they cannot use. Cleared on success,
+      // and never written anywhere but this input either way.
+      if (generated === null) return;
+      setApiKey('');
 
-    onResult({
-      html: generated.html,
-      title: generated.meta.title,
-      controls: generated.meta.controls,
-      providerLabel: generated.providerLabel,
-      modelId: generated.modelId,
-    });
+      onResult({
+        html: generated.html,
+        title: generated.meta.title,
+        controls: generated.meta.controls,
+        providerLabel: generated.providerLabel,
+        modelId: generated.modelId,
+      });
+    } catch (error) {
+      // Fired as `void handleSubmit()`, so anything escaping here would be an
+      // unhandled rejection and nothing else. `generate` reports its own
+      // failures; this covers the handing-over on either side of it.
+      reportError(error, { area: 'byok', stage: 'submit' });
+      stop();
+    }
   };
 
   // A malformed config/byok-models.json degrades the catalogue to empty. There
@@ -274,8 +326,11 @@ export function ByokPanel({
           Include the current game&rsquo;s code, and ask for an improvement on it
         </label>
 
+        {/* No `text-meta` here: it is a colour, not a size, and a second
+            colour utility beside `text-rose-600` would silently lose. The
+            size comes from `text-ui` on the wrapper above. */}
         {status.status === 'error' && (
-          <p role="alert" className="mt-2 text-meta text-rose-600 dark:text-rose-400">
+          <p role="alert" className="mt-2 text-rose-600 dark:text-rose-400">
             {status.message}
           </p>
         )}

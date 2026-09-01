@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { formatCountdown, msUntil, msUntilLabelChanges } from './countdown.ts';
+import { formatCountdown, msUntil, msUntilLabelChanges } from '#src/features/game/countdown.ts';
 
 /**
  * Live "time until this game is replaced" label.

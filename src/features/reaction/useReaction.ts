@@ -4,13 +4,13 @@ import {
   readReaction,
   rememberReaction,
   sendReaction,
-} from './reaction.ts';
-import { localStorageOrNull } from '../../lib/browser-storage.ts';
+} from '#src/features/reaction/reaction.ts';
+import { localStorageOrNull } from '#src/lib/browser-storage.ts';
 import type {
   DislikeReason,
   ReactionConfig,
   ReactionKind,
-} from '../../../lib/reaction-types.ts';
+} from '#lib/reaction-types.ts';
 
 /**
  * Where the viewer is in rating today's game.
@@ -41,6 +41,19 @@ export interface UseReactionResult {
   submitDislike: (reasons: readonly DislikeReason[]) => void;
 }
 
+/** Which game is being rated, and where its row goes. */
+export interface UseReactionParams {
+  /** Manifest slug of the game being rated — the row's key in the store. */
+  readonly slug: string;
+  /**
+   * Where to send the row. A `null` `endpointUrl` keeps everything local and
+   * issues no request. See {@link buildInsertRequest}.
+   */
+  readonly config: ReactionConfig;
+  /** Replaces global `fetch`; injected by tests. */
+  readonly fetchImpl?: typeof fetch;
+}
+
 /** The slug a session belongs to, so it cannot outlive that game. */
 interface Session {
   readonly slug: string;
@@ -67,16 +80,8 @@ function initialSession(slug: string): Session {
  * during the render that notices it — never on every render. Rendering has to
  * be pure, and `localStorage` is an external mutable store: reading it each
  * pass would also re-parse the stored JSON for no one.
- *
- * @param config Where to send the row. A `null` `endpointUrl` keeps
- *   everything local and issues no request. See {@link buildInsertRequest}.
- * @param fetchImpl Replaces global `fetch`; injected by tests.
  */
-export function useReaction(
-  slug: string,
-  config: ReactionConfig,
-  fetchImpl?: typeof fetch,
-): UseReactionResult {
+export function useReaction({ slug, config, fetchImpl }: UseReactionParams): UseReactionResult {
   const [session, setSession] = useState<Session>(() => initialSession(slug));
 
   // The day rolled over without a remount. Adjusting state during render is
@@ -88,7 +93,7 @@ export function useReaction(
 
   const commit = (kind: ReactionKind, reasons: readonly DislikeReason[]): void => {
     setSession({ slug, phase: 'submitted' });
-    rememberReaction(localStorageOrNull(), slug, { kind, reasons });
+    rememberReaction({ storage: localStorageOrNull(), slug, reaction: { kind, reasons } });
     // Deliberately not awaited: the store is decoration, nothing on screen
     // waits for it, and `sendReaction` never rejects.
     void sendReaction(buildInsertRequest(config, { slug, reaction: kind, reasons }), { fetchImpl });

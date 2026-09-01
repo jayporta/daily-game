@@ -8,16 +8,16 @@
 // spans two files rather than belonging to either.
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { errorMessage } from '../lib/errors.ts';
-import { loadByokModelsConfig } from './lib/config/byokModels.ts';
-import { loadGenerationConfig } from './lib/config/generation.ts';
-import { loadGenresConfig } from './lib/config/genres.ts';
-import { loadGuardrails } from './lib/config/guardrails.ts';
-import { loadModelsConfig } from './lib/config/models.ts';
-import { loadReactionConfig } from './lib/config/reactionConfig.ts';
-import { readHotWindow, readSummary } from './lib/history-store.ts';
-import { paths as defaultPaths, type Paths } from './lib/paths.ts';
-import type { ValidationResult } from './lib/validation.ts';
+import { errorMessage } from '#lib/errors.ts';
+import { loadByokModelsConfig } from '#scripts/lib/config/byokModels.ts';
+import { loadGenerationConfig } from '#scripts/lib/config/generation.ts';
+import { loadGenresConfig } from '#scripts/lib/config/genres.ts';
+import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
+import { loadModelsConfig } from '#scripts/lib/config/models.ts';
+import { loadReactionConfig } from '#scripts/lib/config/reactionConfig.ts';
+import { readHotWindow, readSummary } from '#scripts/lib/history-store.ts';
+import { paths as defaultPaths, type Paths } from '#scripts/lib/paths.ts';
+import type { ValidationResult } from '#scripts/lib/validation.ts';
 
 /**
  * Checks that `index.html`'s CSP permits a cross-origin endpoint the site

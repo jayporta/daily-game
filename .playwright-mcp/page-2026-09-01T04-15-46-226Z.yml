@@ -1,0 +1,12 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: Daily Game
+      - paragraph [ref=e7]: A new game randomly AI-generated every day
+    - generic [ref=e8]:
+      - generic [ref=e9]: ©2026 Jason Matthew Porta
+      - link "View the source on GitHub" [ref=e10] [cursor=pointer]:
+        - /url: https://github.com/jayporta/daily-game
+      - button "Switch to dark theme" [ref=e13]
+  - main [ref=e16]:
+    - paragraph [ref=e17]: Loading today’s game…

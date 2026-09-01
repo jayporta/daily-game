@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Centered } from './Centered.tsx';
-import { CodeChip } from './ui/CodeChip.tsx';
-import { GameView } from './GameView.tsx';
-import { GitHubLink } from './GitHubLink.tsx';
-import { ThemeToggle } from './features/theme/ThemeToggle.tsx';
-import { fetchText, fetchManifest } from './features/game/manifest-client.ts';
-import { useByok } from './features/byok/useByok.ts';
-import { SYSTEM_PROMPT } from '../lib/system-prompt.ts';
-import { errorMessage } from '../lib/errors.ts';
-import type { ByokResult } from './features/byok/ByokPanel.tsx';
-import type { Manifest } from '../lib/manifest.ts';
+import { Centered } from '@/shared_components/Centered.tsx';
+import { CodeChip } from '@/shared_components/CodeChip.tsx';
+import { MetaText } from '@/shared_components/MetaText.tsx';
+import { GameView } from '@/features/game/GameView.tsx';
+import { GitHubLink } from '@/shared_components/GitHubLink.tsx';
+import { ThemeToggle } from '@/features/theme/ThemeToggle.tsx';
+import { fetchText, fetchManifest } from '@/features/game/manifest-client.ts';
+import { useByok } from '@/features/byok/useByok.ts';
+import { reportError } from '@/lib/sentry.ts';
+import type { ByokResult } from '@/features/byok/ByokPanel.tsx';
+import { SYSTEM_PROMPT } from '#lib/system-prompt.ts';
+import { errorMessage } from '#lib/errors.ts';
+import type { Manifest } from '#lib/manifest.ts';
 
 /**
  * What the viewer is showing. `empty` is a normal state, not a failure:
@@ -45,6 +47,10 @@ export function App() {
         setState({ status: 'ready', manifest, html });
       } catch (error) {
         if (cancelled) return;
+        // Turned into a message on screen, so no global handler ever sees it —
+        // and a site that cannot load its own game is exactly the failure
+        // worth being told about.
+        reportError(error, { area: 'manifest' });
         setState({ status: 'error', message: errorMessage(error) });
       }
     })();
@@ -62,9 +68,7 @@ export function App() {
       <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-hairline bg-panel px-6 py-3 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex flex-wrap items-baseline gap-x-2">
           <span className="font-display text-xl font-bold">Daily Game</span>
-          <span className="text-ui text-meta dark:text-slate-400">
-            A new game randomly AI-generated every day
-          </span>
+          <MetaText>A new game randomly AI-generated every day</MetaText>
         </div>
 
         <div className="flex items-center gap-2">
