@@ -59,6 +59,16 @@ export function GameView({
           controls: byokOverride.controls,
         };
 
+  // Always the full reset, wherever it's rendered from: aborts a run in
+  // flight (or no-ops if idle) and drops any earlier override (or no-ops if
+  // there isn't one). Without both, a retry that fails after an earlier
+  // success left one control clearing the run but not the stale override —
+  // "back to today's game" needed two clicks to actually get there.
+  const backToTodaysGame = (): void => {
+    byok.stop();
+    onDismissByok();
+  };
+
   return (
     <>
       {/* One box, two occupants: while a visitor's own generation runs, its
@@ -77,7 +87,7 @@ export function GameView({
 
       {byok.status.status === 'error' && (
         <div className="mt-3">
-          <PillButton tone="neutral" onClick={byok.stop}>
+          <PillButton tone="neutral" onClick={backToTodaysGame}>
             Back to today&rsquo;s game
           </PillButton>
         </div>
@@ -110,9 +120,9 @@ export function GameView({
             one value, so the code on display is always the code running. */}
         <GeneratedCode html={shown.html} title={shown.title} />
 
-        {byokOverride !== null && (
+        {byokOverride !== null && byok.status.status !== 'error' && (
           <div className="mt-4">
-            <PillButton tone="neutral" onClick={onDismissByok}>
+            <PillButton tone="neutral" onClick={backToTodaysGame}>
               Back to today&rsquo;s game
             </PillButton>
           </div>

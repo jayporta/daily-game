@@ -39,9 +39,9 @@ function currentGameSection(html: string): string {
   return `
 ${CURRENT_GAME_HEADING}
 
-This is the game currently on screen. Treat it as your starting point: keep
-what works, and make it better — deeper play, clearer feedback, fewer rough
-edges. Return a complete document of your own, not a diff.
+This is the game currently on screen. Do not change the game - improve on it. 
+Treat it as your starting point: keep what works, and make it better — deeper play, 
+clearer feedback, fewer rough edges. Return a complete document of your own, not a diff.
 
 It is a published bundle, so it carries two things the site added rather than
 the game's author: a Content-Security-Policy meta tag, and an error-reporting

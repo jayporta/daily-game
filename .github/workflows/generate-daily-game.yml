@@ -9,8 +9,10 @@ on:
   schedule:
     # Duplicated by hand from cronSchedule in config/generation.json, which
     # Actions cannot read. Change both together — the config copy drives the
-    # front-end countdown.
-    - cron: '0 13 * * *'
+    # front-end countdown. 19:00 UTC is noon Pacific during PDT (roughly
+    # Mar-Nov); Actions cron has no timezone concept, so during PST this
+    # reads as 11 AM Pacific instead of drifting the schedule twice a year.
+    - cron: '0 19 * * *'
   workflow_dispatch:
     inputs:
       dry_run:

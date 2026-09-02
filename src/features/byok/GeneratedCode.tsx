@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { CodeOverlay } from '@/features/byok/CodeOverlay.tsx';
 import { CodeViewer } from '@/features/byok/CodeViewer.tsx';
-import { Disclosure } from '@/features/byok/Disclosure.tsx';
+import { Disclosure } from '@/shared_components/Disclosure.tsx';
 import { Icon } from '@/shared_components/Icon.tsx';
 import { IconButton } from '@/shared_components/IconButton.tsx';
 

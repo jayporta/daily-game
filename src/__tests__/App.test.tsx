@@ -496,4 +496,69 @@ describe('App', () => {
     expect(frame).toHaveAttribute('srcdoc', BUNDLE);
     expect(fetchImpl.mock.calls.length).toBe(callsBeforeBack);
   });
+
+  // Reported bug: after a successful regeneration, retrying and having the
+  // second attempt fail leaves two "Back to today's game" controls on
+  // screen — the console's (byok.stop) and the override's (onDismissByok).
+  // Only the second actually clears byokOverride, so the first click just
+  // reveals the stale regenerated game instead of today's.
+  it('returns to today’s game in one click after a retry fails', async () => {
+    let calls = 0;
+    stubFetch({
+      manifest: () => jsonResponse(MANIFEST),
+      byokProvider: () => {
+        calls += 1;
+        return calls === 1 ? completionResponse(BYOK_COMPLETION) : new Response('', { status: 500 });
+      },
+    });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /generate/i }));
+    await screen.findByTitle('Regenerated Title');
+
+    // Cleared on success, so it must be retyped for the retry.
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /generate/i }));
+    await screen.findByRole('log', { name: /generation output/i });
+
+    await userEvent.click(screen.getByRole('button', { name: /back to today/i }));
+    expect(await screen.findByTitle(MANIFEST.title)).toBeVisible();
+  });
+
+  // Reported bug: ticking "include the current game" before a second
+  // generation still always produces an unrelated new game. The panel is
+  // handed `currentGameHtml` as a prop from GameView's `shown.html`, which
+  // switches to the visitor's own regeneration once one exists — this checks
+  // that a second run actually sends *that* game, not the day's original.
+  it('sends the on-screen regenerated game, not the original, when refining it', async () => {
+    const fetchImpl = stubFetch({
+      manifest: () => jsonResponse(MANIFEST),
+      byokProvider: () => completionResponse(BYOK_COMPLETION),
+    });
+    render(<App />);
+
+    await screen.findByTitle(MANIFEST.title);
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /generate/i }));
+    await screen.findByTitle('Regenerated Title');
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /include the current game/i }));
+    await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
+    await userEvent.click(screen.getByRole('button', { name: /generate/i }));
+
+    const providerCalls = () => fetchImpl.mock.calls.filter(([url]) => String(url).startsWith('http'));
+    await waitFor(() => expect(providerCalls()).toHaveLength(2));
+
+    const secondBody = JSON.parse(String(providerCalls()[1]?.[1]?.body));
+    const sentPrompt = secondBody.messages[1].content;
+    // additions.currentGameHtml itself is deliberately raw — composeByokPrompt
+    // is the only place that wraps it with the heading and instructions
+    // (composeByokPrompt.ts:38-55). Asserting the wrapping survives into the
+    // literal request body, not just the unwrapped field.
+    expect(sentPrompt).toContain('## Improve on the game below');
+    expect(sentPrompt).toContain(BYOK_HTML);
+    expect(sentPrompt).not.toContain(BUNDLE);
+  });
 });

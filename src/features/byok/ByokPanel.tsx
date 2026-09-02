@@ -2,7 +2,7 @@ import { useReducer, useState } from 'react';
 import { FIELD_CONTROL, FormField } from '@/features/byok/FormField.tsx';
 import { Panel } from '@/shared_components/Panel.tsx';
 import { PillButton } from '@/shared_components/PillButton.tsx';
-import { Disclosure } from '@/features/byok/Disclosure.tsx';
+import { Disclosure } from '@/shared_components/Disclosure.tsx';
 import { reportError } from '@/lib/sentry.ts';
 import { composeByokPrompt, type ByokPromptParts } from '@/features/byok/composeByokPrompt.ts';
 import { usePromptText, type PromptTextState } from '@/features/byok/usePromptText.ts';
@@ -323,7 +323,7 @@ export function ByokPanel({
             onChange={(e) => setIncludeCurrentGame(e.target.checked)}
             className="size-4"
           />
-          Include the current game&rsquo;s code, and ask for an improvement on it
+          Include the current game&rsquo;s code and ask for an improvement on it
         </label>
 
         {/* No `text-meta` here: it is a colour, not a size, and a second
