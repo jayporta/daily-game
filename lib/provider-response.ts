@@ -45,6 +45,73 @@ export function firstChoiceDelta(data: unknown): string | null {
 }
 
 /**
+ * `choices[0].finish_reason` from an OpenAI-shaped response — the
+ * non-streaming counterpart to reading it off a stream's final frame.
+ */
+export function firstChoiceFinishReason(data: unknown): string | null {
+  const choice: unknown = arrayAt(data, 'choices')?.[0];
+  return stringAt(choice, 'finish_reason');
+}
+
+/**
+ * Why a provider stopped producing text, read from the response's own
+ * stop field rather than inferred from the text — a response cut off at
+ * the output cap and one the model finished deliberately are
+ * indistinguishable by inspection, and call for opposite advice.
+ */
+export type ProviderStopReason = 'complete' | 'truncated' | 'refused';
+
+/**
+ * Every spelling of "I ran out of room" and "I declined", across the
+ * OpenAI-shaped, Anthropic and Gemini finish-reason vocabularies.
+ *
+ * Matched case-insensitively against one lowercased token so a caller needs
+ * no per-provider branch.
+ */
+const TRUNCATED_STOPS: ReadonlySet<string> = new Set(['length', 'max_tokens', 'model_length']);
+const REFUSED_STOPS: ReadonlySet<string> = new Set([
+  'content_filter',
+  'refusal',
+  'safety',
+  'recitation',
+  'blocklist',
+  'prohibited_content',
+  'spii',
+  'image_safety',
+]);
+
+/**
+ * Classifies a provider's own stop token.
+ *
+ * @param raw The stop field as sent, in any case.
+ * @returns `null` for a response or frame carrying no stop field, so a
+ *   caller reading it frame by frame can keep the last one it saw rather
+ *   than overwrite it with every intermediate frame.
+ */
+export function classifyStopReason(raw: string | null): ProviderStopReason | null {
+  if (raw === null) return null;
+  const token = raw.toLowerCase();
+  if (TRUNCATED_STOPS.has(token)) return 'truncated';
+  if (REFUSED_STOPS.has(token)) return 'refused';
+  return 'complete';
+}
+
+/**
+ * Output cap sent on every OpenRouter request, browser and pipeline alike.
+ *
+ * OpenRouter fronts small free models, some of which apply their own low
+ * default when asked for none at all, or spend part of a larger one on
+ * reasoning before ever reaching the two fenced blocks the prompt asks for.
+ * A request with no cap leaves that decision to the provider, and a
+ * provider whose default lands short of a full game silently truncates
+ * mid-document rather than erroring — the exact shape of both the BYOK
+ * Gemini truncation and the daily pipeline's `missing-html-block` failures.
+ * One constant, so `src/features/byok/providers.ts` and
+ * `scripts/lib/openrouter-client.ts` can never drift apart on it.
+ */
+export const OPENROUTER_MAX_OUTPUT_TOKENS = 16000;
+
+/**
  * The human-readable part of a failed response, truncated.
  *
  * Understands both envelope shapes providers use — `{"error": {"message":

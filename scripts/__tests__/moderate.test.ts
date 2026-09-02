@@ -18,7 +18,7 @@ const GUARDRAILS = loadGuardrails();
 
 /** A moderator that always answers the same thing. */
 function stubModerator(reply: string): OpenRouterClient {
-  return { async complete() { return reply; } };
+  return { async complete() { return { text: reply, stop: 'complete' }; } };
 }
 
 function throwingModerator(message: string): OpenRouterClient {
@@ -163,7 +163,7 @@ test('moderate skips the AI call once the keyword scan has already failed', asyn
   const countingModerator: OpenRouterClient = {
     async complete() {
       aiCalls += 1;
-      return 'PASS';
+      return { text: 'PASS', stop: 'complete' };
     },
   };
   const { meta, html } = loadFixtureBundle('bad-guardrail-word');

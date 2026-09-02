@@ -16,12 +16,16 @@ import { errorMessage } from '#lib/errors.ts';
 import { arrayAt, recordAt, stringAt } from '#lib/guards.ts';
 import {
   MAX_ERROR_DETAIL,
+  OPENROUTER_MAX_OUTPUT_TOKENS,
+  classifyStopReason,
   errorDetail,
   firstChoiceDelta,
+  firstChoiceFinishReason,
   responseErrorDetail,
 } from '#lib/provider-response.ts';
 import { readSseData } from '#src/features/byok/sseStream.ts';
 import type { ByokProvider } from '#lib/byok-config-types.ts';
+import type { ProviderStopReason } from '#lib/provider-response.ts';
 
 /** One generation, in the form every provider's request is built from. */
 export interface ByokRequest {
@@ -44,16 +48,6 @@ export interface ByokRequest {
 }
 
 /**
- * Why a provider stopped producing text.
- *
- * Read from the stream's own stop field rather than inferred from the text,
- * because a response cut off at the output cap and one the model finished
- * deliberately are indistinguishable by inspection — and they call for
- * opposite advice.
- */
-export type ByokStopReason = 'complete' | 'truncated' | 'refused';
-
-/**
  * What went wrong, as a closed vocabulary rather than a message to match on.
  *
  * Drives two decisions the wording cannot: what to tell the visitor, and
@@ -70,7 +64,7 @@ export type ByokFailureKind =
   | 'empty';
 
 export type ByokCompletionResult =
-  | { ok: true; text: string; stop: ByokStopReason }
+  | { ok: true; text: string; stop: ProviderStopReason }
   | { ok: false; message: string; kind: ByokFailureKind };
 
 /**
@@ -145,11 +139,13 @@ export interface ByokFetchOptions {
  * output tokens, so the three direct providers get room for both, within
  * every catalogue model's documented maximum output.
  *
- * OpenRouter keeps the smaller cap: it fronts small free models that may
- * refuse a request asking for more than they can produce.
+ * OpenRouter keeps the smaller cap, shared with the daily pipeline's own
+ * OpenRouter client as {@link OPENROUTER_MAX_OUTPUT_TOKENS}: it fronts small
+ * free models that may refuse a request asking for more than they can
+ * produce.
  */
 const MAX_OUTPUT_TOKENS: Record<ByokProvider, number> = {
-  openrouter: 16000,
+  openrouter: OPENROUTER_MAX_OUTPUT_TOKENS,
   openai: 64000,
   anthropic: 64000,
   gemini: 64000,
@@ -292,58 +288,26 @@ function extractDelta(provider: ByokProvider, data: unknown): string | null {
 }
 
 /**
- * Every spelling of "I ran out of room" and "I declined", across the three
- * API shapes.
- *
- * Matched case-insensitively against one lowercased token so the OpenAI-style
- * `length` and Gemini's `MAX_TOKENS` need no per-provider branch here.
- */
-const TRUNCATED_STOPS: ReadonlySet<string> = new Set(['length', 'max_tokens', 'model_length']);
-const REFUSED_STOPS: ReadonlySet<string> = new Set([
-  'content_filter',
-  'refusal',
-  'safety',
-  'recitation',
-  'blocklist',
-  'prohibited_content',
-  'spii',
-  'image_safety',
-]);
-
-/**
- * Classifies a provider's own stop token.
- *
- * @param raw The stop field as sent, in any case.
- * @returns `null` for a frame carrying no stop field, so a caller can keep
- *   the last one it saw rather than overwrite it with every intermediate
- *   frame.
- */
-function classifyStop(raw: string | null): ByokStopReason | null {
-  if (raw === null) return null;
-  const token = raw.toLowerCase();
-  if (TRUNCATED_STOPS.has(token)) return 'truncated';
-  if (REFUSED_STOPS.has(token)) return 'refused';
-  return 'complete';
-}
-
-/**
  * The stop reason a single frame reports, or `null` if it reports none.
  *
  * Every provider sends this on its own final frame, separately from the text:
  * OpenAI-shaped APIs on the last `choices[0]`, Anthropic on a `message_delta`
  * event, Gemini on every candidate once the run ends. Ignoring it is what
  * makes a response cut off at the output cap look like a model that ignored
- * the output format.
+ * the output format. The vocabulary the raw token is classified against —
+ * every spelling of "I ran out of room" and "I declined" across the three
+ * API shapes — lives in {@link classifyStopReason}, shared with the daily
+ * pipeline's non-streaming OpenRouter client.
  */
-function extractStopReason(provider: ByokProvider, data: unknown): ByokStopReason | null {
+function extractStopReason(provider: ByokProvider, data: unknown): ProviderStopReason | null {
   switch (provider) {
     case 'openrouter':
     case 'openai':
-      return classifyStop(stringAt(arrayAt(data, 'choices')?.[0], 'finish_reason'));
+      return classifyStopReason(firstChoiceFinishReason(data));
     case 'anthropic':
-      return classifyStop(stringAt(recordAt(data, 'delta'), 'stop_reason'));
+      return classifyStopReason(stringAt(recordAt(data, 'delta'), 'stop_reason'));
     case 'gemini':
-      return classifyStop(stringAt(arrayAt(data, 'candidates')?.[0], 'finishReason'));
+      return classifyStopReason(stringAt(arrayAt(data, 'candidates')?.[0], 'finishReason'));
   }
 }
 
@@ -408,7 +372,7 @@ export async function completeByok(
   let text = '';
   // The last stop reason any frame reported. Providers send it on a final
   // frame that carries no text, so it cannot be read from the fragments.
-  let stop: ByokStopReason = 'complete';
+  let stop: ProviderStopReason = 'complete';
   try {
     for await (const payload of readSseData(response)) {
       if (payload === STREAM_DONE) break;

@@ -5,7 +5,7 @@ import { getOpenRouterClient } from '#scripts/lib/get-client.ts';
 test('forceMock uses the given fixture sequence', async () => {
   const client = getOpenRouterClient({ forceMock: true, fixtureSequence: ['fixture-a'] });
   const result = await client.complete({ model: 'm', messages: [], temperature: 0.7 });
-  assert.equal(result, 'fixture-a');
+  assert.equal(result.text, 'fixture-a');
 });
 
 test('falls back to mock with default fixtures when no API key is set', async (t) => {
@@ -17,5 +17,5 @@ test('falls back to mock with default fixtures when no API key is set', async (t
 
   const client = getOpenRouterClient();
   const result = await client.complete({ model: 'm', messages: [], temperature: 0.7 });
-  assert.match(result, /```json/);
+  assert.match(result.text, /```json/);
 });

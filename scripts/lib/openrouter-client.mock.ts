@@ -7,7 +7,7 @@
 // sequence for generation calls only.
 import { isModerationRequest } from '#scripts/moderate.ts';
 import { isLessonsRequest } from '#scripts/lib/lessons-prompt.ts';
-import type { CompletionRequest, OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import type { CompletionRequest, CompletionResult, OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 
 export interface CreateMockOpenRouterClientOptions {
   fixtureSequence?: string[];
@@ -35,16 +35,16 @@ export function createMockOpenRouterClient({
 }: CreateMockOpenRouterClientOptions = {}): OpenRouterClient {
   let callIndex = 0;
   return {
-    async complete({ messages }: CompletionRequest): Promise<string> {
-      if (isModerationRequest(messages)) return moderationVerdict;
-      if (isLessonsRequest(messages)) return lessonsNote;
+    async complete({ messages }: CompletionRequest): Promise<CompletionResult> {
+      if (isModerationRequest(messages)) return { text: moderationVerdict, stop: 'complete' };
+      if (isLessonsRequest(messages)) return { text: lessonsNote, stop: 'complete' };
 
       const fixture = fixtureSequence[callIndex];
       if (fixture === undefined) {
         throw new Error(`createMockOpenRouterClient: no fixture left for call #${callIndex + 1}`);
       }
       callIndex += 1;
-      return fixture;
+      return { text: fixture, stop: 'complete' };
     },
   };
 }

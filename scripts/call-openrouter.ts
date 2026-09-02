@@ -22,6 +22,7 @@ import { lastPublishedEntry, readHotWindow, readSummary, writeGamesJson, writeGa
 import { applyFeedback } from '#scripts/fetch-feedback.ts';
 import { paths } from '#scripts/lib/paths.ts';
 import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import type { ProviderStopReason } from '#lib/provider-response.ts';
 import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import type { FailureKind, HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
 import type { ManifestRestoreResult } from '#scripts/publish.ts';
@@ -112,15 +113,16 @@ export async function generateDailyGame({
     });
 
     let raw: string;
+    let stop: ProviderStopReason;
     try {
-      raw = await client.complete({
+      ({ text: raw, stop } = await client.complete({
         model,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: prompt },
         ],
         temperature,
-      });
+      }));
     } catch (error) {
       const reason = `attempt ${attempt} (${model}): generation call failed — ${errorMessage(error)}`;
       reasons.push(reason);
@@ -132,7 +134,11 @@ export async function generateDailyGame({
 
     const extracted = extractBundle(raw);
     if (!extracted.ok) {
-      reasons.push(`attempt ${attempt} (${model}): could not extract bundle — ${extracted.reason}`);
+      // A truncated response loses its closing fence first, which reads as
+      // a missing block — naming the real cause here is what makes it
+      // diagnosable from history/games.json alone.
+      const truncatedNote = stop === 'truncated' ? ' (response truncated at the output cap)' : '';
+      reasons.push(`attempt ${attempt} (${model}): could not extract bundle — ${extracted.reason}${truncatedNote}`);
       kinds.push('extract');
       priorFailureFeedback = EXTRACTION_RETRY_FEEDBACK[extracted.reason];
       model = nextModelAfterFailure(modelsConfig, model, forceModel);

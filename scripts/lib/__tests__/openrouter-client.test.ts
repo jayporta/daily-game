@@ -5,8 +5,8 @@ import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.
 
 test('mock client returns fixtures in sequence', async () => {
   const client = createMockOpenRouterClient({ fixtureSequence: ['first', 'second'] });
-  assert.equal(await client.complete({ model: 'm', messages: [], temperature: 0.7 }), 'first');
-  assert.equal(await client.complete({ model: 'm', messages: [], temperature: 0.7 }), 'second');
+  assert.equal((await client.complete({ model: 'm', messages: [], temperature: 0.7 })).text, 'first');
+  assert.equal((await client.complete({ model: 'm', messages: [], temperature: 0.7 })).text, 'second');
 });
 
 test('mock client throws once fixtures are exhausted', async () => {
@@ -30,7 +30,8 @@ test('real client shapes the request correctly and parses the response', async (
   const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl: fetchImpl as typeof fetch });
   const result = await client.complete({ model: 'a/model:free', messages: [{ role: 'user', content: 'hi' }], temperature: 0.9 });
 
-  assert.equal(result, 'generated text');
+  assert.equal(result.text, 'generated text');
+  assert.equal(result.stop, 'complete');
   assert.equal(capturedUrl, 'https://openrouter.ai/api/v1/chat/completions');
   assert.equal(capturedInit?.method, 'POST');
   const headers = new Headers(capturedInit?.headers);
@@ -38,6 +39,20 @@ test('real client shapes the request correctly and parses the response', async (
   const body = JSON.parse(String(capturedInit?.body));
   assert.equal(body.model, 'a/model:free');
   assert.equal(body.temperature, 0.9);
+  assert.equal(body.max_tokens, 16000);
+});
+
+test('a response truncated at the output cap is reported as such', async () => {
+  const fetchImpl = async (): Promise<Response> =>
+    new Response(
+      JSON.stringify({ choices: [{ message: { content: 'cut off mid' }, finish_reason: 'length' }] }),
+      { status: 200 },
+    );
+  const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl: fetchImpl as typeof fetch });
+  const result = await client.complete({ model: 'm', messages: [], temperature: 0.7 });
+
+  assert.equal(result.text, 'cut off mid');
+  assert.equal(result.stop, 'truncated');
 });
 
 test('real client throws on a non-ok response', async () => {

@@ -7,7 +7,8 @@
 import { EXTRACTION_RETRY_FEEDBACK } from '#lib/extract-bundle-shared.ts';
 import { isExpectedFailure } from '#src/features/byok/providers.ts';
 import type { ExtractFailureReason } from '#lib/extract-bundle-shared.ts';
-import type { ByokFailureKind, ByokStopReason } from '#src/features/byok/providers.ts';
+import type { ProviderStopReason } from '#lib/provider-response.ts';
+import type { ByokFailureKind } from '#src/features/byok/providers.ts';
 
 /**
  * A run that did not produce a game, and which half of the call it failed in.
@@ -18,7 +19,7 @@ import type { ByokFailureKind, ByokStopReason } from '#src/features/byok/provide
  */
 export type ByokFailure =
   | { source: 'request'; kind: ByokFailureKind; message: string }
-  | { source: 'response'; stop: ByokStopReason; reason: ExtractFailureReason };
+  | { source: 'response'; stop: ProviderStopReason; reason: ExtractFailureReason };
 
 export interface ByokFailureReport {
   /** End-user-facing wording, shown on the panel and in the console. */

@@ -132,11 +132,11 @@ export async function aiModerationCheck(
 ): Promise<AiModerationResult> {
   let raw: string;
   try {
-    raw = await client.complete({
+    ({ text: raw } = await client.complete({
       model,
       messages: buildModerationMessages(guardrailsText, meta, html),
       temperature: 0,
-    });
+    }));
   } catch (error) {
     // An unreachable moderator is not permission to publish.
     return { pass: false, raw: `moderation call failed: ${errorMessage(error)}` };

@@ -37,11 +37,11 @@ export async function rewriteLessons(
 ): Promise<string | null> {
   let raw: string;
   try {
-    raw = await client.complete({
+    ({ text: raw } = await client.complete({
       model,
       messages: buildLessonsMessages(summary, aging),
       temperature: 0.3,
-    });
+    }));
   } catch {
     return null;
   }

@@ -48,7 +48,7 @@ function readLessons(root: string): string {
 }
 
 function stubClient(reply: string): OpenRouterClient {
-  return { async complete() { return reply; } };
+  return { async complete() { return { text: reply, stop: 'complete' }; } };
 }
 
 const throwingClient: OpenRouterClient = {
@@ -216,7 +216,7 @@ test('reflectLessons distils the recent window, not aged-out games', async (t) =
     client: {
       async complete({ messages }) {
         seen = messages.map((message) => message.content).join('\n');
-        return 'Guard every lookup.';
+        return { text: 'Guard every lookup.', stop: 'complete' };
       },
     },
   });

@@ -48,10 +48,10 @@ function scriptedClient(generations: string[], moderationVerdict = 'PASS'): Open
   const remaining = [...generations];
   return {
     async complete({ messages }) {
-      if (isModerationRequest(messages)) return moderationVerdict;
+      if (isModerationRequest(messages)) return { text: moderationVerdict, stop: 'complete' };
       const next = remaining.shift();
       if (next === undefined) throw new Error('no generation fixture left');
-      return next;
+      return { text: next, stop: 'complete' };
     },
   };
 }
@@ -98,6 +98,26 @@ test('retries after an unparseable response', async () => {
 
   assert.equal(result.status, 'success');
   assert.equal(result.attempts, 2);
+});
+
+// A truncated response loses its closing fence first, which extractBundle
+// reports identically to a model that never wrote the block at all — the
+// stop reason is what tells the two apart in the recorded failure.
+test('an extraction failure caused by truncation names the output cap, not just the missing block', async () => {
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+      return { text: loadFixture('bad-malformed-blocks'), stop: 'truncated' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client, forceModel: 'a/model:free' });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  for (const reason of result.reasons) {
+    assert.match(reason, /could not extract bundle/);
+    assert.match(reason, /response truncated at the output cap/);
+  }
 });
 
 test('gives up after three failures and keeps the previous game', async () => {
@@ -171,9 +191,10 @@ test('rotates to a different model after a failed attempt', async () => {
   const modelsSeen: string[] = [];
   const client: OpenRouterClient = {
     async complete({ model, messages }) {
-      if (isModerationRequest(messages)) return 'PASS';
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
       modelsSeen.push(model);
-      return modelsSeen.length === 1 ? loadFixture('bad-js-error') : loadFixture('good-maze');
+      const fixture = modelsSeen.length === 1 ? loadFixture('bad-js-error') : loadFixture('good-maze');
+      return { text: fixture, stop: 'complete' };
     },
   };
 
@@ -185,9 +206,9 @@ test('forceModel pins every attempt to one model', async () => {
   const modelsSeen: string[] = [];
   const client: OpenRouterClient = {
     async complete({ model, messages }) {
-      if (isModerationRequest(messages)) return 'PASS';
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
       modelsSeen.push(model);
-      return loadFixture('bad-js-error');
+      return { text: loadFixture('bad-js-error'), stop: 'complete' };
     },
   };
 
@@ -200,10 +221,10 @@ test('a failing generation call is retried rather than crashing the run', async 
   let calls = 0;
   const client: OpenRouterClient = {
     async complete({ messages }) {
-      if (isModerationRequest(messages)) return 'PASS';
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
       calls += 1;
       if (calls === 1) throw new Error('rate limited');
-      return loadFixture('good-maze');
+      return { text: loadFixture('good-maze'), stop: 'complete' };
     },
   };
 
@@ -216,9 +237,10 @@ test('the previous failure is fed back into the next prompt', async () => {
   const prompts: string[] = [];
   const client: OpenRouterClient = {
     async complete({ messages }) {
-      if (isModerationRequest(messages)) return 'PASS';
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
       prompts.push(messages.at(-1)?.content ?? '');
-      return prompts.length === 1 ? loadFixture('bad-js-error') : loadFixture('good-maze');
+      const fixture = prompts.length === 1 ? loadFixture('bad-js-error') : loadFixture('good-maze');
+      return { text: fixture, stop: 'complete' };
     },
   };
 
@@ -236,9 +258,9 @@ test('a successful run returns the exact prompt sent on the winning attempt', as
   const sentPrompts: string[] = [];
   const client: OpenRouterClient = {
     async complete({ messages }) {
-      if (isModerationRequest(messages)) return 'PASS';
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
       sentPrompts.push(messages.at(-1)?.content ?? '');
-      return loadFixture('good-maze');
+      return { text: loadFixture('good-maze'), stop: 'complete' };
     },
   };
 
