@@ -50,6 +50,12 @@ jobs:
         with:
           # Full history, so the push step below can rebase.
           fetch-depth: 0
+          # main requires a reviewed PR; GITHUB_TOKEN authenticates as the
+          # github-actions bot, which isn't exempt, so the commit-and-push
+          # step below would be rejected. This PAT belongs to a repo admin,
+          # who is exempt (enforce_admins is off), while non-admins still
+          # can't push directly. Scope: Contents read/write on this repo only.
+          token: ${{ secrets.GH_PUSH_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
