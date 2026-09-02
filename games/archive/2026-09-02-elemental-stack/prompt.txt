@@ -1,0 +1,124 @@
+# Build today's game
+
+Invent a complete, original browser game. Pick its genre, theme and
+mechanics yourself from the catalog below — you are not being assigned one.
+
+## Content rules — non-negotiable
+
+# Content Guardrails
+
+These rules are non-negotiable and are injected verbatim into every
+generation and moderation prompt. Editing this file changes what both the
+generator and the moderator check for — they must always stay in sync,
+which is why both read this exact file.
+
+A generated game must NEVER contain:
+
+- Blood, gore, or death/killing of any kind
+- Sexual content or innuendo of any kind
+- Depictions or references to drugs, alcohol, or cigarettes/vaping
+- Foul language, slurs, or profanity of any kind
+- **Human characters.** No people, no human silhouettes, no human body
+  parts. All characters, avatars, and entities must be non-human: animals,
+  creatures, robots, plants, abstract shapes, vehicles, elements (fire,
+  water, etc.), or other invented non-human forms. This rule exists
+  specifically so the game can never accidentally depict a real-world
+  race, ethnicity, or human likeness.
+- References to real-world religions, religious symbols, or religious
+  practices
+- References to real-world ethnicities, nationalities, or political
+  figures/parties/movements
+- Real-world brand names, trademarks, or copyrighted characters
+
+A generated game MUST be:
+
+- A single self-contained HTML file: inline `<style>` and `<script>` only
+- Drawn entirely in code (Canvas, CSS, and/or SVG), with optional Web Audio
+  for sound — no external image or audio files
+- Free of any network requests (no `fetch`, `XMLHttpRequest`, WebSocket,
+  or remote resource loading of any kind)
+
+## Genre catalog
+
+Choose ONE genre id from this list. Genres marked as recently used should
+be avoided so the site stays varied.
+
+- maze-adventure (Maze Adventure) [RECENTLY USED — avoid]: navigate a shifting maze to reach an exit; collect keys scattered through a labyrinth
+- platformer (Platformer) [RECENTLY USED — avoid]: jump between platforms to reach the top; run and jump past obstacles to a goal
+- puzzle (Puzzle): rearrange tiles to match a pattern; solve a logic grid before time runs out
+- tower-defense (Tower Defense): place defenders along a path to stop invaders; upgrade towers to survive waves
+- endless-runner (Endless Runner): dodge obstacles in an ever-scrolling world; collect items while outrunning a chaser
+- physics-sandbox (Physics Sandbox): stack objects without toppling them; launch a projectile to hit a target
+- rhythm (Rhythm): hit cues in time with a beat; match a sequence of visual pulses
+- tile-matching (Tile Matching): match three or more tiles to clear them; swap adjacent tiles to form patterns
+- growth-sim (Growth Simulation): nurture a garden that grows over time; manage a small ecosystem's balance
+- racing (Racing): race a course avoiding hazards; beat the clock across a track
+
+## Recent days — how each one went
+
+Do not repeat these themes or mechanic combinations, and learn from how they
+were received.
+
+- 2026-09-02 · genre: platformer · theme: A curious robot explores floating islands to collect glowing energy crystals · mechanics: Jump between platforms, Collect crystals, Avoid obstacles · 0 liked, 2 disliked · marked: controls-unclear
+- 2026-09-01 · FAILED after 3 attempts · extract, generation-call, moderation
+- 2026-08-31 · FAILED after 3 attempts · extract, generation-call, moderation
+- 2026-08-30 · genre: maze-adventure · theme: A cavern where geometric critters seek their glowing homes · mechanics: Navigate through procedurally generated mazes, Collect keys scattered through the labyrinth, Reach the exit before getting trapped · 0 liked, 0 disliked · took 3 attempts
+
+## Fix what has been going wrong
+
+- Recent attempts returned a response that could not be parsed. Return exactly two fenced blocks, tagged json and html, with valid JSON in the first.
+- Recent attempts failed before returning anything. Return both fenced blocks and nothing else.
+- Recent attempts were rejected by the content rules. Re-read them and stay well clear of anything borderline.
+
+## Lessons from past builds
+
+The maze-adventure is now old enough that its specifics should stop steering new builds, and both of its surrounding days were pure infrastructure failures — missing html extraction on one provider, a 429 rate limit on another, and empty moderation responses on the others — so they have nothing to add and are dropped entirely. What carries forward is the shape rather than the ingredients: a procedurally generated grid, discrete collectibles, and a single explicit terminal goal remains the most reliable low-risk skeleton in this project's repertoire. It produces tractable scope, immediate player feedback, and enough run-to-run variation to feel fresh without dragging in complex state, and the first successful attempt was coherent end to end, which suggests the shape is forgiving and does not need elaborate scaffolding to land.
+
+The newer published entry extends this picture rather than disrupting it. A platformer on a small set of floating islands, with a single collectible type and a clear reach-the-end goal, lands on the same low-risk skeleton from a different angle: discrete traversal, discrete pickups, one terminal objective. The fact that it shipped on the first attempt reinforces the earlier read that this shape is forgiving. Combined with the maze-adventure, the pattern is clear — small bounded spaces, one verb family, one thing to gather, one place to end up — and that pattern is now the strongest recurring signal in the recent record.
+
+Worth revisiting is the framing around these skeletons. Thematic identity carried more weight than mechanical pressure in both shipped games: geometric critters seeking glowing homes, a curious robot collecting glowing crystals. A clear small character with a clear small want, rendered simply, seems to do more work than tightening timers or tweaking difficulty. Pressure-based variants are a reasonable secondary thread but not the primary one; mood and identity are the stronger hook.
+
+## Fix this — your previous attempt failed
+
+The previous request failed before returning a game. Return the two fenced blocks exactly as specified.
+
+Be more defensive this time. Re-read the rules above before you start.
+
+## How your game is displayed
+
+Your document is loaded on its own into a frame that fills the middle of the
+page. Nothing outside your document paints any part of that frame, so
+whatever you leave unfilled shows as blank space around your game.
+
+- Fill the frame. Give `html` and `body` no margin and the full width and
+  height available, and paint your own background across all of it.
+- Size to the frame at runtime, never to a constant. If you draw on a
+  canvas, set its width and height from its measured container rather than
+  with fixed attributes, and redraw when the frame is resized.
+- Assume nothing about its shape. It is as wide and as tall as the visitor's
+  window makes it, in any proportion, on a phone or on a desktop.
+- Keep the whole playfield inside it. Never require the player to scroll.
+
+## Output format
+
+Return EXACTLY two fenced code blocks and nothing else that could be mistaken for them.
+
+First, a block tagged `json` containing only this object:
+```json
+{"title": "...", "genre": "...", "theme": "...", "mechanics": ["...", "..."], "controls": [{"action": "...", "key": "..."}]}
+```
+
+Second, a block tagged `html` containing the entire game as ONE self-contained HTML file:
+```html
+<!doctype html>
+...your complete game, with inline <style> and <script> only...
+```
+
+The `genre` value must be one of the genre ids listed above. The html block
+must be a complete, immediately playable document that needs no other files.
+
+The `controls` array must list the inputs your game actually listens for,
+using whatever control scheme you chose — `action` describes what it does in
+your game, `key` is what the player presses, clicks or drags. List only
+inputs the code really handles, and return an empty array if the game needs
+none.

@@ -1,14 +1,12 @@
 {
-  "date": "2026-09-02",
-  "slug": "2026-09-02-elemental-stack",
-  "path": "games/archive/2026-09-02-elemental-stack/game.html",
-  "promptPath": "games/archive/2026-09-02-elemental-stack/prompt.txt",
   "title": "Elemental Stack",
   "genre": "physics-sandbox",
-  "genreLabel": "Physics Sandbox",
-  "model": "minimax/minimax-m2.7:free",
-  "generatedAt": "2026-09-02T16:55:50.586Z",
-  "expiresAt": "2026-09-03T13:00:00.000Z",
+  "theme": "Elemental spirit creatures stack together to reach a floating beacon",
+  "mechanics": [
+    "Stack elemental shapes on platforms",
+    "Balance physics objects to reach the goal",
+    "Place creatures strategically across 5 levels"
+  ],
   "controls": [
     {
       "action": "Place elemental",

@@ -1,0 +1,564 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Elemental Stack</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0a1a;font-family:sans-serif}
+canvas{display:block}
+#ui{position:fixed;top:0;left:0;right:0;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;pointer-events:none;z-index:10}
+#level-info{color:#aaa;font-size:14px}
+#controls-ui{pointer-events:all;display:flex;gap:8px}
+button{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px;transition:background 0.2s}
+button:hover{background:rgba(255,255,255,0.2)}
+#win-screen,#start-screen{position:fixed;inset:0;background:rgba(0,0,0,0.85);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:20;color:#fff}
+#win-screen h1,#start-screen h1{font-size:28px;margin-bottom:12px}
+#win-screen p,#start-screen p{color:#aaa;margin-bottom:20px;font-size:15px}
+#start-screen .instructions{color:#888;font-size:13px;max-width:320px;text-align:center;line-height:1.6;margin-bottom:24px}
+.hidden{display:none!important}
+.element-btn{width:44px;height:44px;border-radius:8px;border:2px solid rgba(255,255,255,0.3);cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;font-size:20px}
+.element-btn:hover{border-color:#fff;transform:scale(1.1)}
+.element-btn.selected{border-color:#fff;box-shadow:0 0 12px rgba(255,255,255,0.5)}
+#message{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:24px;text-shadow:0 2px 10px rgba(0,0,0,0.8);pointer-events:none;z-index:15;opacity:0;transition:opacity 0.3s}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div id="level-info">Level 1 / 5</div>
+  <div id="controls-ui">
+    <button id="undoBtn">Undo</button>
+    <button id="dropBtn">Drop</button>
+    <button id="restartBtn">Restart</button>
+  </div>
+</div>
+<div id="start-screen">
+  <h1>✦ Elemental Stack ✦</h1>
+  <p class="instructions">Stack elemental spirits to reach the glowing beacon above. Click a platform to place your selected element. Balance them carefully!</p>
+  <div style="display:flex;gap:10px;margin-bottom:16px">
+    <div class="element-btn selected" data-el="0" title="Fire Spirit">🔥</div>
+    <div class="element-btn" data-el="1" title="Water Drop">💧</div>
+    <div class="element-btn" data-el="2" title="Wind Wisp">🌬️</div>
+    <div class="element-btn" data-el="3" title="Earth Stone">🪨</div>
+    <div class="element-btn" data-el="4" title="Lightning">⚡</div>
+  </div>
+  <button id="startBtn" style="font-size:16px;padding:10px 28px">Start Game</button>
+</div>
+<div id="win-screen" class="hidden">
+  <h1>✨ Level Complete! ✨</h1>
+  <p id="win-text">Well done!</p>
+  <button id="nextBtn" style="font-size:16px;padding:10px 28px;margin-top:8px">Next Level</button>
+</div>
+<div id="message"></div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+let W, H;
+let gameStarted = false;
+let currentLevel = 0;
+let selectedElement = 0;
+let placedElements = [];
+let dropped = false;
+let winTriggered = false;
+let levels = [];
+
+const ELEMENT_COLORS = [
+  {fill:'#ff6b35', glow:'#ff9f1c', shape:'circle', label:'🔥'},
+  {fill:'#4ecdc4', glow:'#7fefef', shape:'circle', label:'💧'},
+  {fill:'#e8e8e8', glow:'#ffffff', shape:'diamond', label:'🌬️'},
+  {fill:'#8b7355', glow:'#a0896c', shape:'square', label:'🪨'},
+  {fill:'#f7d359', glow:'#ffe066', shape:'triangle', label:'⚡'}
+];
+
+const ELEMENT_MASS = [1.2, 0.8, 0.6, 1.8, 1.0];
+const ELEMENT_BOUNCE = [0.3, 0.5, 0.2, 0.1, 0.4];
+
+function initLevels() {
+  levels = [
+    { platforms: [{x:0.5,y:0.85,w:0.3,h:0.03,color:'#3a3a5c'}], beacon:{x:0.5,y:0.2}, available:5 },
+    { platforms: [
+      {x:0.3,y:0.7,w:0.18,h:0.025,color:'#3a3a5c'},
+      {x:0.7,y:0.7,w:0.18,h:0.025,color:'#3a3a5c'}
+    ], beacon:{x:0.5,y:0.18}, available:6 },
+    { platforms: [
+      {x:0.5,y:0.8,w:0.2,h:0.025,color:'#3a3a5c'},
+      {x:0.25,y:0.55,w:0.12,h:0.025,color:'#4a4a6c'},
+      {x:0.75,y:0.55,w:0.12,h:0.025,color:'#4a4a6c'}
+    ], beacon:{x:0.5,y:0.15}, available:8 },
+    { platforms: [
+      {x:0.5,y:0.85,w:0.25,h:0.025,color:'#3a3a5c'},
+      {x:0.2,y:0.65,w:0.15,h:0.025,color:'#4a4a6c'},
+      {x:0.8,y:0.65,w:0.15,h:0.025,color:'#4a4a6c'},
+      {x:0.5,y:0.4,w:0.1,h:0.025,color:'#5a5a7c'}
+    ], beacon:{x:0.5,y:0.12}, available:10 },
+    { platforms: [
+      {x:0.5,y:0.88,w:0.22,h:0.025,color:'#3a3a5c'},
+      {x:0.15,y:0.7,w:0.1,h:0.025,color:'#4a4a6c'},
+      {x:0.85,y:0.7,w:0.1,h:0.025,color:'#4a4a6c'},
+      {x:0.35,y:0.5,w:0.08,h:0.025,color:'#5a5a7c'},
+      {x:0.65,y:0.5,w:0.08,h:0.025,color:'#5a5a7c'},
+      {x:0.5,y:0.28,w:0.06,h:0.025,color:'#6a6a8c'}
+    ], beacon:{x:0.5,y:0.08}, available:12 }
+  ];
+}
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function getPhysicsY(y) { return H * y; }
+function getPhysicsX(x) { return W * x; }
+
+class Element {
+  constructor(x, y, type) {
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.vy = 0;
+    this.type = type;
+    this.size = 18 + Math.random() * 8;
+    this.mass = ELEMENT_MASS[type];
+    this.bounce = ELEMENT_BOUNCE[type];
+    this.rotation = Math.random() * Math.PI * 2;
+    this.angularVel = (Math.random() - 0.5) * 0.1;
+    this.grounded = false;
+    this.settled = false;
+    this.settleTimer = 0;
+  }
+  
+  update(dt, platforms) {
+    if (dropped) {
+      this.vy += 400 * dt;
+      this.x += this.vx * dt;
+      this.y += this.vy * dt;
+      this.rotation += this.angularVel;
+      
+      let onPlatform = false;
+      for (let p of platforms) {
+        let px = getPhysicsX(p.x - p.w/2);
+        let py = getPhysicsY(p.y);
+        let pw = getPhysicsX(p.w);
+        let ph = Math.max(p.h * H, 5);
+        
+        if (this.x > px && this.x < px + pw) {
+          if (this.y + this.size > py && this.y + this.size < py + ph + 20 && this.vy > 0) {
+            this.y = py - this.size;
+            this.vy = -this.vy * this.bounce;
+            if (Math.abs(this.vy) < 30) this.vy = 0;
+            this.vx *= 0.85;
+            this.angularVel *= 0.8;
+            onPlatform = true;
+          }
+        }
+      }
+      
+      if (onPlatform) {
+        this.settleTimer += dt;
+        if (this.settleTimer > 1 && Math.abs(this.vx) < 5 && Math.abs(this.vy) < 5) {
+          this.settled = true;
+        }
+      }
+      
+      if (this.y > H + 100) {
+        this.y = H + 100;
+        this.vy = 0;
+      }
+      if (this.x < -50) this.x = -50;
+      if (this.x > W + 50) this.x = W + 50;
+    }
+  }
+  
+  draw() {
+    const el = ELEMENT_COLORS[this.type];
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
+    
+    ctx.shadowColor = el.glow;
+    ctx.shadowBlur = dropped ? 8 : 15;
+    
+    ctx.fillStyle = el.fill;
+    ctx.strokeStyle = el.glow;
+    ctx.lineWidth = 2;
+    
+    const s = this.size;
+    
+    if (el.shape === 'circle') {
+      ctx.beginPath();
+      ctx.arc(0, 0, s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    } else if (el.shape === 'square') {
+      ctx.beginPath();
+      ctx.rect(-s, -s, s*2, s*2);
+      ctx.fill();
+      ctx.stroke();
+    } else if (el.shape === 'diamond') {
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.lineTo(s, 0);
+      ctx.lineTo(0, s);
+      ctx.lineTo(-s, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else if (el.shape === 'triangle') {
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.lineTo(s, s);
+      ctx.lineTo(-s, s);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.beginPath();
+    ctx.arc(-s*0.3, -s*0.3, s*0.25, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+  }
+}
+
+function drawBackground() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0a0a1a');
+  grad.addColorStop(1, '#1a1a2e');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  for (let i = 0; i < 80; i++) {
+    const sx = (i * 137.5) % W;
+    const sy = (i * 97.3) % H;
+    const ss = 1 + (i % 3);
+    ctx.beginPath();
+    ctx.arc(sx, sy, ss, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawPlatforms() {
+  const lvl = levels[currentLevel];
+  for (let p of lvl.platforms) {
+    const px = getPhysicsX(p.x - p.w/2);
+    const py = getPhysicsY(p.y);
+    const pw = getPhysicsX(p.w);
+    const ph = p.h * H;
+    
+    ctx.fillStyle = p.color;
+    ctx.fillRect(px, py, pw, ph);
+    
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px, py, pw, ph);
+    
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(px, py, pw, 3);
+  }
+}
+
+function drawBeacon() {
+  const lvl = levels[currentLevel];
+  const bx = getPhysicsX(lvl.beacon.x);
+  const by = getPhysicsY(lvl.beacon.y);
+  const time = Date.now() / 1000;
+  
+  ctx.save();
+  
+  for (let i = 3; i >= 0; i--) {
+    const r = 20 + i * 10 + Math.sin(time * 2 + i) * 5;
+    const alpha = 0.15 - i * 0.03;
+    ctx.fillStyle = `rgba(255, 220, 100, ${alpha})`;
+    ctx.beginPath();
+    ctx.arc(bx, by, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  
+  ctx.shadowColor = '#ffdd66';
+  ctx.shadowBlur = 25;
+  ctx.fillStyle = '#ffdd66';
+  ctx.beginPath();
+  ctx.arc(bx, by, 12, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(bx - 3, by - 3, 4, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.shadowBlur = 0;
+  
+  const rayCount = 8;
+  for (let i = 0; i < rayCount; i++) {
+    const angle = (i / rayCount) * Math.PI * 2 + time;
+    const innerR = 18;
+    const outerR = 30 + Math.sin(time * 3 + i) * 8;
+    ctx.strokeStyle = `rgba(255, 220, 100, ${0.3 + Math.sin(time * 2 + i) * 0.2})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(bx + Math.cos(angle) * innerR, by + Math.sin(angle) * innerR);
+    ctx.lineTo(bx + Math.cos(angle) * outerR, by + Math.sin(angle) * outerR);
+    ctx.stroke();
+  }
+  
+  ctx.restore();
+}
+
+function drawPlacementPreview(mx, my) {
+  if (dropped || placedElements.length >= levels[currentLevel].available) return;
+  
+  const lvl = levels[currentLevel];
+  let valid = false;
+  
+  for (let p of lvl.platforms) {
+    const px = getPhysicsX(p.x - p.w/2);
+    const py = getPhysicsY(p.y);
+    const pw = getPhysicsX(p.w);
+    const ph = p.h * H;
+    
+    if (mx >= px && mx <= px + pw && my >= py - 30 && my <= py + ph + 10) {
+      valid = true;
+      break;
+    }
+  }
+  
+  if (valid) {
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    const previewEl = new Element(mx, my, selectedElement);
+    previewEl.size = 22;
+    previewEl.draw();
+    ctx.restore();
+  }
+}
+
+let mouseX = 0, mouseY = 0;
+
+function checkWin() {
+  if (winTriggered || !dropped) return;
+  
+  const lvl = levels[currentLevel];
+  const bx = getPhysicsX(lvl.beacon.x);
+  const by = getPhysicsY(lvl.beacon.y);
+  
+  for (let el of placedElements) {
+    const dx = el.x - bx;
+    const dy = el.y - by;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    
+    if (dist < 35) {
+      winTriggered = true;
+      setTimeout(showWin, 500);
+      return;
+    }
+  }
+}
+
+function showWin() {
+  if (currentLevel < levels.length - 1) {
+    document.getElementById('win-text').textContent = `Level ${currentLevel + 1} Complete!`;
+    document.getElementById('nextBtn').textContent = 'Next Level';
+  } else {
+    document.getElementById('win-text').textContent = 'All Levels Complete!';
+    document.getElementById('nextBtn').textContent = 'Play Again';
+  }
+  document.getElementById('win-screen').classList.remove('hidden');
+}
+
+function showMessage(text, duration = 2000) {
+  const msg = document.getElementById('message');
+  msg.textContent = text;
+  msg.style.opacity = '1';
+  setTimeout(() => msg.style.opacity = '0', duration);
+}
+
+function placeElement(x, y) {
+  if (dropped || placedElements.length >= levels[currentLevel].available) return;
+  
+  const lvl = levels[currentLevel];
+  
+  for (let p of lvl.platforms) {
+    const px = getPhysicsX(p.x - p.w/2);
+    const py = getPhysicsY(p.y);
+    const pw = getPhysicsX(p.w);
+    const ph = p.h * H;
+    
+    if (x >= px && x <= px + pw && y >= py - 30 && y <= py + ph + 10) {
+      const newEl = new Element(x, Math.min(y, py - 10), selectedElement);
+      placedElements.push(newEl);
+      
+      if (placedElements.length >= levels[currentLevel].available) {
+        showMessage('All elements placed! Press Drop to release them.', 3000);
+      }
+      return;
+    }
+  }
+}
+
+function resetLevel() {
+  placedElements = [];
+  dropped = false;
+  winTriggered = false;
+}
+
+function nextLevel() {
+  currentLevel = (currentLevel + 1) % levels.length;
+  resetLevel();
+  document.getElementById('level-info').textContent = `Level ${currentLevel + 1} / ${levels.length}`;
+  document.getElementById('win-screen').classList.add('hidden');
+}
+
+let lastTime = 0;
+function gameLoop(ts) {
+  const dt = Math.min((ts - lastTime) / 1000, 0.05);
+  lastTime = ts;
+  
+  if (!gameStarted) {
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+  
+  drawBackground();
+  drawPlatforms();
+  drawBeacon();
+  
+  for (let el of placedElements) {
+    el.update(dt, levels[currentLevel].platforms);
+    el.draw();
+  }
+  
+  if (!dropped) {
+    drawPlacementPreview(mouseX, mouseY);
+  }
+  
+  checkWin();
+  
+  requestAnimationFrame(gameLoop);
+}
+
+canvas.addEventListener('mousemove', (e) => {
+  mouseX = e.clientX;
+  mouseY = e.clientY;
+});
+
+canvas.addEventListener('click', (e) => {
+  if (!gameStarted) return;
+  placeElement(e.clientX, e.clientY);
+});
+
+canvas.addEventListener('touchstart', (e) => {
+  if (!gameStarted) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  placeElement(t.clientX, t.clientY);
+}, {passive:false});
+
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('start-screen').classList.add('hidden');
+  gameStarted = true;
+  resetLevel();
+});
+
+document.getElementById('undoBtn').addEventListener('click', () => {
+  if (!dropped && placedElements.length > 0) {
+    placedElements.pop();
+  }
+});
+
+document.getElementById('dropBtn').addEventListener('click', () => {
+  if (!dropped && placedElements.length > 0) {
+    dropped = true;
+    for (let el of placedElements) {
+      el.vx = (Math.random() - 0.5) * 20;
+    }
+  }
+});
+
+document.getElementById('restartBtn').addEventListener('click', resetLevel);
+
+document.getElementById('nextBtn').addEventListener('click', nextLevel);
+
+document.querySelectorAll('.element-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.element-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedElement = parseInt(btn.dataset.el);
+  });
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'z' || e.key === 'Z') {
+    if (!dropped && placedElements.length > 0) placedElements.pop();
+  }
+  if (e.key === ' ') {
+    e.preventDefault();
+    if (!dropped && placedElements.length > 0) {
+      dropped = true;
+      for (let el of placedElements) {
+        el.vx = (Math.random() - 0.5) * 20;
+      }
+    }
+  }
+  if (e.key === 'r' || e.key === 'R') {
+    resetLevel();
+  }
+});
+
+initLevels();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-02-elemental-stack";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
