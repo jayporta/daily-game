@@ -14,17 +14,6 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-  # Called by generate-daily-game.yml. A push made with GITHUB_TOKEN does not
-  # trigger other workflows, so the daily job invokes this one directly.
-  workflow_call:
-    inputs:
-      skip_tests:
-        description: >-
-          Set by a caller that has already run the suite against this commit.
-          Not inferable here: inside a called workflow `github.event_name` is
-          the caller's own trigger (`schedule`), never `workflow_call`.
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -53,15 +42,10 @@ jobs:
       - name: Type-check
         run: npm run typecheck
 
-      # Skipped when the daily job called this workflow: it installed Chromium
-      # and ran this same suite minutes earlier against the same commit. On a
-      # push or a manual run the input is unset, so both steps run.
       - name: Install Chromium for the smoke tests
-        if: ${{ !inputs.skip_tests }}
         run: npx playwright install --with-deps chromium
 
       - name: Test
-        if: ${{ !inputs.skip_tests }}
         run: npm test
 
       - name: Build and assemble the site

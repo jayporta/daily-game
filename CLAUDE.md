@@ -262,12 +262,25 @@ refactor.
   copy drives the front-end countdown via `computeExpiresAt`, so a drift
   shows up as a countdown that expires at the wrong time rather than as a
   failure.
-- **The daily job's push cannot trigger the deploy.** A push authenticated
-  with `GITHUB_TOKEN` does not start other workflows, so
-  `generate-daily-game.yml` calls `deploy-pages.yml` through `workflow_call`
-  instead of relying on its `push` trigger. Removing that `deploy` job, or
-  the `workflow_call:` trigger it depends on, leaves the site serving
-  yesterday's game with every workflow green.
+- **The daily job's push must go through `GH_PUSH_TOKEN`, and deploy must
+  stay a plain `push` trigger.** `generate-daily-game.yml` authenticates its
+  commit-and-push with an admin's PAT rather than `GITHUB_TOKEN`, because
+  `main` requires a reviewed PR and only an admin is exempt. A side effect
+  matters just as much as the exemption: unlike `GITHUB_TOKEN`, a
+  PAT-authenticated push *does* start other workflows, so
+  `deploy-pages.yml`'s own `push` trigger fires on it with the correct,
+  just-pushed SHA — that trigger is deploy's only path. Do not reintroduce a
+  `workflow_call` from `generate-daily-game.yml` as a second path: inside a
+  reusable-workflow call from within the same run, `actions/checkout`'s
+  default `github.sha` resolves to the commit that triggered the *outer*
+  run, i.e. the tree from before that run's own push — not the game it just
+  published. That stale build would race the correct `push`-triggered
+  deploy under the same `pages` concurrency group and consistently finish
+  last (it only starts once the whole `generate` job has finished),
+  silently overwriting the correct deploy with yesterday's game. That is
+  exactly what happened here before this invariant was written: every
+  successful publish was immediately clobbered back to an old game, with
+  every workflow green.
 - **Published bundles ship byte-for-byte.** Nothing may transform an
   archived `game.html` between the pipeline writing it and the browser
   running it; the dev server has a plugin specifically to prevent Vite

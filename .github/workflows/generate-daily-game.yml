@@ -43,8 +43,6 @@ jobs:
     # ~5 minutes. This bounds a provider that accepts the connection and then
     # never answers, rather than letting GitHub's 6-hour default apply.
     timeout-minutes: 30
-    outputs:
-      published: ${{ steps.publish-check.outputs.published }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -181,18 +179,3 @@ jobs:
             echo "- published: ${{ steps.publish-check.outputs.published }}"
             echo "- committed: ${{ steps.publish-check.outputs.changed }}"
           } >> "$GITHUB_STEP_SUMMARY"
-
-  # A push authenticated with GITHUB_TOKEN does not trigger other workflows,
-  # so deploy-pages.yml is called rather than left to its own push trigger.
-  deploy:
-    needs: generate
-    if: needs.generate.outputs.published == 'true'
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    uses: ./.github/workflows/deploy-pages.yml
-    # This job already installed Chromium and ran the suite against this very
-    # commit; running it again in the deploy adds minutes and no signal.
-    with:
-      skip_tests: true
