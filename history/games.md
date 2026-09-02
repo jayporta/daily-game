@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-02 — Crystal Quest
+
+- genre: platformer
+- theme: A curious robot explores floating islands to collect glowing energy crystals
+- mechanics: Jump between platforms, Collect crystals, Avoid obstacles
+- model: cohere/north-mini-code:free
+- attempts: 1
+
 ## 2026-09-01 — generation failed, previous game kept
 
 - model: cohere/north-mini-code:free

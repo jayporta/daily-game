@@ -50,5 +50,21 @@
       "generation-call",
       "moderation"
     ]
+  },
+  {
+    "date": "2026-09-02",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-09-02-crystal-quest",
+    "genre": "platformer",
+    "theme": "A curious robot explores floating islands to collect glowing energy crystals",
+    "mechanics": [
+      "Jump between platforms",
+      "Collect crystals",
+      "Avoid obstacles"
+    ],
+    "title": "Crystal Quest",
+    "attempts": 1,
+    "canvasDrawn": true
   }
 ]

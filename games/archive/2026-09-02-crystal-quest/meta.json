@@ -1,0 +1,20 @@
+{
+  "title": "Crystal Quest",
+  "genre": "platformer",
+  "theme": "A curious robot explores floating islands to collect glowing energy crystals",
+  "mechanics": [
+    "Jump between platforms",
+    "Collect crystals",
+    "Avoid obstacles"
+  ],
+  "controls": [
+    {
+      "action": "move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "move right",
+      "key": "ArrowRight"
+    }
+  ]
+}

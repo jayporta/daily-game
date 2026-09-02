@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Crystal Quest</title>
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; }
+canvas { display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let keys = {};
+let player = {
+    x: 0, y: 0,
+    width: 20, height: 30,
+    vx: 0, vy: 0,
+    onGround: false
+};
+const GRAVITY = 0.5;
+const JUMP_FORCE = -12;
+const PLAYER_SPEED = 5;
+
+let platforms = [];
+let crystals = [];
+let obstacles = [];
+let flag = null;
+let collectedCrystals = [];
+let gameOver = false;
+let win = false;
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    initLevel();
+}
+
+function initLevel() {
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // ground
+    platforms = [
+        {x: 0, y: h - 60, width: w, height: 40}
+    ];
+
+    // additional platforms
+    platforms.push(
+        {x: w * 0.3, y: h * 0.6, width: w * 0.2, height: 20},
+        {x: w * 0.6, y: h * 0.5, width: w * 0.2, height: 20},
+        {x: w * 0.2, y: h * 0.35, width: w * 0.15, height: 20},
+        {x: w * 0.75, y: h * 0.25, width: w * 0.15, height: 20}
+    );
+
+    // crystals
+    crystals = [
+        {x: w * 0.35, y: h * 0.55, radius: 8},
+        {x: w * 0.65, y: h * 0.45, radius: 8},
+        {x: w * 0.22, y: h * 0.30, radius: 8},
+        {x: w * 0.80, y: h * 0.20, radius: 8}
+    ];
+
+    // obstacles (moving platforms)
+    obstacles = [
+        {x: w * 0.5, y: h * 0.7, width: w * 0.08, height: 10, dir: 1, speed: 2}
+    ];
+
+    // flag
+    flag = {x: w * 0.90, y: h * 0.15, width: w * 0.05, height: h * 0.10};
+
+    // reset player
+    player.x = w * 0.1;
+    player.y = h * 0.7;
+    player.vx = 0;
+    player.vy = 0;
+    player.onGround = false;
+    collectedCrystals = [];
+    win = false;
+    gameOver = false;
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // background
+    ctx.fillStyle = '#001133';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // draw platforms
+    ctx.fillStyle = '#555';
+    platforms.forEach(p => {
+        ctx.fillRect(p.x, p.y, p.width, p.height);
+    });
+
+    // draw crystals
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#ff0';
+    ctx.fillStyle = '#ff0';
+    crystals.forEach(c => {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+        ctx.fill();
+    });
+    ctx.shadowBlur = 0;
+
+    // draw obstacles
+    ctx.fillStyle = '#a00';
+    obstacles.forEach(o => {
+        ctx.fillRect(o.x, o.y, o.width, o.height);
+    });
+
+    // draw flag
+    ctx.fillStyle = '#0f0';
+    ctx.fillRect(flag.x, flag.y, flag.width, flag.height);
+
+    // draw player (robot)
+    ctx.fillStyle = '#aaa';
+    ctx.fillRect(player.x, player.y, player.width, player.height);
+    // eyes
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(player.x + 6, player.y + 10, 3, 0, Math.PI * 2);
+    ctx.arc(player.x + player.width - 6, player.y + 10, 3, 0, Math.PI * 2);
+    ctx.fill();
+    // antenna
+    ctx.fillStyle = '#555';
+    ctx.fillRect(player.x + player.width/2 - 2, player.y - 10, 4, 8);
+    ctx.beginPath();
+    ctx.moveTo(player.x + player.width/2, player.y - 18);
+    ctx.lineTo(player.x + player.width/2 - 4, player.y - 10);
+    ctx.lineTo(player.x + player.width/2 + 4, player.y - 10);
+    ctx.closePath();
+    ctx.fill();
+
+    // win overlay
+    if (win) {
+        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '48px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('You collected all crystals!', canvas.width/2, canvas.height/2 - 30);
+        ctx.font = '24px sans-serif';
+        ctx.fillText('Press R to restart', canvas.width/2, canvas.height/2 + 20);
+    }
+}
+
+function update(deltaTime) {
+    if (win || gameOver) return;
+
+    // horizontal movement
+    if (keys['ArrowLeft']) {
+        player.vx = -PLAYER_SPEED;
+    } else if (keys['ArrowRight']) {
+        player.vx = PLAYER_SPEED;
+    } else {
+        player.vx = 0;
+    }
+
+    // jump
+    if (keys[' '] && player.onGround) {
+        player.vy = JUMP_FORCE;
+        player.onGround = false;
+    }
+
+    // apply gravity
+    player.vy += GRAVITY;
+    player.x += player.vx;
+    player.y += player.vy;
+
+    // update moving obstacles
+    obstacles.forEach(o => {
+        o.x += o.dir * o.speed;
+        if (o.x < 0 || o.x + o.width > canvas.width) {
+            o.dir *= -1;
+        }
+    });
+
+    // collision with platforms
+    let newOnGround = false;
+    platforms.forEach(p => {
+        if (player.x < p.x + p.width && player.x + player.width > p.x &&
+            player.y < p.y + p.height && player.y + player.height > p.y) {
+            // resolve horizontal overlap
+            if (player.vx !== 0) {
+                if (player.x + player.width / 2 < p.x + p.width / 2) {
+                    // player left of platform
+                    player.x = p.x - player.width;
+                } else {
+                    // player right of platform
+                    player.x = p.x + p.width;
+                }
+            }
+            // resolve vertical overlap
+            if (player.vy > 0) {
+                // landing on top
+                player.y = p.y - player.height;
+                player.vy = 0;
+                newOnGround = true;
+            } else if (player.vy < 0) {
+                // hitting ceiling
+                player.y = p.y + p.height;
+                player.vy = 0;
+            }
+        }
+    });
+    player.onGround = newOnGround;
+
+    // collision with obstacles (block movement)
+    obstacles.forEach(o => {
+        if (player.x < o.x + o.width && player.x + player.width > o.x &&
+            player.y < o.y + o.height && player.y + player.height > o.y) {
+            // push player out
+            if (player.vx > 0) {
+                player.x = o.x - player.width;
+            } else if (player.vx < 0) {
+                player.x = o.x + o.width;
+            } else {
+                // vertical push
+                if (player.vy > 0) {
+                    player.y = o.y - player.height;
+                    player.vy = 0;
+                } else {
+                    player.y = o.y + o.height;
+                    player.vy = 0;
+                }
+            }
+        }
+    });
+
+    // collect crystals
+    crystals = crystals.filter(c => {
+        const dx = player.x + player.width/2 - c.x;
+        const dy = player.y + player.height/2 - c.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < player.width/2 + c.radius) {
+            collectedCrystals.push(c);
+            return false; // remove crystal
+        }
+        return true;
+    });
+
+    // check win condition: all crystals collected and player on flag
+    const onFlag = player.x < flag.x + flag.width && player.x + player.width > flag.x &&
+                   player.y < flag.y + flag.height && player.y + player.height > flag.y;
+    if (onFlag && collectedCrystals.length === 4) {
+        win = true;
+    }
+}
+
+function keyDown(e) {
+    keys[e.key] = true;
+    // prevent default for space to avoid scrolling
+    if (e.key === ' ') e.preventDefault();
+}
+
+function keyUp(e) {
+    keys[e.key] = false;
+}
+
+function gameLoop(timestamp) {
+    const deltaTime = timestamp - (gameLoop.lastTimestamp || timestamp);
+    gameLoop.lastTimestamp = timestamp;
+    update(deltaTime);
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+window.addEventListener('resize', resize);
+window.addEventListener('keydown', keyDown);
+window.addEventListener('keyup', keyUp);
+
+function startGame() {
+    resize();
+    requestAnimationFrame(gameLoop);
+}
+
+// restart on 'R' key when win
+window.addEventListener('keydown', e => {
+    if (win && e.key.toLowerCase() === 'r') {
+        initLevel();
+    }
+});
+
+startGame();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-02-crystal-quest";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
