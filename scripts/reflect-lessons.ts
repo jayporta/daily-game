@@ -8,16 +8,13 @@
 import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { errorMessage } from '#lib/errors.ts';
-import { getOpenRouterClient } from '#scripts/lib/get-client.ts';
-import { readHotWindow, readSummary } from '#scripts/lib/history-store.ts';
-import {
-  MAX_LESSONS_LENGTH,
-  buildLessonsMessages,
-} from '#scripts/lib/lessons-prompt.ts';
-import { createPaths, paths as defaultPaths } from '#scripts/lib/paths.ts';
-import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
-import type { HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
 import { loadModelsConfig } from '#scripts/lib/config/models.ts';
+import { getOpenRouterClient } from '#scripts/lib/get-client.ts';
+import type { HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
+import { readHotWindow, readSummary } from '#scripts/lib/history-store.ts';
+import { buildLessonsMessages, MAX_LESSONS_LENGTH } from '#scripts/lib/lessons-prompt.ts';
+import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { createPaths, paths as defaultPaths } from '#scripts/lib/paths.ts';
 
 /**
  * Asks the model for a rewritten lessons note.

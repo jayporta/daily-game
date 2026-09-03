@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import { GameTitle } from '@/features/game/GameTitle.tsx';
 import { MANIFEST } from '@/lib/testFixtures.ts';
 

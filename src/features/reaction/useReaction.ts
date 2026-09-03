@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import type { DislikeReason, ReactionConfig, ReactionKind } from '#lib/reaction-types.ts';
 import {
   buildInsertRequest,
   readReaction,
@@ -6,11 +7,6 @@ import {
   sendReaction,
 } from '#src/features/reaction/reaction.ts';
 import { localStorageOrNull } from '#src/lib/browser-storage.ts';
-import type {
-  DislikeReason,
-  ReactionConfig,
-  ReactionKind,
-} from '#lib/reaction-types.ts';
 
 /**
  * Where the viewer is in rating today's game.

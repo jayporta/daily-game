@@ -9,28 +9,34 @@
 // one write a failed run can make is repointing a manifest that has stopped
 // naming a game at all back at the archive.
 import { pathToFileURL } from 'node:url';
-import { buildPrompt, selectRemixSuggestion } from '#scripts/build-prompt.ts';
-import { SYSTEM_PROMPT } from '#lib/system-prompt.ts';
-import { selectNextModel } from '#scripts/select-model.ts';
-import { EXTRACTION_RETRY_FEEDBACK, extractBundle } from '#lib/extract-bundle-shared.ts';
 import { errorMessage } from '#lib/errors.ts';
-import { moderate } from '#scripts/moderate.ts';
-import { createSmokeTester, type SmokeTester, type SmokeTestResult } from '#scripts/smoke-test.ts';
-import { publish, recordFailure, restoreManifestFromArchive } from '#scripts/publish.ts';
-import { getOpenRouterClient } from '#scripts/lib/get-client.ts';
-import { lastPublishedEntry, readHotWindow, readSummary, writeGamesJson, writeGamesMd } from '#scripts/lib/history-store.ts';
-import { applyFeedback } from '#scripts/fetch-feedback.ts';
-import { paths } from '#scripts/lib/paths.ts';
-import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
-import type { ProviderStopReason } from '#lib/provider-response.ts';
 import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
-import type { FailureKind, HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
-import type { ManifestRestoreResult } from '#scripts/publish.ts';
+import { EXTRACTION_RETRY_FEEDBACK, extractBundle } from '#lib/extract-bundle-shared.ts';
+import type { ProviderStopReason } from '#lib/provider-response.ts';
+import { SYSTEM_PROMPT } from '#lib/system-prompt.ts';
+import { buildPrompt, selectRemixSuggestion } from '#scripts/build-prompt.ts';
+import { applyFeedback } from '#scripts/fetch-feedback.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import type { GenresConfig } from '#scripts/lib/config/genres.ts';
 import { loadAllConfig } from '#scripts/lib/config/index.ts';
 import type { ModelsConfig } from '#scripts/lib/config/models.ts';
 import { loadReactionConfigOrUnconfigured } from '#scripts/lib/config/reactionConfig.ts';
+import { getOpenRouterClient } from '#scripts/lib/get-client.ts';
+import type { FailureKind, HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
+import {
+  lastPublishedEntry,
+  readHotWindow,
+  readSummary,
+  writeGamesJson,
+  writeGamesMd,
+} from '#scripts/lib/history-store.ts';
+import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { paths } from '#scripts/lib/paths.ts';
+import { moderate } from '#scripts/moderate.ts';
+import type { ManifestRestoreResult } from '#scripts/publish.ts';
+import { publish, recordFailure, restoreManifestFromArchive } from '#scripts/publish.ts';
+import { selectNextModel } from '#scripts/select-model.ts';
+import { createSmokeTester, type SmokeTester, type SmokeTestResult } from '#scripts/smoke-test.ts';
 
 export const MAX_ATTEMPTS = 3;
 
@@ -127,7 +133,8 @@ export async function generateDailyGame({
       const reason = `attempt ${attempt} (${model}): generation call failed — ${errorMessage(error)}`;
       reasons.push(reason);
       kinds.push('generation-call');
-      priorFailureFeedback = 'The previous request failed before returning a game. Return the two fenced blocks exactly as specified.';
+      priorFailureFeedback =
+        'The previous request failed before returning a game. Return the two fenced blocks exactly as specified.';
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
       continue;
     }
@@ -138,7 +145,9 @@ export async function generateDailyGame({
       // a missing block — naming the real cause here is what makes it
       // diagnosable from history/games.json alone.
       const truncatedNote = stop === 'truncated' ? ' (response truncated at the output cap)' : '';
-      reasons.push(`attempt ${attempt} (${model}): could not extract bundle — ${extracted.reason}${truncatedNote}`);
+      reasons.push(
+        `attempt ${attempt} (${model}): could not extract bundle — ${extracted.reason}${truncatedNote}`,
+      );
       kinds.push('extract');
       priorFailureFeedback = EXTRACTION_RETRY_FEEDBACK[extracted.reason];
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
@@ -152,7 +161,9 @@ export async function generateDailyGame({
       moderationModel: modelsConfig.moderationModel,
     });
     if (!moderation.pass) {
-      reasons.push(`attempt ${attempt} (${model}): moderation rejected — ${moderation.reasons.join('; ')}`);
+      reasons.push(
+        `attempt ${attempt} (${model}): moderation rejected — ${moderation.reasons.join('; ')}`,
+      );
       kinds.push('moderation');
       priorFailureFeedback = `Your previous game violated the content rules: ${moderation.reasons.join('; ')}. Re-read the content rules and avoid this entirely.`;
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
@@ -161,7 +172,9 @@ export async function generateDailyGame({
 
     const smoke = await smokeTester.test(extracted.html);
     if (!smoke.pass) {
-      reasons.push(`attempt ${attempt} (${model}): smoke test failed — ${smoke.reasons.join('; ')}`);
+      reasons.push(
+        `attempt ${attempt} (${model}): smoke test failed — ${smoke.reasons.join('; ')}`,
+      );
       kinds.push(smokeFailureKind(smoke));
       priorFailureFeedback = `Your previous game did not run correctly: ${smoke.reasons.join('; ')}. Be more defensive — guard every element lookup, and make no network requests of any kind.`;
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
@@ -294,7 +307,9 @@ export async function runDailyPipeline({
       historyEntries,
       generatedAt: now.toISOString(),
     });
-    console.log(`Published ${published.slug} (model ${result.model}, ${result.attempts} attempt(s))`);
+    console.log(
+      `Published ${published.slug} (model ${result.model}, ${result.attempts} attempt(s))`,
+    );
   } else {
     const recorded = recordFailure({
       date,

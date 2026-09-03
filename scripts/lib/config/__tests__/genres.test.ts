@@ -1,5 +1,5 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { validateGenresConfig } from '#scripts/lib/config/genres.ts';
 
 test('validateGenresConfig accepts a valid config', () => {

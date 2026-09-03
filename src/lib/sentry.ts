@@ -50,7 +50,11 @@ interface PendingError {
   readonly tags: ErrorTags | undefined;
 }
 
-type Deliver = (error: unknown, info: ReactErrorInfo | undefined, tags: ErrorTags | undefined) => void;
+type Deliver = (
+  error: unknown,
+  info: ReactErrorInfo | undefined,
+  tags: ErrorTags | undefined,
+) => void;
 
 let deliver: Deliver | null = null;
 const buffered: PendingError[] = [];

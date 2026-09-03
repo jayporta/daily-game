@@ -3,19 +3,20 @@
 //
 // Beside App.tsx rather than under a feature because it is the composition of
 // three — game, reaction and byok — and belongs to none of them.
-import { Panel } from '@/shared_components/Panel.tsx';
-import { PillButton } from '@/shared_components/PillButton.tsx';
-import { ControlLegend } from '@/features/game/ControlLegend.tsx';
-import { GameFacts } from '@/features/game/GameFacts.tsx';
-import { GameFrame } from '@/features/game/GameFrame.tsx';
-import { GameTitle } from '@/features/game/GameTitle.tsx';
-import { ReactionBar } from '@/features/reaction/ReactionBar.tsx';
+
+import type { Manifest } from '#lib/manifest.ts';
 import { ByokFacts } from '@/features/byok/ByokFacts.tsx';
 import { ByokPanel, type ByokResult } from '@/features/byok/ByokPanel.tsx';
 import { GeneratedCode } from '@/features/byok/GeneratedCode.tsx';
 import { GenerationConsole } from '@/features/byok/GenerationConsole.tsx';
 import type { UseByokResult } from '@/features/byok/useByok.ts';
-import type { Manifest } from '#lib/manifest.ts';
+import { ControlLegend } from '@/features/game/ControlLegend.tsx';
+import { GameFacts } from '@/features/game/GameFacts.tsx';
+import { GameFrame } from '@/features/game/GameFrame.tsx';
+import { GameTitle } from '@/features/game/GameTitle.tsx';
+import { ReactionBar } from '@/features/reaction/ReactionBar.tsx';
+import { Panel } from '@/shared_components/Panel.tsx';
+import { PillButton } from '@/shared_components/PillButton.tsx';
 
 export interface GameViewProps {
   readonly manifest: Manifest;
@@ -105,10 +106,7 @@ export function GameView({
           {byokOverride === null ? (
             <GameFacts manifest={manifest} />
           ) : (
-            <ByokFacts
-              providerLabel={byokOverride.providerLabel}
-              modelId={byokOverride.modelId}
-            />
+            <ByokFacts providerLabel={byokOverride.providerLabel} modelId={byokOverride.modelId} />
           )}
         </div>
 

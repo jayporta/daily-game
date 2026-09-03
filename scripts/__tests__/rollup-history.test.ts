@@ -1,21 +1,21 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test } from 'node:test';
+import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
+import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
+import { createPaths } from '#scripts/lib/paths.ts';
+import { GENERATION_CONFIG } from '#scripts/lib/testFixtures.ts';
 import {
   archiveEntries,
   archiveMonth,
-  summariseEntries,
   readArchivedEntries,
   rollUpHistory,
   shouldRollUp,
   splitAging,
+  summariseEntries,
 } from '#scripts/rollup-history.ts';
-import { createPaths } from '#scripts/lib/paths.ts';
-import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
-import { GENERATION_CONFIG } from '#scripts/lib/testFixtures.ts';
-import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
 
 const NOW = new Date('2026-08-30T12:00:00.000Z');
 
@@ -46,7 +46,10 @@ test('shouldRollUp waits until the hot window passes the trigger', () => {
   const config = { rollupTriggerEntries: 3 };
 
   assert.equal(shouldRollUp([published(1), published(2), published(3)], config), false);
-  assert.equal(shouldRollUp([published(1), published(2), published(3), published(4)], config), true);
+  assert.equal(
+    shouldRollUp([published(1), published(2), published(3), published(4)], config),
+    true,
+  );
 });
 
 test('splitAging keeps entries inside the window and ages out the rest', () => {
@@ -56,8 +59,14 @@ test('splitAging keeps entries inside the window and ages out the rest', () => {
     NOW,
   );
 
-  assert.deepEqual(keep.map((e) => e.date), [published(1).date, published(44).date]);
-  assert.deepEqual(aging.map((e) => e.date), [published(400).date, published(46).date]);
+  assert.deepEqual(
+    keep.map((e) => e.date),
+    [published(1).date, published(44).date],
+  );
+  assert.deepEqual(
+    aging.map((e) => e.date),
+    [published(400).date, published(46).date],
+  );
 });
 
 // Dropping a row we cannot read would lose it without archiving it.
@@ -133,7 +142,10 @@ test('summariseEntries ranks the leaderboard by popularity', () => {
     published(52, { slug: 'c', popularityScore: 5 }),
   ]);
 
-  assert.deepEqual(merged.popularityLeaderboard.map((entry) => entry.slug), ['b', 'c', 'a']);
+  assert.deepEqual(
+    merged.popularityLeaderboard.map((entry) => entry.slug),
+    ['b', 'c', 'a'],
+  );
 });
 
 test('summariseEntries leaves an unrated game off the leaderboard', () => {
@@ -176,11 +188,17 @@ test('archiveEntries writes one entry per line, parseable back', (t) => {
   const root = scratchRepo(t);
   const paths = createPaths(root);
 
-  archiveEntries([published(0, { date: '2026-06-01' }), published(0, { date: '2026-06-02' })], paths);
+  archiveEntries(
+    [published(0, { date: '2026-06-01' }), published(0, { date: '2026-06-02' })],
+    paths,
+  );
 
   const lines = readFileSync(paths.historyArchiveFile('2026-06'), 'utf8').trim().split('\n');
   assert.equal(lines.length, 2);
-  assert.deepEqual(lines.map((l) => JSON.parse(l).date), ['2026-06-01', '2026-06-02']);
+  assert.deepEqual(
+    lines.map((l) => JSON.parse(l).date),
+    ['2026-06-01', '2026-06-02'],
+  );
 });
 
 // A re-run must not duplicate: the archive is append-only and never rewritten.
@@ -193,7 +211,10 @@ test('archiveEntries skips a date already archived', (t) => {
   const files = archiveEntries([entry], paths);
 
   assert.deepEqual(files, []);
-  assert.equal(readFileSync(paths.historyArchiveFile('2026-06'), 'utf8').trim().split('\n').length, 1);
+  assert.equal(
+    readFileSync(paths.historyArchiveFile('2026-06'), 'utf8').trim().split('\n').length,
+    1,
+  );
 });
 
 test('archiveEntries appends without destroying existing content', (t) => {
@@ -220,8 +241,16 @@ function rollupOptions(root: string) {
 /** A scratch repo holding `count` entries, the oldest well past the window. */
 function seedHistory(root: string, count: number): HistoryGameEntry[] {
   const entries = Array.from({ length: count }, (_, i) => published(count - i));
-  writeFileSync(join(root, 'history', 'games.json'), `${JSON.stringify(entries, null, 2)}\n`, 'utf8');
-  writeFileSync(join(root, 'history', 'summary.json'), `${JSON.stringify(EMPTY_SUMMARY, null, 2)}\n`, 'utf8');
+  writeFileSync(
+    join(root, 'history', 'games.json'),
+    `${JSON.stringify(entries, null, 2)}\n`,
+    'utf8',
+  );
+  writeFileSync(
+    join(root, 'history', 'summary.json'),
+    `${JSON.stringify(EMPTY_SUMMARY, null, 2)}\n`,
+    'utf8',
+  );
   return entries;
 }
 
@@ -351,11 +380,17 @@ test('a rollup interrupted before truncation does not double-count on re-run', a
 test('readArchivedEntries reads back everything the archive holds', (t) => {
   const root = scratchRepo(t);
   const paths = createPaths(root);
-  archiveEntries([published(0, { date: '2026-06-01' }), published(0, { date: '2026-07-01' })], paths);
+  archiveEntries(
+    [published(0, { date: '2026-06-01' }), published(0, { date: '2026-07-01' })],
+    paths,
+  );
 
   const entries = readArchivedEntries(paths);
 
-  assert.deepEqual(entries.map((entry) => entry.date), ['2026-06-01', '2026-07-01']);
+  assert.deepEqual(
+    entries.map((entry) => entry.date),
+    ['2026-06-01', '2026-07-01'],
+  );
 });
 
 test('readArchivedEntries skips a corrupt line rather than throwing', (t) => {
@@ -367,7 +402,10 @@ test('readArchivedEntries skips a corrupt line rather than throwing', (t) => {
 
   const entries = readArchivedEntries(paths);
 
-  assert.deepEqual(entries.map((entry) => entry.date), ['2026-06-01']);
+  assert.deepEqual(
+    entries.map((entry) => entry.date),
+    ['2026-06-01'],
+  );
 });
 
 // Valid JSON of the wrong shape is the case a `JSON.parse` cast misses:
@@ -383,7 +421,10 @@ test('readArchivedEntries skips a well-formed line whose fields are the wrong ty
 
   const entries = readArchivedEntries(paths);
 
-  assert.deepEqual(entries.map((entry) => entry.date), ['2026-06-01']);
+  assert.deepEqual(
+    entries.map((entry) => entry.date),
+    ['2026-06-01'],
+  );
 });
 
 // `popularityScore` is what carries the entry past summariseEntries' early

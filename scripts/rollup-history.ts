@@ -9,16 +9,26 @@
 //
 // Nothing is deleted: an aged-out entry lives on in the monthly archive file
 // and in git history.
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { errorMessage } from '#lib/errors.ts';
-import { isHistoryGameEntry, readHotWindow, readSummary, writeGamesJson, writeGamesMd } from '#scripts/lib/history-store.ts';
-import { join } from 'node:path';
-import { createPaths, paths as defaultPaths, type Paths } from '#scripts/lib/paths.ts';
-import type { HistoryGameEntry, HistorySummary, PopularityEntry } from '#scripts/lib/history-store.ts';
-import { loadGenerationConfig } from '#scripts/lib/config/generation.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
-import { validateHistorySummary } from '#scripts/lib/history-store.ts';
+import { loadGenerationConfig } from '#scripts/lib/config/generation.ts';
+import type {
+  HistoryGameEntry,
+  HistorySummary,
+  PopularityEntry,
+} from '#scripts/lib/history-store.ts';
+import {
+  isHistoryGameEntry,
+  readHotWindow,
+  readSummary,
+  validateHistorySummary,
+  writeGamesJson,
+  writeGamesMd,
+} from '#scripts/lib/history-store.ts';
+import { createPaths, paths as defaultPaths, type Paths } from '#scripts/lib/paths.ts';
 
 const MS_PER_DAY = 86_400_000;
 

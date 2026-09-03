@@ -1,15 +1,15 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { reflectLessons, rewriteLessons } from '#scripts/reflect-lessons.ts';
-import { buildLessonsMessages, isLessonsRequest } from '#scripts/lib/lessons-prompt.ts';
-import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
-import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
-import { loadFixture } from '#scripts/lib/testFixtures.ts';
-import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { test } from 'node:test';
 import type { HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
+import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
+import { buildLessonsMessages, isLessonsRequest } from '#scripts/lib/lessons-prompt.ts';
+import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
+import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { loadFixture } from '#scripts/lib/testFixtures.ts';
+import { reflectLessons, rewriteLessons } from '#scripts/reflect-lessons.ts';
 
 const NOW = new Date('2026-08-30T12:00:00.000Z');
 
@@ -38,9 +38,17 @@ function scratchRepo(t: { after(fn: () => void): void }): string {
 
 /** Seeds a hot window and a summary carrying `lessons`. */
 function seed(root: string, entries: HistoryGameEntry[], lessons = ''): void {
-  writeFileSync(join(root, 'history', 'games.json'), `${JSON.stringify(entries, null, 2)}\n`, 'utf8');
+  writeFileSync(
+    join(root, 'history', 'games.json'),
+    `${JSON.stringify(entries, null, 2)}\n`,
+    'utf8',
+  );
   const summary: HistorySummary = { ...EMPTY_SUMMARY, lessons };
-  writeFileSync(join(root, 'history', 'summary.json'), `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
+  writeFileSync(
+    join(root, 'history', 'summary.json'),
+    `${JSON.stringify(summary, null, 2)}\n`,
+    'utf8',
+  );
 }
 
 function readLessons(root: string): string {
@@ -48,18 +56,23 @@ function readLessons(root: string): string {
 }
 
 function stubClient(reply: string): OpenRouterClient {
-  return { async complete() { return { text: reply, stop: 'complete' }; } };
+  return {
+    async complete() {
+      return { text: reply, stop: 'complete' };
+    },
+  };
 }
 
 const throwingClient: OpenRouterClient = {
-  async complete() { throw new Error('rate limited'); },
+  async complete() {
+    throw new Error('rate limited');
+  },
 };
 
 test('buildLessonsMessages shows the model the ageing games', () => {
-  const messages = buildLessonsMessages(
-    { ...EMPTY_SUMMARY, lessons: 'canvas resizes drift' },
-    [published(50, { theme: 'tide clocks' })],
-  );
+  const messages = buildLessonsMessages({ ...EMPTY_SUMMARY, lessons: 'canvas resizes drift' }, [
+    published(50, { theme: 'tide clocks' }),
+  ]);
   const prompt = messages.map((message) => message.content).join('\n');
 
   assert.match(prompt, /tide clocks/);

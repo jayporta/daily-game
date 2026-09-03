@@ -1,5 +1,5 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { validateGenerationConfig } from '#scripts/lib/config/generation.ts';
 
 test('validateGenerationConfig accepts a valid config', () => {

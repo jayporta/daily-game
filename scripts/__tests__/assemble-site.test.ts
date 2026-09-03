@@ -1,8 +1,8 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import { assembleSite, missingPublishedFiles } from '#scripts/assemble-site.ts';
 import { createPaths } from '#scripts/lib/paths.ts';
 import { MANIFEST } from '#src/lib/testFixtures.ts';

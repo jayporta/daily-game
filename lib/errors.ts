@@ -18,6 +18,9 @@ export function errorMessage(error: unknown): string {
   // Before the coercion below, which renders these as "undefined" and "null".
   if (error === undefined || error === null) return 'unknown error';
   try {
+    // Coercing a value of unknown shape is this function's job; the catch
+    // below is what handles the objects the rule warns about.
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
     const rendered = String(error);
     return rendered.length > 0 ? rendered : 'unknown error';
   } catch {

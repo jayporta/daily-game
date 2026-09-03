@@ -1,8 +1,9 @@
 // Fetching the manifest and the day's published files, kept free of React so
 // it can be unit tested with a stubbed fetch. The manifest's own shape guard
 // lives with its type in lib/manifest.ts, since the pipeline checks it too.
-import { isManifest } from '#lib/manifest.ts';
+
 import type { Manifest } from '#lib/manifest.ts';
+import { isManifest } from '#lib/manifest.ts';
 
 /**
  * Cache-busted so a visitor never sees yesterday's game from cache.

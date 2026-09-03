@@ -5,9 +5,10 @@
 // Both layers fail CLOSED: anything unparseable, empty or errored is
 // treated as a rejection. A false rejection costs one retry; a false
 // acceptance publishes banned content to a public site.
-import type { ChatMessage, OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
-import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
+
 import { errorMessage } from '#lib/errors.ts';
+import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
+import type { ChatMessage, OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 
 /**
  * High-precision terms that are never acceptable. This is a fast
@@ -19,20 +20,65 @@ import { errorMessage } from '#lib/errors.ts';
  */
 export const BANNED_TERMS: readonly string[] = [
   // violence / gore
-  'blood', 'bloody', 'gore', 'gory', 'corpse', 'murder', 'kill', 'stab',
-  'decapitate', 'dismember', 'suicide',
+  'blood',
+  'bloody',
+  'gore',
+  'gory',
+  'corpse',
+  'murder',
+  'kill',
+  'stab',
+  'decapitate',
+  'dismember',
+  'suicide',
   // sexual content
-  'sex', 'sexual', 'nude', 'naked', 'porn', 'erotic',
+  'sex',
+  'sexual',
+  'nude',
+  'naked',
+  'porn',
+  'erotic',
   // drugs / alcohol / tobacco
-  'cocaine', 'heroin', 'marijuana', 'cannabis', 'cigarette', 'vape',
-  'alcohol', 'beer', 'wine', 'vodka', 'whiskey', 'drunk',
+  'cocaine',
+  'heroin',
+  'marijuana',
+  'cannabis',
+  'cigarette',
+  'vape',
+  'alcohol',
+  'beer',
+  'wine',
+  'vodka',
+  'whiskey',
+  'drunk',
   // profanity
-  'fuck', 'shit', 'bitch', 'bastard', 'damn',
+  'fuck',
+  'shit',
+  'bitch',
+  'bastard',
+  'damn',
   // human characters (guardrails forbid humans entirely)
-  'human', 'man', 'woman', 'boy', 'girl', 'child', 'soldier', 'person',
+  'human',
+  'man',
+  'woman',
+  'boy',
+  'girl',
+  'child',
+  'soldier',
+  'person',
   // real-world religion
-  'jesus', 'christ', 'allah', 'muhammad', 'buddha', 'islam', 'christian',
-  'jewish', 'hindu', 'bible', 'quran', 'torah',
+  'jesus',
+  'christ',
+  'allah',
+  'muhammad',
+  'buddha',
+  'islam',
+  'christian',
+  'jewish',
+  'hindu',
+  'bible',
+  'quran',
+  'torah',
 ];
 
 export interface KeywordScanResult {
@@ -44,7 +90,10 @@ function escapeRegExp(term: string): string {
   return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export function keywordScan(text: string, bannedTerms: readonly string[] = BANNED_TERMS): KeywordScanResult {
+export function keywordScan(
+  text: string,
+  bannedTerms: readonly string[] = BANNED_TERMS,
+): KeywordScanResult {
   const hits = bannedTerms.filter((term) =>
     new RegExp(`\\b${escapeRegExp(term)}\\b`, 'i').test(text),
   );
@@ -62,7 +111,8 @@ export function keywordScan(text: string, bannedTerms: readonly string[] = BANNE
 function stringLeaves(value: unknown): string[] {
   if (typeof value === 'string') return [value];
   if (Array.isArray(value)) return value.flatMap(stringLeaves);
-  if (typeof value === 'object' && value !== null) return Object.values(value).flatMap(stringLeaves);
+  if (typeof value === 'object' && value !== null)
+    return Object.values(value).flatMap(stringLeaves);
   return [];
 }
 
@@ -91,7 +141,11 @@ export function isModerationRequest(messages: ChatMessage[]): boolean {
   return messages[0]?.content === MODERATION_SYSTEM_PROMPT;
 }
 
-export function buildModerationMessages(guardrailsText: string, meta: GeneratedMeta, html: string): ChatMessage[] {
+export function buildModerationMessages(
+  guardrailsText: string,
+  meta: GeneratedMeta,
+  html: string,
+): ChatMessage[] {
   return [
     {
       role: 'system',
@@ -128,7 +182,12 @@ export interface AiModerationResult {
 
 export async function aiModerationCheck(
   client: OpenRouterClient,
-  { model, guardrailsText, meta, html }: { model: string; guardrailsText: string; meta: GeneratedMeta; html: string },
+  {
+    model,
+    guardrailsText,
+    meta,
+    html,
+  }: { model: string; guardrailsText: string; meta: GeneratedMeta; html: string },
 ): Promise<AiModerationResult> {
   let raw: string;
   try {
@@ -173,9 +232,17 @@ export async function moderate(
     return { pass: false, reasons: [`banned terms present: ${scan.hits.join(', ')}`] };
   }
 
-  const ai = await aiModerationCheck(client, { model: moderationModel, guardrailsText, meta, html });
+  const ai = await aiModerationCheck(client, {
+    model: moderationModel,
+    guardrailsText,
+    meta,
+    html,
+  });
   if (!ai.pass) {
-    return { pass: false, reasons: [`moderation model rejected the game: ${ai.raw.trim().slice(0, 200)}`] };
+    return {
+      pass: false,
+      reasons: [`moderation model rejected the game: ${ai.raw.trim().slice(0, 200)}`],
+    };
   }
 
   return { pass: true, reasons: [] };

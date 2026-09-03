@@ -3,6 +3,7 @@
 // files and must agree on their shape and formatting.
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import type { DislikeReason } from '#lib/reaction-types.ts';
 import { paths } from '#scripts/lib/paths.ts';
 import {
   isFiniteNumber,
@@ -12,7 +13,6 @@ import {
   loadValidatedJson,
   type ValidationResult,
 } from '#scripts/lib/validation.ts';
-import type { DislikeReason } from '#lib/reaction-types.ts';
 
 export type HistoryStatus = 'published' | 'failed_kept_previous';
 
@@ -161,7 +161,11 @@ function historyGameEntryErrors(value: unknown): string[] {
 
   optional(value.theme, typeof value.theme === 'string', 'theme must be a string');
   optional(value.title, typeof value.title === 'string', 'title must be a string');
-  optional(value.mechanics, isStringArray(value.mechanics), 'mechanics must be an array of strings');
+  optional(
+    value.mechanics,
+    isStringArray(value.mechanics),
+    'mechanics must be an array of strings',
+  );
   optional(value.errors, isStringArray(value.errors), 'errors must be an array of strings');
   optional(
     value.failureReasons,
@@ -171,7 +175,9 @@ function historyGameEntryErrors(value: unknown): string[] {
   optional(
     value.failureKinds,
     Array.isArray(value.failureKinds) &&
-      value.failureKinds.every((kind: unknown) => typeof kind === 'string' && FAILURE_KIND_IDS.has(kind)),
+      value.failureKinds.every(
+        (kind: unknown) => typeof kind === 'string' && FAILURE_KIND_IDS.has(kind),
+      ),
     `failureKinds must be an array of: ${FAILURE_KINDS.join(', ')}`,
   );
   optional(value.attempts, isFiniteNumber(value.attempts), 'attempts must be a number');
@@ -182,7 +188,11 @@ function historyGameEntryErrors(value: unknown): string[] {
     isFiniteNumber(value.popularityScore),
     'popularityScore must be a number',
   );
-  optional(value.canvasDrawn, typeof value.canvasDrawn === 'boolean', 'canvasDrawn must be a boolean');
+  optional(
+    value.canvasDrawn,
+    typeof value.canvasDrawn === 'boolean',
+    'canvasDrawn must be a boolean',
+  );
   optional(
     value.dislikeReasons,
     isRecordOf(value.dislikeReasons, isFiniteNumber),
@@ -298,7 +308,10 @@ export function readSummary(filePath: string = paths.historySummary): HistorySum
  * existing entry for the same date (a same-day re-run supersedes, rather
  * than duplicating, its earlier attempt). Pure — returns a new array.
  */
-export function appendEntry(entries: HistoryGameEntry[], newEntry: HistoryGameEntry): HistoryGameEntry[] {
+export function appendEntry(
+  entries: HistoryGameEntry[],
+  newEntry: HistoryGameEntry,
+): HistoryGameEntry[] {
   const withoutSameDate = entries.filter((entry) => entry.date !== newEntry.date);
   return [...withoutSameDate, newEntry].sort((a, b) => a.date.localeCompare(b.date));
 }

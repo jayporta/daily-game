@@ -1,10 +1,14 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { validateByokModelsConfig } from '#scripts/lib/config/byokModels.ts';
 
 const VALID_BYOK_MODELS = [
   { provider: 'openrouter', label: 'OpenRouter', models: [{ id: 'a/model:free', label: 'A' }] },
-  { provider: 'anthropic', label: 'Anthropic', models: [{ id: 'claude-sonnet-5', label: 'Sonnet 5' }] },
+  {
+    provider: 'anthropic',
+    label: 'Anthropic',
+    models: [{ id: 'claude-sonnet-5', label: 'Sonnet 5' }],
+  },
   { provider: 'openai', label: 'OpenAI', models: [{ id: 'gpt-4o', label: 'GPT-4o' }] },
   { provider: 'gemini', label: 'Gemini', models: [{ id: 'gemini-2.5-flash', label: 'Flash' }] },
 ];

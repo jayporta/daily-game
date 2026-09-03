@@ -23,9 +23,9 @@
 // nothing. The privileged read key belongs in REACTION_STORE_KEY and must
 // never be committed.
 import { isRecord } from '#lib/guards.ts';
-import { DISLIKE_REASONS, isPublishableSlug, type DislikeReason } from '#lib/reaction-types.ts';
-import { patchEntry } from '#scripts/lib/history-store.ts';
+import { DISLIKE_REASONS, type DislikeReason, isPublishableSlug } from '#lib/reaction-types.ts';
 import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
+import { patchEntry } from '#scripts/lib/history-store.ts';
 
 /** Reaction counts for one game. Integers only, by construction. */
 export interface ReactionTally {

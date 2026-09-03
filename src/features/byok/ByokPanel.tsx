@@ -1,15 +1,19 @@
 import { useReducer, useState } from 'react';
+import {
+  type ByokModelsConfig,
+  type ByokProvider,
+  isByokProvider,
+} from '#lib/byok-config-types.ts';
+import type { ControlHint } from '#lib/extract-bundle-shared.ts';
+import { byokModelsConfig } from '@/features/byok/byokCatalogue.ts';
+import { type ByokPromptParts, composeByokPrompt } from '@/features/byok/composeByokPrompt.ts';
 import { FIELD_CONTROL, FormField } from '@/features/byok/FormField.tsx';
+import type { UseByokResult } from '@/features/byok/useByok.ts';
+import { type PromptTextState, usePromptText } from '@/features/byok/usePromptText.ts';
+import { reportError } from '@/lib/sentry.ts';
+import { Disclosure } from '@/shared_components/Disclosure.tsx';
 import { Panel } from '@/shared_components/Panel.tsx';
 import { PillButton } from '@/shared_components/PillButton.tsx';
-import { Disclosure } from '@/shared_components/Disclosure.tsx';
-import { reportError } from '@/lib/sentry.ts';
-import { composeByokPrompt, type ByokPromptParts } from '@/features/byok/composeByokPrompt.ts';
-import { usePromptText, type PromptTextState } from '@/features/byok/usePromptText.ts';
-import type { UseByokResult } from '@/features/byok/useByok.ts';
-import { byokModelsConfig } from '@/features/byok/byokCatalogue.ts';
-import { isByokProvider, type ByokModelsConfig, type ByokProvider } from '#lib/byok-config-types.ts';
-import type { ControlHint } from '#lib/extract-bundle-shared.ts';
 
 export interface ByokResult {
   readonly html: string;
@@ -98,7 +102,10 @@ function initialSelection(catalogue: ByokModelsConfig): Selection {
  * above it promises the exact prompt — a second assembly here would be a
  * promise that drifts.
  */
-function promptText(prompt: PromptTextState, additions: Omit<ByokPromptParts, 'basePrompt'>): string {
+function promptText(
+  prompt: PromptTextState,
+  additions: Omit<ByokPromptParts, 'basePrompt'>,
+): string {
   switch (prompt.status) {
     case 'ready':
       return composeByokPrompt({ basePrompt: prompt.text, ...additions });
@@ -132,11 +139,7 @@ export function ByokPanel({
   const { status, priorFailureFeedback, clearFeedback, generate, stop } = byok;
   // Lazy: the initial value is a scan of the catalogue, and a non-lazy
   // initializer runs that scan on every render to discard the result.
-  const [{ provider, modelId }, select] = useReducer(
-    reduceSelection,
-    catalogue,
-    initialSelection,
-  );
+  const [{ provider, modelId }, select] = useReducer(reduceSelection, catalogue, initialSelection);
   const [apiKey, setApiKey] = useState('');
   const [includeCurrentGame, setIncludeCurrentGame] = useState(false);
 
@@ -233,7 +236,10 @@ export function ByokPanel({
           today&rsquo;s game.
         </p>
 
-        <Disclosure summary="See the exact prompt this will send" onToggle={() => void loadPrompt()}>
+        <Disclosure
+          summary="See the exact prompt this will send"
+          onToggle={() => void loadPrompt()}
+        >
           <pre className="max-h-48 overflow-auto rounded-lg bg-chip p-2 text-xs whitespace-pre-wrap dark:bg-slate-800">
             {promptText(prompt, additions)}
           </pre>
@@ -241,7 +247,10 @@ export function ByokPanel({
 
         {/* Warmed when the visitor first reaches for the form, so the await in
             handleSubmit has almost always already resolved. */}
-        <div className="mt-3 flex flex-wrap items-end gap-2" onFocusCapture={() => void loadPrompt()}>
+        <div
+          className="mt-3 flex flex-wrap items-end gap-2"
+          onFocusCapture={() => void loadPrompt()}
+        >
           <FormField label="Provider">
             <select
               value={provider}

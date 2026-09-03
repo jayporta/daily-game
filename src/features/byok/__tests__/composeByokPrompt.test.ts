@@ -1,7 +1,7 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { composeByokPrompt } from '#src/features/byok/composeByokPrompt.ts';
+import { test } from 'node:test';
 import { ATTEMPT_FEEDBACK_HEADING } from '#lib/attempt-feedback.ts';
+import { composeByokPrompt } from '#src/features/byok/composeByokPrompt.ts';
 
 const BASE = 'Build a game.\n\nReturn EXACTLY two fenced code blocks.';
 

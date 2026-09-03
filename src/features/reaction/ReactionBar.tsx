@@ -1,9 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { DislikeReasons } from '@/features/reaction/DislikeReasons.tsx';
-import { PillButton } from '@/shared_components/PillButton.tsx';
-import { useReaction } from '@/features/reaction/useReaction.ts';
-import { reactionConfig } from '@/features/reaction/reactionStore.ts';
 import type { ReactionConfig } from '#lib/reaction-types.ts';
+import { DislikeReasons } from '@/features/reaction/DislikeReasons.tsx';
+import { reactionConfig } from '@/features/reaction/reactionStore.ts';
+import { useReaction } from '@/features/reaction/useReaction.ts';
+import { PillButton } from '@/shared_components/PillButton.tsx';
 
 export interface ReactionBarProps {
   /** Manifest slug of the game being rated — the row's key in the store. */
@@ -61,6 +61,7 @@ export function ReactionBar({ slug, config = reactionConfig, fetchImpl }: Reacti
   }, [phase, cancelDislike]);
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: the rule asks for <fieldset>, which groups form inputs. This groups a button toolbar.
     <div ref={bar} role="group" aria-label="Rate this game" className="relative ml-auto text-ui">
       {/* The buttons that had focus are gone by the time this renders, so a
           screen reader is told rather than left to discover it. */}

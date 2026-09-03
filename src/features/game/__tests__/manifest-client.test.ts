@@ -1,7 +1,7 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fetchText, fetchManifest, manifestUrl } from '#src/features/game/manifest-client.ts';
-import { MANIFEST as VALID, jsonResponse } from '#src/lib/testFixtures.ts';
+import { test } from 'node:test';
+import { fetchManifest, fetchText, manifestUrl } from '#src/features/game/manifest-client.ts';
+import { jsonResponse, MANIFEST as VALID } from '#src/lib/testFixtures.ts';
 
 test('manifestUrl is cache-busted', () => {
   assert.equal(manifestUrl(1234), 'manifest.json?t=1234');
@@ -66,4 +66,3 @@ test('fetchText throws on an HTTP error', async () => {
     /could not load game \(500\)/,
   );
 });
-

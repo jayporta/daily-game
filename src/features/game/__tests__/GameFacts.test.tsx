@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { GameFacts } from '@/features/game/GameFacts.tsx';
 import { MANIFEST } from '@/lib/testFixtures.ts';
 

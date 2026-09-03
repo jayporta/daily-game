@@ -1,28 +1,37 @@
 // The most important tests in the project: a bug here silently defeats
 // the whole safety design, so every layer is checked for failing CLOSED.
-import { test } from 'node:test';
+
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
+import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
+import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
 import {
   aiModerationCheck,
   buildModerationMessages,
   keywordScan,
-  moderate,
   moderatableText,
+  moderate,
 } from '#scripts/moderate.ts';
-import { loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
-import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
-import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
-import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
 
 const GUARDRAILS = loadGuardrails();
 
 /** A moderator that always answers the same thing. */
 function stubModerator(reply: string): OpenRouterClient {
-  return { async complete() { return { text: reply, stop: 'complete' }; } };
+  return {
+    async complete() {
+      return { text: reply, stop: 'complete' };
+    },
+  };
 }
 
 function throwingModerator(message: string): OpenRouterClient {
-  return { async complete() { throw new Error(message); } };
+  return {
+    async complete() {
+      throw new Error(message);
+    },
+  };
 }
 
 const CLEAN_META: GeneratedMeta = {
@@ -167,7 +176,12 @@ test('moderate skips the AI call once the keyword scan has already failed', asyn
     },
   };
   const { meta, html } = loadFixtureBundle('bad-guardrail-word');
-  await moderate(countingModerator, { meta, html, guardrailsText: GUARDRAILS, moderationModel: 'mod' });
+  await moderate(countingModerator, {
+    meta,
+    html,
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+  });
   assert.equal(aiCalls, 0);
 });
 
@@ -180,7 +194,8 @@ test('moderate skips the AI call once the keyword scan has already failed', asyn
 function stringLeaves(value: unknown): string[] {
   if (typeof value === 'string') return [value];
   if (Array.isArray(value)) return value.flatMap(stringLeaves);
-  if (typeof value === 'object' && value !== null) return Object.values(value).flatMap(stringLeaves);
+  if (typeof value === 'object' && value !== null)
+    return Object.values(value).flatMap(stringLeaves);
   return [];
 }
 

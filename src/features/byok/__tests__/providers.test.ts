@@ -1,14 +1,19 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import type { ByokProvider } from '#lib/byok-config-types.ts';
 import {
-  completeByok,
-  isExpectedFailure,
   type ByokCompletionResult,
   type ByokRequest,
+  completeByok,
+  isExpectedFailure,
 } from '#src/features/byok/providers.ts';
-import type { ByokProvider } from '#lib/byok-config-types.ts';
 
-const PROVIDERS = ['openrouter', 'openai', 'anthropic', 'gemini'] as const satisfies readonly ByokProvider[];
+const PROVIDERS = [
+  'openrouter',
+  'openai',
+  'anthropic',
+  'gemini',
+] as const satisfies readonly ByokProvider[];
 
 /** Narrows to the failure variant, failing the test if the call succeeded. */
 function failureMessage(result: ByokCompletionResult): string {
@@ -52,7 +57,10 @@ function streamOf(provider: ByokProvider, fragments: readonly string[]): Respons
 }
 
 /** Captures the single fetch call a test makes, for asserting request shape. */
-function capturingFetch(response: Response): { fetchImpl: typeof fetch; calls: [string, RequestInit | undefined][] } {
+function capturingFetch(response: Response): {
+  fetchImpl: typeof fetch;
+  calls: [string, RequestInit | undefined][];
+} {
   const calls: [string, RequestInit | undefined][] = [];
   const fetchImpl: typeof fetch = async (url, init) => {
     calls.push([String(url), init]);
@@ -127,9 +135,12 @@ test('completeByok sends Anthropic requests with the required browser-access hea
 test('completeByok sends Gemini requests with the model id in the url path, not the body', async () => {
   const { fetchImpl, calls } = capturingFetch(streamOf('gemini', ['the completion']));
 
-  const result = await completeByok(baseRequest({ provider: 'gemini', model: 'gemini-2.5-flash' }), {
-    fetchImpl,
-  });
+  const result = await completeByok(
+    baseRequest({ provider: 'gemini', model: 'gemini-2.5-flash' }),
+    {
+      fetchImpl,
+    },
+  );
 
   assert.deepEqual(result, { ok: true, text: 'the completion', stop: 'complete' });
   const headers = new Headers(calls[0]?.[1]?.headers);
@@ -172,7 +183,9 @@ for (const provider of PROVIDERS) {
   });
 
   test(`completeByok(${provider}) returns a failure when the stream carries no text`, async () => {
-    const { fetchImpl } = capturingFetch(new Response('data: {"unexpected":"shape"}\n\n', { status: 200 }));
+    const { fetchImpl } = capturingFetch(
+      new Response('data: {"unexpected":"shape"}\n\n', { status: 200 }),
+    );
 
     const result = await completeByok(baseRequest({ provider }), { fetchImpl });
 
@@ -371,8 +384,9 @@ const TRUNCATION_STOP: Record<ByokProvider, string> = {
 
 for (const provider of PROVIDERS) {
   test(`completeByok reports ${provider} cutting a response off at the output cap`, async () => {
-    const body = deltaFrame(provider, '```html\n<!doctype html><body>half a g')
-      + stopFrame(provider, TRUNCATION_STOP[provider]);
+    const body =
+      deltaFrame(provider, '```html\n<!doctype html><body>half a g') +
+      stopFrame(provider, TRUNCATION_STOP[provider]);
     const { fetchImpl } = capturingFetch(new Response(body, { status: 200 }));
 
     const result = await completeByok(baseRequest({ provider }), { fetchImpl });
@@ -382,7 +396,8 @@ for (const provider of PROVIDERS) {
   });
 
   test(`completeByok reports ${provider} finishing normally as complete`, async () => {
-    const normalStop = provider === 'anthropic' ? 'end_turn' : provider === 'gemini' ? 'STOP' : 'stop';
+    const normalStop =
+      provider === 'anthropic' ? 'end_turn' : provider === 'gemini' ? 'STOP' : 'stop';
     const body = deltaFrame(provider, 'the completion') + stopFrame(provider, normalStop);
     const { fetchImpl } = capturingFetch(new Response(body, { status: 200 }));
 
@@ -413,9 +428,10 @@ test('completeByok reports a content-filtered response as refused', async () => 
 test('a stop reason survives the frames that follow it', async () => {
   // Gemini repeats a finishReason on every candidate once the run ends, and
   // OpenAI-shaped APIs send `[DONE]` after theirs. Neither may reset it.
-  const body = deltaFrame('gemini', 'text')
-    + stopFrame('gemini', 'MAX_TOKENS')
-    + deltaFrame('gemini', ' more');
+  const body =
+    deltaFrame('gemini', 'text') +
+    stopFrame('gemini', 'MAX_TOKENS') +
+    deltaFrame('gemini', ' more');
   const { fetchImpl } = capturingFetch(new Response(body, { status: 200 }));
 
   const result = await completeByok(baseRequest({ provider: 'gemini' }), { fetchImpl });
@@ -436,7 +452,10 @@ test('a rejected key is an auth failure, not a provider fault', async () => {
 });
 
 test('a rate limit and an exhausted quota are expected failures', async () => {
-  for (const [status, kind] of [[429, 'rate-limit'], [402, 'quota']] as const) {
+  for (const [status, kind] of [
+    [429, 'rate-limit'],
+    [402, 'quota'],
+  ] as const) {
     const { fetchImpl } = capturingFetch(new Response('{}', { status }));
     const result = await completeByok(baseRequest(), { fetchImpl });
 
@@ -467,7 +486,8 @@ test('reasoning providers get an output cap with room to think as well as answer
     await completeByok(baseRequest({ provider }), { fetchImpl });
 
     const body = JSON.parse(String(calls[0]?.[1]?.body));
-    const cap = body.max_tokens ?? body.max_completion_tokens ?? body.generationConfig?.maxOutputTokens;
+    const cap =
+      body.max_tokens ?? body.max_completion_tokens ?? body.generationConfig?.maxOutputTokens;
     assert.equal(cap, 64000, provider);
   }
 });

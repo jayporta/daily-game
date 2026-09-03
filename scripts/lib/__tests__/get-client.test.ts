@@ -1,5 +1,5 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { getOpenRouterClient } from '#scripts/lib/get-client.ts';
 
 test('forceMock uses the given fixture sequence', async () => {

@@ -1,14 +1,14 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { test } from 'node:test';
 import {
-  THEME_ATTRIBUTE,
-  THEME_STORAGE_KEY,
   nextTheme,
   readTheme,
   rememberTheme,
   resolveInitialTheme,
+  THEME_ATTRIBUTE,
+  THEME_STORAGE_KEY,
 } from '#src/features/theme/theme.ts';
 import type { WebStorage } from '#src/lib/browser-storage.ts';
 

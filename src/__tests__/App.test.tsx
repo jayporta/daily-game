@@ -1,14 +1,14 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '@/App.tsx';
 import {
   BUNDLE,
   BYOK_COMPLETION,
   BYOK_HTML,
-  MANIFEST,
   completionResponse,
   jsonResponse,
+  MANIFEST,
   openProviderStream,
 } from '@/lib/testFixtures.ts';
 
@@ -36,7 +36,8 @@ function stubFetch(handlers: {
   const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.startsWith('manifest.json')) return handlers.manifest();
-    if (url.endsWith('prompt.txt')) return handlers.prompt?.() ?? new Response('the prompt', { status: 200 });
+    if (url.endsWith('prompt.txt'))
+      return handlers.prompt?.() ?? new Response('the prompt', { status: 200 });
     if (url.startsWith('http')) {
       return handlers.byokProvider?.() ?? new Response('', { status: 500 });
     }
@@ -149,7 +150,9 @@ describe('App', () => {
     stubFetch({ manifest: () => jsonResponse(MANIFEST) });
     render(<App />);
 
-    await waitFor(() => expect(screen.getByRole('group', { name: /rate this game/i })).toBeVisible());
+    await waitFor(() =>
+      expect(screen.getByRole('group', { name: /rate this game/i })).toBeVisible(),
+    );
     expect(screen.getByRole('button', { name: /^like$/i })).toBeVisible();
   });
 
@@ -508,7 +511,9 @@ describe('App', () => {
       manifest: () => jsonResponse(MANIFEST),
       byokProvider: () => {
         calls += 1;
-        return calls === 1 ? completionResponse(BYOK_COMPLETION) : new Response('', { status: 500 });
+        return calls === 1
+          ? completionResponse(BYOK_COMPLETION)
+          : new Response('', { status: 500 });
       },
     });
     render(<App />);
@@ -548,7 +553,8 @@ describe('App', () => {
     await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
     await userEvent.click(screen.getByRole('button', { name: /generate/i }));
 
-    const providerCalls = () => fetchImpl.mock.calls.filter(([url]) => String(url).startsWith('http'));
+    const providerCalls = () =>
+      fetchImpl.mock.calls.filter(([url]) => String(url).startsWith('http'));
     await waitFor(() => expect(providerCalls()).toHaveLength(2));
 
     const secondBody = JSON.parse(String(providerCalls()[1]?.[1]?.body));

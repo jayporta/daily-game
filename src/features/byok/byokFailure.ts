@@ -4,11 +4,12 @@
 // Kept out of useByok.ts because none of it needs React — this is the part
 // worth testing exhaustively, and it runs under node --test as plain
 // functions rather than through a rendered hook.
-import { EXTRACTION_RETRY_FEEDBACK } from '#lib/extract-bundle-shared.ts';
-import { isExpectedFailure } from '#src/features/byok/providers.ts';
+
 import type { ExtractFailureReason } from '#lib/extract-bundle-shared.ts';
+import { EXTRACTION_RETRY_FEEDBACK } from '#lib/extract-bundle-shared.ts';
 import type { ProviderStopReason } from '#lib/provider-response.ts';
 import type { ByokFailureKind } from '#src/features/byok/providers.ts';
+import { isExpectedFailure } from '#src/features/byok/providers.ts';
 
 /**
  * A run that did not produce a game, and which half of the call it failed in.
@@ -54,8 +55,7 @@ const EXTRACTION_MESSAGE: Record<ExtractFailureReason, string> = {
 const TRUNCATED_MESSAGE =
   'The model ran out of room before it finished the game. Try a faster model, or clear “Include the current game’s code” to leave it more space.';
 
-const REFUSED_MESSAGE =
-  'The model declined to finish this game. Try a different model.';
+const REFUSED_MESSAGE = 'The model declined to finish this game. Try a different model.';
 
 const TRUNCATED_RETRY_NOTE =
   'Your previous response was cut off before it finished — you ran out of output space. Write a shorter, tighter game this time, and make sure both fenced blocks are closed.';

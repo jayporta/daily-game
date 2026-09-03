@@ -1,8 +1,8 @@
 import { readFile, realpath } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
-import { defineConfig, type Plugin } from 'vite';
-import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig, type Plugin } from 'vite';
 import { loadGenerationConfig } from '#scripts/lib/config/generation.ts';
 
 const GAMES_DIR = resolve(import.meta.dirname, 'games');

@@ -1,9 +1,9 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import {
   EXTRACTION_RETRY_FEEDBACK,
-  extractBundle,
   type ExtractFailureReason,
+  extractBundle,
 } from '#lib/extract-bundle-shared.ts';
 
 const GOOD_RESPONSE = `Here is your game:
@@ -140,15 +140,16 @@ test('control text is trimmed', () => {
     responseWithMeta({ ...BASE_META, controls: [{ action: '  Jump  ', key: ' Space ' }] }),
   );
 
-  assert.deepEqual(result.ok === true && result.meta.controls, [
-    { action: 'Jump', key: 'Space' },
-  ]);
+  assert.deepEqual(result.ok === true && result.meta.controls, [{ action: 'Jump', key: 'Space' }]);
 });
 
 // Everything below renders in the parent page, so none of it may run away.
 test('an over-long control is truncated rather than shown in full', () => {
   const result = extractBundle(
-    responseWithMeta({ ...BASE_META, controls: [{ action: 'a'.repeat(500), key: 'b'.repeat(500) }] }),
+    responseWithMeta({
+      ...BASE_META,
+      controls: [{ action: 'a'.repeat(500), key: 'b'.repeat(500) }],
+    }),
   );
 
   const [control] = result.ok === true ? result.meta.controls : [];
@@ -166,7 +167,10 @@ test('a runaway number of controls is capped', () => {
 
 test('controls that are not objects are dropped', () => {
   const result = extractBundle(
-    responseWithMeta({ ...BASE_META, controls: [null, 'W', 42, ['a'], { action: 'Go', key: 'G' }] }),
+    responseWithMeta({
+      ...BASE_META,
+      controls: [null, 'W', 42, ['a'], { action: 'Go', key: 'G' }],
+    }),
   );
 
   assert.deepEqual(result.ok === true && result.meta.controls, [{ action: 'Go', key: 'G' }]);

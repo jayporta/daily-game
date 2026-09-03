@@ -1,8 +1,9 @@
 // The reflection prompt, split out from reflect-lessons.ts so the mock
 // client can recognise a lessons call without importing the module that
 // builds a real client — which would close an import cycle.
-import type { ChatMessage } from '#scripts/lib/openrouter-client.ts';
+
 import type { HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
+import type { ChatMessage } from '#scripts/lib/openrouter-client.ts';
 
 /**
  * Character cap on the lessons prose, for the same reason. The model is

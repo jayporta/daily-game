@@ -1,12 +1,18 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createOpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { test } from 'node:test';
 import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
+import { createOpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 
 test('mock client returns fixtures in sequence', async () => {
   const client = createMockOpenRouterClient({ fixtureSequence: ['first', 'second'] });
-  assert.equal((await client.complete({ model: 'm', messages: [], temperature: 0.7 })).text, 'first');
-  assert.equal((await client.complete({ model: 'm', messages: [], temperature: 0.7 })).text, 'second');
+  assert.equal(
+    (await client.complete({ model: 'm', messages: [], temperature: 0.7 })).text,
+    'first',
+  );
+  assert.equal(
+    (await client.complete({ model: 'm', messages: [], temperature: 0.7 })).text,
+    'second',
+  );
 });
 
 test('mock client throws once fixtures are exhausted', async () => {
@@ -27,8 +33,15 @@ test('real client shapes the request correctly and parses the response', async (
     });
   };
 
-  const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl: fetchImpl as typeof fetch });
-  const result = await client.complete({ model: 'a/model:free', messages: [{ role: 'user', content: 'hi' }], temperature: 0.9 });
+  const client = createOpenRouterClient({
+    apiKey: 'test-key',
+    fetchImpl: fetchImpl as typeof fetch,
+  });
+  const result = await client.complete({
+    model: 'a/model:free',
+    messages: [{ role: 'user', content: 'hi' }],
+    temperature: 0.9,
+  });
 
   assert.equal(result.text, 'generated text');
   assert.equal(result.stop, 'complete');
@@ -45,10 +58,15 @@ test('real client shapes the request correctly and parses the response', async (
 test('a response truncated at the output cap is reported as such', async () => {
   const fetchImpl = async (): Promise<Response> =>
     new Response(
-      JSON.stringify({ choices: [{ message: { content: 'cut off mid' }, finish_reason: 'length' }] }),
+      JSON.stringify({
+        choices: [{ message: { content: 'cut off mid' }, finish_reason: 'length' }],
+      }),
       { status: 200 },
     );
-  const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl: fetchImpl as typeof fetch });
+  const client = createOpenRouterClient({
+    apiKey: 'test-key',
+    fetchImpl: fetchImpl as typeof fetch,
+  });
   const result = await client.complete({ model: 'm', messages: [], temperature: 0.7 });
 
   assert.equal(result.text, 'cut off mid');
@@ -57,7 +75,10 @@ test('a response truncated at the output cap is reported as such', async () => {
 
 test('real client throws on a non-ok response', async () => {
   const fetchImpl = async (): Promise<Response> => new Response('rate limited', { status: 429 });
-  const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl: fetchImpl as typeof fetch });
+  const client = createOpenRouterClient({
+    apiKey: 'test-key',
+    fetchImpl: fetchImpl as typeof fetch,
+  });
   await assert.rejects(
     () => client.complete({ model: 'm', messages: [], temperature: 0.7 }),
     /OpenRouter request failed: 429/,
@@ -65,8 +86,12 @@ test('real client throws on a non-ok response', async () => {
 });
 
 test('real client throws when response is missing content', async () => {
-  const fetchImpl = async (): Promise<Response> => new Response(JSON.stringify({ choices: [] }), { status: 200 });
-  const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl: fetchImpl as typeof fetch });
+  const fetchImpl = async (): Promise<Response> =>
+    new Response(JSON.stringify({ choices: [] }), { status: 200 });
+  const client = createOpenRouterClient({
+    apiKey: 'test-key',
+    fetchImpl: fetchImpl as typeof fetch,
+  });
   await assert.rejects(() => client.complete({ model: 'm', messages: [], temperature: 0.7 }));
 });
 
@@ -79,7 +104,10 @@ test('a failed request reports the message without the account id', async () => 
     user_id: 'user_ExampleAccountIdNotARealOne',
   });
   const fetchImpl = async (): Promise<Response> => new Response(body, { status: 404 });
-  const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl: fetchImpl as typeof fetch });
+  const client = createOpenRouterClient({
+    apiKey: 'test-key',
+    fetchImpl: fetchImpl as typeof fetch,
+  });
 
   await assert.rejects(
     () => client.complete({ model: 'm', messages: [], temperature: 0.7 }),
@@ -92,9 +120,11 @@ test('a failed request reports the message without the account id', async () => 
 });
 
 test('an unparseable error body is truncated rather than dropped', async () => {
-  const fetchImpl = async (): Promise<Response> =>
-    new Response('x'.repeat(5_000), { status: 500 });
-  const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl: fetchImpl as typeof fetch });
+  const fetchImpl = async (): Promise<Response> => new Response('x'.repeat(5_000), { status: 500 });
+  const client = createOpenRouterClient({
+    apiKey: 'test-key',
+    fetchImpl: fetchImpl as typeof fetch,
+  });
 
   await assert.rejects(
     () => client.complete({ model: 'm', messages: [], temperature: 0.7 }),

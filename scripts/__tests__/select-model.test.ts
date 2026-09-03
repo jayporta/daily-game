@@ -1,7 +1,7 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { activeModels, selectNextModel } from '#scripts/select-model.ts';
+import { test } from 'node:test';
 import type { ModelsConfig } from '#scripts/lib/config/models.ts';
+import { activeModels, selectNextModel } from '#scripts/select-model.ts';
 
 const CONFIG: ModelsConfig = {
   moderationModel: 'mod/model:free',

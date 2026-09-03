@@ -5,8 +5,8 @@
 // (`config/models.ts`) rather than re-exporting it here — an import that
 // names the file it comes from is one less hop when you are trying to find
 // where something is defined.
-import { loadGenerationConfig, type GenerationConfig } from '#scripts/lib/config/generation.ts';
-import { loadGenresConfig, type GenresConfig } from '#scripts/lib/config/genres.ts';
+import { type GenerationConfig, loadGenerationConfig } from '#scripts/lib/config/generation.ts';
+import { type GenresConfig, loadGenresConfig } from '#scripts/lib/config/genres.ts';
 import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
 import { loadModelsConfig, type ModelsConfig } from '#scripts/lib/config/models.ts';
 

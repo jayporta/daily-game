@@ -57,7 +57,14 @@ export const BYOK_COMPLETION = [
  * helped, because the cap belonged to the request, not to the model.
  */
 export function truncatedCompletionResponse(): Response {
-  const partial = ['```json', '{"title": "Half a Game", "genre": "g", "theme": "t", "mechanics": []}', '```', '', '```html', '<!doctype html><html><body>half a g'].join('\n');
+  const partial = [
+    '```json',
+    '{"title": "Half a Game", "genre": "g", "theme": "t", "mechanics": []}',
+    '```',
+    '',
+    '```html',
+    '<!doctype html><html><body>half a g',
+  ].join('\n');
   const frames = [
     `data: ${JSON.stringify({ choices: [{ delta: { content: partial } }] })}\n\n`,
     `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'length' }] })}\n\n`,
@@ -75,9 +82,15 @@ export function truncatedCompletionResponse(): Response {
  */
 export function completionResponse(content: string): Response {
   const third = Math.ceil(content.length / 3) || 1;
-  const frames = [content.slice(0, third), content.slice(third, third * 2), content.slice(third * 2)]
+  const frames = [
+    content.slice(0, third),
+    content.slice(third, third * 2),
+    content.slice(third * 2),
+  ]
     .filter((fragment) => fragment.length > 0)
-    .map((fragment) => `data: ${JSON.stringify({ choices: [{ delta: { content: fragment } }] })}\n\n`)
+    .map(
+      (fragment) => `data: ${JSON.stringify({ choices: [{ delta: { content: fragment } }] })}\n\n`,
+    )
     .join('');
   return new Response(`${frames}data: [DONE]\n\n`, { status: 200 });
 }
@@ -137,4 +150,3 @@ export function jsonResponse(body: unknown, status = 200): Response {
 export function stubFetch(response: Response): typeof fetch {
   return async () => response;
 }
-

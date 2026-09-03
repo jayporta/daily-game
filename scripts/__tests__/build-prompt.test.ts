@@ -1,21 +1,21 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+import { stripAttemptFeedback } from '#lib/attempt-feedback.ts';
+import { extractBundle } from '#lib/extract-bundle-shared.ts';
 import {
-  DISPLAY_CONTRACT,
-  OUTPUT_FORMAT_CONTRACT,
   buildPrompt,
   correctiveDirectives,
+  DISPLAY_CONTRACT,
   digestHistory,
   formatGenreCatalog,
+  OUTPUT_FORMAT_CONTRACT,
   recentlyUsedGenreIds,
   selectRemixSuggestion,
 } from '#scripts/build-prompt.ts';
-import { extractBundle } from '#lib/extract-bundle-shared.ts';
-import { stripAttemptFeedback } from '#lib/attempt-feedback.ts';
-import { GENRES } from '#scripts/lib/testFixtures.ts';
-import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
 import type { HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
+import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
+import { GENRES } from '#scripts/lib/testFixtures.ts';
 
 const HISTORY: HistoryGameEntry[] = [
   {
@@ -43,8 +43,18 @@ const SUMMARY: HistorySummary = {
   genreCounts: { puzzle: 3 },
   genreLastUsed: { puzzle: '2026-08-27' },
   popularityLeaderboard: [
-    { slug: '2026-08-01-tide-garden', theme: 'tide clocks', mechanicsSummary: 'grow, wait', popularityScore: 41 },
-    { slug: '2026-07-02-old-favourite', theme: 'stone birds', mechanicsSummary: 'glide', popularityScore: 90 },
+    {
+      slug: '2026-08-01-tide-garden',
+      theme: 'tide clocks',
+      mechanicsSummary: 'grow, wait',
+      popularityScore: 41,
+    },
+    {
+      slug: '2026-07-02-old-favourite',
+      theme: 'stone birds',
+      mechanicsSummary: 'glide',
+      popularityScore: 90,
+    },
   ],
   lessons: 'Canvas resize handlers often forget to rescale entity positions.',
 };
@@ -127,12 +137,22 @@ test('selectRemixSuggestion returns null when nothing is in range', () => {
 
 test('buildPrompt includes guardrails verbatim', () => {
   const guardrails = '- No humans at all.\n- No violence.';
-  const prompt = buildPrompt({ guardrailsText: guardrails, genres: GENRES, historyEntries: HISTORY, summary: SUMMARY });
+  const prompt = buildPrompt({
+    guardrailsText: guardrails,
+    genres: GENRES,
+    historyEntries: HISTORY,
+    summary: SUMMARY,
+  });
   assert.ok(prompt.includes(guardrails));
 });
 
 test('buildPrompt includes genres, history digest and lessons', () => {
-  const prompt = buildPrompt({ guardrailsText: 'rules', genres: GENRES, historyEntries: HISTORY, summary: SUMMARY });
+  const prompt = buildPrompt({
+    guardrailsText: 'rules',
+    genres: GENRES,
+    historyEntries: HISTORY,
+    summary: SUMMARY,
+  });
   assert.match(prompt, /maze-adventure \(Maze Adventure\)/);
   assert.match(prompt, /glass beetles/);
   assert.match(prompt, /Canvas resize handlers/);
@@ -175,14 +195,24 @@ test('buildPrompt feeds a prior failure reason back to the model', () => {
 });
 
 test('buildPrompt is deterministic for identical inputs', () => {
-  const params = { guardrailsText: 'rules', genres: GENRES, historyEntries: HISTORY, summary: SUMMARY };
+  const params = {
+    guardrailsText: 'rules',
+    genres: GENRES,
+    historyEntries: HISTORY,
+    summary: SUMMARY,
+  };
   assert.equal(buildPrompt(params), buildPrompt(params));
 });
 
 // Nothing outside the game's own document paints the frame, so a game that
 // sizes itself to a fixed box leaves the rest of it blank.
 test('buildPrompt tells the model how its game will be displayed', () => {
-  const prompt = buildPrompt({ guardrailsText: 'rules', genres: GENRES, historyEntries: HISTORY, summary: SUMMARY });
+  const prompt = buildPrompt({
+    guardrailsText: 'rules',
+    genres: GENRES,
+    historyEntries: HISTORY,
+    summary: SUMMARY,
+  });
 
   assert.ok(prompt.includes(DISPLAY_CONTRACT), 'display contract missing from the prompt');
 });
@@ -202,10 +232,7 @@ test('the display contract anchors the model to no particular size', () => {
 // moderator, which is why a display rule must not live there: the moderator
 // judges content, and would start failing games closed over their layout.
 test('the display contract is not part of the shared content guardrails', () => {
-  const guardrails = readFileSync(
-    new URL('../../config/guardrails.md', import.meta.url),
-    'utf8',
-  );
+  const guardrails = readFileSync(new URL('../../config/guardrails.md', import.meta.url), 'utf8');
 
   assert.ok(!guardrails.includes(DISPLAY_CONTRACT), 'display rules leaked into guardrails.md');
 });
@@ -299,8 +326,13 @@ test('digestHistory says nothing about reception for an unrated game', () => {
 // know, and the digest used to filter failed days out entirely.
 test('digestHistory shows failed days and what broke', () => {
   const digest = digestHistory([
-    { date: '2026-08-29', status: 'failed_kept_previous', model: 'm', attempts: 3,
-      failureKinds: ['smoke-js-error', 'moderation'] },
+    {
+      date: '2026-08-29',
+      status: 'failed_kept_previous',
+      model: 'm',
+      attempts: 3,
+      failureKinds: ['smoke-js-error', 'moderation'],
+    },
   ]);
 
   assert.match(digest, /FAILED after 3 attempts/);
@@ -342,7 +374,10 @@ test('correctiveDirectives leads with the most frequent problem', () => {
 
 test('correctiveDirectives responds to recurring generation failures', () => {
   const failed = (date: string): HistoryGameEntry => ({
-    date, status: 'failed_kept_previous', model: 'm', attempts: 3,
+    date,
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 3,
     failureKinds: ['smoke-network', 'smoke-network'],
   });
 
@@ -388,7 +423,6 @@ test('buildPrompt omits the directives section when nothing recurs', () => {
 
   assert.doesNotMatch(prompt, /Fix what has been going wrong/);
 });
-
 
 // The strongest guard on the pair: whatever wording `renderAttemptFeedback`
 // emits, `stripAttemptFeedback` has to take back out exactly, leaving a

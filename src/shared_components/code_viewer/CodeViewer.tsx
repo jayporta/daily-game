@@ -1,5 +1,5 @@
-import { CodeBox } from '@/shared_components/code_viewer/CodeBox.tsx';
 import { useMemo, useState } from 'react';
+import { CodeBox } from '@/shared_components/code_viewer/CodeBox.tsx';
 
 export interface CodeViewerProps {
   /** The document to display. Rendered as text — never as markup. */

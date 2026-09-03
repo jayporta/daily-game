@@ -2,11 +2,11 @@
 // OpenRouter client when OPENROUTER_API_KEY is set, otherwise a mock
 // seeded with fixture responses. The rest of the pipeline never branches
 // on mock-vs-real — it just calls client.complete(...).
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createOpenRouterClient, type OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
+import { createOpenRouterClient, type OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 
 const FIXTURES_DIR = fileURLToPath(new URL('../fixtures/mock-responses/', import.meta.url));
 

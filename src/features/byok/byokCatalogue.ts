@@ -7,7 +7,7 @@
 // to `main`, so an edit to the JSON always ships, and the page avoids a
 // second network round-trip for a file that changes almost never.
 import raw from '#config/byok-models.json';
-import { isByokModelsConfig, type ByokModelsConfig } from '#lib/byok-config-types.ts';
+import { type ByokModelsConfig, isByokModelsConfig } from '#lib/byok-config-types.ts';
 
 const EMPTY: ByokModelsConfig = [];
 

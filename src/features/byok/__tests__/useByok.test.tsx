@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
-import { useByok, type ByokGenerateRequest } from '@/features/byok/useByok.ts';
+import { describe, expect, it, vi } from 'vitest';
+import { type ByokGenerateRequest, useByok } from '@/features/byok/useByok.ts';
 import {
   BYOK_COMPLETION,
   BYOK_HTML,
@@ -76,7 +76,11 @@ describe('useByok', () => {
     await act(async () => {
       await stream.push(', world');
     });
-    expect(result.current.status).toEqual({ status: 'streaming', run: RUN, output: 'Hello, world' });
+    expect(result.current.status).toEqual({
+      status: 'streaming',
+      run: RUN,
+      output: 'Hello, world',
+    });
 
     await act(async () => {
       stream.close();

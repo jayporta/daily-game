@@ -5,7 +5,7 @@
 // Network blocking is an assertion, not just a safety net: a bundle that
 // *tries* to reach the network has broken the self-contained rule and is
 // rejected even though the request never left the machine.
-import { chromium, type Browser } from 'playwright';
+import { type Browser, chromium } from 'playwright';
 import { errorMessage } from '#lib/errors.ts';
 
 export interface SmokeTestResult {
@@ -27,7 +27,6 @@ export interface SmokeTestOptions {
 function isRemoteRequest(url: string): boolean {
   return url.startsWith('http://') || url.startsWith('https://');
 }
-
 
 async function runSmokeTest(
   browser: Browser,
@@ -129,7 +128,10 @@ export async function createSmokeTester(): Promise<SmokeTester> {
 }
 
 /** One-shot convenience: launches a browser, checks one bundle, tears down. */
-export async function smokeTest(html: string, options: SmokeTestOptions = {}): Promise<SmokeTestResult> {
+export async function smokeTest(
+  html: string,
+  options: SmokeTestOptions = {},
+): Promise<SmokeTestResult> {
   const tester = await createSmokeTester();
   try {
     return await tester.test(html, options);

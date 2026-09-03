@@ -44,15 +44,11 @@ export interface GeneratedMeta {
  * shown to a visitor.
  */
 export type ExtractFailureReason =
-  | 'missing-meta-block'
-  | 'missing-html-block'
-  | 'invalid-json-meta'
-  | 'empty-html';
+  'missing-meta-block' | 'missing-html-block' | 'invalid-json-meta' | 'empty-html';
 
 /** A parsed response, or the reason it could not be parsed. */
 export type ExtractedBundle =
-  | { ok: true; meta: GeneratedMeta; html: string }
-  | { ok: false; reason: ExtractFailureReason };
+  { ok: true; meta: GeneratedMeta; html: string } | { ok: false; reason: ExtractFailureReason };
 
 /**
  * Corrective wording addressed to the model whose response failed to parse,

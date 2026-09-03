@@ -1,8 +1,14 @@
 // Under Vitest rather than node --test because the SDK's browser integrations
 // touch window during construction.
-import { describe, expect, test, vi } from 'vitest';
+
 import { getClient } from '@sentry/react';
-import { reactErrorReporter, reportError, sentryOptions, startErrorMonitoring } from '@/lib/sentry.ts';
+import { describe, expect, test, vi } from 'vitest';
+import {
+  reactErrorReporter,
+  reportError,
+  sentryOptions,
+  startErrorMonitoring,
+} from '@/lib/sentry.ts';
 
 /**
  * What the SDK was actually handed. The real `init` still runs — only the two

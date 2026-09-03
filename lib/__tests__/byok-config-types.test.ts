@@ -1,5 +1,5 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { BYOK_PROVIDERS, isByokModelsConfig, isByokProvider } from '#lib/byok-config-types.ts';
 
 const VALID = [
@@ -32,7 +32,10 @@ test('isByokModelsConfig rejects a provider entry missing a field', () => {
 });
 
 test('isByokModelsConfig rejects an empty models array', () => {
-  assert.equal(isByokModelsConfig([{ provider: 'openrouter', label: 'OpenRouter', models: [] }]), false);
+  assert.equal(
+    isByokModelsConfig([{ provider: 'openrouter', label: 'OpenRouter', models: [] }]),
+    false,
+  );
 });
 
 test('isByokModelsConfig rejects a model entry missing a field', () => {

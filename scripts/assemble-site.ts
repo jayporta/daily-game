@@ -10,8 +10,8 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createPaths, paths as defaultPaths, REPO_ROOT, type Paths } from '#scripts/lib/paths.ts';
 import { isManifest } from '#lib/manifest.ts';
+import { createPaths, paths as defaultPaths, type Paths, REPO_ROOT } from '#scripts/lib/paths.ts';
 
 export interface AssembleSiteParams {
   /** Repo root to read from — overridden in tests. */
@@ -54,7 +54,8 @@ export function missingPublishedFiles(paths: Paths): string[] {
 
   // An absent promptPath is a game archived before prompts were, not an
   // omission; a declared one must be on disk like any other file.
-  const declared = parsed.promptPath === undefined ? [parsed.path] : [parsed.path, parsed.promptPath];
+  const declared =
+    parsed.promptPath === undefined ? [parsed.path] : [parsed.path, parsed.promptPath];
   return declared.filter(
     (file) => !paths.isArchivedFile(file) || !existsSync(join(paths.root, file)),
   );

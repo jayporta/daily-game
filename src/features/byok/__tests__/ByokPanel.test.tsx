@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+import type { ByokModelsConfig } from '#lib/byok-config-types.ts';
 import { ByokPanel, type ByokPanelProps } from '@/features/byok/ByokPanel.tsx';
 import { useByok } from '@/features/byok/useByok.ts';
-import type { ByokModelsConfig } from '#lib/byok-config-types.ts';
 import {
   BYOK_COMPLETION,
   BYOK_HTML,
@@ -234,7 +234,12 @@ describe('ByokPanel prompt composition', () => {
   it('sends the current game only when the visitor asks for it', async () => {
     const fetchImpl = queuedFetch([completionResponse(BYOK_COMPLETION)]);
     render(
-      <PanelWithByok promptPath={PROMPT_PATH} onResult={() => {}} catalogue={CATALOGUE} fetchImpl={fetchImpl} />,
+      <PanelWithByok
+        promptPath={PROMPT_PATH}
+        onResult={() => {}}
+        catalogue={CATALOGUE}
+        fetchImpl={fetchImpl}
+      />,
     );
 
     await generateOnce();
@@ -246,7 +251,12 @@ describe('ByokPanel prompt composition', () => {
   it('sends the current game when the box is ticked', async () => {
     const fetchImpl = queuedFetch([completionResponse(BYOK_COMPLETION)]);
     render(
-      <PanelWithByok promptPath={PROMPT_PATH} onResult={() => {}} catalogue={CATALOGUE} fetchImpl={fetchImpl} />,
+      <PanelWithByok
+        promptPath={PROMPT_PATH}
+        onResult={() => {}}
+        catalogue={CATALOGUE}
+        fetchImpl={fetchImpl}
+      />,
     );
 
     await userEvent.click(screen.getByRole('checkbox', { name: /include the current game/i }));
@@ -260,7 +270,12 @@ describe('ByokPanel prompt composition', () => {
   it('shows the visitor exactly the prompt it sends', async () => {
     const fetchImpl = queuedFetch([completionResponse(BYOK_COMPLETION)]);
     render(
-      <PanelWithByok promptPath={PROMPT_PATH} onResult={() => {}} catalogue={CATALOGUE} fetchImpl={fetchImpl} />,
+      <PanelWithByok
+        promptPath={PROMPT_PATH}
+        onResult={() => {}}
+        catalogue={CATALOGUE}
+        fetchImpl={fetchImpl}
+      />,
     );
 
     await userEvent.click(screen.getByRole('checkbox', { name: /include the current game/i }));
@@ -274,9 +289,17 @@ describe('ByokPanel prompt composition', () => {
   });
 
   it('tells the next attempt why the last one failed', async () => {
-    const fetchImpl = queuedFetch([truncatedCompletionResponse(), completionResponse(BYOK_COMPLETION)]);
+    const fetchImpl = queuedFetch([
+      truncatedCompletionResponse(),
+      completionResponse(BYOK_COMPLETION),
+    ]);
     render(
-      <PanelWithByok promptPath={PROMPT_PATH} onResult={() => {}} catalogue={CATALOGUE} fetchImpl={fetchImpl} />,
+      <PanelWithByok
+        promptPath={PROMPT_PATH}
+        onResult={() => {}}
+        catalogue={CATALOGUE}
+        fetchImpl={fetchImpl}
+      />,
     );
 
     await generateOnce();
@@ -291,9 +314,17 @@ describe('ByokPanel prompt composition', () => {
   // The correction describes what one model did. Carrying it to a model that
   // has not tried yet would have it fixing a mistake it never made.
   it('drops the correction when the visitor picks a different model', async () => {
-    const fetchImpl = queuedFetch([truncatedCompletionResponse(), completionResponse(BYOK_COMPLETION)]);
+    const fetchImpl = queuedFetch([
+      truncatedCompletionResponse(),
+      completionResponse(BYOK_COMPLETION),
+    ]);
     render(
-      <PanelWithByok promptPath={PROMPT_PATH} onResult={() => {}} catalogue={CATALOGUE} fetchImpl={fetchImpl} />,
+      <PanelWithByok
+        promptPath={PROMPT_PATH}
+        onResult={() => {}}
+        catalogue={CATALOGUE}
+        fetchImpl={fetchImpl}
+      />,
     );
 
     await generateOnce();
@@ -308,7 +339,12 @@ describe('ByokPanel prompt composition', () => {
   it('explains a truncated response instead of blaming the model', async () => {
     const fetchImpl = queuedFetch([truncatedCompletionResponse()]);
     render(
-      <PanelWithByok promptPath={PROMPT_PATH} onResult={() => {}} catalogue={CATALOGUE} fetchImpl={fetchImpl} />,
+      <PanelWithByok
+        promptPath={PROMPT_PATH}
+        onResult={() => {}}
+        catalogue={CATALOGUE}
+        fetchImpl={fetchImpl}
+      />,
     );
 
     await generateOnce();

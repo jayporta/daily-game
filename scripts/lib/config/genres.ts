@@ -37,7 +37,8 @@ export function validateGenresConfig(json: unknown): ValidationResult {
     } else {
       seenIds.add(entry.id);
     }
-    if (!isNonEmptyString(entry.label)) errors.push(`genres[${i}].label must be a non-empty string`);
+    if (!isNonEmptyString(entry.label))
+      errors.push(`genres[${i}].label must be a non-empty string`);
     if (
       !Array.isArray(entry.examples) ||
       entry.examples.length === 0 ||

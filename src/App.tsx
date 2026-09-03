@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Centered } from '@/shared_components/Centered.tsx';
-import { CodeChip } from '@/shared_components/CodeChip.tsx';
-import { MetaText } from '@/shared_components/MetaText.tsx';
-import { GameView } from '@/features/game/GameView.tsx';
-import { GitHubLink } from '@/shared_components/GitHubLink.tsx';
-import { ThemeToggle } from '@/features/theme/ThemeToggle.tsx';
-import { fetchText, fetchManifest } from '@/features/game/manifest-client.ts';
-import { useByok } from '@/features/byok/useByok.ts';
-import { reportError } from '@/lib/sentry.ts';
-import type { ByokResult } from '@/features/byok/ByokPanel.tsx';
-import { SYSTEM_PROMPT } from '#lib/system-prompt.ts';
 import { errorMessage } from '#lib/errors.ts';
 import type { Manifest } from '#lib/manifest.ts';
+import { SYSTEM_PROMPT } from '#lib/system-prompt.ts';
+import type { ByokResult } from '@/features/byok/ByokPanel.tsx';
+import { useByok } from '@/features/byok/useByok.ts';
+import { GameView } from '@/features/game/GameView.tsx';
+import { fetchManifest, fetchText } from '@/features/game/manifest-client.ts';
+import { ThemeToggle } from '@/features/theme/ThemeToggle.tsx';
+import { reportError } from '@/lib/sentry.ts';
+import { Centered } from '@/shared_components/Centered.tsx';
+import { CodeChip } from '@/shared_components/CodeChip.tsx';
+import { GitHubLink } from '@/shared_components/GitHubLink.tsx';
+import { MetaText } from '@/shared_components/MetaText.tsx';
 
 /**
  * What the viewer is showing. `empty` is a normal state, not a failure:

@@ -1,5 +1,5 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { buildErrorReportingSnippet, parseSentryDsn } from '#scripts/lib/errorReporting.ts';
 
 const DSN = 'https://pub1ickey@o42.ingest.example/4567';

@@ -5,14 +5,15 @@
 // Reading the response — the completion text and the error body — lives in
 // lib/provider-response.ts, shared with the browser's BYOK path, which calls
 // the same OpenAI-shaped API.
+
+import type { ProviderStopReason } from '#lib/provider-response.ts';
 import {
-  OPENROUTER_MAX_OUTPUT_TOKENS,
   classifyStopReason,
   firstChoiceContent,
   firstChoiceFinishReason,
+  OPENROUTER_MAX_OUTPUT_TOKENS,
   responseErrorDetail,
 } from '#lib/provider-response.ts';
-import type { ProviderStopReason } from '#lib/provider-response.ts';
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -75,7 +76,10 @@ export function createOpenRouterClient({
       if (content === null) {
         throw new Error('OpenRouter response missing choices[0].message.content');
       }
-      return { text: content, stop: classifyStopReason(firstChoiceFinishReason(data)) ?? 'complete' };
+      return {
+        text: content,
+        stop: classifyStopReason(firstChoiceFinishReason(data)) ?? 'complete',
+      };
     },
   };
 }

@@ -1,12 +1,13 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test } from 'node:test';
+import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
 import {
   appendEntry,
-  patchEntry,
   lastPublishedEntry,
+  patchEntry,
   readHotWindow,
   readSummary,
   renderGamesMd,
@@ -16,7 +17,6 @@ import {
   writeGamesMd,
 } from '#scripts/lib/history-store.ts';
 import { FAILED_ENTRY as FAILED, PUBLISHED_ENTRY as PUBLISHED } from '#scripts/lib/testFixtures.ts';
-import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
 
 function scratchDir(t: { after(fn: () => void): void }): string {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-history-'));
@@ -26,7 +26,10 @@ function scratchDir(t: { after(fn: () => void): void }): string {
 
 test('appendEntry keeps entries sorted oldest-first', () => {
   const result = appendEntry([FAILED], PUBLISHED);
-  assert.deepEqual(result.map((e) => e.date), ['2026-08-28', '2026-08-29']);
+  assert.deepEqual(
+    result.map((e) => e.date),
+    ['2026-08-28', '2026-08-29'],
+  );
 });
 
 test('appendEntry replaces an existing entry for the same date', () => {
@@ -97,7 +100,9 @@ test('writeGamesJson round-trips through readHotWindow', (t) => {
 test('readHotWindow rejects a structurally invalid history file', (t) => {
   const dir = scratchDir(t);
   const file = join(dir, 'games.json');
-  writeGamesJson(file, [{ date: 'not-a-date', status: 'published', model: 'm' } as HistoryGameEntry]);
+  writeGamesJson(file, [
+    { date: 'not-a-date', status: 'published', model: 'm' } as HistoryGameEntry,
+  ]);
   assert.throws(() => readHotWindow(file), /invalid/);
 });
 
@@ -220,27 +225,43 @@ test('validateHistoryGames accepts an empty array', () => {
 
 test('validateHistoryGames accepts a valid published entry', () => {
   const result = validateHistoryGames([
-    { date: '2026-08-29', status: 'published', model: 'a/model:free', slug: '2026-08-29-thing', genre: 'maze-adventure' },
+    {
+      date: '2026-08-29',
+      status: 'published',
+      model: 'a/model:free',
+      slug: '2026-08-29-thing',
+      genre: 'maze-adventure',
+    },
   ]);
   assert.equal(result.valid, true);
 });
 
 test('validateHistoryGames rejects a malformed date', () => {
   const result = validateHistoryGames([
-    { date: '08/29/2026', status: 'published', model: 'a/model:free', slug: 'x', genre: 'maze-adventure' },
+    {
+      date: '08/29/2026',
+      status: 'published',
+      model: 'a/model:free',
+      slug: 'x',
+      genre: 'maze-adventure',
+    },
   ]);
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((e) => e.includes('date')));
 });
 
 test('validateHistoryGames rejects an invalid status', () => {
-  const result = validateHistoryGames([{ date: '2026-08-29', status: 'pending', model: 'a/model:free' }]);
+  const result = validateHistoryGames([
+    { date: '2026-08-29', status: 'pending', model: 'a/model:free' },
+  ]);
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((e) => e.includes('status')));
 });
 
 test('validateHistoryGames requires slug/genre only when published', () => {
-  const result = validateHistoryGames([{ date: '2026-08-29', status: 'failed_kept_previous', model: 'a/model:free' }]);
+  const result = validateHistoryGames([
+    { date: '2026-08-29', status: 'failed_kept_previous', model: 'a/model:free' },
+  ]);
   assert.equal(result.valid, true);
 });
 
@@ -249,7 +270,12 @@ test('validateHistorySummary accepts a summary with every field present', () => 
     genreCounts: { puzzle: 3 },
     genreLastUsed: { puzzle: '2026-08-27' },
     popularityLeaderboard: [
-      { slug: '2026-08-01-tide-garden', theme: 'tide clocks', mechanicsSummary: 'grow', popularityScore: 41 },
+      {
+        slug: '2026-08-01-tide-garden',
+        theme: 'tide clocks',
+        mechanicsSummary: 'grow',
+        popularityScore: 41,
+      },
     ],
     lessons: 'Canvas resize handlers often forget to rescale entities.',
   });
@@ -282,7 +308,9 @@ test('validateHistorySummary rejects a leaderboard entry missing its slug', () =
 
 test('validateHistorySummary rejects a non-numeric popularity score', () => {
   const result = validateHistorySummary({
-    popularityLeaderboard: [{ slug: '2026-08-01-x', theme: 't', mechanicsSummary: 'm', popularityScore: 'high' }],
+    popularityLeaderboard: [
+      { slug: '2026-08-01-x', theme: 't', mechanicsSummary: 'm', popularityScore: 'high' },
+    ],
   });
 
   assert.equal(result.valid, false);
@@ -296,4 +324,3 @@ test('validateHistorySummary rejects lessons that are not a string', () => {
 test('validateHistorySummary rejects genre counts that are not numbers', () => {
   assert.equal(validateHistorySummary({ genreCounts: { puzzle: 'three' } }).valid, false);
 });
-

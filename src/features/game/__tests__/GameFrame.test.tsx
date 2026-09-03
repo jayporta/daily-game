@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 import { GameFrame } from '@/features/game/GameFrame.tsx';
 import { BUNDLE } from '@/lib/testFixtures.ts';
 
@@ -25,10 +25,7 @@ describe('GameFrame', () => {
   it('does not execute the bundle in the parent document', () => {
     // If the html were ever injected instead of framed, this script would run.
     render(
-      <GameFrame
-        html="<script>globalThis.__escaped = true;</script>"
-        title="Escape attempt"
-      />,
+      <GameFrame html="<script>globalThis.__escaped = true;</script>" title="Escape attempt" />,
     );
 
     expect(Reflect.get(globalThis, '__escaped')).toBeUndefined();

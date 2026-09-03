@@ -12,20 +12,21 @@
 // This never touches OPENROUTER_API_KEY or scripts/lib/get-client.ts's
 // mock-vs-real decision — a visitor's pasted key is a wholly separate,
 // client-side-only path.
+
+import type { ByokProvider } from '#lib/byok-config-types.ts';
 import { errorMessage } from '#lib/errors.ts';
 import { arrayAt, recordAt, stringAt } from '#lib/guards.ts';
+import type { ProviderStopReason } from '#lib/provider-response.ts';
 import {
-  MAX_ERROR_DETAIL,
-  OPENROUTER_MAX_OUTPUT_TOKENS,
   classifyStopReason,
   errorDetail,
   firstChoiceDelta,
   firstChoiceFinishReason,
+  MAX_ERROR_DETAIL,
+  OPENROUTER_MAX_OUTPUT_TOKENS,
   responseErrorDetail,
 } from '#lib/provider-response.ts';
 import { readSseData } from '#src/features/byok/sseStream.ts';
-import type { ByokProvider } from '#lib/byok-config-types.ts';
-import type { ProviderStopReason } from '#lib/provider-response.ts';
 
 /** One generation, in the form every provider's request is built from. */
 export interface ByokRequest {
@@ -54,14 +55,7 @@ export interface ByokRequest {
  * whether the failure is worth reporting. See {@link isExpectedFailure}.
  */
 export type ByokFailureKind =
-  | 'auth'
-  | 'rate-limit'
-  | 'quota'
-  | 'refused'
-  | 'provider'
-  | 'network'
-  | 'stream'
-  | 'empty';
+  'auth' | 'rate-limit' | 'quota' | 'refused' | 'provider' | 'network' | 'stream' | 'empty';
 
 export type ByokCompletionResult =
   | { ok: true; text: string; stop: ProviderStopReason }
@@ -242,7 +236,11 @@ function buildRequest(request: ByokRequest): PreparedRequest {
     case 'openrouter':
       return buildOpenAiCompatibleRequest('https://openrouter.ai/api/v1', request, 'max_tokens');
     case 'openai':
-      return buildOpenAiCompatibleRequest('https://api.openai.com/v1', request, 'max_completion_tokens');
+      return buildOpenAiCompatibleRequest(
+        'https://api.openai.com/v1',
+        request,
+        'max_completion_tokens',
+      );
     case 'anthropic':
       return buildAnthropicRequest(request);
     case 'gemini':
@@ -416,9 +414,10 @@ export async function completeByok(
     return {
       ok: false,
       kind: stop === 'refused' ? 'refused' : 'empty',
-      message: hint.length > 0
-        ? `${request.provider} returned no output: ${hint}`
-        : `${request.provider} returned no output`,
+      message:
+        hint.length > 0
+          ? `${request.provider} returned no output: ${hint}`
+          : `${request.provider} returned no output`,
     };
   }
   return { ok: true, text, stop };

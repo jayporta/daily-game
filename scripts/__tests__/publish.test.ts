@@ -1,8 +1,15 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test } from 'node:test';
+import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
+import { extractBundle } from '#lib/extract-bundle-shared.ts';
+import { isManifest } from '#lib/manifest.ts';
+import { buildBundleCspMeta } from '#scripts/lib/errorReporting.ts';
+import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
+import { readHotWindow } from '#scripts/lib/history-store.ts';
+import { GENERATION_CONFIG, GENRES, loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
 import {
   buildManifest,
   buildSlug,
@@ -13,13 +20,6 @@ import {
   slugify,
   withHeadMeta,
 } from '#scripts/publish.ts';
-import { GENERATION_CONFIG, GENRES, loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
-import { buildBundleCspMeta } from '#scripts/lib/errorReporting.ts';
-import { readHotWindow } from '#scripts/lib/history-store.ts';
-import { extractBundle } from '#lib/extract-bundle-shared.ts';
-import { isManifest } from '#lib/manifest.ts';
-import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
-import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 
 const META: GeneratedMeta = {
   title: 'Beetle Maze',
@@ -47,11 +47,17 @@ test('buildSlug prefixes the date', () => {
 
 test('computeExpiresAt returns the next daily cron occurrence', () => {
   // Generated before that day's 13:00 run → replaced by that same run.
-  assert.equal(computeExpiresAt('0 13 * * *', '2026-08-29T09:00:00.000Z'), '2026-08-29T13:00:00.000Z');
+  assert.equal(
+    computeExpiresAt('0 13 * * *', '2026-08-29T09:00:00.000Z'),
+    '2026-08-29T13:00:00.000Z',
+  );
 });
 
 test('computeExpiresAt rolls to the next day when the time has passed', () => {
-  assert.equal(computeExpiresAt('0 13 * * *', '2026-08-29T14:00:00.000Z'), '2026-08-30T13:00:00.000Z');
+  assert.equal(
+    computeExpiresAt('0 13 * * *', '2026-08-29T14:00:00.000Z'),
+    '2026-08-30T13:00:00.000Z',
+  );
 });
 
 test('computeExpiresAt falls back to +24h for an unsupported cron shape', () => {
@@ -117,7 +123,10 @@ test('publish writes the archive folder, manifest and history', (t) => {
   assert.equal(history[0].status, 'published');
   assert.equal(history[0].genre, 'maze-adventure');
 
-  assert.match(readFileSync(join(root, 'history', 'games.md'), 'utf8'), /Beetle of a Thousand Mirrors/);
+  assert.match(
+    readFileSync(join(root, 'history', 'games.md'), 'utf8'),
+    /Beetle of a Thousand Mirrors/,
+  );
 });
 
 const DSN = 'https://pub1ickey@o1.ingest.example/4567';
@@ -235,7 +244,10 @@ test('withHeadMeta falls back to just after <html> when there is no head', () =>
 // The sandbox is the control; the policy is defence in depth. A bundle that
 // has already cleared moderation and the smoke test must not be lost to one.
 test('withHeadMeta leaves a document carrying neither tag alone', () => {
-  assert.equal(withHeadMeta('<body>just a fragment</body>', '<meta id="m">'), '<body>just a fragment</body>');
+  assert.equal(
+    withHeadMeta('<body>just a fragment</body>', '<meta id="m">'),
+    '<body>just a fragment</body>',
+  );
 });
 
 test('publish still writes a bundle that has no head or html tag', (t) => {
@@ -255,7 +267,13 @@ test('publish preserves earlier history entries', (t) => {
   const root = scratchRoot(t);
   const { meta, html } = loadFixtureBundle('good-maze');
   const existing: HistoryGameEntry[] = [
-    { date: '2026-08-28', status: 'published', model: 'old/model:free', slug: '2026-08-28-old', genre: 'puzzle' },
+    {
+      date: '2026-08-28',
+      status: 'published',
+      model: 'old/model:free',
+      slug: '2026-08-28-old',
+      genre: 'puzzle',
+    },
   ];
 
   publish({
@@ -273,7 +291,10 @@ test('publish preserves earlier history entries', (t) => {
 
   const history = JSON.parse(readFileSync(join(root, 'history', 'games.json'), 'utf8'));
   assert.equal(history.length, 2);
-  assert.deepEqual(history.map((e: HistoryGameEntry) => e.date), ['2026-08-28', '2026-08-29']);
+  assert.deepEqual(
+    history.map((e: HistoryGameEntry) => e.date),
+    ['2026-08-28', '2026-08-29'],
+  );
 });
 
 test('recordFailure logs the failure and leaves the manifest untouched', (t) => {
@@ -526,13 +547,20 @@ test('restoreManifestFromArchive omits promptPath when the archive kept no promp
 
   assert.equal(result.status, 'restored');
   assert.equal(result.status === 'restored' && result.manifest.promptPath, undefined);
-  assert.equal('promptPath' in JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')), false);
+  assert.equal(
+    'promptPath' in JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')),
+    false,
+  );
 });
 
 test('restoreManifestFromArchive skips an archive whose meta.json is unreadable', (t) => {
   const root = scratchRoot(t);
   const entries = publishDays(root, 2);
-  writeFileSync(join(root, 'games', 'archive', entries[1]?.slug ?? '', 'meta.json'), '{oops', 'utf8');
+  writeFileSync(
+    join(root, 'games', 'archive', entries[1]?.slug ?? '', 'meta.json'),
+    '{oops',
+    'utf8',
+  );
   writeFileSync(join(root, 'manifest.json'), 'null', 'utf8');
 
   const result = restoreManifestFromArchive({ ...restoreParams, historyEntries: entries, root });

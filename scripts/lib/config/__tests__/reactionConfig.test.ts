@@ -1,10 +1,14 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test } from 'node:test';
+import {
+  loadReactionConfig,
+  loadReactionConfigOrUnconfigured,
+  validateReactionConfig,
+} from '#scripts/lib/config/reactionConfig.ts';
 import { paths } from '#scripts/lib/paths.ts';
-import { loadReactionConfig, loadReactionConfigOrUnconfigured, validateReactionConfig } from '#scripts/lib/config/reactionConfig.ts';
 
 function scratchFile(t: { after(fn: () => void): void }, contents: string): string {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-config-'));
@@ -37,13 +41,19 @@ test('loadReactionConfigOrUnconfigured degrades rather than throwing on unparsea
 });
 
 test('loadReactionConfigOrUnconfigured degrades on a config that fails validation', (t) => {
-  const file = scratchFile(t, JSON.stringify({ endpointUrl: 'http://insecure.test', anonKey: null }));
+  const file = scratchFile(
+    t,
+    JSON.stringify({ endpointUrl: 'http://insecure.test', anonKey: null }),
+  );
 
   assert.deepEqual(loadReactionConfigOrUnconfigured(file), UNCONFIGURED);
 });
 
 test('loadReactionConfigOrUnconfigured degrades when the file is absent entirely', () => {
-  assert.deepEqual(loadReactionConfigOrUnconfigured('/nonexistent/reaction-config.json'), UNCONFIGURED);
+  assert.deepEqual(
+    loadReactionConfigOrUnconfigured('/nonexistent/reaction-config.json'),
+    UNCONFIGURED,
+  );
 });
 
 test('loadReactionConfigOrUnconfigured still returns a valid config unchanged', (t) => {
@@ -107,7 +117,10 @@ test('validateReactionConfig rejects a missing field', () => {
 });
 
 test('validateReactionConfig rejects a non-https endpoint', () => {
-  assert.equal(validateReactionConfig({ endpointUrl: 'http://proj.test', anonKey: null }).valid, false);
+  assert.equal(
+    validateReactionConfig({ endpointUrl: 'http://proj.test', anonKey: null }).valid,
+    false,
+  );
 });
 
 // The key that ships in the page is insert-only. The privileged one lives

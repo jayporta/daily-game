@@ -44,11 +44,10 @@ export function validateModelsConfig(json: unknown): ValidationResult {
       }
       if (!isNonEmptyString(entry.id)) errors.push(`models[${i}].id must be a non-empty string`);
       if (typeof entry.active !== 'boolean') errors.push(`models[${i}].active must be a boolean`);
-      if (!isNonEmptyString(entry.provider)) errors.push(`models[${i}].provider must be a non-empty string`);
+      if (!isNonEmptyString(entry.provider))
+        errors.push(`models[${i}].provider must be a non-empty string`);
     });
-    const hasActiveModel = json.models.some(
-      (m: unknown) => isPlainObject(m) && m.active === true,
-    );
+    const hasActiveModel = json.models.some((m: unknown) => isPlainObject(m) && m.active === true);
     if (!hasActiveModel) {
       errors.push('models must contain at least one entry with active: true');
     }

@@ -1,5 +1,5 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { applyFeedback, tallyReactions } from '#scripts/fetch-feedback.ts';
 import { PUBLISHED_ENTRY as PUBLISHED, PUBLISHED_SLUG as SLUG } from '#scripts/lib/testFixtures.ts';
 

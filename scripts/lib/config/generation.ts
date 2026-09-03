@@ -38,7 +38,11 @@ export function validateGenerationConfig(json: unknown): ValidationResult {
   if (!isFiniteNumber(json.rollupTriggerEntries) || json.rollupTriggerEntries <= 0) {
     errors.push('rollupTriggerEntries must be a positive number');
   }
-  if (!isFiniteNumber(json.remixProbability) || json.remixProbability < 0 || json.remixProbability > 1) {
+  if (
+    !isFiniteNumber(json.remixProbability) ||
+    json.remixProbability < 0 ||
+    json.remixProbability > 1
+  ) {
     errors.push('remixProbability must be a number between 0 and 1');
   }
   if (!isFiniteNumber(json.remixLookbackDays) || json.remixLookbackDays <= 0) {

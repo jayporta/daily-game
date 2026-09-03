@@ -1,6 +1,6 @@
 import { useId } from 'react';
-import { controlIdentity } from '#lib/extract-bundle-shared.ts';
 import type { ControlHint } from '#lib/extract-bundle-shared.ts';
+import { controlIdentity } from '#lib/extract-bundle-shared.ts';
 
 export interface ControlLegendProps {
   /** What the game reported it listens for, in the order it gave. */
@@ -28,6 +28,7 @@ export function ControlLegend({ controls }: ControlLegendProps) {
   return (
     // Named by its own visible heading rather than an aria-label, so screen
     // readers do not announce the word twice.
+    // biome-ignore lint/a11y/useSemanticElements: the rule asks for <fieldset>, which groups form inputs. This groups a key legend.
     <section role="group" aria-labelledby={headingId}>
       <h2 id={headingId} className="text-legend font-semibold text-meta dark:text-slate-400">
         Controls

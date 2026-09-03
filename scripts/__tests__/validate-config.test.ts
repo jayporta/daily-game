@@ -1,14 +1,14 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { test } from 'node:test';
+import { createPaths, paths, REPO_ROOT } from '#scripts/lib/paths.ts';
 import { validateAll, validateCspAllowsEndpoint } from '#scripts/validate-config.ts';
-import { createPaths, REPO_ROOT, paths } from '#scripts/lib/paths.ts';
 
-const CSP_SELF_ONLY = '<meta content="connect-src \'self\'; form-action \'none\'" />';
+const CSP_SELF_ONLY = "<meta content=\"connect-src 'self'; form-action 'none'\" />";
 const CSP_WITH_STORE =
-  '<meta content="connect-src \'self\' https://proj.supabase.co; form-action \'none\'" />';
+  "<meta content=\"connect-src 'self' https://proj.supabase.co; form-action 'none'\" />";
 
 /** Stands in for the caller-supplied consequence; the wording is not under test. */
 const BLOCKED = 'drop the data silently';
@@ -136,7 +136,7 @@ test('a configured Sentry DSN the CSP does not permit fails validation', (t) => 
 // A DSN carries its public key as URL userinfo. That is why the check can
 // take one unchanged — but only because `origin` drops the userinfo, so a
 // DSN and a bare endpoint on the same host resolve identically.
-test('validateCspAllowsEndpoint ignores a DSN\'s userinfo when matching', () => {
+test("validateCspAllowsEndpoint ignores a DSN's userinfo when matching", () => {
   const result = validateCspAllowsEndpoint(
     'https://pubkey@proj.supabase.co/12345',
     CSP_WITH_STORE,

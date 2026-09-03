@@ -3,11 +3,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { extractBundle } from '#lib/extract-bundle-shared.ts';
 import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
-import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
+import { extractBundle } from '#lib/extract-bundle-shared.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import type { GenresConfig } from '#scripts/lib/config/genres.ts';
+import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
 
 export const FIXTURES_DIR = fileURLToPath(new URL('../fixtures/mock-responses/', import.meta.url));
 

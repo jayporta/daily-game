@@ -1,12 +1,12 @@
 import { useRef, useState } from 'react';
+import type { ByokProvider } from '#lib/byok-config-types.ts';
+import { errorMessage } from '#lib/errors.ts';
+import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
+import { extractBundle } from '#lib/extract-bundle-shared.ts';
+import { type ByokFailure, describeByokFailure } from '#src/features/byok/byokFailure.ts';
 import { completeByok } from '#src/features/byok/providers.ts';
-import { describeByokFailure, type ByokFailure } from '#src/features/byok/byokFailure.ts';
 import { useGenerationStream } from '#src/features/byok/useGenerationStream.ts';
 import { reportError } from '#src/lib/sentry.ts';
-import { errorMessage } from '#lib/errors.ts';
-import { extractBundle } from '#lib/extract-bundle-shared.ts';
-import type { ByokProvider } from '#lib/byok-config-types.ts';
-import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 
 /**
  * What the page renders while a visitor's own generation runs.

@@ -4,7 +4,7 @@
 // Its type and shape guard live in `lib/byok-config-types.ts` instead, not
 // here: the browser renders these pickers and so needs them too, and `lib/`
 // is the only directory both tsconfigs compile.
-import { BYOK_PROVIDERS, isByokProvider, type ByokModelsConfig } from '#lib/byok-config-types.ts';
+import { BYOK_PROVIDERS, type ByokModelsConfig, isByokProvider } from '#lib/byok-config-types.ts';
 import { paths } from '#scripts/lib/paths.ts';
 import {
   isNonEmptyString,
@@ -34,7 +34,8 @@ export function validateByokModelsConfig(json: unknown): ValidationResult {
     } else {
       seenProviders.push(entry.provider);
     }
-    if (!isNonEmptyString(entry.label)) errors.push(`byokModels[${i}].label must be a non-empty string`);
+    if (!isNonEmptyString(entry.label))
+      errors.push(`byokModels[${i}].label must be a non-empty string`);
     if (!Array.isArray(entry.models) || entry.models.length === 0) {
       errors.push(`byokModels[${i}].models must be a non-empty array`);
     } else {

@@ -30,6 +30,7 @@ export const FIELD_CONTROL =
  */
 export function FormField({ label, children }: FormFieldProps) {
   return (
+    // biome-ignore lint/a11y/noLabelWithoutControl: the control arrives as `children`, wrapped by this label, which the rule cannot see.
     <label className="flex flex-col text-label dark:text-slate-300">
       {label}
       {children}

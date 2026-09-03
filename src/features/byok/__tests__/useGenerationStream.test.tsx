@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useGenerationStream } from '@/features/byok/useGenerationStream.ts';
 
 /**

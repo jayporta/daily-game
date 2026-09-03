@@ -1,5 +1,5 @@
-import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { test } from 'node:test';
 import { describeByokFailure } from '#src/features/byok/byokFailure.ts';
 
 test('a response cut off at the output cap says so, rather than blaming the format', () => {

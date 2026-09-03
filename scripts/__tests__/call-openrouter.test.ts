@@ -1,17 +1,17 @@
-import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { MAX_ATTEMPTS, generateDailyGame } from '#scripts/call-openrouter.ts';
-import { createSmokeTester, type SmokeTester } from '#scripts/smoke-test.ts';
-import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
-import { GENERATION_CONFIG, loadFixture } from '#scripts/lib/testFixtures.ts';
-import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
-import { isModerationRequest } from '#scripts/moderate.ts';
-import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
-import type { HistorySummary } from '#scripts/lib/history-store.ts';
+import { after, before, test } from 'node:test';
+import { generateDailyGame, MAX_ATTEMPTS } from '#scripts/call-openrouter.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import { loadGenresConfig } from '#scripts/lib/config/genres.ts';
 import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
 import type { ModelsConfig } from '#scripts/lib/config/models.ts';
+import type { HistorySummary } from '#scripts/lib/history-store.ts';
+import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
+import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
+import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { GENERATION_CONFIG, loadFixture } from '#scripts/lib/testFixtures.ts';
+import { isModerationRequest } from '#scripts/moderate.ts';
+import { createSmokeTester, type SmokeTester } from '#scripts/smoke-test.ts';
 
 const GUARDRAILS = loadGuardrails();
 const GENRES = loadGenresConfig();
@@ -193,7 +193,8 @@ test('rotates to a different model after a failed attempt', async () => {
     async complete({ model, messages }) {
       if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
       modelsSeen.push(model);
-      const fixture = modelsSeen.length === 1 ? loadFixture('bad-js-error') : loadFixture('good-maze');
+      const fixture =
+        modelsSeen.length === 1 ? loadFixture('bad-js-error') : loadFixture('good-maze');
       return { text: fixture, stop: 'complete' };
     },
   };
@@ -212,7 +213,11 @@ test('forceModel pins every attempt to one model', async () => {
     },
   };
 
-  const result = await generateDailyGame({ ...baseParams(), client, forceModel: 'forced/model:free' });
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client,
+    forceModel: 'forced/model:free',
+  });
   assert.equal(result.status, 'failed_kept_previous');
   assert.deepEqual(modelsSeen, ['forced/model:free', 'forced/model:free', 'forced/model:free']);
 });

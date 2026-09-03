@@ -2,8 +2,9 @@
 // publish.ts, consumed by the React viewer, and checked by assemble-site.ts
 // before a deploy. In lib/ because all three compile it, so the writer and
 // the readers can never drift apart.
-import { isRecord } from '#lib/guards.ts';
+
 import type { ControlHint } from '#lib/extract-bundle-shared.ts';
+import { isRecord } from '#lib/guards.ts';
 
 /**
  * The pointer to the game currently being served.

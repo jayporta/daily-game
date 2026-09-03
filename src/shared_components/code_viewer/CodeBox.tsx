@@ -1,6 +1,6 @@
+import { CopyCodeButton } from '@/shared_components/code_viewer/CopyCodeButton.tsx';
 import { Icon } from '@/shared_components/Icon.tsx';
 import { IconButton } from '@/shared_components/IconButton.tsx';
-import { CopyCodeButton } from '@/shared_components/code_viewer/CopyCodeButton.tsx';
 
 /**
  * Complete class strings per view, never assembled from fragments: Tailwind
@@ -83,5 +83,5 @@ export function CodeBox({ isFullscreen, lineNumbers, code, title, setFullScreen 
         <pre className="grow px-3 py-2 whitespace-pre">{code}</pre>
       </div>
     </div>
-  )
+  );
 }

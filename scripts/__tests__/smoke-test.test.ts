@@ -1,9 +1,10 @@
 // Alongside moderate.test.ts, the safety-critical half of the pipeline:
 // these confirm known-broken bundles are actually rejected.
-import { test, before, after } from 'node:test';
+
 import assert from 'node:assert/strict';
-import { createSmokeTester, type SmokeTester } from '#scripts/smoke-test.ts';
+import { after, before, test } from 'node:test';
 import { loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
+import { createSmokeTester, type SmokeTester } from '#scripts/smoke-test.ts';
 
 let tester: SmokeTester;
 
@@ -41,7 +42,8 @@ test('rejects a bundle that attempts a network request', async () => {
 });
 
 test('reports a blank canvas as a soft warning, not a failure', async () => {
-  const blank = '<!doctype html><html><body><canvas id="c" width="50" height="50"></canvas></body></html>';
+  const blank =
+    '<!doctype html><html><body><canvas id="c" width="50" height="50"></canvas></body></html>';
   const result = await tester.test(blank, { settleMs: 300 });
   assert.equal(result.canvasDrawn, false);
   assert.equal(result.pass, true);

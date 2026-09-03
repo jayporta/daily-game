@@ -1,7 +1,7 @@
+import { nextTheme } from '@/features/theme/theme.ts';
+import { useTheme } from '@/features/theme/useTheme.ts';
 import { Icon } from '@/shared_components/Icon.tsx';
 import { IconButton } from '@/shared_components/IconButton.tsx';
-import { useTheme } from '@/features/theme/useTheme.ts';
-import { nextTheme } from '@/features/theme/theme.ts';
 
 /**
  * Switches the site between its light and dark palettes.

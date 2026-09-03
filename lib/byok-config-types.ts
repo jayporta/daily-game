@@ -41,7 +41,12 @@ export type ByokModelsConfig = readonly ByokProviderConfig[];
 function isByokModelEntry(value: unknown): value is ByokModelEntry {
   if (!isRecord(value)) return false;
   if (!('id' in value) || !('label' in value)) return false;
-  return typeof value.id === 'string' && value.id.length > 0 && typeof value.label === 'string' && value.label.length > 0;
+  return (
+    typeof value.id === 'string' &&
+    value.id.length > 0 &&
+    typeof value.label === 'string' &&
+    value.label.length > 0
+  );
 }
 
 function isByokProviderConfig(value: unknown): value is ByokProviderConfig {

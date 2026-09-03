@@ -1,0 +1,25 @@
+# Published game bundles ship byte-for-byte from pipeline to browser.
+# Reformatting one would break that invariant.
+games/
+
+# Pipeline-written data. The scripts rewrite these with JSON.stringify,
+# so any formatting applied here is undone on the next run.
+history/
+manifest.json
+
+# Generated or vendored
+node_modules/
+dist/
+coverage/
+package-lock.json
+.remember/
+.playwright-mcp/
+
+# Hand-authored prose. Prettier reflows paragraphs and rewrites emphasis
+# markers, and config/guardrails.md is read verbatim into the generation
+# prompt, so a reflow there changes what the model is asked for.
+*.md
+
+# One genre per line is a deliberate table layout. Prettier expands every
+# entry to five lines, which is the same JSON and a worse thing to edit.
+config/genres.json

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
-  THEME_ATTRIBUTE,
   nextTheme,
   rememberTheme,
   resolveInitialTheme,
+  THEME_ATTRIBUTE,
   type Theme,
 } from '#src/features/theme/theme.ts';
 import { localStorageOrNull } from '#src/lib/browser-storage.ts';

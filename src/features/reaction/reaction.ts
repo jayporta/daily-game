@@ -10,15 +10,16 @@
 //     ever break the page or the game.
 //   * The browser writes and never reads. Nothing from the store enters the
 //     page, so there is no inbound path to escape or sanitise.
+
+import { isRecord } from '#lib/guards.ts';
 import {
+  type DislikeReason,
   isDislikeReason,
   isPublishableSlug,
-  type DislikeReason,
   type ReactionConfig,
   type ReactionKind,
   type ReactionPayload,
 } from '#lib/reaction-types.ts';
-import { isRecord } from '#lib/guards.ts';
 import type { WebStorage } from '#src/lib/browser-storage.ts';
 
 /** A visitor's own recorded choice for one game. */
