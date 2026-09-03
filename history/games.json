@@ -65,6 +65,26 @@
     ],
     "title": "Elemental Stack",
     "attempts": 2,
-    "canvasDrawn": false
+    "canvasDrawn": false,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-09-03",
+    "status": "failed_kept_previous",
+    "model": "cohere/north-mini-code:free",
+    "attempts": 3,
+    "failureReasons": [
+      "attempt 1 (cohere/north-mini-code:free): generation call failed — OpenRouter response missing choices[0].message.content",
+      "attempt 2 (poolside/laguna-s-2.1:free): moderation rejected — moderation model rejected the game: moderation call failed: OpenRouter response missing choices[0].message.content",
+      "attempt 3 (minimax/minimax-m2.7:free): generation call failed — OpenRouter response missing choices[0].message.content"
+    ],
+    "failureKinds": [
+      "generation-call",
+      "moderation",
+      "generation-call"
+    ]
   }
 ]
