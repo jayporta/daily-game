@@ -10,8 +10,6 @@ export interface DisclosureProps {
    * cares about opening can start work idempotently and ignore the rest.
    */
   readonly onToggle?: () => void;
-  /** Floated over the top-right of the opened body — an expand control. */
-  readonly action?: ReactNode;
   readonly children: ReactNode;
 }
 
@@ -23,16 +21,11 @@ export interface DisclosureProps {
  * the same summary type and the same body inset, and a class string that
  * appears in two places has already drifted once.
  */
-export function Disclosure({ summary, onToggle, action, children }: DisclosureProps) {
+export function Disclosure({ summary, onToggle, children }: DisclosureProps) {
   return (
     <details className="group mt-2" onToggle={onToggle}>
       <summary className="cursor-pointer text-meta dark:text-slate-400">{summary}</summary>
-      {/* Positioned so `action` can sit over the body's corner without
-          reserving a row of its own above it. */}
-      <div className="relative mt-2">
-        {children}
-        {action !== undefined && <div className="absolute top-2 right-2">{action}</div>}
-      </div>
+      <div className="mt-2">{children}</div>
     </details>
   );
 }
