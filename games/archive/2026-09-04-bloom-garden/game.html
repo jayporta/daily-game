@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Bloom Garden</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #2b3a42;
+    font-family: sans-serif;
+    touch-action: none;
+  }
+  #game {
+    width: 100vw;
+    height: 100vh;
+    display: block;
+  }
+  #ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-size: 16px;
+    text-shadow: 1px 1px 2px black;
+    z-index: 10;
+    background: rgba(0,0,0,0.3);
+    padding: 8px 12px;
+    border-radius: 6px;
+  }
+  #message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 24px;
+    text-align: center;
+    text-shadow: 2px 2px 4px black;
+    z-index: 20;
+    background: rgba(0,0,0,0.6);
+    padding: 20px 40px;
+    border-radius: 12px;
+    display: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui"></div>
+<div id="message"></div>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const ui = document.getElementById('ui');
+  const messageEl = document.getElementById('message');
+
+  let W = canvas.width = window.innerWidth;
+  let H = canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  });
+
+  // Garden layouts - hand-authored stone courtyards
+  const gardens = [
+    {
+      name: "First Courtyard",
+      width: 12,
+      height: 8,
+      layout: [
+        "SSSSSSSSSSSS",
+        "S..........S",
+        "S..P.......S",
+        "S..........S",
+        "S.....D....S",
+        "S..........S",
+        "S..........S",
+        "SSSSSSSSSSSS"
+      ]
+    },
+    {
+      name: "Twin Fountains",
+      width: 14,
+      height: 10,
+      layout: [
+        "SSSSSSSSSSSSSS",
+        "S............S",
+        "S..P....P....S",
+        "S............S",
+        "S...D....D...S",
+        "S............S",
+        "S..P....P....S",
+        "S............S",
+        "S............S",
+        "SSSSSSSSSSSSSS"
+      ]
+    },
+    {
+      name: "The Spiral Path",
+      width: 12,
+      height: 12,
+      layout: [
+        "SSSSSSSSSSSS",
+        "S..........S",
+        "S.SSSSSSSS.S",
+        "S.S......S.S",
+        "S.S.PP...S.S",
+        "S.S......S.S",
+        "S.S.SSSS.S.S",
+        "S.S.S..S.S.S",
+        "S.D.S..S.D.S",
+        "S.S.SSSS.S.S",
+        "S.S......S.S",
+        "SSSSSSSSSSSS"
+      ]
+    }
+  ];
+
+  const TILE = 48;
+  let currentGarden = 0;
+  let gameComplete = false;
+
+  // Game state
+  const state = {
+    water: 15,
+    sun: 15,
+    flowers: [],
+    spirits: [],
+    camera: { x: 0, y: 0 },
+    dragging: false,
+    dragStart: { x: 0, y: 0 },
+    camStart: { x: 0, y: 0 }
+  };
+
+  const flowerTypes = {
+    red: { cost: { water: 3, sun: 2 }, color: "#ff6b6b", name: "Rose" },
+    blue: { cost: { water: 2, sun: 3 }, color: "#4dabf7", name: "Bluebell" },
+    yellow: { cost: { water: 3, sun: 3 }, color: "#ffd43b", name: "Daisy" },
+    purple: { cost: { water: 4, sun: 2 }, color: "#9240e0", name: "Violet" },
+    white: { cost: { water: 2, sun: 4 }, color: "#f8f9fa", name: "Lily" }
+  };
+
+  const keys = {};
+  window.addEventListener('keydown', e => keys[e.code] = true);
+  window.addEventListener('keyup', e => keys[e.code] = false);
+
+  canvas.addEventListener('mousedown', (e) => {
+    const worldPos = screenToWorld(e.offsetX, e.offsetY);
+    handleInteraction(worldPos.x, worldPos.y);
+    state.dragging = true;
+    state.dragStart = { x: e.clientX, y: e.clientY };
+    state.camStart = { x: state.camera.x, y: state.camera.y };
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (state.dragging) {
+      const dx = e.clientX - state.dragStart.x;
+      const dy = e.clientY - state.dragStart.y;
+      state.camera.x = state.camStart.x - dx;
+      state.camera.y = state.camStart.y - dy;
+    }
+  });
+
+  window.addEventListener('mouseup', () => { state.dragging = false; });
+  canvas.addEventListener('mouseleave', () => { state.dragging = false; });
+
+  // Touch support
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const worldPos = screenToWorld(touch.clientX - rect.left, touch.clientY - rect.top);
+    handleInteraction(worldPos.x, worldPos.y);
+    state.dragging = true;
+    state.dragStart = { x: touch.clientX, y: touch.clientY };
+    state.camStart = { x: state.camera.x, y: state.camera.y };
+  });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (state.dragging && e.touches.length === 1) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      const dx = touch.clientX - state.dragStart.x;
+      const dy = touch.clientY - state.dragStart.y;
+      state.camera.x = state.camStart.x - dx;
+      state.camera.y = state.camStart.y - dy;
+    }
+  });
+
+  window.addEventListener('touchend', () => { state.dragging = false; });
+
+  function screenToWorld(sx, sy) {
+    return { x: sx + state.camera.x, y: sy + state.camera.y };
+  }
+
+  function handleInteraction(wx, wy) {
+    if (gameComplete) return;
+
+    // Check if clicking on a flower to bloom it
+    for (const flower of state.flowers) {
+      const dist = Math.hypot(wx - flower.x, wy - flower.y);
+      if (dist < flower.radius) {
+        if (!flower.bloomed) {
+          flower.bloomed = true;
+          flower.colorIndex = Math.floor(Math.random() * 5);
+          state.water -= flowerTypes[Object.keys(flowerTypes)[flower.colorIndex]].cost.water;
+          state.sun -= flowerTypes[Object.keys(flowerTypes)[flower.colorIndex]].cost.sun;
+        } else {
+          // Cycle colors when bloomed
+          flower.colorIndex = (flower.colorIndex + 1) % 5;
+        }
+        return;
+      }
+    }
+
+    // Check if clicking on a spirit
+    for (const spirit of state.spirits) {
+      const dist = Math.hypot(wx - spirit.x, wy - spirit.y);
+      if (dist < 15) {
+        spirit.held = true;
+        spirit.targetX = wx;
+        spirit.targetY = wy;
+        return;
+      }
+    }
+
+    // Plant a seed (costs nothing, just tap empty ground)
+    const g = gardens[currentGarden];
+    const tx = Math.floor(wx / TILE);
+    const ty = Math.floor(wy / TILE);
+    if (tx >= 0 && tx < g.width && ty >= 0 && ty < g.height) {
+      if (g.layout[ty][tx] === '.') {
+        // Check not too close to existing flowers
+        let tooClose = false;
+        for (const f of state.flowers) {
+          if (Math.hypot(tx * TILE - f.x, ty * TILE - f.y) < TILE * 1.5) {
+            tooClose = true;
+            break;
+          }
+        }
+        if (!tooClose) {
+          state.flowers.push({
+            x: tx * TILE + TILE / 2,
+            y: ty * TILE + TILE / 2,
+            radius: 8,
+            bloomed: false,
+            colorIndex: 0
+          });
+        }
+      }
+    }
+  }
+
+  function update() {
+    if (gameComplete) return;
+
+    // Regenerate resources over time
+    if (frameCount % 180 === 0) {
+      state.water = Math.min(state.water + 3, 30);
+      state.sun = Math.min(state.sun + 3, 30);
+    }
+
+    // Update spirits
+    for (const spirit of state.spirits) {
+      if (spirit.held) {
+        // Move toward touch target
+        const dx = spirit.targetX - spirit.x;
+        const dy = spirit.targetY - spirit.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 2) {
+          spirit.x = spirit.targetX;
+          spirit.y = spirit.targetY;
+          spirit.held = false;
+          spirit.action = "resting";
+        } else {
+          spirit.x += dx * 0.15;
+          spirit.y += dy * 0.15;
+        }
+      } else {
+        // Wander or help flowers
+        if (spirit.action === "helping" && spirit.targetFlower) {
+          const f = spirit.targetFlower;
+          if (!f.bloomed) {
+            const dx = f.x - spirit.x;
+            const dy = f.y - spirit.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist < 30) {
+              // Help bloom
+              if (frameCount % 60 === 0) {
+                state.water -= 1;
+                state.sun -= 1;
+              }
+            } else {
+              spirit.x += dx * 0.08;
+              spirit.y += dy * 0.08;
+            }
+          } else {
+            spirit.action = "resting";
+            spirit.targetFlower = null;
+          }
+        } else if (spirit.action === "resting") {
+          // Wander slowly
+          if (Math.random() < 0.005) {
+            spirit.vx = (Math.random() - 0.5) * 0.6;
+            spirit.vy = (Math.random() - 0.5) * 0.6;
+          }
+          spirit.x += spirit.vx || 0;
+          spirit.y += spirit.vy || 0;
+          // Bounce off boundaries
+          const g = gardens[currentGarden];
+          if (spirit.x < 50) spirit.x = 50;
+          if (spirit.y < 50) spirit.y = 50;
+          if (spirit.x > g.width * TILE - 50) spirit.x = g.width * TILE - 50;
+          if (spirit.y > g.height * TILE - 50) spirit.y = g.height * TILE - 50;
+        }
+      }
+    }
+
+    // Spirits help flowers when enough resources
+    if (state.water > 5 && state.sun > 5) {
+      for (const spirit of state.spirits) {
+        if (spirit.action === "resting" && !spirit.held) {
+          for (const flower of state.flowers) {
+            if (!flower.bloomed) {
+              const dist = Math.hypot(flower.x - spirit.x, flower.y - spirit.y);
+              if (dist < 120) {
+                spirit.action = "helping";
+                spirit.targetFlower = flower;
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Check completion: all flowers bloomed
+    if (state.flowers.length > 0 && state.flowers.every(f => f.bloomed)) {
+      gameComplete = true;
+      showMessage("Courtyard restored! Color blooms across the stones.", 
+        () => {
+          if (currentGarden < gardens.length - 1) {
+            currentGarden++;
+            resetGarden();
+          } else {
+            showMessage("All gardens bloom! Thank you for tending.", 
+              () => { /* End */ });
+          }
+        });
+    }
+  }
+
+  function resetGarden() {
+    gameComplete = false;
+    state.flowers = [];
+    state.spirits = [];
+    state.water = 15;
+    state.sun = 15;
+    state.camera = { x: 0, y: 0 };
+
+    // Place spirits
+    const g = gardens[currentGarden];
+    const spiritCount = currentGarden + 1;
+    for (let i = 0; i < spiritCount; i++) {
+      const tx = Math.floor(g.width / 2) + (i - (spiritCount - 1) / 2) * 2;
+      const ty = Math.floor(g.height / 2);
+      if (g.layout[ty] && g.layout[ty][tx] === '.') {
+        state.spirits.push({
+          x: tx * TILE + TILE / 2,
+          y: ty * TILE + TILE / 2,
+          action: "resting",
+          vx: 0,
+          vy: 0,
+          held: false,
+          targetX: 0,
+          targetY: 0,
+          targetFlower: null
+        });
+      }
+    }
+
+    // Place initial seeds
+    let seedCount = 3 + currentGarden * 2;
+    let placed = 0;
+    while (placed < seedCount) {
+      const tx = Math.floor(Math.random() * (g.width - 2)) + 1;
+      const ty = Math.floor(Math.random() * (g.height - 2)) + 1;
+      if (g.layout[ty][tx] === '.') {
+        // Check not too close
+        let tooClose = false;
+        const wx = tx * TILE + TILE / 2;
+        const wy = ty * TILE + TILE / 2;
+        for (const f of state.flowers) {
+          if (Math.hypot(wx - f.x, wy - f.y) < TILE * 1.5) {
+            tooClose = true;
+            break;
+          }
+        }
+        if (!tooClose) {
+          state.flowers.push({
+            x: wx,
+            y: wy,
+            radius: 6,
+            bloomed: false,
+            colorIndex: 0
+          });
+          placed++;
+        }
+      }
+    }
+  }
+
+  function showMessage(text, onDismiss) {
+    messageEl.textContent = text;
+    messageEl.style.display = 'block';
+    setTimeout(() => {
+      messageEl.style.display = 'none';
+      if (onDismiss) onDismiss();
+    }, 3000);
+  }
+
+  function draw() {
+    // Clear
+    ctx.fillStyle = "#2b3a42";
+    ctx.fillRect(0, 0, W, H);
+
+    const g = gardens[currentGarden];
+    
+    // Draw garden
+    for (let y = 0; y < g.height; y++) {
+      for (let x = 0; x < g.width; x++) {
+        const tile = g.layout[y][x];
+        const wx = x * TILE - state.camera.x;
+        const wy = y * TILE - state.camera.y;
+
+        if (tile === 'S') {
+          // Stone path
+          ctx.fillStyle = "#8b949e";
+          ctx.fillRect(wx, wy, TILE, TILE);
+          
+          // Stone texture
+          ctx.strokeStyle = "#6b7480";
+          ctx.beginPath();
+          ctx.moveTo(wx, wy);
+          ctx.lineTo(wx + TILE, wy + TILE);
+          ctx.moveTo(wx + TILE, wy);
+          ctx.lineTo(wx, wy + TILE);
+          ctx.stroke();
+        } else if (tile === 'P') {
+          // Stone pedestal for spirits
+          ctx.fillStyle = "#5a6778";
+          ctx.fillRect(wx + TILE * 0.2, wy + TILE * 0.2, TILE * 0.6, TILE * 0.6);
+          ctx.fillStyle = "#4a5565";
+          ctx.fillRect(wx + TILE * 0.35, wy + TILE * 0.35, TILE * 0.3, TILE * 0.3);
+        } else if (tile === 'D') {
+          // Decorative stone
+          ctx.fillStyle = "#6b7fa0";
+          ctx.beginPath();
+          ctx.ellipse(wx + TILE / 2, wy + TILE / 2, TILE * 0.35, TILE * 0.25, 0, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          // Empty ground (dirt)
+          ctx.fillStyle = "#5a4a3f";
+          ctx.fillRect(wx, wy, TILE, TILE);
+          
+          // Grass tufts
+          ctx.fillStyle = "#4a7a3a";
+          const tufts = Math.floor(Math.random() * 3);
+          for (let t = 0; t < tufts; t++) {
+            const tx = wx + Math.random() * TILE;
+            const ty = wy + Math.random() * TILE * 0.6;
+            const size = 2 + Math.random() * 3;
+            ctx.beginPath();
+            ctx.arc(tx, ty, size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    // Draw flowers (seeds and blooms)
+    for (const flower of state.flowers) {
+      const wx = flower.x - state.camera.x;
+      const wy = flower.y - state.camera.y;
+
+      if (flower.bloomed) {
+        const typeKeys = Object.keys(flowerTypes);
+        const ftype = flowerTypes[typeKeys[flower.colorIndex]];
+        const petals = 8;
+        const r = flower.radius + 4;
+        
+        // Glow effect
+        const gradient = ctx.createRadialGradient(wx, wy, 0, wx, wy, r * 2);
+        gradient.addColorStop(0, ftype.color);
+        gradient.addColorStop(1, "transparent");
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(wx, wy, r * 1.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Petals
+        ctx.save();
+        ctx.translate(wx, wy);
+        for (let i = 0; i < petals; i++) {
+          ctx.rotate(Math.PI / petals);
+          ctx.fillStyle = ftype.color;
+          ctx.beginPath();
+          ctx.ellipse(0, -r * 0.8, r * 0.4, r * 0.8, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // Center
+        ctx.fillStyle = "#ffd43b";
+        ctx.beginPath();
+        ctx.arc(wx, wy, r * 0.4, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Seed
+        ctx.fillStyle = "#8b4513";
+        ctx.beginPath();
+        ctx.arc(wx, wy, flower.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#654321";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
+    // Draw spirits
+    for (const spirit of state.spirits) {
+      const wx = spirit.x - state.camera.x;
+      const wy = spirit.y - state.camera.y;
+
+      // Pulsing body
+      const pulse = 1 + Math.sin(frameCount * 0.1) * 0.1;
+      ctx.save();
+      ctx.translate(wx, wy);
+      ctx.scale(pulse, pulse);
+
+      // Glow
+      const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 14);
+      gradient.addColorStop(0, "#fff9c4");
+      gradient.addColorStop(1, "#ffe082");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(0, 0, 12, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Details
+      ctx.fillStyle = "#fff9c4";
+      ctx.beginPath();
+      ctx.arc(-4, -2, 3, 0, Math.PI * 2);
+      ctx.arc(4, -2, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Trails when moving
+      if (Math.abs(spirit.vx || 0) > 0.1 || Math.abs(spirit.vy || 0) > 0.1) {
+        ctx.strokeStyle = "#fff9c4";
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-(spirit.vx || 0) * 5, -(spirit.vy || 0) * 5);
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+      }
+
+      ctx.restore();
+    }
+
+    // Draw UI
+    ui.innerHTML = `
+      <div><b>${g.name}</b></div>
+      <div>💧 Water: ${state.water}</div>
+      <div>☀️ Sun: ${state.sun}</div>
+      <div>🌱 Seeds: ${state.flowers.filter(f => !f.bloomed).length} / ${state.flowers.length}</div>
+      <div style="margin-top: 8px; font-size: 14px;">
+        Tap ground to plant seeds · Tap flowers to bloom · Tap spirits to guide them
+      </div>
+    `;
+  }
+
+  let frameCount = 0;
+  function loop() {
+    frameCount++;
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // Initialize
+  resetGarden();
+  loop();
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-04-bloom-garden";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

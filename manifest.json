@@ -1,30 +1,22 @@
 {
-  "date": "2026-09-02",
-  "slug": "2026-09-02-elemental-stack",
-  "path": "games/archive/2026-09-02-elemental-stack/game.html",
-  "promptPath": "games/archive/2026-09-02-elemental-stack/prompt.txt",
-  "title": "Elemental Stack",
-  "genre": "physics-sandbox",
-  "genreLabel": "Physics Sandbox",
-  "model": "minimax/minimax-m2.7:free",
-  "generatedAt": "2026-09-02T16:55:50.586Z",
-  "expiresAt": "2026-09-03T13:00:00.000Z",
+  "date": "2026-09-04",
+  "slug": "2026-09-04-bloom-garden",
+  "path": "games/archive/2026-09-04-bloom-garden/game.html",
+  "promptPath": "games/archive/2026-09-04-bloom-garden/prompt.txt",
+  "title": "Bloom Garden",
+  "genre": "growth-sim",
+  "genreLabel": "Growth Simulation",
+  "model": "poolside/laguna-s-2.1:free",
+  "generatedAt": "2026-09-04T21:10:09.072Z",
+  "expiresAt": "2026-09-05T19:00:00.000Z",
   "controls": [
     {
-      "action": "Place elemental",
-      "key": "Click/Tap on platform"
+      "action": "Tap or click to bloom a flower / interac",
+      "key": "Mouse click / tap"
     },
     {
-      "action": "Remove last placed",
-      "key": "Z or Undo button"
-    },
-    {
-      "action": "Drop all elements",
-      "key": "Space or Drop button"
-    },
-    {
-      "action": "Restart level",
-      "key": "R or Restart button"
+      "action": "Drag to move the camera view",
+      "key": "Mouse drag"
     }
   ]
 }

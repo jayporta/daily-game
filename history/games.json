@@ -67,9 +67,12 @@
     "attempts": 2,
     "canvasDrawn": false,
     "likes": 0,
-    "dislikes": 0,
-    "dislikeReasons": {},
-    "popularityScore": 0
+    "dislikes": 1,
+    "dislikeReasons": {
+      "broken": 1,
+      "controls-unclear": 1
+    },
+    "popularityScore": -1
   },
   {
     "date": "2026-09-03",
@@ -86,5 +89,22 @@
       "moderation",
       "generation-call"
     ]
+  },
+  {
+    "date": "2026-09-04",
+    "status": "published",
+    "model": "poolside/laguna-s-2.1:free",
+    "slug": "2026-09-04-bloom-garden",
+    "genre": "growth-sim",
+    "theme": "A tiny seedling sprouting colors across a stone courtyard, attracting friendly floating pollen spirits",
+    "mechanics": [
+      "Tap/click to make the plant bloom and spread color",
+      "Manage water and sunlight resources to grow different flower types",
+      "Attract helpful pollen spirits that assist in growth",
+      "Progress through a small set of hand-authored garden layouts"
+    ],
+    "title": "Bloom Garden",
+    "attempts": 2,
+    "canvasDrawn": true
   }
 ]

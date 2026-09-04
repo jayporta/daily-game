@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-04 — Bloom Garden
+
+- genre: growth-sim
+- theme: A tiny seedling sprouting colors across a stone courtyard, attracting friendly floating pollen spirits
+- mechanics: Tap/click to make the plant bloom and spread color, Manage water and sunlight resources to grow different flower types, Attract helpful pollen spirits that assist in growth, Progress through a small set of hand-authored garden layouts
+- model: poolside/laguna-s-2.1:free
+- attempts: 2
+
 ## 2026-09-03 — generation failed, previous game kept
 
 - model: cohere/north-mini-code:free
@@ -17,9 +25,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Stack elemental shapes on platforms, Balance physics objects to reach the goal, Place creatures strategically across 5 levels
 - model: minimax/minimax-m2.7:free
 - attempts: 2
-- reactions: 0
+- reactions: -1
 - likes: 0
-- dislikes: 0
+- dislikes: 1
+- disliked for: broken: 1, controls-unclear: 1
 
 ## 2026-09-01 — generation failed, previous game kept
 
