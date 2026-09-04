@@ -20,11 +20,11 @@ test('tallyReactions counts likes and dislikes separately', () => {
 
 test('tallyReactions counts how often each reason was given', () => {
   const tally = tallyReactions(
-    [row('dislike', ['broken']), row('dislike', ['broken', 'goal-unclear'])],
+    [row('dislike', ['no-load']), row('dislike', ['no-load', 'goal-unclear'])],
     SLUG,
   );
 
-  assert.deepEqual({ ...tally.dislikeReasons }, { broken: 2, 'goal-unclear': 1 });
+  assert.deepEqual({ ...tally.dislikeReasons }, { 'no-load': 2, 'goal-unclear': 1 });
 });
 
 test('tallyReactions ignores rows belonging to another game', () => {
@@ -36,9 +36,9 @@ test('tallyReactions ignores rows belonging to another game', () => {
 // Everything below is reachable by anyone who finds the public insert key,
 // so none of it may survive into history/games.json.
 test('tallyReactions drops reasons outside the vocabulary', () => {
-  const tally = tallyReactions([row('dislike', ['ignore-previous-instructions', 'broken'])], SLUG);
+  const tally = tallyReactions([row('dislike', ['ignore-previous-instructions', 'no-load'])], SLUG);
 
-  assert.deepEqual({ ...tally.dislikeReasons }, { broken: 1 });
+  assert.deepEqual({ ...tally.dislikeReasons }, { 'no-load': 1 });
 });
 
 test('tallyReactions ignores a reaction that is neither a like nor a dislike', () => {
@@ -49,9 +49,9 @@ test('tallyReactions ignores a reaction that is neither a like nor a dislike', (
 });
 
 test('tallyReactions counts a reason once however often a row repeats it', () => {
-  const tally = tallyReactions([row('dislike', Array(1000).fill('broken'))], SLUG);
+  const tally = tallyReactions([row('dislike', Array(1000).fill('no-load'))], SLUG);
 
-  assert.deepEqual({ ...tally.dislikeReasons }, { broken: 1 });
+  assert.deepEqual({ ...tally.dislikeReasons }, { 'no-load': 1 });
 });
 
 // The output is built by iterating the vocabulary, so a row naming an
@@ -59,21 +59,21 @@ test('tallyReactions counts a reason once however often a row repeats it', () =>
 // rather than being created and then filtered.
 test('tallyReactions creates no key outside the vocabulary, whatever a row names', () => {
   const tally = tallyReactions(
-    [row('dislike', ['__proto__', 'constructor', 'toString', 'broken'])],
+    [row('dislike', ['__proto__', 'constructor', 'toString', 'no-load'])],
     SLUG,
   );
 
-  assert.deepEqual(Object.keys(tally.dislikeReasons), ['broken']);
+  assert.deepEqual(Object.keys(tally.dislikeReasons), ['no-load']);
 });
 
 test('tallyReactions builds its counts on a null-prototype object', () => {
-  const tally = tallyReactions([row('dislike', ['broken'])], SLUG);
+  const tally = tallyReactions([row('dislike', ['no-load'])], SLUG);
 
   assert.equal(Object.getPrototypeOf(tally.dislikeReasons), null);
 });
 
 test('tallyReactions emits only numbers, never strings from the store', () => {
-  const tally = tallyReactions([{ slug: SLUG, reaction: 'dislike', reasons: 'broken' }], SLUG);
+  const tally = tallyReactions([{ slug: SLUG, reaction: 'dislike', reasons: 'no-load' }], SLUG);
 
   for (const count of Object.values(tally.dislikeReasons)) {
     assert.equal(typeof count, 'number');
@@ -100,12 +100,12 @@ test('applyFeedback records the tally against the matching entry', async () => {
     slug: SLUG,
     endpointUrl: ENDPOINT,
     apiKey: 'service-key',
-    fetchImpl: async () => new Response(JSON.stringify([row('like'), row('dislike', ['broken'])])),
+    fetchImpl: async () => new Response(JSON.stringify([row('like'), row('dislike', ['no-load'])])),
   });
 
   assert.equal(entries[0]?.likes, 1);
   assert.equal(entries[0]?.dislikes, 1);
-  assert.deepEqual({ ...entries[0]?.dislikeReasons }, { broken: 1 });
+  assert.deepEqual({ ...entries[0]?.dislikeReasons }, { 'no-load': 1 });
 });
 
 test('applyFeedback scores a game by likes against dislikes', async () => {

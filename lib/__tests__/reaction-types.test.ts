@@ -32,7 +32,7 @@ test('isDislikeReason rejects an id outside the vocabulary', () => {
 });
 
 test('isDislikeReason rejects values that are not strings', () => {
-  for (const value of [null, undefined, 42, {}, ['broken']]) {
+  for (const value of [null, undefined, 42, {}, ['no-load']]) {
     assert.equal(isDislikeReason(value), false, `${JSON.stringify(value)} was accepted`);
   }
 });

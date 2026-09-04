@@ -363,8 +363,8 @@ test('correctiveDirectives speaks up once a complaint recurs', () => {
 
 test('correctiveDirectives leads with the most frequent problem', () => {
   const directives = correctiveDirectives([
-    received('2026-08-29', { dislikeReasons: { 'goal-unclear': 1, broken: 1 } }),
-    received('2026-08-28', { dislikeReasons: { 'goal-unclear': 1, broken: 1 } }),
+    received('2026-08-29', { dislikeReasons: { 'goal-unclear': 1, 'no-load': 1 } }),
+    received('2026-08-28', { dislikeReasons: { 'goal-unclear': 1, 'no-load': 1 } }),
     received('2026-08-27', { dislikeReasons: { 'goal-unclear': 1 } }),
   ]);
 
@@ -403,8 +403,8 @@ test('buildPrompt carries the directives into the prompt', () => {
     guardrailsText: 'rules',
     genres: GENRES,
     historyEntries: [
-      received('2026-08-29', { dislikeReasons: { broken: 1 } }),
-      received('2026-08-28', { dislikeReasons: { broken: 1 } }),
+      received('2026-08-29', { dislikeReasons: { 'no-load': 1 } }),
+      received('2026-08-28', { dislikeReasons: { 'no-load': 1 } }),
     ],
     summary: SUMMARY,
   });

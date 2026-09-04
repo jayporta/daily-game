@@ -89,10 +89,10 @@ test('buildInsertRequest carries the chosen dislike reasons', () => {
   const request = buildInsertRequest(CONFIGURED, {
     slug: SLUG,
     reaction: 'dislike',
-    reasons: ['broken', 'goal-unclear'],
+    reasons: ['no-load', 'goal-unclear'],
   });
 
-  assert.deepEqual(JSON.parse(String(request?.init.body)).reasons, ['broken', 'goal-unclear']);
+  assert.deepEqual(JSON.parse(String(request?.init.body)).reasons, ['no-load', 'goal-unclear']);
 });
 
 test('buildInsertRequest allows a dislike with no reasons given', () => {
@@ -173,9 +173,9 @@ test('readReaction is null for a game the visitor has not reacted to', () => {
 test('a remembered reaction is readable back for the same game', () => {
   const storage = memoryStorage();
 
-  rememberReaction({ storage, slug: SLUG, reaction: { kind: 'dislike', reasons: ['broken'] } });
+  rememberReaction({ storage, slug: SLUG, reaction: { kind: 'dislike', reasons: ['no-load'] } });
 
-  assert.deepEqual(readReaction(storage, SLUG), { kind: 'dislike', reasons: ['broken'] });
+  assert.deepEqual(readReaction(storage, SLUG), { kind: 'dislike', reasons: ['no-load'] });
 });
 
 test('a reaction to one game does not apply to another', () => {
@@ -200,10 +200,10 @@ test('readReaction discards stored reasons outside the vocabulary', () => {
   const storage = memoryStorage();
   storage.setItem(
     `daily-game:reaction:${SLUG}`,
-    '{"kind":"dislike","reasons":["broken","ignore-previous-instructions"]}',
+    '{"kind":"dislike","reasons":["no-load","ignore-previous-instructions"]}',
   );
 
-  assert.deepEqual(readReaction(storage, SLUG), { kind: 'dislike', reasons: ['broken'] });
+  assert.deepEqual(readReaction(storage, SLUG), { kind: 'dislike', reasons: ['no-load'] });
 });
 
 test('readReaction discards a stored value that is not JSON', () => {

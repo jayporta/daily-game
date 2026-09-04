@@ -100,9 +100,7 @@ test('writeGamesJson round-trips through readHotWindow', (t) => {
 test('readHotWindow rejects a structurally invalid history file', (t) => {
   const dir = scratchDir(t);
   const file = join(dir, 'games.json');
-  writeGamesJson(file, [
-    { date: 'not-a-date', status: 'published', model: 'm' } as HistoryGameEntry,
-  ]);
+  writeGamesJson(file, [{ date: 'not-a-date', status: 'published', model: 'm' }]);
   assert.throws(() => readHotWindow(file), /invalid/);
 });
 
@@ -158,7 +156,7 @@ const RATED: HistoryGameEntry = {
   ...PUBLISHED,
   likes: 7,
   dislikes: 2,
-  dislikeReasons: { broken: 1, 'goal-unclear': 2 },
+  dislikeReasons: { 'no-load': 1, 'goal-unclear': 2 },
 };
 
 test('patchEntry applies reaction counts to the matching slug', () => {
@@ -209,7 +207,7 @@ test('renderGamesMd names the reasons a game was disliked for', () => {
   const markdown = renderGamesMd([RATED]);
 
   assert.match(markdown, /goal-unclear: 2/);
-  assert.match(markdown, /broken: 1/);
+  assert.match(markdown, /no-load: 1/);
 });
 
 test('renderGamesMd omits reaction lines for a game nobody rated', () => {

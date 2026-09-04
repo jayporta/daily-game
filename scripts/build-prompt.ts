@@ -209,9 +209,12 @@ const DIRECTIVE_THRESHOLD = 2;
  * the prompt through this path — only the fixed text below.
  */
 const DISLIKE_DIRECTIVES: Record<DislikeReason, string> = {
-  broken:
+  'no-load':
     'Recent games were reported as not working at all. Guard every element lookup, ' +
     'start the game loop only after the DOM is ready, and never assume an asset exists.',
+  'gameplay-broken':
+    'Recent games were reported as having broken gameplay. Ensure all game mechanics ' +
+    'are implemented correctly and tested thoroughly.',
   'missing-art':
     'Recent games were reported as missing their background or sprites. Draw every ' +
     'visual element yourself in code — shapes, gradients, generated patterns — and ' +

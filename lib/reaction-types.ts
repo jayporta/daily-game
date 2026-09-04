@@ -16,10 +16,11 @@ import { isRecord } from '#lib/guards.ts';
  * and with it a whole prompt-injection path.
  *
  * The UI's "All of the above" is a select-all convenience, not a member —
- * choosing it stores these five ids.
+ * choosing it stores these ids.
  */
 export const DISLIKE_REASONS = [
-  { id: 'broken', label: "Doesn't work" },
+  { id: 'no-load', label: "Doesn't load" },
+  { id: 'gameplay-broken', label: 'Gameplay is broken' },
   { id: 'missing-art', label: 'Works but missing background or sprites' },
   { id: 'goal-unclear', label: 'Goal unclear' },
   { id: 'controls-unclear', label: "Controls don't work as displayed" },
