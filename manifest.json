@@ -1,22 +1,30 @@
 {
-  "date": "2026-09-04",
-  "slug": "2026-09-04-bloom-garden",
-  "path": "games/archive/2026-09-04-bloom-garden/game.html",
-  "promptPath": "games/archive/2026-09-04-bloom-garden/prompt.txt",
-  "title": "Bloom Garden",
-  "genre": "growth-sim",
-  "genreLabel": "Growth Simulation",
-  "model": "poolside/laguna-s-2.1:free",
-  "generatedAt": "2026-09-04T21:10:09.072Z",
-  "expiresAt": "2026-09-05T19:00:00.000Z",
+  "date": "2026-09-05",
+  "slug": "2026-09-05-gem-runner",
+  "path": "games/archive/2026-09-05-gem-runner/game.html",
+  "promptPath": "games/archive/2026-09-05-gem-runner/prompt.txt",
+  "title": "Gem Runner",
+  "genre": "puzzle",
+  "genreLabel": "Puzzle",
+  "model": "minimax/minimax-m2.7:free",
+  "generatedAt": "2026-09-05T20:50:13.763Z",
+  "expiresAt": "2026-09-06T19:00:00.000Z",
   "controls": [
     {
-      "action": "Tap or click to bloom a flower / interac",
-      "key": "Mouse click / tap"
+      "action": "Move left",
+      "key": "Arrow Left / A"
     },
     {
-      "action": "Drag to move the camera view",
-      "key": "Mouse drag"
+      "action": "Move right",
+      "key": "Arrow Right / D"
+    },
+    {
+      "action": "Move up",
+      "key": "Arrow Up / W"
+    },
+    {
+      "action": "Move down",
+      "key": "Arrow Down / S"
     }
   ]
 }

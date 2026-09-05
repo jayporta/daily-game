@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-05 — Gem Runner
+
+- genre: puzzle
+- theme: A tiny crystal cube navigating a grid of gem pedestals, collecting them before they shatter
+- mechanics: Navigate a small cube character across a grid to collect falling gems, Gems fall from the top in a predictable pattern the player must intercept, Collect all gems on the level to unlock the exit portal, Reach the exit portal to complete each level
+- model: minimax/minimax-m2.7:free
+- attempts: 1
+
 ## 2026-09-04 — Bloom Garden
 
 - genre: growth-sim
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Tap/click to make the plant bloom and spread color, Manage water and sunlight resources to grow different flower types, Attract helpful pollen spirits that assist in growth, Progress through a small set of hand-authored garden layouts
 - model: poolside/laguna-s-2.1:free
 - attempts: 2
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-09-03 — generation failed, previous game kept
 

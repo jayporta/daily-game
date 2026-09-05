@@ -1,0 +1,29 @@
+{
+  "title": "Gem Runner",
+  "genre": "puzzle",
+  "theme": "A tiny crystal cube navigating a grid of gem pedestals, collecting them before they shatter",
+  "mechanics": [
+    "Navigate a small cube character across a grid to collect falling gems",
+    "Gems fall from the top in a predictable pattern the player must intercept",
+    "Collect all gems on the level to unlock the exit portal",
+    "Reach the exit portal to complete each level"
+  ],
+  "controls": [
+    {
+      "action": "Move left",
+      "key": "Arrow Left / A"
+    },
+    {
+      "action": "Move right",
+      "key": "Arrow Right / D"
+    },
+    {
+      "action": "Move up",
+      "key": "Arrow Up / W"
+    },
+    {
+      "action": "Move down",
+      "key": "Arrow Down / S"
+    }
+  ]
+}

@@ -105,6 +105,27 @@
     ],
     "title": "Bloom Garden",
     "attempts": 2,
+    "canvasDrawn": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-09-05",
+    "status": "published",
+    "model": "minimax/minimax-m2.7:free",
+    "slug": "2026-09-05-gem-runner",
+    "genre": "puzzle",
+    "theme": "A tiny crystal cube navigating a grid of gem pedestals, collecting them before they shatter",
+    "mechanics": [
+      "Navigate a small cube character across a grid to collect falling gems",
+      "Gems fall from the top in a predictable pattern the player must intercept",
+      "Collect all gems on the level to unlock the exit portal",
+      "Reach the exit portal to complete each level"
+    ],
+    "title": "Gem Runner",
+    "attempts": 1,
     "canvasDrawn": true
   }
 ]
