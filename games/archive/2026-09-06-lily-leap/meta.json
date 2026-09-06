@@ -1,0 +1,25 @@
+{
+  "title": "Lily Leap",
+  "genre": "platformer",
+  "theme": "A tiny geometric salamander hops across floating lily pads in a twilight pond, collecting fireflies to illuminate the way to a glowing lotus gate",
+  "mechanics": [
+    "Jump between platforms to reach the lotus gate at the top of each level",
+    "Collect glowing firefly pickups to fill a progress meter",
+    "Collect all fireflies on each level to fully open the gate",
+    "Progress through 5 hand-crafted levels of increasing difficulty"
+  ],
+  "controls": [
+    {
+      "action": "Jump / Move up",
+      "key": "Space or Click or Up Arrow"
+    },
+    {
+      "action": "Move left",
+      "key": "Left Arrow or A"
+    },
+    {
+      "action": "Move right",
+      "key": "Right Arrow or D"
+    }
+  ]
+}

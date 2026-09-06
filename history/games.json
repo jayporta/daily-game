@@ -126,6 +126,27 @@
     ],
     "title": "Gem Runner",
     "attempts": 1,
+    "canvasDrawn": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-09-06",
+    "status": "published",
+    "model": "minimax/minimax-m2.7:free",
+    "slug": "2026-09-06-lily-leap",
+    "genre": "platformer",
+    "theme": "A tiny geometric salamander hops across floating lily pads in a twilight pond, collecting fireflies to illuminate the way to a glowing lotus gate",
+    "mechanics": [
+      "Jump between platforms to reach the lotus gate at the top of each level",
+      "Collect glowing firefly pickups to fill a progress meter",
+      "Collect all fireflies on each level to fully open the gate",
+      "Progress through 5 hand-crafted levels of increasing difficulty"
+    ],
+    "title": "Lily Leap",
+    "attempts": 3,
     "canvasDrawn": true
   }
 ]

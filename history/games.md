@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-06 — Lily Leap
+
+- genre: platformer
+- theme: A tiny geometric salamander hops across floating lily pads in a twilight pond, collecting fireflies to illuminate the way to a glowing lotus gate
+- mechanics: Jump between platforms to reach the lotus gate at the top of each level, Collect glowing firefly pickups to fill a progress meter, Collect all fireflies on each level to fully open the gate, Progress through 5 hand-crafted levels of increasing difficulty
+- model: minimax/minimax-m2.7:free
+- attempts: 3
+
 ## 2026-09-05 — Gem Runner
 
 - genre: puzzle
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Navigate a small cube character across a grid to collect falling gems, Gems fall from the top in a predictable pattern the player must intercept, Collect all gems on the level to unlock the exit portal, Reach the exit portal to complete each level
 - model: minimax/minimax-m2.7:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-09-04 — Bloom Garden
 
