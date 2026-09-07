@@ -4,11 +4,11 @@ Generated automatically — do not edit by hand.
 
 ## 2026-09-07 — generation failed, previous game kept
 
-- model: cohere/north-mini-code:free
+- model: nvidia/nemotron-3-super-120b-a12b:free
 - attempts: 3
 - attempt 1 (cohere/north-mini-code:free): generation call failed — The operation was aborted due to timeout
 - attempt 2 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error
-- attempt 3 (minimax/minimax-m2.7:free): generation call failed — OpenRouter request failed: 404 This model is unavailable for free. The paid version is available now - use this slug instead: minimax/minimax-m2.7
+- attempt 3 (thinkingmachines/inkling:free): generation call failed — OpenRouter request failed: 403 thinkingmachines/inkling:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/apps
 
 ## 2026-09-06 — Lily Leap
 
