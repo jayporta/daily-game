@@ -42,7 +42,7 @@ describe('useCountdown', () => {
       vi.advanceTimersByTime(3_000);
     });
 
-    expect(result.current).toBe('any moment now');
+    expect(result.current).toBe('a few moments');
   });
 
   it('recomputes when a new expiry is passed in', () => {
@@ -93,7 +93,7 @@ describe('useCountdown', () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  // Nothing about the label can change once it reads "any moment now", so the
+  // Nothing about the label can change once it reads "a few moments", so the
   // hook stops rescheduling rather than waking every second until midnight.
   it('schedules nothing once the game is already due for replacement', () => {
     renderHook(() => useCountdown(expiryIn(-1_000)));

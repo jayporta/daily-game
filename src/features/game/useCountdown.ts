@@ -6,7 +6,7 @@ import { formatCountdown, msUntil, msUntilLabelChanges } from '#src/features/gam
  *
  * Reschedules itself on the label's own granularity rather than ticking once
  * a second: a minute apart while an hour or more remains, a second apart
- * below that, and not at all once it reads "any moment now". The label on
+ * below that, and not at all once it reads "a few moments". The label on
  * screen at any instant is the one a 1 Hz clock would be showing; the
  * wakeups that would have recomputed it unchanged are what goes away. One
  * survives per granularity change, where the first wait only aligns to the
@@ -16,7 +16,7 @@ import { formatCountdown, msUntil, msUntilLabelChanges } from '#src/features/gam
  * produce the same string.
  *
  * @param expiresAt ISO timestamp from the manifest.
- * @returns Formatted remaining time, e.g. `"6h 12m"` or `"any moment now"`.
+ * @returns Formatted remaining time, e.g. `"6h 12m"` or `"a few moments"`.
  */
 export function useCountdown(expiresAt: string): string {
   const [label, setLabel] = useState(() => formatCountdown(msUntil(expiresAt)));

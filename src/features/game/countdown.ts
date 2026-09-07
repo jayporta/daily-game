@@ -25,7 +25,8 @@ export function msUntil(expiresAt: string, now: number = Date.now()): number {
  * @param remainingMs Output of {@link msUntil}.
  */
 export function formatCountdown(remainingMs: number): string {
-  if (remainingMs <= 0) return 'any moment now';
+  // Reads as a duration because the caller renders it after "expires in".
+  if (remainingMs <= 0) return 'a few moments';
 
   const hours = Math.floor(remainingMs / HOUR);
   const minutes = Math.floor((remainingMs % HOUR) / MINUTE);

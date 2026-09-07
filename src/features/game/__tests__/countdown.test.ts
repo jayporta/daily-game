@@ -34,8 +34,8 @@ test('formatCountdown shows only seconds in the last minute', () => {
 });
 
 test('formatCountdown handles an elapsed countdown', () => {
-  assert.equal(formatCountdown(0), 'any moment now');
-  assert.equal(formatCountdown(-5_000), 'any moment now');
+  assert.equal(formatCountdown(0), 'a few moments');
+  assert.equal(formatCountdown(-5_000), 'a few moments');
 });
 
 test('formatGeneratedDate renders a stable, UTC-based date', () => {

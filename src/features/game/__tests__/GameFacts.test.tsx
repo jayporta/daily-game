@@ -36,7 +36,7 @@ describe('GameFacts', () => {
   it('says the replacement is imminent once the expiry has passed', () => {
     render(<GameFacts manifest={{ ...MANIFEST, expiresAt: '2026-08-29T11:00:00.000Z' }} />);
 
-    expect(screen.getByText('any moment now')).toBeVisible();
+    expect(screen.getByText('a few moments')).toBeVisible();
   });
 
   it('degrades to a placeholder when the generated date is unusable', () => {
