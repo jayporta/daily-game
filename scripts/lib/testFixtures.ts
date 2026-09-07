@@ -11,6 +11,19 @@ import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
 
 export const FIXTURES_DIR = fileURLToPath(new URL('../fixtures/mock-responses/', import.meta.url));
 
+/**
+ * A `fetch` that accepts the request and then never answers.
+ *
+ * Stands in for the socket that stalls rather than refusing — the one failure
+ * a `catch` cannot see, because it never rejects. Only an `AbortSignal` on the
+ * request ends this promise, so a caller that passes no signal hangs, which is
+ * what makes it usable as a timeout test.
+ */
+export const neverAnswers: typeof fetch = (_input, init) =>
+  new Promise<Response>((_resolve, reject) => {
+    init?.signal?.addEventListener('abort', () => reject(new Error('request aborted')));
+  });
+
 export type FixtureName =
   | 'good-maze'
   | 'good-platformer'

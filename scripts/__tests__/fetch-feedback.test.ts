@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { applyFeedback, tallyReactions } from '#scripts/fetch-feedback.ts';
-import { PUBLISHED_ENTRY as PUBLISHED, PUBLISHED_SLUG as SLUG } from '#scripts/lib/testFixtures.ts';
+import {
+  neverAnswers,
+  PUBLISHED_ENTRY as PUBLISHED,
+  PUBLISHED_SLUG as SLUG,
+} from '#scripts/lib/testFixtures.ts';
 
 const ENDPOINT = 'https://proj.supabase.co/rest/v1/reactions';
 
@@ -148,6 +152,25 @@ test('applyFeedback leaves history untouched when the store is unreachable', asy
 
   assert.deepEqual(entries, [PUBLISHED]);
 });
+
+// A store that accepts the connection and then goes quiet is the one failure
+// the catch above cannot see. This runs before generation starts, so without
+// a timeout it stalls a run that has not yet tried to generate anything.
+test(
+  'applyFeedback leaves history untouched when the store never answers',
+  { timeout: 5_000 },
+  async () => {
+    const entries = await applyFeedback([PUBLISHED], {
+      slug: SLUG,
+      endpointUrl: ENDPOINT,
+      apiKey: 'service-key',
+      fetchImpl: neverAnswers,
+      timeoutMs: 20,
+    });
+
+    assert.deepEqual(entries, [PUBLISHED]);
+  },
+);
 
 test('applyFeedback leaves history untouched when the store answers with an error', async () => {
   const entries = await applyFeedback([PUBLISHED], {

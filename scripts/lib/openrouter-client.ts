@@ -36,16 +36,30 @@ export interface OpenRouterClient {
   complete(request: CompletionRequest): Promise<CompletionResult>;
 }
 
+/**
+ * How long one completion may take before it is abandoned.
+ *
+ * A hung socket never rejects, so the `try`/`catch` around `complete()` in
+ * call-openrouter.ts cannot bound it on its own — without this the run only
+ * ends at the workflow's 30-minute cap, skipping the `failed_kept_previous`
+ * path entirely. Sized against that cap: three generation plus three
+ * moderation calls at this timeout leave room for the smoke tests and rollup.
+ */
+export const OPENROUTER_TIMEOUT_MS = 120_000;
+
 export interface CreateOpenRouterClientOptions {
   apiKey: string;
   baseUrl?: string;
   fetchImpl?: typeof fetch;
+  /** Per-request timeout; defaults to {@link OPENROUTER_TIMEOUT_MS}. */
+  timeoutMs?: number;
 }
 
 export function createOpenRouterClient({
   apiKey,
   baseUrl = 'https://openrouter.ai/api/v1',
   fetchImpl = fetch,
+  timeoutMs = OPENROUTER_TIMEOUT_MS,
 }: CreateOpenRouterClientOptions): OpenRouterClient {
   if (!apiKey) throw new Error('createOpenRouterClient requires an apiKey');
 
@@ -53,6 +67,7 @@ export function createOpenRouterClient({
     async complete({ model, messages, temperature }: CompletionRequest): Promise<CompletionResult> {
       const response = await fetchImpl(`${baseUrl}/chat/completions`, {
         method: 'POST',
+        signal: AbortSignal.timeout(timeoutMs),
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',

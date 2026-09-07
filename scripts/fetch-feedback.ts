@@ -95,7 +95,19 @@ export interface ApplyFeedbackParams {
   apiKey: string | null;
   /** Replaces global `fetch`; injected by tests. */
   fetchImpl?: typeof fetch;
+  /** Read timeout; defaults to {@link REACTION_STORE_TIMEOUT_MS}. */
+  timeoutMs?: number;
 }
+
+/**
+ * How long the store gets to answer before the read is abandoned.
+ *
+ * This runs before generation starts, so a store that accepts the connection
+ * and then goes silent would stall a run that has not yet tried to generate
+ * anything. The `catch` below cannot bound that on its own: a hung socket
+ * never rejects. One slug-scoped GET of three columns needs nowhere near this.
+ */
+export const REACTION_STORE_TIMEOUT_MS = 10_000;
 
 /** Asks the store for one game's rows, or `null` if it could not be asked. */
 async function readRows({
@@ -103,6 +115,7 @@ async function readRows({
   endpointUrl,
   apiKey,
   fetchImpl = fetch,
+  timeoutMs = REACTION_STORE_TIMEOUT_MS,
 }: ApplyFeedbackParams): Promise<unknown> {
   if (endpointUrl === null) return null;
 
@@ -114,7 +127,11 @@ async function readRows({
   }
 
   try {
-    const response = await fetchImpl(url, { headers, cache: 'no-store' });
+    const response = await fetchImpl(url, {
+      headers,
+      cache: 'no-store',
+      signal: AbortSignal.timeout(timeoutMs),
+    });
     if (!response.ok) return null;
     return await response.json();
   } catch {

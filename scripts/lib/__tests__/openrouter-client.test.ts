@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
 import { createOpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { neverAnswers } from '#scripts/lib/testFixtures.ts';
 
 test('mock client returns fixtures in sequence', async () => {
   const client = createMockOpenRouterClient({ fixtureSequence: ['first', 'second'] });
@@ -138,4 +139,18 @@ test('an unparseable error body is truncated rather than dropped', async () => {
 
 test('createOpenRouterClient requires an apiKey', () => {
   assert.throws(() => createOpenRouterClient({ apiKey: '' }));
+});
+
+// The timeout is what turns a stalled provider into an ordinary failed
+// attempt: call-openrouter.ts already catches a rejection here, records
+// `generation-call` and rotates the model. Without it the run reaches no
+// failure path at all and dies at the workflow's 30-minute cap.
+test('a completion that is never answered rejects', { timeout: 5_000 }, async () => {
+  const client = createOpenRouterClient({
+    apiKey: 'test-key',
+    fetchImpl: neverAnswers,
+    timeoutMs: 20,
+  });
+
+  await assert.rejects(() => client.complete({ model: 'm', messages: [], temperature: 0.7 }));
 });
