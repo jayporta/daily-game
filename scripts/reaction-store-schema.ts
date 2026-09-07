@@ -46,7 +46,10 @@ create table public.reactions (
   reaction    text not null check (reaction in (${sqlList([...REACTION_KINDS])})),
   reasons     text[] not null default '{}'
               check (reasons <@ array[${sqlList(reasons.map((reason) => reason.id))}])
+              check (cardinality(reasons) <= ${reasons.length})
 );
+
+create index reactions_slug_idx on public.reactions (slug);
 
 alter table public.reactions enable row level security;
 
