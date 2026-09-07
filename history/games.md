@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-07 — generation failed, previous game kept
+
+- model: cohere/north-mini-code:free
+- attempts: 3
+- attempt 1 (cohere/north-mini-code:free): generation call failed — The operation was aborted due to timeout
+- attempt 2 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error
+- attempt 3 (minimax/minimax-m2.7:free): generation call failed — OpenRouter request failed: 404 This model is unavailable for free. The paid version is available now - use this slug instead: minimax/minimax-m2.7
+
 ## 2026-09-06 — Lily Leap
 
 - genre: platformer
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Jump between platforms to reach the lotus gate at the top of each level, Collect glowing firefly pickups to fill a progress meter, Collect all fireflies on each level to fully open the gate, Progress through 5 hand-crafted levels of increasing difficulty
 - model: minimax/minimax-m2.7:free
 - attempts: 3
+- reactions: 2
+- likes: 2
+- dislikes: 0
 
 ## 2026-09-05 — Gem Runner
 

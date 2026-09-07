@@ -147,6 +147,26 @@
     ],
     "title": "Lily Leap",
     "attempts": 3,
-    "canvasDrawn": true
+    "canvasDrawn": true,
+    "likes": 2,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 2
+  },
+  {
+    "date": "2026-09-07",
+    "status": "failed_kept_previous",
+    "model": "cohere/north-mini-code:free",
+    "attempts": 3,
+    "failureReasons": [
+      "attempt 1 (cohere/north-mini-code:free): generation call failed — The operation was aborted due to timeout",
+      "attempt 2 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error",
+      "attempt 3 (minimax/minimax-m2.7:free): generation call failed — OpenRouter request failed: 404 This model is unavailable for free. The paid version is available now - use this slug instead: minimax/minimax-m2.7"
+    ],
+    "failureKinds": [
+      "generation-call",
+      "generation-call",
+      "generation-call"
+    ]
   }
 ]
