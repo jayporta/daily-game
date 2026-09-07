@@ -6,13 +6,23 @@
 name: Generate daily game
 
 on:
+  # The fallback trigger, not the punctual one. Actions puts scheduled events
+  # on a best-effort queue and defers them under load — observed here running
+  # 1.5 to 2.5 hours late every day — so an external cron POSTs a
+  # workflow_dispatch at the real time and this catches the days that misses.
+  # Whichever arrives second finds the day already published and stops before
+  # generating, so both firing is the normal case, not a fault.
   schedule:
-    # Duplicated by hand from cronSchedule in config/generation.json, which
-    # Actions cannot read. Change both together — the config copy drives the
-    # front-end countdown. 19:00 UTC is noon Pacific during PDT (roughly
-    # Mar-Nov); Actions cron has no timezone concept, so during PST this
-    # reads as 11 AM Pacific instead of drifting the schedule twice a year.
-    - cron: '0 19 * * *'
+    # Deliberately an hour later than cronSchedule in config/generation.json,
+    # which is the real publish time and the time the external trigger is set
+    # to. These two are no longer the same value and must not be reconciled:
+    # config says when the game is due (and drives the front-end countdown via
+    # computeExpiresAt), this says when to give up waiting for the external
+    # trigger and generate anyway. 20:00 UTC is 1 PM Pacific during PDT
+    # (roughly Mar-Nov); Actions cron has no timezone concept, so during PST
+    # both this and the config copy shift an hour together rather than
+    # drifting apart twice a year.
+    - cron: '0 20 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -27,8 +37,11 @@ on:
 permissions:
   contents: write
 
-# One generation at a time. Two runs would race for the same day's slug and
-# the same history entry.
+# One generation at a time, so the two triggers for a day run in sequence
+# rather than racing for its slug and history entry. Serialising is what lets
+# the second one see the first one's published entry and stop before
+# generating; without it both would generate and the later would silently
+# replace the game visitors are already playing.
 concurrency:
   group: generate-daily-game
   cancel-in-progress: false

@@ -96,11 +96,60 @@ in `dist/` with the committed `manifest.json` and `games/archive/**`.
 Pages must therefore be configured with **GitHub Actions** as its source,
 not "deploy from a branch".
 
-**Note:** `config/generation.json`'s `cronSchedule` must be kept manually
-in sync with the `on.schedule.cron` value in
-`.github/workflows/generate-daily-game.yml` — GitHub Actions `on:`
-triggers can't reference external config, so this value is duplicated by
-hand in both places.
+**Note:** the game has two triggers, at two different times, and that is
+deliberate. GitHub defers scheduled workflows under load, often by hours,
+so an external cron service posts a `workflow_dispatch` at the time the
+game is actually due. `config/generation.json`'s `cronSchedule` is that
+time, and it drives the countdown on the page. The `on.schedule.cron` in
+`.github/workflows/generate-daily-game.yml` runs an hour later and only
+covers days the external trigger misses.
+
+Keep `cronSchedule` and the external trigger in sync with each other, and
+set the external one in UTC so it does not follow daylight saving. Leave
+the workflow's cron alone unless you mean to change how long the fallback
+waits. If both run on the same day, the second finds the game already
+published and stops.
+
+### Setting up the external trigger
+
+Any scheduler that can POST on a timer works; this one is set up on
+cron-job.org. Nothing about it belongs in the repo — the workflow is the
+receiver here, so no Actions secret is involved, and the token lives only
+in the scheduler's own configuration.
+
+Create a **fine-grained** personal access token at
+[Developer settings → Fine-grained tokens](https://github.com/settings/personal-access-tokens/new),
+scoped to *Only select repositories* → this repo, with one permission:
+**Actions: Read and write**. (Metadata: Read-only is added automatically.)
+That is enough to start a workflow that is already on `main`, and nothing
+else. Do not reuse `GH_PUSH_TOKEN` here: it carries Contents write and
+belongs to an admin exempt from branch protection, so a breach at the
+scheduler would become a push to `main`.
+
+Point the scheduled job at:
+
+```
+POST https://api.github.com/repos/<owner>/<repo>/actions/workflows/generate-daily-game.yml/dispatches
+
+Accept: application/vnd.github+json
+Authorization: Bearer <the fine-grained token>
+X-GitHub-Api-Version: 2022-11-28
+Content-Type: application/json
+
+{"ref":"main"}
+```
+
+Schedule it at `cronSchedule`'s time, in UTC. GitHub answers **204 No
+Content**, so make sure the scheduler treats an empty 2xx as success — one
+that expects a response body will read every success as a failure and
+retry. Add `"inputs":{"dry_run":true}` to the body to test the wiring
+without publishing, though note that still spends model credits.
+
+Turn on the scheduler's failure notifications, and put a reminder wherever
+you track such things for the token's expiry. Both matter more than usual
+because this failure is invisible: if the trigger stops working the
+fallback still publishes, so the only symptom is games quietly arriving an
+hour late.
 
 ## Editing the game rules
 

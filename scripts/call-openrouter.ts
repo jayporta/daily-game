@@ -25,6 +25,7 @@ import { getOpenRouterClient } from '#scripts/lib/get-client.ts';
 import type { FailureKind, HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
 import {
   lastPublishedEntry,
+  publishedEntryOn,
   readHotWindow,
   readSummary,
   writeGamesJson,
@@ -59,6 +60,24 @@ export type GenerateResult =
       /** The same failures as `reasons`, as closed-vocabulary ids. */
       kinds: FailureKind[];
       model: string;
+    };
+
+/**
+ * What a whole pipeline run produced.
+ *
+ * Wider than {@link GenerateResult}: the run can also stop before generating
+ * anything, which generation itself has no way to report.
+ */
+export type PipelineResult =
+  | GenerateResult
+  | {
+      /**
+       * Today already had a game, so nothing was generated. A successful,
+       * green run that writes no history entry of its own.
+       */
+      status: 'already_published';
+      /** The slug already serving for today. */
+      slug: string;
     };
 
 export interface GenerateDailyGameParams {
@@ -257,7 +276,7 @@ export async function runDailyPipeline({
   dryRun = false,
   forceModel,
   now = new Date(),
-}: RunDailyPipelineOptions = {}): Promise<GenerateResult> {
+}: RunDailyPipelineOptions = {}): Promise<PipelineResult> {
   const { models, genres, generation, guardrails } = loadAllConfig();
   const summary = readSummary();
   const date = todayISODate(now);
@@ -265,6 +284,18 @@ export async function runDailyPipeline({
   // Reconciled before anything can fail: a generation that later gives up
   // must still leave yesterday's reactions recorded.
   const historyEntries = await reconcileYesterday(readHotWindow(), dryRun);
+
+  // Two triggers reach this day on purpose — a punctual external dispatch and
+  // the Actions schedule behind it — and a dispatch can also be retried. Only
+  // the first to publish does the work; the rest stop here. They still run the
+  // reconcile above, which on a second run refreshes the counts for today's
+  // own game rather than yesterday's, since that is now the newest published
+  // entry. Harmless, and it picks up the reactions earned since publishing.
+  const today = publishedEntryOn(historyEntries, date);
+  if (today?.slug !== undefined) {
+    console.log(`${date} is already published as ${today.slug} — nothing to generate`);
+    return { status: 'already_published', slug: today.slug };
+  }
 
   const client = getOpenRouterClient();
   const smokeTester = await createSmokeTester();

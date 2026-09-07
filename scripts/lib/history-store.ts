@@ -341,6 +341,23 @@ export function lastPublishedEntry(entries: HistoryGameEntry[]): HistoryGameEntr
     .at(-1);
 }
 
+/**
+ * The published entry for `date`, if that day already has one.
+ *
+ * Lets a second run of the same day stop before generating: a retried
+ * trigger, or the scheduled fallback behind a punctual external one, would
+ * otherwise publish a second game under a second slug for the same date.
+ *
+ * Only `published` counts. A day whose run failed has no game to keep, so a
+ * later run should retry it rather than skip it.
+ */
+export function publishedEntryOn(
+  entries: readonly HistoryGameEntry[],
+  date: string,
+): HistoryGameEntry | undefined {
+  return entries.find((entry) => entry.status === 'published' && entry.date === date);
+}
+
 export function writeGamesJson(filePath: string, entries: HistoryGameEntry[]): void {
   writeFileEnsuringDir(filePath, `${JSON.stringify(entries, null, 2)}\n`);
 }

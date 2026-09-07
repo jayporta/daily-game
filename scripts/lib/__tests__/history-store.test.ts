@@ -8,6 +8,7 @@ import {
   appendEntry,
   lastPublishedEntry,
   patchEntry,
+  publishedEntryOn,
   readHotWindow,
   readSummary,
   renderGamesMd,
@@ -51,6 +52,20 @@ test('lastPublishedEntry ignores failed runs', () => {
 
 test('lastPublishedEntry returns undefined when nothing was ever published', () => {
   assert.equal(lastPublishedEntry([FAILED]), undefined);
+});
+
+test('publishedEntryOn finds the game published on a date', () => {
+  assert.equal(publishedEntryOn([PUBLISHED, FAILED], '2026-08-28')?.slug, '2026-08-28-beetle');
+});
+
+test('publishedEntryOn returns undefined for a date with no entry', () => {
+  assert.equal(publishedEntryOn([PUBLISHED], '2026-08-30'), undefined);
+});
+
+// A failed day has no game to keep, so a later run must retry it rather than
+// treat the date as already handled.
+test('publishedEntryOn ignores a date whose run failed', () => {
+  assert.equal(publishedEntryOn([PUBLISHED, FAILED], '2026-08-29'), undefined);
 });
 
 test('readHotWindow returns an empty list for a missing file', () => {

@@ -256,12 +256,32 @@ refactor.
   carrying no `data:` frames — which reads as a model that returned nothing,
   not as an error.
 
-- **`cronSchedule` is duplicated by hand** in `config/generation.json` and
-  `generate-daily-game.yml`'s `on.schedule.cron`, because Actions triggers
-  can't read config. Both copies exist now; change them together. The config
-  copy drives the front-end countdown via `computeExpiresAt`, so a drift
-  shows up as a countdown that expires at the wrong time rather than as a
-  failure.
+- **`cronSchedule` and the workflow's cron are different times on purpose.**
+  Actions defers scheduled events under load — measured here at 1.5 to 2.5
+  hours late, every day — so the punctual trigger is an external cron service
+  POSTing a `workflow_dispatch`, and `generate-daily-game.yml`'s
+  `on.schedule.cron` is only the fallback for days that misses.
+
+  `config/generation.json`'s `cronSchedule` is when the game is due: it drives
+  the front-end countdown via `computeExpiresAt` and is the time the external
+  trigger is set to. The workflow's cron is an hour later. **Do not reconcile
+  them.** Making them equal reintroduces the late-publish problem on the
+  fallback path; making the workflow's *earlier* means the fallback races the
+  external trigger every day instead of covering for it.
+
+  Both triggers firing on the same day is the normal case, not a fault.
+  `publishedEntryOn` is what makes that safe: whichever run arrives second
+  finds the day already published and stops before generating. Without it the
+  second run publishes a different game under a different slug, repointing the
+  manifest and changing the game under visitors who already played today's,
+  while the first bundle stays on disk unreferenced. The workflow's
+  `concurrency` group is load-bearing for this — the two runs must serialise
+  or neither sees the other's history entry.
+
+  The external trigger's schedule must be set in UTC, not a Pacific timezone.
+  The repo's crons have no timezone concept, so they shift an hour together at
+  each DST boundary; a trigger set to "noon Pacific" would follow DST and drift
+  away from `cronSchedule` twice a year.
 - **The daily job's push must go through `GH_PUSH_TOKEN`, and deploy must
   stay a plain `push` trigger.** `generate-daily-game.yml` authenticates its
   commit-and-push with an admin's PAT rather than `GITHUB_TOKEN`, because

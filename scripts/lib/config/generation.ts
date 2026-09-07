@@ -19,9 +19,14 @@ export interface GenerationConfig {
   retryTemperatures: number[];
   sentryDsn: string | null;
   /**
-   * Duplicated by hand in `generate-daily-game.yml`'s `on.schedule.cron`,
-   * because Actions triggers cannot read config. Change both together — this
-   * copy drives the front-end countdown via `computeExpiresAt`.
+   * When the game is due, and the single source of truth for that.
+   *
+   * Drives the front-end countdown via `computeExpiresAt`, and is the time the
+   * external trigger that dispatches the workflow is set to. Actions cannot
+   * read config, so the schedule in `generate-daily-game.yml` is a separate
+   * value on purpose — a later fallback, not a copy of this one. Change this
+   * and the external trigger together; leave the workflow's cron alone unless
+   * the fallback delay itself is what is changing.
    */
   cronSchedule: string;
 }
