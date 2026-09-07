@@ -4,8 +4,8 @@
     "label": "OpenRouter",
     "models": [
       { "id": "cohere/north-mini-code:free", "label": "Cohere North Mini Code (free)" },
-      { "id": "minimax/minimax-m2.7:free", "label": "MiniMax M2.7 (free)" },
-      { "id": "minimax/minimax-m3:free", "label": "MiniMax M3 (free)" }
+      { "id": "thinkingmachines/inkling:free", "label": "Inkling (free)" },
+      { "id": "nvidia/nemotron-3-super-120b-a12b:free", "label": "Nemotron 3 Super (free)" }
     ]
   },
   {

@@ -22,6 +22,9 @@ export interface ModelsConfig {
 /**
  * At least one entry must be active: an all-inactive rotation would leave
  * the run with no model to call and no way to say why.
+ *
+ * The moderation model must also stay out of the active rotation, so it
+ * never grades its own generation.
  */
 export function validateModelsConfig(json: unknown): ValidationResult {
   const errors: string[] = [];
@@ -50,6 +53,14 @@ export function validateModelsConfig(json: unknown): ValidationResult {
     const hasActiveModel = json.models.some((m: unknown) => isPlainObject(m) && m.active === true);
     if (!hasActiveModel) {
       errors.push('models must contain at least one entry with active: true');
+    }
+
+    // A generator that moderates itself is not a second opinion.
+    const moderatesItself = json.models.some(
+      (m: unknown) => isPlainObject(m) && m.active === true && m.id === json.moderationModel,
+    );
+    if (moderatesItself) {
+      errors.push('moderationModel must not also be an active entry in models');
     }
   }
 
