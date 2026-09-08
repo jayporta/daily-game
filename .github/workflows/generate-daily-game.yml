@@ -82,7 +82,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       # Before any API call, so a hand-edit to config/ fails in seconds
-      # rather than three attempts in.
+      # rather than partway through the model rotation.
       - name: Validate config and history
         run: npm run validate
 

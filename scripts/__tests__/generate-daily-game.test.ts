@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { generateDailyGame, MAX_ATTEMPTS } from '#scripts/generate-daily-game.ts';
+import { FORCED_MODEL_ATTEMPTS, generateDailyGame } from '#scripts/generate-daily-game.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import { loadGenresConfig } from '#scripts/lib/config/genres.ts';
 import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
@@ -25,7 +25,7 @@ const MODELS: ModelsConfig = {
   ],
 };
 
-// Deliberately more active models than MAX_ATTEMPTS, and one inactive entry:
+// Deliberately more active models than FORCED_MODEL_ATTEMPTS, and one inactive entry:
 // only a pool of a different size than the forced cap can tell the two apart.
 const WIDE_MODELS: ModelsConfig = {
   moderationModel: 'mod/model:free',
@@ -288,7 +288,7 @@ test('tries every active model once before giving up', async () => {
   ]);
 });
 
-test('a forced model still gives up after MAX_ATTEMPTS, however many models are active', async () => {
+test('a forced model still gives up after FORCED_MODEL_ATTEMPTS, however many models are active', async () => {
   const modelsSeen: string[] = [];
   const client: OpenRouterClient = {
     async complete({ model, messages }) {
@@ -305,8 +305,8 @@ test('a forced model still gives up after MAX_ATTEMPTS, however many models are 
     forceModel: 'forced/model:free',
   });
   assert.equal(result.status, 'failed_kept_previous');
-  assert.equal(result.attempts, MAX_ATTEMPTS);
-  assert.equal(modelsSeen.length, MAX_ATTEMPTS);
+  assert.equal(result.attempts, FORCED_MODEL_ATTEMPTS);
+  assert.equal(modelsSeen.length, FORCED_MODEL_ATTEMPTS);
 });
 
 test('forceModel pins every attempt to one model', async () => {

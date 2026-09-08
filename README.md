@@ -33,7 +33,8 @@ does.
 
 ## How the pipeline works
 
-Each daily run makes up to three attempts. Every attempt:
+Each daily run attempts every active model in `config/models.json` once.
+Every attempt:
 
 1. picks the next model in rotation from `config/models.json`
 2. builds a prompt from `config/guardrails.md` (verbatim), the genre
@@ -45,8 +46,8 @@ Each daily run makes up to three attempts. Every attempt:
 5. **smoke tests** it in headless Chromium — no uncaught JS errors, and no
    outbound network requests at all
 
-If all three attempts fail, that's a normal outcome: the run logs a
-`failed_kept_previous` history entry, leaves the live site untouched, and
+If every model in the rotation fails, that's a normal outcome: the run logs
+a `failed_kept_previous` history entry, leaves the live site untouched, and
 still exits green.
 
 Both the moderation and smoke-test layers **fail closed** — an unreachable

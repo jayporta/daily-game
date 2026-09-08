@@ -21,7 +21,14 @@ import { moderate } from '#scripts/moderate.ts';
 import { activeModels, selectNextModel } from '#scripts/select-model.ts';
 import type { SmokeTester, SmokeTestResult } from '#scripts/smoke-test.ts';
 
-export const MAX_ATTEMPTS = 3;
+/**
+ * How many attempts a `forceModel` run gets.
+ *
+ * Only that path is bounded by a constant. An ordinary run attempts each
+ * active model in `config/models.json` exactly once, so its attempt count is
+ * the size of the rotation, not a number written down anywhere.
+ */
+export const FORCED_MODEL_ATTEMPTS = 3;
 
 export type GenerateResult =
   | {
@@ -89,7 +96,7 @@ export async function generateDailyGame({
   let quotaFailures = 0;
   let priorFailureFeedback: string | undefined;
   let model = forceModel ?? selectNextModel(modelsConfig, lastUsedModelId).id;
-  const maxAttempts = forceModel ? MAX_ATTEMPTS : activeModels(modelsConfig).length;
+  const maxAttempts = forceModel ? FORCED_MODEL_ATTEMPTS : activeModels(modelsConfig).length;
 
   const remixSuggestion = selectRemixSuggestion(summary, {
     remixProbability: generationConfig.remixProbability,

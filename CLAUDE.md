@@ -213,7 +213,11 @@ refactor.
   an ambiguous verdict, an unparseable response, or a page that won't load
   all count as rejections. A false rejection costs a retry; a false
   acceptance publishes banned content to a public site.
-- **Three failed attempts is a successful run.** It records
+- **Exhausting the model rotation is a successful run.** An ordinary run
+  attempts each active model in `config/models.json` exactly once, so the
+  attempt count is the size of the rotation — seven today, not a number
+  written down anywhere. (`forceModel` is the exception: that path is bounded
+  by `FORCED_MODEL_ATTEMPTS`.) When the last one fails the run records
   `failed_kept_previous`, leaves the live site serving the game it already
   had, and exits green. Only an unexpected crash is a CI failure.
 
