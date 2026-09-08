@@ -3,7 +3,6 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, write
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
-import { runDailyPipeline } from '#scripts/call-openrouter.ts';
 import { readHotWindow, writeGamesJson } from '#scripts/lib/history-store.ts';
 import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 import { createPaths, REPO_ROOT } from '#scripts/lib/paths.ts';
@@ -17,6 +16,7 @@ import {
   scriptedClient,
 } from '#scripts/lib/testFixtures.ts';
 import { buildManifest } from '#scripts/publish.ts';
+import { runDailyPipeline } from '#scripts/run-daily-pipeline.ts';
 import { createSmokeTester, type SmokeTester } from '#scripts/smoke-test.ts';
 
 // One browser for the file: every case supplies this rather than letting the

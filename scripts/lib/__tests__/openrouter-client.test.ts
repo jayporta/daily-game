@@ -142,9 +142,9 @@ test('createOpenRouterClient requires an apiKey', () => {
 });
 
 // The timeout is what turns a stalled provider into an ordinary failed
-// attempt: call-openrouter.ts already catches a rejection here, records
+// attempt: generate-daily-game.ts already catches a rejection here, records
 // `generation-call` and rotates the model. Without it the run reaches no
-// failure path at all and dies at the workflow's 30-minute cap.
+// failure path at all and dies at the workflow's 90-minute cap.
 test('a completion that is never answered rejects', { timeout: 5_000 }, async () => {
   const client = createOpenRouterClient({
     apiKey: 'test-key',

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { generateDailyGame, MAX_ATTEMPTS } from '#scripts/call-openrouter.ts';
+import { generateDailyGame, MAX_ATTEMPTS } from '#scripts/generate-daily-game.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import { loadGenresConfig } from '#scripts/lib/config/genres.ts';
 import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';

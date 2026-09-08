@@ -40,10 +40,11 @@ export interface OpenRouterClient {
  * How long one completion may take before it is abandoned.
  *
  * A hung socket never rejects, so the `try`/`catch` around `complete()` in
- * call-openrouter.ts cannot bound it on its own — without this the run only
- * ends at the workflow's 30-minute cap, skipping the `failed_kept_previous`
- * path entirely. Sized against that cap: three generation plus three
- * moderation calls at this timeout leave room for the smoke tests and rollup.
+ * generate-daily-game.ts cannot bound it on its own — without this the run
+ * only ends at the workflow's 90-minute cap, skipping the
+ * `failed_kept_previous` path entirely. Sized against that cap: one generation
+ * plus one moderation call per active model at this timeout leave room for the
+ * smoke tests and rollup.
  */
 export const OPENROUTER_TIMEOUT_MS = 120_000;
 
