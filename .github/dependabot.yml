@@ -1,0 +1,25 @@
+# Keeps the SHA-pinned actions and the npm tree from going stale.
+#
+# Pinning every action to a commit SHA is what makes the supply chain
+# immutable, but it also freezes it: a floating tag would have picked up
+# security fixes on its own. Dependabot is the other half of that trade —
+# it bumps the SHA and the trailing version comment together.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # One PR per ecosystem beats a queue of them on a repo with one reviewer.
+    groups:
+      npm:
+        patterns: ['*']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
