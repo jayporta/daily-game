@@ -258,7 +258,7 @@ test('rollUpHistory does nothing while the hot window is under the trigger', asy
   const root = scratchRepo(t);
   seedHistory(root, 3);
 
-  const result = await rollUpHistory(rollupOptions(root));
+  const result = rollUpHistory(rollupOptions(root));
 
   assert.equal(result.rolledUp, false);
   assert.equal(existsSync(join(root, 'history', 'archive')), false);
@@ -268,7 +268,7 @@ test('rollUpHistory archives the old entries and keeps the recent ones', async (
   const root = scratchRepo(t);
   seedHistory(root, 70);
 
-  const result = await rollUpHistory(rollupOptions(root));
+  const result = rollUpHistory(rollupOptions(root));
 
   assert.equal(result.rolledUp, true);
   assert.equal(result.archived + result.kept, 70);
@@ -281,7 +281,7 @@ test('rollUpHistory loses no entry between the hot window and the archive', asyn
   const root = scratchRepo(t);
   const seeded = seedHistory(root, 70);
 
-  await rollUpHistory(rollupOptions(root));
+  rollUpHistory(rollupOptions(root));
 
   const paths = createPaths(root);
   const kept: HistoryGameEntry[] = JSON.parse(readFileSync(paths.historyGames, 'utf8'));
@@ -304,7 +304,7 @@ test('rollUpHistory folds the aged-out genres into the summary', async (t) => {
   const root = scratchRepo(t);
   seedHistory(root, 70);
 
-  await rollUpHistory(rollupOptions(root));
+  rollUpHistory(rollupOptions(root));
 
   const summary = JSON.parse(readFileSync(join(root, 'history', 'summary.json'), 'utf8'));
   assert.ok(summary.genreCounts['puzzle'] > 0);
@@ -321,7 +321,7 @@ test('rollUpHistory leaves the lessons note alone', async (t) => {
     'utf8',
   );
 
-  const result = await rollUpHistory(rollupOptions(root));
+  const result = rollUpHistory(rollupOptions(root));
 
   assert.equal(result.rolledUp, true);
   const summary = JSON.parse(readFileSync(join(root, 'history', 'summary.json'), 'utf8'));
@@ -333,7 +333,7 @@ test('rollUpHistory writes nothing on a dry run', async (t) => {
   seedHistory(root, 70);
   const before = readFileSync(join(root, 'history', 'games.json'), 'utf8');
 
-  const result = await rollUpHistory({ ...rollupOptions(root), dryRun: true });
+  const result = rollUpHistory({ ...rollupOptions(root), dryRun: true });
 
   assert.equal(result.rolledUp, true);
   assert.ok(result.archived > 0);
@@ -347,8 +347,8 @@ test('rollUpHistory is idempotent', async (t) => {
   seedHistory(root, 70);
   const options = rollupOptions(root);
 
-  const first = await rollUpHistory(options);
-  const second = await rollUpHistory(options);
+  const first = rollUpHistory(options);
+  const second = rollUpHistory(options);
 
   assert.equal(first.rolledUp, true);
   assert.equal(second.rolledUp, false);
@@ -365,13 +365,13 @@ test('a rollup interrupted before truncation does not double-count on re-run', a
   const gamesJson = join(root, 'history', 'games.json');
   const untruncated = readFileSync(gamesJson, 'utf8');
 
-  await rollUpHistory(options);
+  rollUpHistory(options);
   const afterFirst = JSON.parse(readFileSync(join(root, 'history', 'summary.json'), 'utf8'));
 
   // Put the un-truncated hot window back, as a crash between the two writes
   // would have left it.
   writeFileSync(gamesJson, untruncated, 'utf8');
-  await rollUpHistory(options);
+  rollUpHistory(options);
   const afterSecond = JSON.parse(readFileSync(join(root, 'history', 'summary.json'), 'utf8'));
 
   assert.deepEqual(afterSecond.genreCounts, afterFirst.genreCounts);
@@ -442,7 +442,7 @@ test('a rollup survives an archive line whose fields are the wrong type', async 
   writeFileSync(file, `${readFileSync(file, 'utf8')}${wrongShape}\n`, 'utf8');
   seedHistory(root, 70);
 
-  await assert.doesNotReject(() => rollUpHistory(rollupOptions(root)));
+  assert.doesNotThrow(() => rollUpHistory(rollupOptions(root)));
 });
 
 test('readArchivedEntries is empty before anything has been archived', (t) => {
@@ -453,7 +453,7 @@ test('the summary a rollup writes is one readSummary accepts', async (t) => {
   const root = scratchRepo(t);
   seedHistory(root, 70);
 
-  await rollUpHistory(rollupOptions(root));
+  rollUpHistory(rollupOptions(root));
 
   const { readSummary } = await import('#scripts/lib/history-store.ts');
   assert.doesNotThrow(() => readSummary(createPaths(root).historySummary));

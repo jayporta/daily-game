@@ -36,7 +36,7 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
 
-    (async () => {
+    void (async () => {
       try {
         const manifest = await fetchManifest();
         if (cancelled) return;

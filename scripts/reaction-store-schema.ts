@@ -11,12 +11,7 @@
 // Print it with:
 //   node --experimental-strip-types scripts/reaction-store-schema.ts
 import { pathToFileURL } from 'node:url';
-import {
-  DISLIKE_REASONS,
-  type DislikeReason,
-  REACTION_KINDS,
-  SLUG_PATTERN,
-} from '#lib/reaction-types.ts';
+import { DISLIKE_REASONS, REACTION_KINDS, SLUG_PATTERN } from '#lib/reaction-types.ts';
 
 /** Renders `['a', 'b']` as the SQL literal list `'a','b'`. */
 function sqlList(values: readonly string[]): string {
@@ -34,7 +29,7 @@ function sqlList(values: readonly string[]): string {
  */
 export function buildReactionStoreDdl(
   reasons: readonly {
-    readonly id: DislikeReason | string;
+    readonly id: string;
     readonly label: string;
   }[] = DISLIKE_REASONS,
 ): string {

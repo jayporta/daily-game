@@ -60,7 +60,10 @@ export function loadFixtureBundle(name: FixtureName): { meta: GeneratedMeta; htm
  *   call. An exhausted list throws, which the pipeline records as a
  *   `generation-call` failure — the cheapest way to force a run to fail.
  */
-export function scriptedClient(generations: string[], moderationVerdict = 'PASS'): OpenRouterClient {
+export function scriptedClient(
+  generations: string[],
+  moderationVerdict = 'PASS',
+): OpenRouterClient {
   const remaining = [...generations];
   return {
     async complete({ messages }) {

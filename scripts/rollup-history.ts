@@ -243,12 +243,12 @@ export interface RollUpHistoryOptions {
  * Writes go archive → summary → hot window, so an interruption leaves entries
  * duplicated rather than lost.
  */
-export async function rollUpHistory({
+export function rollUpHistory({
   generationConfig,
   root,
   now = new Date(),
   dryRun = false,
-}: RollUpHistoryOptions = {}): Promise<RollupResult> {
+}: RollUpHistoryOptions = {}): RollupResult {
   const paths = root ? createPaths(root) : defaultPaths;
   const config = generationConfig ?? loadGenerationConfig(paths.generationConfig);
   const entries = readHotWindow(paths.historyGames);
@@ -307,21 +307,20 @@ export async function rollUpHistory({
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const dryRun = process.argv.slice(2).includes('--dry-run');
-  rollUpHistory({ dryRun })
-    .then((result) => {
-      if (!result.rolledUp) {
-        const plural = result.kept === 1 ? 'entry' : 'entries';
-        console.log(`Hot window is ${result.kept} ${plural} — under the trigger, nothing to do.`);
-        return;
-      }
+  try {
+    const result = rollUpHistory({ dryRun });
+    if (result.rolledUp) {
       const prefix = dryRun ? '[dry-run] ' : '';
       console.log(
         `${prefix}Archived ${result.archived} entries into ${result.files.join(', ') || 'no files'}, ` +
           `kept ${result.kept}.`,
       );
-    })
-    .catch((error: unknown) => {
-      console.error(`Rollup failed: ${errorMessage(error)}`);
-      process.exitCode = 1;
-    });
+    } else {
+      const plural = result.kept === 1 ? 'entry' : 'entries';
+      console.log(`Hot window is ${result.kept} ${plural} — under the trigger, nothing to do.`);
+    }
+  } catch (error) {
+    console.error(`Rollup failed: ${errorMessage(error)}`);
+    process.exitCode = 1;
+  }
 }

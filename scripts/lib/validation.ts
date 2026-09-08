@@ -51,7 +51,9 @@ export function loadValidatedJson<T>(
   try {
     parsed = JSON.parse(readFileSync(filePath, 'utf8'));
   } catch (error) {
-    throw new Error(`${filePath}: could not read or parse JSON — ${errorMessage(error)}`);
+    throw new Error(`${filePath}: could not read or parse JSON — ${errorMessage(error)}`, {
+      cause: error,
+    });
   }
 
   const result = validate(parsed);
