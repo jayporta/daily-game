@@ -24,6 +24,7 @@ export interface AssembleSiteResult {
   outDir: string;
   copiedManifest: boolean;
   copiedArchive: boolean;
+  copiedStatus: boolean;
 }
 
 /**
@@ -89,6 +90,13 @@ export function assembleSite({
     cpSync(paths.manifest, join(target, 'manifest.json'));
   }
 
+  // Absent on any repo that has never had a run worth explaining, which is
+  // the normal case — so it is copied when present and never required.
+  const copiedStatus = existsSync(paths.status);
+  if (copiedStatus) {
+    cpSync(paths.status, join(target, 'status.json'));
+  }
+
   const copiedArchive = existsSync(paths.archiveDir);
   if (copiedArchive) {
     const archiveTarget = join(target, 'games', 'archive');
@@ -98,7 +106,7 @@ export function assembleSite({
     cpSync(paths.archiveDir, archiveTarget, { recursive: true });
   }
 
-  return { outDir: target, copiedManifest, copiedArchive };
+  return { outDir: target, copiedManifest, copiedArchive, copiedStatus };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -106,6 +114,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   console.log(
     `Assembled site in ${result.outDir} ` +
       `(manifest: ${result.copiedManifest ? 'yes' : 'missing'}, ` +
-      `archive: ${result.copiedArchive ? 'yes' : 'missing'})`,
+      `archive: ${result.copiedArchive ? 'yes' : 'missing'}, ` +
+      `status: ${result.copiedStatus ? 'yes' : 'none'})`,
   );
 }

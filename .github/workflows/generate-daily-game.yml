@@ -46,10 +46,10 @@ concurrency:
   group: generate-daily-game
   cancel-in-progress: false
 
-# Everything the pipeline may write. Both the change check and `git add` use
-# this list, so they can never disagree about what is being committed.
+# Everything the pipeline may write. Both the change check and `git add` read
+# this list; add stages only what is on disk, and nothing here deletes a path.
 env:
-  PUBLISHED_PATHS: manifest.json games/archive history
+  PUBLISHED_PATHS: manifest.json status.json games/archive history
 
 jobs:
   generate:
@@ -165,7 +165,14 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           read -ra paths <<< "$PUBLISHED_PATHS"
-          git add -- "${paths[@]}"
+          # status.json exists only after a run that had something to report,
+          # and `git add` aborts on a pathspec matching nothing, so only the
+          # paths actually on disk are staged.
+          present=()
+          for path in "${paths[@]}"; do
+            [ -e "$path" ] && present+=("$path")
+          done
+          git add -- "${present[@]}"
           if [ "$PUBLISHED" = "true" ]; then
             message="Publish $(jq -r .slug manifest.json)"
           else

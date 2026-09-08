@@ -19,6 +19,7 @@ import {
   restoreManifestFromArchive,
   slugify,
   withHeadMeta,
+  writeRunStatus,
 } from '#scripts/publish.ts';
 
 const META: GeneratedMeta = {
@@ -421,6 +422,25 @@ test('recordFailure omits the quota mark on an ordinary failure', (t) => {
   });
 
   assert.ok(!('quotaExhausted' in (entries[0] ?? {})));
+});
+
+test('writeRunStatus publishes the day and when the next run is due', (t) => {
+  const root = scratchRoot(t);
+
+  const status = writeRunStatus({
+    date: '2026-09-07',
+    generatedAt: '2026-09-07T20:05:00.000Z',
+    cronSchedule: '0 19 * * *',
+    root,
+  });
+
+  assert.equal(status.retryAt, '2026-09-08T19:00:00.000Z');
+  const written = JSON.parse(readFileSync(join(root, 'status.json'), 'utf8'));
+  assert.deepEqual(written, {
+    date: '2026-09-07',
+    state: 'quota-exceeded',
+    retryAt: '2026-09-08T19:00:00.000Z',
+  });
 });
 
 // A published game that painted nothing still passes the smoke test, but it

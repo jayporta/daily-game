@@ -1,10 +1,18 @@
 import assert from 'node:assert/strict';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { readHotWindow, writeGamesJson } from '#scripts/lib/history-store.ts';
-import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { type OpenRouterClient, OpenRouterHttpError } from '#scripts/lib/openrouter-client.ts';
 import { createPaths, REPO_ROOT } from '#scripts/lib/paths.ts';
 import {
   GENERATION_CONFIG,
@@ -166,4 +174,33 @@ test('a run that never gets a game records the failure and leaves the live manif
   const entries = readHotWindow(paths.historyGames);
   assert.equal(entries.at(-1)?.date, '2026-09-10');
   assert.equal(entries.at(-1)?.status, 'failed_kept_previous');
+  // Nothing a visitor can act on, so the countdown stays the truthful thing
+  // to show and no status is published.
+  assert.equal(existsSync(paths.status), false);
+});
+
+// The page reads this in place of the countdown, so the run has to leave it
+// where assembly will find it.
+test('a run refused for quota publishes a status the page can read', async (t) => {
+  const root = scratchRoot(t);
+  const paths = createPaths(root);
+
+  const result = await runDailyPipeline({
+    root,
+    client: {
+      async complete() {
+        throw new OpenRouterHttpError(429, 'rate limited');
+      },
+    } satisfies OpenRouterClient,
+    smokeTester,
+    now: new Date('2026-09-10T20:05:00Z'),
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  const status = JSON.parse(readFileSync(paths.status, 'utf8'));
+  assert.deepEqual(status, {
+    date: '2026-09-10',
+    state: 'quota-exceeded',
+    retryAt: '2026-09-11T19:00:00.000Z',
+  });
 });

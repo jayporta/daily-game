@@ -23,6 +23,8 @@ export interface Paths {
   /** Cold storage for one month of aged-out entries, as JSONL. */
   historyArchiveFile(month: string): string;
   manifest: string;
+  /** Why the last run produced no game, when it had a reason worth publishing. */
+  status: string;
   archiveDir: string;
   archiveGameDir(slug: string): string;
   /** Path recorded inside manifest.json — always POSIX-style, URL-facing. */
@@ -61,6 +63,7 @@ export function createPaths(root: string = REPO_ROOT): Paths {
     historyArchiveDir: join(root, 'history', 'archive'),
     historyArchiveFile: (month: string) => join(root, 'history', 'archive', `${month}.jsonl`),
     manifest: join(root, 'manifest.json'),
+    status: join(root, 'status.json'),
     archiveDir: join(root, 'games', 'archive'),
     archiveGameDir: (slug: string) => join(root, 'games', 'archive', slug),
     archiveGameUrlPath: (slug: string) => `games/archive/${slug}/game.html`,

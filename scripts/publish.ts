@@ -14,6 +14,7 @@ import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import { toGeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import type { Manifest } from '#lib/manifest.ts';
 import { isManifest } from '#lib/manifest.ts';
+import { QUOTA_EXCEEDED, type RunStatus } from '#lib/status.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import type { GenresConfig } from '#scripts/lib/config/genres.ts';
 import { buildBundleCspMeta, buildErrorReportingSnippet } from '#scripts/lib/errorReporting.ts';
@@ -272,6 +273,40 @@ export function recordFailure({
   writeGamesJson(paths.historyGames, updatedEntries);
   writeGamesMd(paths.historyGamesMd, updatedEntries);
   return updatedEntries;
+}
+
+/**
+ * Publishes why today produced no game, so the page can say so instead of
+ * counting down to a game that is not coming.
+ *
+ * Only a quota exhaustion earns a file. Every other failure is transient
+ * enough that the countdown is still the truthful thing to show. `manifest.json`
+ * is untouched either way: it describes the game still being served.
+ *
+ * @param generatedAt ISO timestamp of the failed run, which `retryAt` counts
+ *   forward from.
+ * @param cronSchedule When the next run is due, as `config/generation.json`
+ *   states it.
+ */
+export function writeRunStatus({
+  date,
+  generatedAt,
+  cronSchedule,
+  root,
+}: {
+  date: string;
+  generatedAt: string;
+  cronSchedule: string;
+  root?: string;
+}): RunStatus {
+  const paths = root ? createPaths(root) : defaultPaths;
+  const status: RunStatus = {
+    date,
+    state: QUOTA_EXCEEDED,
+    retryAt: computeExpiresAt(cronSchedule, generatedAt),
+  };
+  writeFileSync(paths.status, `${JSON.stringify(status, null, 2)}\n`, 'utf8');
+  return status;
 }
 
 /**

@@ -22,7 +22,12 @@ import {
 import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 import { createPaths, type Paths, paths } from '#scripts/lib/paths.ts';
 import type { ManifestRestoreResult } from '#scripts/publish.ts';
-import { publish, recordFailure, restoreManifestFromArchive } from '#scripts/publish.ts';
+import {
+  publish,
+  recordFailure,
+  restoreManifestFromArchive,
+  writeRunStatus,
+} from '#scripts/publish.ts';
 import { createSmokeTester, type SmokeTester } from '#scripts/smoke-test.ts';
 
 /**
@@ -195,6 +200,17 @@ export async function runDailyPipeline({
       genres,
       root,
     });
+    // The one failure a visitor can act on, so the page is told to say so
+    // rather than count down to a game that is not coming.
+    if (result.quotaExhausted) {
+      const status = writeRunStatus({
+        date,
+        generatedAt: now.toISOString(),
+        cronSchedule: generation.cronSchedule,
+        root,
+      });
+      console.log(`Out of OpenRouter quota — the site will say so until ${status.retryAt}`);
+    }
     console.log(`All ${result.attempts} attempts failed — ${describeRestore(restored)}. Reasons:`);
     for (const reason of result.reasons) console.log(`  - ${reason}`);
   }

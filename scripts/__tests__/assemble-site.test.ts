@@ -156,3 +156,34 @@ test('missingPublishedFiles accepts a repo with no manifest at all', (t) => {
 
   assert.deepEqual(missingPublishedFiles(createPaths(root)), []);
 });
+
+// A repo that has never had a run worth explaining has no status file, and
+// must still deploy — so it is copied when present and never required.
+test('copies the run status into the build when there is one', (t) => {
+  const root = scratchRepo(t);
+  seedPublishedContent(root);
+  writeFileSync(
+    join(root, 'status.json'),
+    JSON.stringify({
+      date: '2026-09-07',
+      state: 'quota-exceeded',
+      retryAt: '2026-09-08T19:00:00.000Z',
+    }),
+    'utf8',
+  );
+
+  const result = assembleSite({ root });
+
+  assert.equal(result.copiedStatus, true);
+  assert.ok(existsSync(join(result.outDir, 'status.json')));
+});
+
+test('assembles without a run status', (t) => {
+  const root = scratchRepo(t);
+  seedPublishedContent(root);
+
+  const result = assembleSite({ root });
+
+  assert.equal(result.copiedStatus, false);
+  assert.ok(!existsSync(join(result.outDir, 'status.json')));
+});
