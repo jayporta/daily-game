@@ -397,3 +397,35 @@ test('the mock client can simulate a moderation rejection', async () => {
   const result = await generateDailyGame({ ...baseParams(), client });
   assert.equal(result.status, 'failed_kept_previous');
 });
+
+// The seam exists so a run can be silenced; several cases here drive the
+// every-attempt-failed path, whose reasons would otherwise be printed into
+// the test runner's own output.
+test('verbose progress goes to the injected logger, not the console', async () => {
+  const lines: string[] = [];
+
+  await generateDailyGame({
+    ...baseParams(),
+    modelsConfig: MODELS,
+    client: scriptedClient([loadFixture('good-maze')]),
+    verbose: true,
+    log: (message) => lines.push(message),
+  });
+
+  assert.ok(
+    lines.some((line) => line.includes('Running smoke test...')),
+    `expected the run's progress on the injected logger, got ${JSON.stringify(lines)}`,
+  );
+});
+
+test('a run that is not verbose logs nothing at all', async () => {
+  const lines: string[] = [];
+
+  await generateDailyGame({
+    ...baseParams(),
+    client: scriptedClient([loadFixture('good-maze')]),
+    log: (message) => lines.push(message),
+  });
+
+  assert.deepEqual(lines, []);
+});

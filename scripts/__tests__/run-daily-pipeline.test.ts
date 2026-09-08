@@ -39,6 +39,11 @@ after(async () => {
   await smokeTester?.close();
 });
 
+// The pipeline reports what it did on stdout. These cases drive the
+// every-attempt-failed path, so without this its reasons land in the test
+// runner's output.
+const SILENT = (): void => undefined;
+
 // Deliberately not the committed endpoint: a read that reaches the real
 // config lands somewhere else and the assertion catches it.
 const SCRATCH_ENDPOINT = 'https://scratch.example/rest/v1/reactions';
@@ -75,6 +80,7 @@ test('a day that already published generates nothing', async (t) => {
   };
 
   const result = await runDailyPipeline({
+    log: SILENT,
     root,
     client,
     smokeTester,
@@ -101,6 +107,7 @@ test('the reaction store read follows the scratch root, not the committed config
   });
 
   await runDailyPipeline({
+    log: SILENT,
     root,
     client: scriptedClient([]),
     smokeTester,
@@ -119,6 +126,7 @@ test('a dry run reports its result and writes nothing to disk', async (t) => {
   const paths = createPaths(root);
 
   const result = await runDailyPipeline({
+    log: SILENT,
     root,
     dryRun: true,
     client: scriptedClient([loadFixture('good-maze')]),
@@ -136,6 +144,7 @@ test('a successful run publishes the game and records it in history', async (t) 
   const paths = createPaths(root);
 
   const result = await runDailyPipeline({
+    log: SILENT,
     root,
     client: scriptedClient([loadFixture('good-maze')]),
     smokeTester,
@@ -193,6 +202,7 @@ test('a run that never gets a game records the failure and leaves the live manif
   t.mock.method(globalThis, 'fetch', async () => Response.json([]));
 
   const result = await runDailyPipeline({
+    log: SILENT,
     root,
     // No fixtures left on the very first call, so every attempt fails.
     client: scriptedClient([]),
@@ -218,6 +228,7 @@ test('a run refused for quota publishes a status the page can read', async (t) =
   const paths = createPaths(root);
 
   const result = await runDailyPipeline({
+    log: SILENT,
     root,
     client: {
       async complete() {

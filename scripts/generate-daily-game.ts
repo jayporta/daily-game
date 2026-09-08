@@ -56,6 +56,147 @@ export type GenerateResult =
       quotaExhausted: boolean;
     };
 
+/**
+ * Where a run's progress output goes.
+ *
+ * Injected rather than hardcoded so a test can silence a run. Several
+ * exercise the every-attempt-failed path, whose reasons would otherwise land
+ * in the test runner's own output.
+ */
+export type Logger = (message: string) => void;
+
+/** What one attempt produced, as the loop needs to see it. */
+type AttemptOutcome =
+  | {
+      ok: true;
+      meta: GeneratedMeta;
+      html: string;
+      /** Whether the game painted anything during the smoke test. */
+      canvasDrawn: boolean;
+    }
+  | {
+      ok: false;
+      kind: FailureKind;
+      /** Unprefixed — the loop adds the attempt number and model. */
+      reason: string;
+      /** What to tell the next attempt, or `undefined` to tell it nothing. */
+      feedback: string | undefined;
+      /** Whether this was the provider having no capacity left. */
+      quota: boolean;
+    };
+
+interface AttemptParams {
+  readonly client: OpenRouterClient;
+  readonly model: string;
+  readonly prompt: string;
+  readonly guardrails: string;
+  readonly moderationModel: string;
+  readonly temperature: number;
+  readonly smokeTester: SmokeTester;
+  /** Already bound to this attempt's number by the loop. */
+  readonly log: Logger;
+}
+
+/**
+ * One model's turn: generate, extract, moderate, smoke test.
+ *
+ * Every rejection is an ordinary outcome rather than a throw, so the loop
+ * that calls this has one place to record a failure and rotate the model.
+ */
+async function runAttempt({
+  client,
+  model,
+  prompt,
+  guardrails,
+  moderationModel,
+  temperature,
+  smokeTester,
+  log,
+}: AttemptParams): Promise<AttemptOutcome> {
+  let raw: string;
+  let stop: ProviderStopReason;
+
+  log('Requesting LLM generation...');
+  try {
+    ({ text: raw, stop } = await client.complete({
+      model,
+      messages: [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user', content: prompt },
+      ],
+      temperature,
+    }));
+    log(`Generation finished (Stop reason: ${stop})`);
+  } catch (error) {
+    return {
+      ok: false,
+      kind: 'generation-call',
+      reason: `generation call failed — ${errorMessage(error)}`,
+      feedback:
+        'The previous request failed before returning a game. Return the two fenced blocks exactly as specified.',
+      quota: isQuotaFailure(error),
+    };
+  }
+
+  const extracted = extractBundle(raw);
+  log(`Bundle extraction: ${extracted.ok ? 'Success' : 'Failed'}`);
+
+  if (!extracted.ok) {
+    // A truncated response loses its closing fence first, which reads as a
+    // missing block — naming the real cause here is what makes it
+    // diagnosable from history/games.json alone.
+    const truncatedNote = stop === 'truncated' ? ' (response truncated at the output cap)' : '';
+    return {
+      ok: false,
+      kind: 'extract',
+      reason: `could not extract bundle — ${extracted.reason}${truncatedNote}`,
+      feedback: EXTRACTION_RETRY_FEEDBACK[extracted.reason],
+      quota: false,
+    };
+  }
+
+  log('Running moderation...');
+  const moderation = await moderate(client, {
+    meta: extracted.meta,
+    html: extracted.html,
+    guardrailsText: guardrails,
+    moderationModel,
+  });
+
+  if (!moderation.pass) {
+    const detail = moderation.reasons.join('; ');
+    const unreachable = moderation.failure === 'call-failed';
+    return {
+      ok: false,
+      kind: unreachable ? 'generation-call' : 'moderation',
+      // A failed call's detail already names itself; only a verdict needs a label.
+      reason: unreachable ? detail : `moderation rejected — ${detail}`,
+      // A moderator that never answered judged nothing, so the model is told
+      // nothing: guidance about content rules would describe a violation that
+      // was never found.
+      feedback: unreachable
+        ? undefined
+        : `Your previous game violated the content rules: ${detail}. Re-read the content rules and avoid this entirely.`,
+      quota: false,
+    };
+  }
+
+  log('Running smoke test...');
+  const smoke = await smokeTester.test(extracted.html);
+
+  if (!smoke.pass) {
+    return {
+      ok: false,
+      kind: smokeFailureKind(smoke),
+      reason: `smoke test failed — ${smoke.reasons.join('; ')}`,
+      feedback: `Your previous game did not run correctly: ${smoke.reasons.join('; ')}. Be more defensive — guard every element lookup, and make no network requests of any kind.`,
+      quota: false,
+    };
+  }
+
+  return { ok: true, meta: extracted.meta, html: extracted.html, canvasDrawn: smoke.canvasDrawn };
+}
+
 export interface GenerateDailyGameParams {
   client: OpenRouterClient;
   modelsConfig: ModelsConfig;
@@ -67,6 +208,8 @@ export interface GenerateDailyGameParams {
   smokeTester: SmokeTester;
   /** Logs each stage of every attempt. A hand-run debugging aid, off by default. */
   verbose?: boolean;
+  /** Where `verbose` output goes. Defaults to `console.log`. */
+  log?: Logger;
   /** Overrides model rotation entirely — used by the workflow's force_model input. */
   forceModel?: string;
   lastUsedModelId?: string;
@@ -84,6 +227,7 @@ export async function generateDailyGame({
   summary,
   smokeTester,
   verbose = false,
+  log: writeLog = console.log,
   forceModel,
   lastUsedModelId,
   rng = Math.random,
@@ -97,6 +241,7 @@ export async function generateDailyGame({
   let priorFailureFeedback: string | undefined;
   let model = forceModel ?? selectNextModel(modelsConfig, lastUsedModelId).id;
   const maxAttempts = forceModel ? FORCED_MODEL_ATTEMPTS : activeModels(modelsConfig).length;
+  const log: Logger = verbose ? writeLog : () => undefined;
 
   const remixSuggestion = selectRemixSuggestion(summary, {
     remixProbability: generationConfig.remixProbability,
@@ -106,9 +251,7 @@ export async function generateDailyGame({
   });
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    if (verbose) {
-      console.log(`\n[Attempt ${attempt}/${maxAttempts}] Using model: ${model}`);
-    }
+    log(`\n[Attempt ${attempt}/${maxAttempts}] Using model: ${model}`);
 
     const prompt = buildPrompt({
       guardrailsText: guardrails,
@@ -119,117 +262,36 @@ export async function generateDailyGame({
       priorFailureFeedback,
     });
 
-    let raw: string;
-    let stop: ProviderStopReason;
-
-    if (verbose) {
-      console.log(`[Attempt ${attempt}] Requesting LLM generation...`);
-    }
-
-    try {
-      ({ text: raw, stop } = await client.complete({
-        model,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: prompt },
-        ],
-        temperature: generationConfig.temperature,
-      }));
-
-      if (verbose) {
-        console.log(`[Attempt ${attempt}] Generation finished (Stop reason: ${stop})`);
-      }
-    } catch (error) {
-      const reason = `attempt ${attempt} (${model}): generation call failed — ${errorMessage(error)}`;
-      reasons.push(reason);
-      kinds.push('generation-call');
-      if (isQuotaFailure(error)) quotaFailures += 1;
-      if (verbose) {
-        console.log(`[Attempt ${attempt}] ${reason}`);
-      }
-      priorFailureFeedback =
-        'The previous request failed before returning a game. Return the two fenced blocks exactly as specified.';
-      model = nextModelAfterFailure(modelsConfig, model, forceModel);
-      continue;
-    }
-
-    const extracted = extractBundle(raw);
-
-    if (verbose) {
-      console.log(`[Attempt ${attempt}] Bundle extraction: ${extracted.ok ? 'Success' : 'Failed'}`);
-    }
-
-    if (!extracted.ok) {
-      // A truncated response loses its closing fence first, which reads as
-      // a missing block — naming the real cause here is what makes it
-      // diagnosable from history/games.json alone.
-      const truncatedNote = stop === 'truncated' ? ' (response truncated at the output cap)' : '';
-      reasons.push(
-        `attempt ${attempt} (${model}): could not extract bundle — ${extracted.reason}${truncatedNote}`,
-      );
-      kinds.push('extract');
-      priorFailureFeedback = EXTRACTION_RETRY_FEEDBACK[extracted.reason];
-      model = nextModelAfterFailure(modelsConfig, model, forceModel);
-      continue;
-    }
-
-    if (verbose) {
-      console.log(`[Attempt ${attempt}] Running moderation...`);
-    }
-
-    const moderation = await moderate(client, {
-      meta: extracted.meta,
-      html: extracted.html,
-      guardrailsText: guardrails,
-      moderationModel: modelsConfig.moderationModel,
-    });
-    if (!moderation.pass) {
-      const detail = moderation.reasons.join('; ');
-      const unreachable = moderation.failure === 'call-failed';
-      // A failed call's detail already names itself; only a verdict needs a label.
-      reasons.push(
-        unreachable
-          ? `attempt ${attempt} (${model}): ${detail}`
-          : `attempt ${attempt} (${model}): moderation rejected — ${detail}`,
-      );
-      kinds.push(unreachable ? 'generation-call' : 'moderation');
-      if (verbose) {
-        console.log(`[Attempt ${attempt}] Moderation failed: ${detail}`);
-      }
-      // A moderator that never answered judged nothing, so the model is told
-      // nothing: guidance about content rules would describe a violation that
-      // was never found.
-      priorFailureFeedback = unreachable
-        ? undefined
-        : `Your previous game violated the content rules: ${detail}. Re-read the content rules and avoid this entirely.`;
-      model = nextModelAfterFailure(modelsConfig, model, forceModel);
-      continue;
-    }
-
-    if (verbose) {
-      console.log(`[Attempt ${attempt}] Running smoke test...`);
-    }
-
-    const smoke = await smokeTester.test(extracted.html);
-    if (!smoke.pass) {
-      reasons.push(
-        `attempt ${attempt} (${model}): smoke test failed — ${smoke.reasons.join('; ')}`,
-      );
-      kinds.push(smokeFailureKind(smoke));
-      priorFailureFeedback = `Your previous game did not run correctly: ${smoke.reasons.join('; ')}. Be more defensive — guard every element lookup, and make no network requests of any kind.`;
-      model = nextModelAfterFailure(modelsConfig, model, forceModel);
-      continue;
-    }
-
-    return {
-      status: 'success',
-      meta: extracted.meta,
-      html: extracted.html,
+    const outcome = await runAttempt({
+      client,
       model,
-      attempts: attempt,
-      canvasDrawn: smoke.canvasDrawn,
       prompt,
-    };
+      guardrails,
+      moderationModel: modelsConfig.moderationModel,
+      temperature: generationConfig.temperature,
+      smokeTester,
+      log: (message) => log(`[Attempt ${attempt}] ${message}`),
+    });
+
+    if (outcome.ok) {
+      return {
+        status: 'success',
+        meta: outcome.meta,
+        html: outcome.html,
+        model,
+        attempts: attempt,
+        canvasDrawn: outcome.canvasDrawn,
+        prompt,
+      };
+    }
+
+    const reason = `attempt ${attempt} (${model}): ${outcome.reason}`;
+    log(`[Attempt ${attempt}] ${reason}`);
+    reasons.push(reason);
+    kinds.push(outcome.kind);
+    if (outcome.quota) quotaFailures += 1;
+    priorFailureFeedback = outcome.feedback;
+    model = nextModelAfterFailure(modelsConfig, model, forceModel);
   }
 
   return {

@@ -6,7 +6,11 @@
 // green. The one write a failed run can make is repointing a manifest that has
 // stopped naming a game at all back at the archive.
 import { applyFeedback } from '#scripts/fetch-feedback.ts';
-import { type GenerateResult, generateDailyGame } from '#scripts/generate-daily-game.ts';
+import {
+  type GenerateResult,
+  generateDailyGame,
+  type Logger,
+} from '#scripts/generate-daily-game.ts';
 import { loadAllConfig } from '#scripts/lib/config/index.ts';
 import { loadReactionConfigOrUnconfigured } from '#scripts/lib/config/reactionConfig.ts';
 import { isoDate } from '#scripts/lib/dates.ts';
@@ -54,6 +58,13 @@ export interface RunDailyPipelineOptions {
   forceModel?: string;
   /** Logs each stage of every attempt. A hand-run debugging aid, off by default. */
   verbose?: boolean;
+  /**
+   * Where the run reports what it did. Defaults to `console.log`.
+   *
+   * Tests pass a no-op: several drive the every-attempt-failed path, whose
+   * reasons would otherwise be printed into the test runner's own output.
+   */
+  log?: Logger;
   now?: Date;
   /** Overrides the repo root, so tests read and write a scratch directory. */
   root?: string;
@@ -100,6 +111,7 @@ async function reconcileYesterday(
 export async function runDailyPipeline({
   dryRun = false,
   verbose = false,
+  log = console.log,
   forceModel,
   now = new Date(),
   root,
@@ -127,7 +139,7 @@ export async function runDailyPipeline({
   // entry. Harmless, and it picks up the reactions earned since publishing.
   const today = publishedEntryOn(historyEntries, date);
   if (today?.slug !== undefined) {
-    console.log(`${date} is already published as ${today.slug} — nothing to generate`);
+    log(`${date} is already published as ${today.slug} — nothing to generate`);
     return { status: 'already_published', slug: today.slug };
   }
 
@@ -145,6 +157,7 @@ export async function runDailyPipeline({
       historyEntries,
       summary,
       verbose,
+      log,
       smokeTester,
       forceModel,
       lastUsedModelId: lastPublishedEntry(historyEntries)?.model,
@@ -155,7 +168,7 @@ export async function runDailyPipeline({
   }
 
   if (dryRun) {
-    console.log(`[dry-run] ${result.status} — nothing written to disk`);
+    log(`[dry-run] ${result.status} — nothing written to disk`);
     return result;
   }
 
@@ -174,9 +187,7 @@ export async function runDailyPipeline({
       generatedAt: now.toISOString(),
       root,
     });
-    console.log(
-      `Published ${published.slug} (model ${result.model}, ${result.attempts} attempt(s))`,
-    );
+    log(`Published ${published.slug} (model ${result.model}, ${result.attempts} attempt(s))`);
   } else {
     const recorded = recordFailure({
       date,
@@ -206,10 +217,10 @@ export async function runDailyPipeline({
         cronSchedule: generation.cronSchedule,
         root,
       });
-      console.log(`Out of OpenRouter quota — the site will say so until ${status.retryAt}`);
+      log(`Out of OpenRouter quota — the site will say so until ${status.retryAt}`);
     }
-    console.log(`All ${result.attempts} attempts failed — ${describeRestore(restored)}. Reasons:`);
-    for (const reason of result.reasons) console.log(`  - ${reason}`);
+    log(`All ${result.attempts} attempts failed — ${describeRestore(restored)}. Reasons:`);
+    for (const reason of result.reasons) log(`  - ${reason}`);
   }
 
   return result;
