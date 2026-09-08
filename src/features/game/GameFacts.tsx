@@ -1,19 +1,15 @@
 // When the game was made, by what, and how long it has left. The model id
 // is AI-adjacent content and renders as escaped JSX like everything else.
 
-import type { Manifest } from '#lib/manifest.ts';
-import { formatGeneratedDate } from '@/features/game/countdown.ts';
-import { useCountdown } from '@/features/game/useCountdown.ts';
+import { useManifestContext } from '@/features/game/state/context/useManifestContext.ts';
+import { formatGeneratedDate } from '@/features/game/state/helpers/countdown.ts';
+import { useCountdown } from '@/features/game/state/useCountdown.ts';
 import { CodeChip } from '@/shared_components/CodeChip.tsx';
 import { MetaText } from '@/shared_components/MetaText.tsx';
 
-export interface GameFactsProps {
-  /** The current day's manifest, as written by the publish step. */
-  readonly manifest: Manifest;
-}
-
 /** Provenance and the live countdown, on one line beneath the title. */
-export function GameFacts({ manifest }: GameFactsProps) {
+export function GameFacts() {
+  const manifest = useManifestContext();
   const countdown = useCountdown(manifest.expiresAt);
 
   return (

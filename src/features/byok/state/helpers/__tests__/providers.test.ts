@@ -6,7 +6,7 @@ import {
   type ByokRequest,
   completeByok,
   isExpectedFailure,
-} from '#src/features/byok/providers.ts';
+} from '#src/features/byok/state/helpers/providers.ts';
 
 const PROVIDERS = [
   'openrouter',

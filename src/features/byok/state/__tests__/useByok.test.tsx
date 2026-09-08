@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { type ByokGenerateRequest, useByok } from '@/features/byok/useByok.ts';
+import { type ByokGenerateRequest, useByok } from '@/features/byok/state/useByok.ts';
 import {
   BYOK_COMPLETION,
   BYOK_HTML,

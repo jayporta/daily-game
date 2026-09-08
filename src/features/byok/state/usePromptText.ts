@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { stripAttemptFeedback } from '#lib/attempt-feedback.ts';
-import { fetchText } from '#src/features/game/manifest-client.ts';
+import { fetchText } from '#src/features/game/state/helpers/manifest-client.ts';
 import { reportError } from '#src/lib/sentry.ts';
 
 /** What the disclosure shows about the day's prompt. */

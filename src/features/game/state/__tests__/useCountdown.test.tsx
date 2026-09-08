@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useCountdown } from '@/features/game/useCountdown.ts';
+import { useCountdown } from '@/features/game/state/useCountdown.ts';
 
 const NOW = new Date('2026-08-29T12:00:00.000Z');
 

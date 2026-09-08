@@ -4,22 +4,21 @@
 // Beside App.tsx rather than under a feature because it is the composition of
 // three — game, reaction and byok — and belongs to none of them.
 
-import type { Manifest } from '#lib/manifest.ts';
 import { ByokFacts } from '@/features/byok/ByokFacts.tsx';
 import { ByokPanel, type ByokResult } from '@/features/byok/ByokPanel.tsx';
 import { GeneratedCode } from '@/features/byok/GeneratedCode.tsx';
 import { GenerationConsole } from '@/features/byok/GenerationConsole.tsx';
-import type { UseByokResult } from '@/features/byok/useByok.ts';
+import type { UseByokResult } from '@/features/byok/state/useByok.ts';
 import { ControlLegend } from '@/features/game/ControlLegend.tsx';
 import { GameFacts } from '@/features/game/GameFacts.tsx';
 import { GameFrame } from '@/features/game/GameFrame.tsx';
 import { GameTitle } from '@/features/game/GameTitle.tsx';
+import { useManifestContext } from '@/features/game/state/context/useManifestContext.ts';
 import { ReactionBar } from '@/features/reaction/ReactionBar.tsx';
 import { Panel } from '@/shared_components/Panel.tsx';
 import { PillButton } from '@/shared_components/PillButton.tsx';
 
 export interface GameViewProps {
-  readonly manifest: Manifest;
   readonly html: string;
   /** A visitor's own generation, shown in place of the day's game. */
   readonly byokOverride: ByokResult | null;
@@ -37,14 +36,8 @@ export interface GameViewProps {
  * which game is on screen. Only the provenance line and the dismiss button
  * branch again, because they exist for one case and not the other.
  */
-export function GameView({
-  manifest,
-  html,
-  byokOverride,
-  byok,
-  onByokResult,
-  onDismissByok,
-}: GameViewProps) {
+export function GameView({ html, byokOverride, byok, onByokResult, onDismissByok }: GameViewProps) {
+  const manifest = useManifestContext();
   const shown =
     byokOverride === null
       ? {
@@ -104,7 +97,7 @@ export function GameView({
 
         <div className="mt-1">
           {byokOverride === null ? (
-            <GameFacts manifest={manifest} />
+            <GameFacts />
           ) : (
             <ByokFacts providerLabel={byokOverride.providerLabel} modelId={byokOverride.modelId} />
           )}

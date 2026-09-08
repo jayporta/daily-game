@@ -3,9 +3,12 @@ import type { ByokProvider } from '#lib/byok-config-types.ts';
 import { errorMessage } from '#lib/errors.ts';
 import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import { extractBundle } from '#lib/extract-bundle-shared.ts';
-import { type ByokFailure, describeByokFailure } from '#src/features/byok/byokFailure.ts';
-import { completeByok } from '#src/features/byok/providers.ts';
-import { useGenerationStream } from '#src/features/byok/useGenerationStream.ts';
+import {
+  type ByokFailure,
+  describeByokFailure,
+} from '#src/features/byok/state/helpers/byokFailure.ts';
+import { completeByok } from '#src/features/byok/state/helpers/providers.ts';
+import { useGenerationStream } from '#src/features/byok/state/useGenerationStream.ts';
 import { reportError } from '#src/lib/sentry.ts';
 
 /**

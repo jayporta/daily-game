@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import type { ReactionConfig } from '#lib/reaction-types.ts';
 import { DislikeReasons } from '@/features/reaction/DislikeReasons.tsx';
-import { reactionConfig } from '@/features/reaction/reactionStore.ts';
-import { useReaction } from '@/features/reaction/useReaction.ts';
+import { reactionConfig } from '@/features/reaction/state/helpers/reactionStore.ts';
+import { useReaction } from '@/features/reaction/state/useReaction.ts';
 import { PillButton } from '@/shared_components/PillButton.tsx';
 
 export interface ReactionBarProps {

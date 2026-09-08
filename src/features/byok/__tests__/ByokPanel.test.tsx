@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ByokModelsConfig } from '#lib/byok-config-types.ts';
 import { ByokPanel, type ByokPanelProps } from '@/features/byok/ByokPanel.tsx';
-import { useByok } from '@/features/byok/useByok.ts';
+import { useByok } from '@/features/byok/state/useByok.ts';
 import {
   BYOK_COMPLETION,
   BYOK_HTML,

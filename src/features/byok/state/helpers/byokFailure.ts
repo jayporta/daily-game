@@ -8,8 +8,8 @@
 import type { ExtractFailureReason } from '#lib/extract-bundle-shared.ts';
 import { EXTRACTION_RETRY_FEEDBACK } from '#lib/extract-bundle-shared.ts';
 import type { ProviderStopReason } from '#lib/provider-response.ts';
-import type { ByokFailureKind } from '#src/features/byok/providers.ts';
-import { isExpectedFailure } from '#src/features/byok/providers.ts';
+import type { ByokFailureKind } from '#src/features/byok/state/helpers/providers.ts';
+import { isExpectedFailure } from '#src/features/byok/state/helpers/providers.ts';
 
 /**
  * A run that did not produce a game, and which half of the call it failed in.

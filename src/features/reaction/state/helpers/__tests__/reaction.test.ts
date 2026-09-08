@@ -6,7 +6,7 @@ import {
   readReaction,
   rememberReaction,
   sendReaction,
-} from '#src/features/reaction/reaction.ts';
+} from '#src/features/reaction/state/helpers/reaction.ts';
 import type { WebStorage } from '#src/lib/browser-storage.ts';
 
 const SLUG = '2026-08-29-beetle';

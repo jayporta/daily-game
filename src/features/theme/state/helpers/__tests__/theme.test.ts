@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { test } from 'node:test';
+import { paths } from '#scripts/lib/paths.ts';
 import {
   nextTheme,
   readTheme,
@@ -9,7 +9,7 @@ import {
   resolveInitialTheme,
   THEME_ATTRIBUTE,
   THEME_STORAGE_KEY,
-} from '#src/features/theme/theme.ts';
+} from '#src/features/theme/state/helpers/theme.ts';
 import type { WebStorage } from '#src/lib/browser-storage.ts';
 
 /** A working storage, plus the raw record so a test can inspect what landed. */
@@ -90,7 +90,7 @@ test('nextTheme flips between the two themes', () => {
 // not the wrong theme. That bootstrap cannot import this module, so it
 // hardcodes both names — this fails if either is renamed here alone.
 test('the pre-paint bootstrap in index.html uses the same key and attribute', () => {
-  const html = readFileSync(join(import.meta.dirname, '../../../../index.html'), 'utf8');
+  const html = readFileSync(paths.indexHtml, 'utf8');
 
   assert.ok(html.includes(THEME_STORAGE_KEY), `index.html does not mention ${THEME_STORAGE_KEY}`);
   assert.ok(html.includes(THEME_ATTRIBUTE), `index.html does not mention ${THEME_ATTRIBUTE}`);

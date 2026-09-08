@@ -5,13 +5,16 @@ import {
   isByokProvider,
 } from '#lib/byok-config-types.ts';
 import type { ControlHint } from '#lib/extract-bundle-shared.ts';
-import { byokModelsConfig } from '@/features/byok/byokCatalogue.ts';
-import { type ByokPromptParts, composeByokPrompt } from '@/features/byok/composeByokPrompt.ts';
-import { FIELD_CONTROL, FormField } from '@/features/byok/FormField.tsx';
-import type { UseByokResult } from '@/features/byok/useByok.ts';
-import { type PromptTextState, usePromptText } from '@/features/byok/usePromptText.ts';
+import { byokModelsConfig } from '@/features/byok/state/helpers/byokCatalogue.ts';
+import {
+  type ByokPromptParts,
+  composeByokPrompt,
+} from '@/features/byok/state/helpers/composeByokPrompt.ts';
+import type { UseByokResult } from '@/features/byok/state/useByok.ts';
+import { type PromptTextState, usePromptText } from '@/features/byok/state/usePromptText.ts';
 import { reportError } from '@/lib/sentry.ts';
 import { Disclosure } from '@/shared_components/Disclosure.tsx';
+import { FIELD_CONTROL, FormField } from '@/shared_components/FormField.tsx';
 import { Panel } from '@/shared_components/Panel.tsx';
 import { PillButton } from '@/shared_components/PillButton.tsx';
 

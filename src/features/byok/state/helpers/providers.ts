@@ -26,7 +26,7 @@ import {
   OPENROUTER_MAX_OUTPUT_TOKENS,
   responseErrorDetail,
 } from '#lib/provider-response.ts';
-import { readSseData } from '#src/features/byok/sseStream.ts';
+import { readSseData } from '#src/features/byok/state/helpers/sseStream.ts';
 
 /** One generation, in the form every provider's request is built from. */
 export interface ByokRequest {

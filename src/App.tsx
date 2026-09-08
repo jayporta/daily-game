@@ -3,9 +3,10 @@ import { errorMessage } from '#lib/errors.ts';
 import type { Manifest } from '#lib/manifest.ts';
 import { SYSTEM_PROMPT } from '#lib/system-prompt.ts';
 import type { ByokResult } from '@/features/byok/ByokPanel.tsx';
-import { useByok } from '@/features/byok/useByok.ts';
+import { useByok } from '@/features/byok/state/useByok.ts';
 import { GameView } from '@/features/game/GameView.tsx';
-import { fetchManifest, fetchText } from '@/features/game/manifest-client.ts';
+import { ManifestProvider } from '@/features/game/state/context/ManifestProvider.tsx';
+import { fetchManifest, fetchText } from '@/features/game/state/helpers/manifest-client.ts';
 import { ThemeToggle } from '@/features/theme/ThemeToggle.tsx';
 import { reportError } from '@/lib/sentry.ts';
 import { Centered } from '@/shared_components/Centered.tsx';
@@ -96,14 +97,15 @@ export function App() {
         )}
 
         {state.status === 'ready' && (
-          <GameView
-            manifest={state.manifest}
-            html={state.html}
-            byokOverride={byokOverride}
-            byok={byok}
-            onByokResult={setByokOverride}
-            onDismissByok={() => setByokOverride(null)}
-          />
+          <ManifestProvider manifest={state.manifest}>
+            <GameView
+              html={state.html}
+              byokOverride={byokOverride}
+              byok={byok}
+              onByokResult={setByokOverride}
+              onDismissByok={() => setByokOverride(null)}
+            />
+          </ManifestProvider>
         )}
       </main>
     </div>

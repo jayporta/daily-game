@@ -1,5 +1,5 @@
-import { nextTheme } from '@/features/theme/theme.ts';
-import { useTheme } from '@/features/theme/useTheme.ts';
+import { nextTheme } from '@/features/theme/state/helpers/theme.ts';
+import { useTheme } from '@/features/theme/state/useTheme.ts';
 import { Icon } from '@/shared_components/Icon.tsx';
 import { IconButton } from '@/shared_components/IconButton.tsx';
 

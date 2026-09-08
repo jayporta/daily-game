@@ -56,7 +56,7 @@ export type ExtractedBundle =
  *
  * Beside the reasons it is keyed on, and in `lib/` because both build targets
  * retry: the pipeline in `scripts/generate-daily-game.ts` and a visitor's own
- * re-run in `src/features/byok/useByok.ts`. Held apart from the wording each
+ * re-run in `src/features/byok/state/useByok.ts`. Held apart from the wording each
  * shows a *person*, which has a different job — this text is an instruction,
  * not an explanation.
  *

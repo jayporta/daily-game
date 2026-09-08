@@ -5,7 +5,7 @@ import {
   readReaction,
   rememberReaction,
   sendReaction,
-} from '#src/features/reaction/reaction.ts';
+} from '#src/features/reaction/state/helpers/reaction.ts';
 import { localStorageOrNull } from '#src/lib/browser-storage.ts';
 
 /**

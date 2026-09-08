@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ATTEMPT_FEEDBACK_HEADING, renderAttemptFeedback } from '#lib/attempt-feedback.ts';
-import { usePromptText } from '@/features/byok/usePromptText.ts';
+import { usePromptText } from '@/features/byok/state/usePromptText.ts';
 
 /** What the hook asked to have recorded. */
 const { reported } = vi.hoisted(() => ({ reported: [] as unknown[] }));
