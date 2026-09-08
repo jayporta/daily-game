@@ -39,6 +39,10 @@ after(async () => {
   await smokeTester?.close();
 });
 
+// Deliberately not the committed endpoint: a read that reaches the real
+// config lands somewhere else and the assertion catches it.
+const SCRATCH_ENDPOINT = 'https://scratch.example/rest/v1/reactions';
+
 /**
  * A scratch repo holding a copy of the real config, and no history at all.
  *
@@ -58,8 +62,8 @@ test('a day that already published generates nothing', async (t) => {
   writeGamesJson(createPaths(root).historyGames, [PUBLISHED_ENTRY]);
 
   // A seeded published entry makes the run reconcile that day's reactions,
-  // and `loadReactionConfigOrUnconfigured` reads the real committed config —
-  // whose endpoint is live. Answer it here rather than over the network.
+  // and `scratchRoot` copies the committed config — whose endpoint is live.
+  // Answer it here rather than over the network.
   t.mock.method(globalThis, 'fetch', async () => Response.json([]));
 
   let generationCalls = 0;
@@ -80,6 +84,34 @@ test('a day that already published generates nothing', async (t) => {
   assert.equal(result.status, 'already_published');
   assert.equal(result.status === 'already_published' && result.slug, PUBLISHED_SLUG);
   assert.equal(generationCalls, 0);
+});
+
+test('the reaction store read follows the scratch root, not the committed config', async (t) => {
+  const root = scratchRoot(t);
+  writeGamesJson(createPaths(root).historyGames, [PUBLISHED_ENTRY]);
+  writeFileSync(
+    createPaths(root).reactionConfig,
+    `${JSON.stringify({ endpointUrl: SCRATCH_ENDPOINT, anonKey: 'sb_publishable_scratch' }, null, 2)}\n`,
+  );
+
+  const requested: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    requested.push(String(input));
+    return Response.json([]);
+  });
+
+  await runDailyPipeline({
+    root,
+    client: scriptedClient([]),
+    smokeTester,
+    now: new Date(`${PUBLISHED_ENTRY.date}T12:00:00Z`),
+  });
+
+  assert.equal(requested.length, 1);
+  assert.ok(
+    requested[0]?.startsWith(`${SCRATCH_ENDPOINT}?`),
+    `expected a read of the scratch endpoint, got ${String(requested[0])}`,
+  );
 });
 
 test('a dry run reports its result and writes nothing to disk', async (t) => {

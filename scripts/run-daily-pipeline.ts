@@ -87,7 +87,7 @@ async function reconcileYesterday(
 
   const reconciled = await applyFeedback(entries, {
     slug: previous.slug,
-    endpointUrl: loadReactionConfigOrUnconfigured().endpointUrl,
+    endpointUrl: loadReactionConfigOrUnconfigured(currentPaths.reactionConfig).endpointUrl,
     // Privileged, and deliberately not read from any committed file.
     apiKey: process.env['REACTION_STORE_KEY'] ?? null,
   });
