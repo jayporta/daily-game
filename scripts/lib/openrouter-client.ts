@@ -56,6 +56,35 @@ export interface CreateOpenRouterClientOptions {
   timeoutMs?: number;
 }
 
+/**
+ * A non-2xx answer from OpenRouter, carrying the status code.
+ *
+ * The status is a field rather than only part of the message because the
+ * pipeline has to tell an exhausted quota from a server fault, and reading
+ * that back out of a string is not a contract worth depending on.
+ */
+export class OpenRouterHttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, detail: string) {
+    super(`OpenRouter request failed: ${status} ${detail}`);
+    this.name = 'OpenRouterHttpError';
+    this.status = status;
+  }
+}
+
+/**
+ * Statuses meaning the account has nothing left to spend, rather than that
+ * this particular request was wrong: 429 covers the free tier's daily cap as
+ * well as short rate limits, and 402 is exhausted credits.
+ */
+const QUOTA_STATUSES: ReadonlySet<number> = new Set([402, 429]);
+
+/** Whether a thrown value is OpenRouter refusing on capacity grounds. */
+export function isQuotaFailure(error: unknown): boolean {
+  return error instanceof OpenRouterHttpError && QUOTA_STATUSES.has(error.status);
+}
+
 export function createOpenRouterClient({
   apiKey,
   baseUrl = 'https://openrouter.ai/api/v1',
@@ -82,9 +111,7 @@ export function createOpenRouterClient({
       });
 
       if (!response.ok) {
-        throw new Error(
-          `OpenRouter request failed: ${response.status} ${await responseErrorDetail(response)}`,
-        );
+        throw new OpenRouterHttpError(response.status, await responseErrorDetail(response));
       }
 
       const data: unknown = await response.json();

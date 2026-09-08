@@ -16,7 +16,7 @@ import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import type { GenresConfig } from '#scripts/lib/config/genres.ts';
 import type { ModelsConfig } from '#scripts/lib/config/models.ts';
 import type { FailureKind, HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
-import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { isQuotaFailure, type OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 import { moderate } from '#scripts/moderate.ts';
 import { activeModels, selectNextModel } from '#scripts/select-model.ts';
 import type { SmokeTester, SmokeTestResult } from '#scripts/smoke-test.ts';
@@ -42,6 +42,11 @@ export type GenerateResult =
       /** The same failures as `reasons`, as closed-vocabulary ids. */
       kinds: FailureKind[];
       model: string;
+      /**
+       * Whether every attempt failed because the provider had no capacity
+       * left, which is the one failure no retry and no other model can fix.
+       */
+      quotaExhausted: boolean;
     };
 
 export interface GenerateDailyGameParams {
@@ -79,6 +84,9 @@ export async function generateDailyGame({
 }: GenerateDailyGameParams): Promise<GenerateResult> {
   const reasons: string[] = [];
   const kinds: FailureKind[] = [];
+  // Compared against the attempt total below: a run counts as quota-exhausted
+  // only when no attempt failed for any other reason.
+  let quotaFailures = 0;
   let priorFailureFeedback: string | undefined;
   let model = forceModel ?? selectNextModel(modelsConfig, lastUsedModelId).id;
   const maxAttempts = forceModel ? MAX_ATTEMPTS : activeModels(modelsConfig).length;
@@ -133,6 +141,7 @@ export async function generateDailyGame({
       const reason = `attempt ${attempt} (${model}): generation call failed — ${errorMessage(error)}`;
       reasons.push(reason);
       kinds.push('generation-call');
+      if (isQuotaFailure(error)) quotaFailures += 1;
       if (verbose) {
         console.log(`[Attempt ${attempt}] ${reason}`);
       }
@@ -221,7 +230,14 @@ export async function generateDailyGame({
     };
   }
 
-  return { status: 'failed_kept_previous', attempts: maxAttempts, reasons, kinds, model };
+  return {
+    status: 'failed_kept_previous',
+    attempts: maxAttempts,
+    reasons,
+    kinds,
+    model,
+    quotaExhausted: quotaFailures === maxAttempts,
+  };
 }
 
 /**

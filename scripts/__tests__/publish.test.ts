@@ -388,6 +388,41 @@ test('recordFailure stores the closed-vocabulary kinds beside the prose', (t) =>
   assert.deepEqual(entries[0]?.failureKinds, ['smoke-network', 'moderation']);
 });
 
+test('recordFailure marks a quota-exhausted run on disk', (t) => {
+  const root = scratchRoot(t);
+
+  recordFailure({
+    date: '2026-08-29',
+    model: 'a/model:free',
+    attempts: 3,
+    reasons: ['attempt 1: generation call failed'],
+    kinds: ['generation-call'],
+    quotaExhausted: true,
+    historyEntries: [],
+    root,
+  });
+
+  const history = JSON.parse(readFileSync(join(root, 'history', 'games.json'), 'utf8'));
+  assert.equal(history[0].quotaExhausted, true);
+});
+
+// Absent rather than false, so a day says nothing about a quota it never hit.
+test('recordFailure omits the quota mark on an ordinary failure', (t) => {
+  const root = scratchRoot(t);
+
+  const entries = recordFailure({
+    date: '2026-08-29',
+    model: 'a/model:free',
+    attempts: 3,
+    reasons: ['attempt 1: smoke test failed'],
+    kinds: ['smoke-js-error'],
+    historyEntries: [],
+    root,
+  });
+
+  assert.ok(!('quotaExhausted' in (entries[0] ?? {})));
+});
+
 // A published game that painted nothing still passes the smoke test, but it
 // is weak evidence of a working game and the prompt should hear about it.
 test('publish records whether the game drew anything', (t) => {

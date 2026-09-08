@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
-import { createOpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import {
+  createOpenRouterClient,
+  isQuotaFailure,
+  OpenRouterHttpError,
+} from '#scripts/lib/openrouter-client.ts';
 import { neverAnswers } from '#scripts/lib/testFixtures.ts';
 
 test('mock client returns fixtures in sequence', async () => {
@@ -84,6 +88,29 @@ test('real client throws on a non-ok response', async () => {
     () => client.complete({ model: 'm', messages: [], temperature: 0.7 }),
     /OpenRouter request failed: 429/,
   );
+});
+
+// The status is what tells an exhausted quota from a server fault, and the
+// message is not a contract worth parsing.
+test('a non-ok response carries its status code on the thrown error', async () => {
+  const fetchImpl = async (): Promise<Response> => new Response('rate limited', { status: 429 });
+  const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl });
+
+  await assert.rejects(
+    () => client.complete({ model: 'm', messages: [], temperature: 0.7 }),
+    (error: unknown) => error instanceof OpenRouterHttpError && error.status === 429,
+  );
+});
+
+test('isQuotaFailure accepts the statuses that mean no capacity is left', () => {
+  assert.equal(isQuotaFailure(new OpenRouterHttpError(429, 'rate limited')), true);
+  assert.equal(isQuotaFailure(new OpenRouterHttpError(402, 'insufficient credits')), true);
+});
+
+test('isQuotaFailure rejects a server fault and a bare error', () => {
+  assert.equal(isQuotaFailure(new OpenRouterHttpError(500, 'upstream exploded')), false);
+  assert.equal(isQuotaFailure(new Error('rate limited')), false);
+  assert.equal(isQuotaFailure('rate limited'), false);
 });
 
 test('real client throws when response is missing content', async () => {

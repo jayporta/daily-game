@@ -245,6 +245,7 @@ export function recordFailure({
   attempts,
   reasons,
   kinds,
+  quotaExhausted = false,
   historyEntries,
   root,
 }: {
@@ -253,6 +254,8 @@ export function recordFailure({
   attempts: number;
   reasons: readonly string[];
   kinds: readonly FailureKind[];
+  /** Set when every attempt failed on provider capacity. Omitted when false. */
+  quotaExhausted?: boolean;
   historyEntries: HistoryGameEntry[];
   root?: string;
 }): HistoryGameEntry[] {
@@ -264,6 +267,7 @@ export function recordFailure({
     attempts,
     failureReasons: reasons.map((reason) => reason.slice(0, MAX_FAILURE_REASON_LENGTH)),
     failureKinds: [...kinds],
+    ...(quotaExhausted ? { quotaExhausted: true } : {}),
   });
   writeGamesJson(paths.historyGames, updatedEntries);
   writeGamesMd(paths.historyGamesMd, updatedEntries);

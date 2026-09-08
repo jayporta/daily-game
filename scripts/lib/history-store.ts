@@ -71,6 +71,15 @@ export interface HistoryGameEntry {
    * and nothing downstream can learn what went wrong.
    */
   failureReasons?: string[];
+  /**
+   * Whether every attempt of a `failed_kept_previous` run failed because the
+   * provider had no capacity left.
+   *
+   * Deliberately not a {@link FAILURE_KINDS} member: that vocabulary exists so
+   * `build-prompt.ts` can turn a recurring failure into corrective guidance,
+   * and there is nothing a model can do about an account-level quota.
+   */
+  quotaExhausted?: boolean;
   /** Likes recorded for this game, patched in by `fetch-feedback.ts`. */
   likes?: number;
   /** Dislikes recorded for this game, patched in by `fetch-feedback.ts`. */
@@ -192,6 +201,11 @@ function historyGameEntryErrors(value: unknown): string[] {
     value.canvasDrawn,
     typeof value.canvasDrawn === 'boolean',
     'canvasDrawn must be a boolean',
+  );
+  optional(
+    value.quotaExhausted,
+    typeof value.quotaExhausted === 'boolean',
+    'quotaExhausted must be a boolean',
   );
   optional(
     value.dislikeReasons,

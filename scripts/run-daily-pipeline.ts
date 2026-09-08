@@ -182,6 +182,7 @@ export async function runDailyPipeline({
       attempts: result.attempts,
       reasons: result.reasons,
       kinds: result.kinds,
+      quotaExhausted: result.quotaExhausted,
       historyEntries,
       root,
     });

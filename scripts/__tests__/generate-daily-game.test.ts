@@ -8,7 +8,7 @@ import type { ModelsConfig } from '#scripts/lib/config/models.ts';
 import type { HistorySummary } from '#scripts/lib/history-store.ts';
 import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
 import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
-import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { type OpenRouterClient, OpenRouterHttpError } from '#scripts/lib/openrouter-client.ts';
 import { GENERATION_CONFIG, loadFixture, scriptedClient } from '#scripts/lib/testFixtures.ts';
 import { isModerationRequest } from '#scripts/moderate.ts';
 import { createSmokeTester, type SmokeTester } from '#scripts/smoke-test.ts';
@@ -195,6 +195,51 @@ test('an unreachable moderator does not tell the next attempt it broke the conte
 
   assert.equal(prompts.length, MODELS.models.length);
   assert.doesNotMatch(String(prompts[1]), /violated the content rules/);
+});
+
+// The one failure no retry and no other model can fix, so the site says so
+// rather than counting down to a game that is not coming.
+test('a run whose every attempt is refused for capacity is marked quota exhausted', async () => {
+  const client: OpenRouterClient = {
+    async complete() {
+      throw new OpenRouterHttpError(429, 'rate limited');
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(result.quotaExhausted, true);
+});
+
+test('a run that fails for mixed reasons is not marked quota exhausted', async () => {
+  let calls = 0;
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+      calls += 1;
+      if (calls === 1) return { text: loadFixture('bad-js-error'), stop: 'complete' };
+      throw new OpenRouterHttpError(429, 'rate limited');
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(result.quotaExhausted, false);
+});
+
+test('a server fault is not mistaken for an exhausted quota', async () => {
+  const client: OpenRouterClient = {
+    async complete() {
+      throw new OpenRouterHttpError(500, 'upstream exploded');
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(result.quotaExhausted, false);
 });
 
 test('a successful run reports whether the game drew anything', async () => {
