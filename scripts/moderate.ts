@@ -87,17 +87,35 @@ export interface KeywordScanResult {
   hits: string[];
 }
 
+/** One banned term with the word-boundary pattern that finds it. */
+interface BannedTermPattern {
+  readonly term: string;
+  readonly pattern: RegExp;
+}
+
 function escapeRegExp(term: string): string {
   return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+function compileBannedTerms(terms: readonly string[]): readonly BannedTermPattern[] {
+  return terms.map((term) => ({
+    term,
+    pattern: new RegExp(`\\b${escapeRegExp(term)}\\b`, 'i'),
+  }));
+}
+
+// Built once for the default list, which every generated bundle is scanned
+// against. The patterns must stay non-global: `test` on a /g/ regex advances
+// lastIndex, so a reused one would start mid-string on its next call.
+const BANNED_TERM_PATTERNS = compileBannedTerms(BANNED_TERMS);
 
 export function keywordScan(
   text: string,
   bannedTerms: readonly string[] = BANNED_TERMS,
 ): KeywordScanResult {
-  const hits = bannedTerms.filter((term) =>
-    new RegExp(`\\b${escapeRegExp(term)}\\b`, 'i').test(text),
-  );
+  const compiled =
+    bannedTerms === BANNED_TERMS ? BANNED_TERM_PATTERNS : compileBannedTerms(bannedTerms);
+  const hits = compiled.filter(({ pattern }) => pattern.test(text)).map(({ term }) => term);
   return { pass: hits.length === 0, hits };
 }
 

@@ -330,3 +330,14 @@ test('moderation asks for a shorter deadline than a generation gets', async () =
     `moderation would inherit the ${OPENROUTER_TIMEOUT_MS}ms generation cap`,
   );
 });
+
+// The default patterns are compiled once and reused, so a caller-supplied
+// vocabulary has to take a different path through keywordScan. It replaces
+// the default list rather than adding to it.
+test('a caller-supplied vocabulary replaces the default one', () => {
+  const custom = keywordScan('the screen fills with blood', ['plaid']);
+  assert.equal(custom.pass, true, 'a default-list term still matched a custom list');
+
+  const hit = keywordScan('the sky turns plaid', ['plaid']);
+  assert.deepEqual(hit.hits, ['plaid']);
+});
