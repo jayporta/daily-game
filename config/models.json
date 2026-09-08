@@ -2,7 +2,6 @@
   "moderationModel": "google/gemma-4-31b-it:free",
   "models": [
     { "id": "nvidia/nemotron-3.5-lightning:free", "active": true, "provider": "openrouter" },
-    { "id": "liquid/lfm-2.5-2.6b:free", "active": true, "provider": "openrouter" },
     { "id": "cohere/north-mini-code:free", "active": true, "provider": "openrouter" },
     { "id": "poolside/laguna-s-2.1:free", "active": true, "provider": "openrouter" },
     { "id": "nvidia/nemotron-3-super-120b-a12b:free", "active": true, "provider": "openrouter" },
