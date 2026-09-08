@@ -4,7 +4,7 @@
 // provider, and each streams its output back in its own frame shape, so
 // there is one delta reader per provider too. OpenRouter and OpenAI share
 // both, through lib/provider-response.ts — the same module the daily
-// pipeline's OpenRouter client reads its non-streaming responses with.
+// pipeline's OpenRouter client reads its own stream with.
 //
 // Every call streams. The visitor watches the output arrive, so there is no
 // second, non-streaming path to keep working.
@@ -25,8 +25,9 @@ import {
   MAX_ERROR_DETAIL,
   OPENROUTER_MAX_OUTPUT_TOKENS,
   responseErrorDetail,
+  streamedError,
+  streamedFrames,
 } from '#lib/provider-response.ts';
-import { readSseData } from '#src/features/byok/state/helpers/sseStream.ts';
 
 /** One generation, in the form every provider's request is built from. */
 export interface ByokRequest {
@@ -309,24 +310,6 @@ function extractStopReason(provider: ByokProvider, data: unknown): ProviderStopR
   }
 }
 
-/** The OpenAI-shaped sentinel closing a stream. Carries no JSON. */
-const STREAM_DONE = '[DONE]';
-
-/**
- * A provider's error reported mid-stream rather than as an HTTP status.
- *
- * OpenRouter in particular answers 200 and then sends the failure — an
- * exhausted credit balance, an upstream refusal — as a frame. Without this
- * the run would look like a model that simply said nothing.
- */
-function streamedError(data: unknown): string | null {
-  const error: unknown = recordAt(data, 'error') ?? stringAt(data, 'error');
-  if (error === null) return null;
-  return typeof error === 'string'
-    ? error.slice(0, MAX_ERROR_DETAIL)
-    : (stringAt(error, 'message')?.slice(0, MAX_ERROR_DETAIL) ?? 'unspecified error');
-}
-
 /**
  * Runs one BYOK completion request, streaming. Single attempt, no retry — it
  * is the visitor's own credits.
@@ -372,23 +355,16 @@ export async function completeByok(
   // frame that carries no text, so it cannot be read from the fragments.
   let stop: ProviderStopReason = 'complete';
   try {
-    for await (const payload of readSseData(response)) {
-      if (payload === STREAM_DONE) break;
-
-      let data: unknown;
-      try {
-        data = JSON.parse(payload);
-      } catch {
-        // A frame that is not JSON is not fatal on its own; a stream made
-        // entirely of them ends as the empty-output failure below. This is
-        // also where a provider answering with a plain error body instead of
-        // a stream lands.
-        continue;
-      }
-
+    // A provider answering with a plain error body instead of a stream lands
+    // here as no frames at all, and ends as the empty-output failure below.
+    for await (const data of streamedFrames(response)) {
       const failure = streamedError(data);
       if (failure !== null) {
-        return { ok: false, kind: 'refused', message: `${request.provider} reported: ${failure}` };
+        return {
+          ok: false,
+          kind: 'refused',
+          message: `${request.provider} reported: ${failure.message}`,
+        };
       }
 
       // Read before the text, and kept rather than overwritten: the frame

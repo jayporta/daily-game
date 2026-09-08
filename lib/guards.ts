@@ -48,3 +48,16 @@ export function arrayAt(value: unknown, field: string): unknown[] | null {
   const found: unknown = value[field];
   return Array.isArray(found) ? found : null;
 }
+
+/**
+ * The value of `field`, if `value` is a record holding a finite number there.
+ *
+ * @returns The number, or `null` when `value` is not a record, the field is
+ *   absent, or it holds anything else. `NaN` and the infinities are rejected:
+ *   every caller goes on to compare or format the result.
+ */
+export function numberAt(value: unknown, field: string): number | null {
+  if (!isRecord(value)) return null;
+  const found: unknown = value[field];
+  return typeof found === 'number' && Number.isFinite(found) ? found : null;
+}

@@ -5,7 +5,8 @@
 // of the build: `scripts/lib/openrouter-client.ts` in the daily pipeline and
 // `src/features/byok/state/helpers/providers.ts` in the browser. Both talk to the same
 // OpenAI-shaped API, so both read a response the same way.
-import { arrayAt, recordAt, stringAt } from '#lib/guards.ts';
+import { arrayAt, numberAt, recordAt, stringAt } from '#lib/guards.ts';
+import { readSseData } from '#lib/sse-stream.ts';
 
 /**
  * Cap on any provider text shown to a visitor or written to history.
@@ -17,23 +18,8 @@ import { arrayAt, recordAt, stringAt } from '#lib/guards.ts';
 export const MAX_ERROR_DETAIL = 200;
 
 /**
- * The assistant's text from an OpenAI-shaped completion response, read out of
- * `choices[0].message.content`.
- *
- * @returns The text, or `null` if the response is not shaped the way the API
- *   documents — which each caller turns into a retry or a visible error.
- */
-export function firstChoiceContent(data: unknown): string | null {
-  const choice: unknown = arrayAt(data, 'choices')?.[0];
-  return stringAt(recordAt(choice, 'message'), 'content');
-}
-
-/**
  * One streamed fragment from an OpenAI-shaped response, read out of
  * `choices[0].delta.content`.
- *
- * The streaming twin of {@link firstChoiceContent}: the same envelope, with
- * the assistant's text arriving under `delta` instead of `message`.
  *
  * @returns The fragment, or `null` for a frame that carries none — the first
  *   frame announces the role and no text, and the last carries a finish
@@ -141,4 +127,74 @@ export async function responseErrorDetail(
   maxLength: number = MAX_ERROR_DETAIL,
 ): Promise<string> {
   return errorDetail(await response.text().catch(() => ''), maxLength);
+}
+
+/** The payload a provider sends to close an OpenAI-shaped stream. */
+export const STREAM_DONE = '[DONE]';
+
+/** A provider's failure, carried in a frame rather than in the HTTP status. */
+export interface StreamedError {
+  /** The provider's own words, capped at {@link MAX_ERROR_DETAIL}. */
+  readonly message: string;
+  /**
+   * The HTTP-like code inside the envelope, or `null` when it carried none.
+   *
+   * @remarks
+   * What lets a caller classify a mid-stream failure the same way it would
+   * classify a status, which matters because OpenRouter reports an exhausted
+   * quota either way.
+   */
+  readonly status: number | null;
+}
+
+/**
+ * A provider's error reported mid-stream rather than as an HTTP status.
+ *
+ * @remarks
+ * OpenRouter in particular answers 200 and then sends the failure — an
+ * exhausted credit balance, an upstream refusal — as a frame. Without this a
+ * run looks like a model that simply said nothing.
+ *
+ * @param data One parsed `data:` payload.
+ * @returns `null` for an ordinary frame, which is nearly all of them.
+ */
+export function streamedError(data: unknown): StreamedError | null {
+  const error: unknown = recordAt(data, 'error') ?? stringAt(data, 'error');
+  if (error === null) return null;
+  if (typeof error === 'string') {
+    return { message: error.slice(0, MAX_ERROR_DETAIL), status: null };
+  }
+  return {
+    message: stringAt(error, 'message')?.slice(0, MAX_ERROR_DETAIL) ?? 'unspecified error',
+    status: numberAt(error, 'code'),
+  };
+}
+
+/**
+ * The parsed JSON frames of a completion stream, ending at its sentinel.
+ *
+ * @remarks
+ * The protocol half of reading a streamed completion, shared by both
+ * transports so neither can get it subtly different. What to do with a frame
+ * is the caller's own business: the browser paints it, the pipeline appends
+ * it, and each reports an empty stream in its own way.
+ *
+ * A frame that is not JSON is skipped rather than thrown on. Providers pad
+ * streams with keep-alives, and one malformed frame is not a failed
+ * generation; a stream made entirely of them simply yields nothing.
+ *
+ * @param response A response already checked for `ok`.
+ */
+export async function* streamedFrames(response: Response): AsyncGenerator<unknown> {
+  for await (const payload of readSseData(response)) {
+    if (payload === STREAM_DONE) return;
+
+    let data: unknown;
+    try {
+      data = JSON.parse(payload);
+    } catch {
+      continue;
+    }
+    yield data;
+  }
 }

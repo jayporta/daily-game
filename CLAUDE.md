@@ -249,12 +249,32 @@ refactor.
   byte. Only that section goes; the history-derived `## Fix what has been
   going wrong` is guidance any generation can still act on.
 
-- **BYOK streams, and there is no second transport.** Every provider is asked
-  for SSE (`stream: true`, or `alt=sse` for Gemini) and read by `readSseData`,
-  because the visitor watches the output arrive in place of the game. Drop the
-  stream flag from a request and that provider answers with one JSON document
-  carrying no `data:` frames — which reads as a model that returned nothing,
-  not as an error.
+- **Both transports request SSE, for unrelated reasons.** `stream: true` here
+  is an HTTP transfer mode, not a feature: every request asks for it, and
+  `readSseData` in `lib/sse-stream.ts` reassembles the frames. Drop the flag
+  and that provider answers with one JSON document carrying no `data:` frames,
+  which reads as a model that returned nothing rather than as an error. What
+  each side does with the frames is where they part company, and neither
+  reason transfers to the other.
+
+  **BYOK streams so the visitor sees it.** `completeByok` takes an `onDelta`
+  and paints each fragment into the page in place of the game, so there is no
+  second, non-streaming path to keep working.
+
+  **The pipeline streams to measure silence.** It runs in Actions with nobody
+  watching, and `OpenRouterClient.complete` returns one assembled string like
+  it always has — no `onDelta`, nothing rendered. The frames are wanted only
+  for their arrival times. A generation is minutes of steady output (measured:
+  469s, with gaps under 0.7s), so a deadline on the whole request cannot tell
+  slow from stuck, and one long enough for an honest answer lets seven hung
+  attempts overrun the workflow's 90-minute cap — killing the job before it
+  can record `failed_kept_previous`. So `OPENROUTER_IDLE_TIMEOUT_MS` bounds
+  silence and is the real hang detector, while `OPENROUTER_TIMEOUT_MS` only
+  backstops a provider that trickles forever. The two are not interchangeable.
+  Both are cleared by one `close()`, which is final on purpose: a `bump`
+  arriving afterwards would re-arm a clock nothing will clear, and the
+  completion must be `await`ed inside the `try` so `close()` runs after the
+  stream rather than before the first frame.
 
 - **`cronSchedule` and the workflow's cron are different times on purpose.**
   Actions defers scheduled events under load — measured here at 1.5 to 2.5

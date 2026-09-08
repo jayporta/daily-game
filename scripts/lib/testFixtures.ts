@@ -26,6 +26,89 @@ export const neverAnswers: typeof fetch = (_input, init) =>
     init?.signal?.addEventListener('abort', () => reject(new Error('request aborted')));
   });
 
+/**
+ * An SSE response carrying `frames` as `data:` payloads, then `[DONE]`.
+ *
+ * @param frames Each is serialised as one frame; a string is sent verbatim,
+ *   so a test can send a payload that is not JSON.
+ */
+export function sseResponse(frames: readonly unknown[]): Response {
+  const body = frames
+    .map((frame) => `data: ${typeof frame === 'string' ? frame : JSON.stringify(frame)}\n\n`)
+    .join('');
+  return new Response(`${body}data: [DONE]\n\n`, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+}
+
+/** One OpenAI-shaped streaming frame carrying a fragment of the answer. */
+export function sseDelta(content: string, finishReason?: string): unknown {
+  return {
+    choices: [{ delta: { content }, ...(finishReason ? { finish_reason: finishReason } : {}) }],
+  };
+}
+
+/**
+ * A `fetch` answering 200 with a stream that opens and then goes quiet.
+ *
+ * @remarks
+ * The failure a total deadline cannot tell from an honest slow generation:
+ * the connection is up and some output has arrived, but nothing more is
+ * coming. Only an idle deadline ends this.
+ */
+export const stallsMidStream: typeof fetch = (_input, init) =>
+  Promise.resolve(
+    new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode('data: {"choices":[{"delta":{"content":"a"}}]}\n\n'),
+          );
+          // Errors with the signal's own reason, the way a real body does, so
+          // a caller can still tell which deadline ended it.
+          init?.signal?.addEventListener('abort', () => {
+            controller.error(init.signal?.reason);
+          });
+        },
+      }),
+      { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+    ),
+  );
+
+/**
+ * A `fetch` answering 200 with `fragments` spaced `gapMs` apart.
+ *
+ * @remarks
+ * Honours the request's signal, so a deadline firing mid-stream really does
+ * end it. Without that the stream would run to completion whatever the caller
+ * decided, and a test asserting that a deadline was *not* reached could not
+ * fail.
+ */
+export function streamsSlowly(fragments: readonly string[], gapMs: number): typeof fetch {
+  return (_input, init) =>
+    Promise.resolve(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          async start(controller) {
+            const encoder = new TextEncoder();
+            init?.signal?.addEventListener('abort', () => {
+              controller.error(init.signal?.reason);
+            });
+            for (const fragment of fragments) {
+              await new Promise((resolve) => setTimeout(resolve, gapMs));
+              if (init?.signal?.aborted === true) return;
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify(sseDelta(fragment))}\n\n`));
+            }
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+          },
+        }),
+        { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+    );
+}
+
 export type FixtureName =
   | 'good-maze'
   | 'good-platformer'
