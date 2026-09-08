@@ -5,6 +5,20 @@
 // default glob claims the hyphenated prefix and would run this file as a
 // suite of its own.
 import type { Manifest } from '#lib/manifest.ts';
+import { QUOTA_EXCEEDED, type RunStatus } from '#lib/status.ts';
+
+/**
+ * A run that produced no game, as `publish.ts` writes it.
+ *
+ * Pinned against {@link MANIFEST} and the same frozen clock: a day newer than
+ * the published game, promising a retry after that clock's now, so it is
+ * current on both counts. Spread it to override a field.
+ */
+export const RUN_STATUS: RunStatus = {
+  date: '2026-08-30',
+  state: QUOTA_EXCEEDED,
+  retryAt: '2026-08-30T19:00:00.000Z',
+};
 
 /**
  * A published day, as `publish.ts` writes it.

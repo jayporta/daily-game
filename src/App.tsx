@@ -6,6 +6,7 @@ import type { ByokResult } from '@/features/byok/ByokPanel.tsx';
 import { useByok } from '@/features/byok/state/useByok.ts';
 import { GameView } from '@/features/game/GameView.tsx';
 import { ManifestProvider } from '@/features/game/state/context/ManifestProvider.tsx';
+import { RunStatusProvider } from '@/features/game/state/context/RunStatusProvider.tsx';
 import { fetchManifest, fetchText } from '@/features/game/state/helpers/manifest-client.ts';
 import { ThemeToggle } from '@/features/theme/ThemeToggle.tsx';
 import { reportError } from '@/lib/sentry.ts';
@@ -98,13 +99,15 @@ export function App() {
 
         {state.status === 'ready' && (
           <ManifestProvider manifest={state.manifest}>
-            <GameView
-              html={state.html}
-              byokOverride={byokOverride}
-              byok={byok}
-              onByokResult={setByokOverride}
-              onDismissByok={() => setByokOverride(null)}
-            />
+            <RunStatusProvider>
+              <GameView
+                html={state.html}
+                byokOverride={byokOverride}
+                byok={byok}
+                onByokResult={setByokOverride}
+                onDismissByok={() => setByokOverride(null)}
+              />
+            </RunStatusProvider>
           </ManifestProvider>
         )}
       </main>

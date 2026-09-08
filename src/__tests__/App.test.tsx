@@ -30,12 +30,16 @@ function stubFetch(handlers: {
   manifest: () => Response;
   game?: () => Response;
   prompt?: () => Response;
+  /** Absent on any day the pipeline had nothing to report, which is the norm. */
+  runStatus?: () => Response;
   /** Routed by absolute URL — the app's own fetches are always relative paths. */
   byokProvider?: () => Response;
 }): ReturnType<typeof vi.fn> {
   const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.startsWith('manifest.json')) return handlers.manifest();
+    if (url.startsWith('status.json'))
+      return handlers.runStatus?.() ?? new Response('', { status: 404 });
     if (url.endsWith('prompt.txt'))
       return handlers.prompt?.() ?? new Response('the prompt', { status: 200 });
     if (url.startsWith('http')) {

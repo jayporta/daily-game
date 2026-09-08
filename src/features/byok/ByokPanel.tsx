@@ -14,6 +14,7 @@ import type { UseByokResult } from '@/features/byok/state/useByok.ts';
 import { type PromptTextState, usePromptText } from '@/features/byok/state/usePromptText.ts';
 import { reportError } from '@/lib/sentry.ts';
 import { Disclosure } from '@/shared_components/Disclosure.tsx';
+import { ErrorText } from '@/shared_components/ErrorText.tsx';
 import { FIELD_CONTROL, FormField } from '@/shared_components/FormField.tsx';
 import { Panel } from '@/shared_components/Panel.tsx';
 import { PillButton } from '@/shared_components/PillButton.tsx';
@@ -338,14 +339,7 @@ export function ByokPanel({
           Include the current game&rsquo;s code and ask for an improvement on it
         </label>
 
-        {/* No `text-meta` here: it is a colour, not a size, and a second
-            colour utility beside `text-rose-600` would silently lose. The
-            size comes from `text-ui` on the wrapper above. */}
-        {status.status === 'error' && (
-          <p role="alert" className="mt-2 text-rose-600 dark:text-rose-400">
-            {status.message}
-          </p>
-        )}
+        {status.status === 'error' && <ErrorText layout="mt-2 block">{status.message}</ErrorText>}
       </div>
     </Panel>
   );
