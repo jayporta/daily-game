@@ -55,8 +55,9 @@ export function isRetryTimePast(status: RunStatus, now: number): boolean {
 /**
  * Whether a status describes a run later than the game currently on screen.
  *
- * The second of the two ways a status stops applying, and the reason nothing
- * ever has to delete the file: a game published since settles it.
+ * @remarks
+ * One of the two ways a status stops applying, and the reason nothing has to
+ * delete the file: a game published since settles it.
  *
  * @param gameDate The `date` of the manifest being shown, `YYYY-MM-DD`.
  */

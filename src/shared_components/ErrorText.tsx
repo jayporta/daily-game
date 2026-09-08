@@ -1,26 +1,25 @@
 import type { ReactNode } from 'react';
 
-/**
- * Red in both palettes.
- *
- * A complete class string rather than fragments, since Tailwind only
- * generates the class names it can read whole in the source.
- */
+// Red in both palettes, written whole because Tailwind only generates the
+// class names it can read whole in the source.
 const ERROR = 'text-rose-600 dark:text-rose-400';
 
 export interface ErrorTextProps {
   /** What went wrong, in words a visitor can act on. */
   readonly children: ReactNode;
   /**
-   * Layout utilities only — margin, display, alignment. Colour belongs to
-   * this component: a second `text-*` colour here would put two `color`
-   * utilities on one element, where Tailwind silently drops one.
+   * Margin, display and alignment utilities.
+   *
+   * @remarks
+   * Layout only. A `text-*` colour passed here would put two `color` utilities
+   * on one element, and Tailwind silently drops one of them.
    */
   readonly layout?: string;
   /**
-   * How assistive tech announces it. `alert` interrupts, which suits
-   * something the visitor just did; `status` waits its turn, which suits
-   * something that arrived on its own.
+   * How assistive tech announces it: `alert` interrupts, `status` waits its
+   * turn.
+   *
+   * @defaultValue `'alert'`, which suits something the visitor just caused.
    */
   readonly announce?: 'alert' | 'status';
 }

@@ -13,64 +13,58 @@ import {
 
 export interface GenerationConfig {
   /**
-   * How old an entry may get before a rollup archives it.
+   * Age in days past which a rollup archives a history entry.
    *
-   * The cutoff a rollup applies, not an unconditional bound on the file:
-   * `rollupTriggerEntries` decides whether a rollup runs at all, so entries
-   * older than this stay in the hot window until that count is exceeded.
-   * Nothing is lost when one does age out — an archived entry still counts
-   * toward the summary's tallies.
+   * @remarks
+   * The cutoff a rollup applies, not a bound on the file itself:
+   * {@link GenerationConfig.rollupTriggerEntries} decides whether one runs.
    */
   historyHotWindowDays: number;
-  /**
-   * How many entries the hot window must exceed before a rollup runs at all.
-   *
-   * A count, checked before the age cutoff, so a short window of old entries
-   * is left alone. Compaction is maintenance; it should not be something
-   * every run pays for.
-   */
+  /** How many entries `history/games.json` must exceed before a rollup runs. */
   rollupTriggerEntries: number;
   /**
-   * The chance, per run, of even considering a successor to a popular past
-   * game rather than something new. Rolled once, outside the retry loop.
+   * Chance per run of considering a successor to a popular past game, as a
+   * decimal from 0 to 1.
    *
-   * The gate, not the outcome: a successful roll still offers nothing when no
-   * game on the leaderboard falls inside `remixLookbackDays`.
+   * @remarks
+   * The gate, not the outcome. A won roll still offers nothing when no game on
+   * the leaderboard falls inside {@link GenerationConfig.remixLookbackDays}.
    */
   remixProbability: number;
-  /** How far back, in days, a remix may reach for its subject. */
+  /** How far back in days a remix may reach for its subject. */
   remixLookbackDays: number;
   /**
-   * The model's sampling temperature for each attempt, in order.
+   * Sampling temperature for each attempt in order, index 0 being the first.
    *
-   * Index 0 is the first attempt, index 1 the second. Low keeps the model on
-   * its most probable wording, which is what following the two-block output
-   * contract asks for; higher samples more widely. Rising values therefore
-   * start strict and loosen, so a retry is not a near-copy of the answer that
-   * just failed.
-   *
-   * The last value repeats once the list is shorter than the number of
-   * attempts, so every attempt past the end runs at the ceiling. A run makes
-   * one attempt per active model, or `MAX_ATTEMPTS` when a model is forced.
+   * @remarks
+   * One entry per active model in `config/models.json`, since a run makes one
+   * attempt per model. Rising values start where the two fenced output blocks
+   * are most likely and loosen from there, so a retry is not a near-copy of the
+   * answer that just failed. A list shorter than the run repeats its last value.
    */
   retryTemperatures: number[];
   /**
    * Where errors are reported, or `null` to report none.
    *
-   * The one copy of the DSN: `publish.ts` reads it for the snippet it appends
-   * to every published bundle, and `vite.config.ts` inlines it for the page.
-   * `null` makes both no-ops, so a fork runs without one.
+   * @remarks
+   * The one copy of the DSN. `publish.ts` reads it for the snippet it appends
+   * to every published bundle and `vite.config.ts` inlines it for the page, so
+   * `null` disables both and a fork runs without one.
    */
   sentryDsn: string | null;
   /**
-   * When the game is due, and the single source of truth for that.
+   * Cron expression, in UTC, for when the day's game is due.
    *
-   * Drives the front-end countdown via `computeExpiresAt`, and is the time the
-   * external trigger that dispatches the workflow is set to. Actions cannot
-   * read config, so the schedule in `generate-daily-game.yml` is a separate
-   * value on purpose — a later fallback, not a copy of this one. Change this
-   * and the external trigger together; leave the workflow's cron alone unless
-   * the fallback delay itself is what is changing.
+   * @remarks
+   * Drives the front-end countdown through `computeExpiresAt`, and is the time
+   * the external trigger that dispatches the workflow is set to. Change those
+   * two together. `generate-daily-game.yml`'s own cron is a later fallback and
+   * is deliberately not this value.
+   *
+   * @example
+   * ```json
+   * { "cronSchedule": "0 19 * * *" }
+   * ```
    */
   cronSchedule: string;
 }

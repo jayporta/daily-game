@@ -6,10 +6,7 @@
 // describes the game being served and must stay untouched by a failed run.
 import { isRecord } from '#lib/guards.ts';
 
-/**
- * The one failure worth telling a visitor about: no retry today can fix it,
- * so the honest thing to show is when to come back.
- */
+/** The one failure no retry today can fix, so the page says when to come back. */
 export const QUOTA_EXCEEDED = 'quota-exceeded';
 
 export interface RunStatus {
@@ -26,8 +23,11 @@ export interface RunStatus {
 }
 
 /**
- * Full shape check, because this is fetched over the network like any other
- * published file and a partial one would render a message about nothing.
+ * Whether parsed JSON is a {@link RunStatus}.
+ *
+ * @remarks
+ * Every field is checked. This arrives over the network like any other
+ * published file, and a partial one would render a message about nothing.
  *
  * @param value Parsed JSON of unknown shape.
  */
