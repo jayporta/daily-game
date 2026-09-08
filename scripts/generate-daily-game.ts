@@ -173,14 +173,24 @@ export async function generateDailyGame({
       moderationModel: modelsConfig.moderationModel,
     });
     if (!moderation.pass) {
+      const detail = moderation.reasons.join('; ');
+      const unreachable = moderation.failure === 'call-failed';
+      // A failed call's detail already names itself; only a verdict needs a label.
       reasons.push(
-        `attempt ${attempt} (${model}): moderation rejected — ${moderation.reasons.join('; ')}`,
+        unreachable
+          ? `attempt ${attempt} (${model}): ${detail}`
+          : `attempt ${attempt} (${model}): moderation rejected — ${detail}`,
       );
-      kinds.push('moderation');
+      kinds.push(unreachable ? 'generation-call' : 'moderation');
       if (verbose) {
-        console.log(`[Attempt ${attempt}] Moderation failed: ${moderation.reasons.join('; ')}`);
+        console.log(`[Attempt ${attempt}] Moderation failed: ${detail}`);
       }
-      priorFailureFeedback = `Your previous game violated the content rules: ${moderation.reasons.join('; ')}. Re-read the content rules and avoid this entirely.`;
+      // A moderator that never answered judged nothing, so the model is told
+      // nothing: guidance about content rules would describe a violation that
+      // was never found.
+      priorFailureFeedback = unreachable
+        ? undefined
+        : `Your previous game violated the content rules: ${detail}. Re-read the content rules and avoid this entirely.`;
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
       continue;
     }

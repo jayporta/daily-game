@@ -165,6 +165,38 @@ test('a moderation rejection is tagged as one', async () => {
   assert.deepEqual(result.kinds, ['moderation', 'moderation', 'moderation']);
 });
 
+// A 429 on the moderation call used to be recorded as `moderation`, which
+// reads as a content violation the game never committed.
+test('an unreachable moderator is recorded as a call failure, not a content rejection', async () => {
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) throw new Error('rate limited');
+      return { text: loadFixture('good-maze'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.deepEqual(result.kinds, ['generation-call', 'generation-call', 'generation-call']);
+});
+
+test('an unreachable moderator does not tell the next attempt it broke the content rules', async () => {
+  const prompts: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) throw new Error('rate limited');
+      prompts.push(messages.at(-1)?.content ?? '');
+      return { text: loadFixture('good-maze'), stop: 'complete' };
+    },
+  };
+
+  await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(prompts.length, MODELS.models.length);
+  assert.doesNotMatch(String(prompts[1]), /violated the content rules/);
+});
+
 test('a successful run reports whether the game drew anything', async () => {
   const result = await generateDailyGame({
     ...baseParams(),

@@ -183,10 +183,23 @@ FAIL if it breaks any rule or you are unsure.`,
   ];
 }
 
-export interface AiModerationResult {
-  pass: boolean;
-  raw: string;
-}
+/**
+ * Why a bundle did not pass moderation.
+ *
+ * Both fail closed and neither publishes. They are kept apart only so the
+ * run is recorded honestly: a moderator that could not be reached judged
+ * nothing, so calling that a content violation misreports the day and
+ * hands the next generation corrective guidance about a rule it never
+ * broke.
+ */
+export type ModerationFailure =
+  /** The moderator read the game and judged it against the rules. */
+  | 'rejected'
+  /** The moderator could not be reached, so nothing was judged. */
+  | 'call-failed';
+
+export type AiModerationResult =
+  { pass: true; raw: string } | { pass: false; failure: ModerationFailure; raw: string };
 
 export async function aiModerationCheck(
   client: OpenRouterClient,
@@ -206,7 +219,11 @@ export async function aiModerationCheck(
     }));
   } catch (error) {
     // An unreachable moderator is not permission to publish.
-    return { pass: false, raw: `moderation call failed: ${errorMessage(error)}` };
+    return {
+      pass: false,
+      failure: 'call-failed',
+      raw: `moderation call failed: ${errorMessage(error)}`,
+    };
   }
 
   const normalized = raw.trim().toUpperCase();
@@ -214,13 +231,13 @@ export async function aiModerationCheck(
   const saysPass = /\bPASS\b/.test(normalized);
 
   // Fail closed: only an unambiguous PASS is a pass.
-  return { pass: saysPass && !saysFail, raw };
+  if (saysPass && !saysFail) return { pass: true, raw };
+  return { pass: false, failure: 'rejected', raw };
 }
 
-export interface ModerationResult {
-  pass: boolean;
-  reasons: string[];
-}
+export type ModerationResult =
+  | { pass: true; reasons: string[] }
+  | { pass: false; failure: ModerationFailure; reasons: string[] };
 
 export interface ModerateParams {
   meta: GeneratedMeta;
@@ -237,7 +254,11 @@ export async function moderate(
   const scan = keywordScan(moderatableText(meta, html), bannedTerms);
   if (!scan.pass) {
     // Already definitively rejected — skip the AI call rather than pay for it.
-    return { pass: false, reasons: [`banned terms present: ${scan.hits.join(', ')}`] };
+    return {
+      pass: false,
+      failure: 'rejected',
+      reasons: [`banned terms present: ${scan.hits.join(', ')}`],
+    };
   }
 
   const ai = await aiModerationCheck(client, {
@@ -247,9 +268,15 @@ export async function moderate(
     html,
   });
   if (!ai.pass) {
+    // `raw` already names the cause when the call itself failed; only a real
+    // verdict needs saying that the model rejected the game.
+    const detail = ai.raw.trim().slice(0, 200);
     return {
       pass: false,
-      reasons: [`moderation model rejected the game: ${ai.raw.trim().slice(0, 200)}`],
+      failure: ai.failure,
+      reasons: [
+        ai.failure === 'call-failed' ? detail : `moderation model rejected the game: ${detail}`,
+      ],
     };
   }
 

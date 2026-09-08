@@ -120,6 +120,44 @@ test('aiModerationCheck fails closed when the moderation call throws', async () 
   assert.match(result.raw, /rate limited/);
 });
 
+// The two failures publish nothing either way. They are told apart so the
+// day is recorded for what it was, and so the next attempt is not corrected
+// for a rule that was never checked.
+test('a moderator that cannot be reached is tagged as a failed call', async () => {
+  const result = await aiModerationCheck(throwingModerator('rate limited'), {
+    model: 'mod',
+    guardrailsText: GUARDRAILS,
+    meta: CLEAN_META,
+    html: '<div></div>',
+  });
+  assert.ok(!result.pass);
+  assert.equal(result.failure, 'call-failed');
+});
+
+test('a FAIL verdict is tagged as a rejection', async () => {
+  const result = await aiModerationCheck(stubModerator('FAIL: depicts a human character'), {
+    model: 'mod',
+    guardrailsText: GUARDRAILS,
+    meta: CLEAN_META,
+    html: '<div></div>',
+  });
+  assert.ok(!result.pass);
+  assert.equal(result.failure, 'rejected');
+});
+
+test('moderate reports an unreachable moderator without claiming the game was rejected', async () => {
+  const result = await moderate(throwingModerator('rate limited'), {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+  });
+  assert.ok(!result.pass);
+  assert.equal(result.failure, 'call-failed');
+  assert.match(result.reasons.join(' '), /moderation call failed/);
+  assert.doesNotMatch(result.reasons.join(' '), /rejected the game/);
+});
+
 test('moderate rejects the known-bad guardrail fixture', async () => {
   const { meta, html } = loadFixtureBundle('bad-guardrail-word');
   // Even with a moderator that would wave it through, the keyword scan must catch it.
