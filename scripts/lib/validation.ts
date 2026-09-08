@@ -57,5 +57,8 @@ export function loadValidatedJson<T>(
   if (!result.valid) {
     throw new Error(`${filePath}: invalid — ${result.errors.join('; ')}`);
   }
+  // Validators collect every error rather than returning at the first, which
+  // is what makes `npm run validate` name all of them — but it narrows
+  // nothing, so `parsed` is still `unknown` to the compiler here.
   return parsed as T;
 }

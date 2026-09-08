@@ -33,14 +33,8 @@ export interface ReactionTally {
   readonly likes: number;
   /** Rows for this slug that said `dislike`, whether or not they gave reasons. */
   readonly dislikes: number;
-  /** Counts keyed by {@link DislikeReason}, on a null-prototype object. */
+  /** Counts keyed by {@link DislikeReason}. Only ids from that vocabulary appear. */
   readonly dislikeReasons: Partial<Record<DislikeReason, number>>;
-}
-
-function emptyReasonCounts(): Partial<Record<DislikeReason, number>> {
-  // Null-prototype: a row naming `__proto__` or `constructor` can then only
-  // ever create an ordinary own property, never reach Object.prototype.
-  return Object.create(null) as Partial<Record<DislikeReason, number>>;
 }
 
 /**
@@ -50,11 +44,15 @@ function emptyReasonCounts(): Partial<Record<DislikeReason, number>> {
  * @param slug Only rows carrying exactly this slug are counted.
  */
 export function tallyReactions(rows: unknown, slug: string): ReactionTally {
-  const dislikeReasons = emptyReasonCounts();
+  // Keyed by the closed vocabulary rather than by anything a row carries, so
+  // a row naming `__proto__` or `constructor` has no key to reach for.
+  const counts = new Map<DislikeReason, number>();
   let likes = 0;
   let dislikes = 0;
 
-  if (!Array.isArray(rows)) return { likes, dislikes, dislikeReasons };
+  if (!Array.isArray(rows)) {
+    return { likes, dislikes, dislikeReasons: Object.fromEntries(counts) };
+  }
 
   for (const row of rows) {
     if (!isRecord(row)) continue;
@@ -75,12 +73,12 @@ export function tallyReactions(rows: unknown, slug: string): ReactionTally {
     // and repeating one a thousand times still counts once.
     for (const reason of DISLIKE_REASONS) {
       if (reasons.includes(reason.id)) {
-        dislikeReasons[reason.id] = (dislikeReasons[reason.id] ?? 0) + 1;
+        counts.set(reason.id, (counts.get(reason.id) ?? 0) + 1);
       }
     }
   }
 
-  return { likes, dislikes, dislikeReasons };
+  return { likes, dislikes, dislikeReasons: Object.fromEntries(counts) };
 }
 
 export interface ApplyFeedbackParams {

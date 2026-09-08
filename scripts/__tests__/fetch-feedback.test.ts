@@ -70,10 +70,24 @@ test('tallyReactions creates no key outside the vocabulary, whatever a row names
   assert.deepEqual(Object.keys(tally.dislikeReasons), ['no-load']);
 });
 
-test('tallyReactions builds its counts on a null-prototype object', () => {
-  const tally = tallyReactions([row('dislike', ['no-load'])], SLUG);
+// What the null-prototype object above this used to guard, stated as the
+// property a caller depends on rather than the mechanism: a name a row
+// supplies is never readable as a count, whether or not it exists on
+// Object.prototype.
+test('tallyReactions reports no count under a name a row invented', () => {
+  const tally = tallyReactions(
+    [row('dislike', ['__proto__', 'constructor', 'toString', 'no-load'])],
+    SLUG,
+  );
 
-  assert.equal(Object.getPrototypeOf(tally.dislikeReasons), null);
+  for (const name of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
+    assert.equal(
+      Object.entries(tally.dislikeReasons).find(([id]) => id === name),
+      undefined,
+      `${name} was readable as a count`,
+    );
+  }
+  assert.equal(tally.dislikeReasons['no-load'], 1);
 });
 
 test('tallyReactions emits only numbers, never strings from the store', () => {
