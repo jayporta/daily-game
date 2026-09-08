@@ -15,6 +15,7 @@ import { pathToFileURL } from 'node:url';
 import { errorMessage } from '#lib/errors.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import { loadGenerationConfig } from '#scripts/lib/config/generation.ts';
+import { MS_PER_DAY } from '#scripts/lib/dates.ts';
 import type {
   HistoryGameEntry,
   HistorySummary,
@@ -28,9 +29,8 @@ import {
   writeGamesJson,
   writeGamesMd,
 } from '#scripts/lib/history-store.ts';
+import { writeJson } from '#scripts/lib/json-file.ts';
 import { createPaths, paths as defaultPaths, type Paths } from '#scripts/lib/paths.ts';
-
-const MS_PER_DAY = 86_400_000;
 
 /**
  * How many games the leaderboard remembers. Bounded because the whole entry
@@ -293,7 +293,7 @@ export function rollUpHistory({
   }
 
   const files = archiveEntries(aging, paths);
-  writeFileSync(paths.historySummary, `${JSON.stringify(updated, null, 2)}\n`, 'utf8');
+  writeJson(paths.historySummary, updated);
   writeGamesJson(paths.historyGames, [...keep]);
   writeGamesMd(paths.historyGamesMd, [...keep]);
 

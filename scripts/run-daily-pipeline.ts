@@ -9,6 +9,7 @@ import { applyFeedback } from '#scripts/fetch-feedback.ts';
 import { type GenerateResult, generateDailyGame } from '#scripts/generate-daily-game.ts';
 import { loadAllConfig } from '#scripts/lib/config/index.ts';
 import { loadReactionConfigOrUnconfigured } from '#scripts/lib/config/reactionConfig.ts';
+import { isoDate } from '#scripts/lib/dates.ts';
 import { getOpenRouterClient } from '#scripts/lib/get-client.ts';
 import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
 import {
@@ -47,10 +48,6 @@ export type PipelineResult =
       /** The slug already serving for today. */
       slug: string;
     };
-
-function todayISODate(now: Date): string {
-  return now.toISOString().slice(0, 10);
-}
 
 export interface RunDailyPipelineOptions {
   dryRun?: boolean;
@@ -112,7 +109,7 @@ export async function runDailyPipeline({
   const currentPaths = root ? createPaths(root) : paths;
   const { models, genres, generation, guardrails } = loadAllConfig(root);
   const summary = readSummary(currentPaths.historySummary);
-  const date = todayISODate(now);
+  const date = isoDate(now);
 
   // Reconciled before anything can fail: a generation that later gives up
   // must still leave yesterday's reactions recorded.

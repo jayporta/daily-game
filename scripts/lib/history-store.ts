@@ -4,12 +4,14 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { DislikeReason } from '#lib/reaction-types.ts';
+import { writeJson } from '#scripts/lib/json-file.ts';
 import { paths } from '#scripts/lib/paths.ts';
 import {
   isFiniteNumber,
   isNonEmptyString,
   isPlainObject,
   isRecordOf,
+  isStringArray,
   loadValidatedJson,
   type ValidationResult,
 } from '#scripts/lib/validation.ts';
@@ -116,13 +118,13 @@ export const EMPTY_SUMMARY: HistorySummary = {
 
 const VALID_HISTORY_STATUSES = new Set(['published', 'failed_kept_previous']);
 
+// The same date shape a slug starts with. Kept separate from `SLUG_PATTERN`
+// in lib/reaction-types.ts rather than derived from it: that file is
+// isomorphic and this one is not, so the dependency could only run the wrong
+// way. Change one and check the other.
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const FAILURE_KIND_IDS: ReadonlySet<string> = new Set(FAILURE_KINDS);
-
-function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
-}
 
 /**
  * Everything wrong with one entry, each problem naming its own field.
@@ -292,7 +294,9 @@ export function validateHistorySummary(json: unknown): ValidationResult {
   return { valid: errors.length === 0, errors };
 }
 
-function writeFileEnsuringDir(filePath: string, contents: string): void {
+// games.md only. Every JSON file goes through writeJson, which shares this
+// directory-creating behaviour and fixes the format.
+function writeTextEnsuringDir(filePath: string, contents: string): void {
   mkdirSync(dirname(filePath), { recursive: true });
   writeFileSync(filePath, contents, 'utf8');
 }
@@ -373,7 +377,7 @@ export function publishedEntryOn(
 }
 
 export function writeGamesJson(filePath: string, entries: HistoryGameEntry[]): void {
-  writeFileEnsuringDir(filePath, `${JSON.stringify(entries, null, 2)}\n`);
+  writeJson(filePath, entries);
 }
 
 /** Human-readable mirror of the hot window. Regenerated each run, never parsed back. */
@@ -416,5 +420,5 @@ export function renderGamesMd(entries: HistoryGameEntry[]): string {
 }
 
 export function writeGamesMd(filePath: string, entries: HistoryGameEntry[]): void {
-  writeFileEnsuringDir(filePath, renderGamesMd(entries));
+  writeTextEnsuringDir(filePath, renderGamesMd(entries));
 }

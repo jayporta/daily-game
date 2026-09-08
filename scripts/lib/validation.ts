@@ -4,9 +4,8 @@
 // Deliberately not a generic JSON-Schema engine — the rules themselves live
 // beside the thing they describe (see config/ and history-store.ts), and only
 // these primitives are shared.
-import { readFileSync } from 'node:fs';
-import { errorMessage } from '#lib/errors.ts';
 import { isRecord } from '#lib/guards.ts';
+import { readJson } from '#scripts/lib/json-file.ts';
 
 /** What every validator returns: a verdict plus every problem found, not just the first. */
 export interface ValidationResult {
@@ -29,6 +28,11 @@ export function isFiniteNumber(v: unknown): v is number {
  */
 export const isPlainObject = isRecord;
 
+/** An array whose every element is a string. Narrows, so the result indexes as `string`. */
+export function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string');
+}
+
 /** An object used as a lookup table, every value of which passes `isValid`. */
 export function isRecordOf(v: unknown, isValid: (entry: unknown) => boolean): boolean {
   return isPlainObject(v) && Object.values(v).every(isValid);
@@ -47,14 +51,7 @@ export function loadValidatedJson<T>(
   filePath: string,
   validate: (json: unknown) => ValidationResult,
 ): T {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(filePath, 'utf8'));
-  } catch (error) {
-    throw new Error(`${filePath}: could not read or parse JSON — ${errorMessage(error)}`, {
-      cause: error,
-    });
-  }
+  const parsed = readJson(filePath);
 
   const result = validate(parsed);
   if (!result.valid) {

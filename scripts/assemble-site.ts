@@ -7,10 +7,11 @@
 // gitignored, the second is committed by the daily job. Pages needs them
 // merged. Doing that here rather than in workflow YAML means it can be run
 // and verified locally exactly as CI runs it.
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isManifest } from '#lib/manifest.ts';
+import { readJson } from '#scripts/lib/json-file.ts';
 import { createPaths, paths as defaultPaths, type Paths, REPO_ROOT } from '#scripts/lib/paths.ts';
 
 export interface AssembleSiteParams {
@@ -49,7 +50,7 @@ export interface AssembleSiteResult {
 export function missingPublishedFiles(paths: Paths): string[] {
   if (!existsSync(paths.manifest)) return [];
 
-  const parsed: unknown = JSON.parse(readFileSync(paths.manifest, 'utf8'));
+  const parsed = readJson(paths.manifest);
   if (parsed === null) return [];
   if (!isManifest(parsed)) return ['manifest.json is neither null nor a complete manifest'];
 

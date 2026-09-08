@@ -103,6 +103,11 @@ export function isReactionConfig(value: unknown): value is ReactionConfig {
  * Exported because the reaction store constrains its `slug` column with
  * this same pattern — see `scripts/reaction-store-schema.ts`, which reads
  * it from here rather than repeating it.
+ *
+ * The leading date is the same shape `DATE_PATTERN` in
+ * `scripts/lib/history-store.ts` checks. That file is Node-only and this one
+ * is isomorphic, so neither can import the other's copy: change one and check
+ * the other.
  */
 export const SLUG_PATTERN = /^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/;
 

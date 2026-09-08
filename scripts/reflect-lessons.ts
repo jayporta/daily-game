@@ -5,13 +5,13 @@
 //
 // Owns the lessons field outright. The rollup owns the archive and the
 // tallies and makes no model call, so the two never write the same thing.
-import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { errorMessage } from '#lib/errors.ts';
 import { loadModelsConfig } from '#scripts/lib/config/models.ts';
 import { getOpenRouterClient } from '#scripts/lib/get-client.ts';
 import type { HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
 import { readHotWindow, readSummary } from '#scripts/lib/history-store.ts';
+import { writeJson } from '#scripts/lib/json-file.ts';
 import { buildLessonsMessages, MAX_LESSONS_LENGTH } from '#scripts/lib/lessons-prompt.ts';
 import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 import { createPaths, paths as defaultPaths } from '#scripts/lib/paths.ts';
@@ -108,7 +108,7 @@ export async function reflectLessons({
   if (dryRun) return { rewritten: true, lessons };
 
   const updated: HistorySummary = { ...summary, lessons };
-  writeFileSync(paths.historySummary, `${JSON.stringify(updated, null, 2)}\n`, 'utf8');
+  writeJson(paths.historySummary, updated);
   return { rewritten: true, lessons };
 }
 

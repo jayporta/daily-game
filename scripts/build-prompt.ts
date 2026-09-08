@@ -5,6 +5,7 @@
 import { renderAttemptFeedback } from '#lib/attempt-feedback.ts';
 import { type DislikeReason, isDislikeReason } from '#lib/reaction-types.ts';
 import type { GenreEntry, GenresConfig } from '#scripts/lib/config/genres.ts';
+import { MS_PER_DAY } from '#scripts/lib/dates.ts';
 import type {
   FailureKind,
   HistoryGameEntry,
@@ -143,7 +144,7 @@ function slugDate(slug: string): string {
 function daysBetween(fromISODate: string, to: Date): number {
   const from = Date.parse(`${fromISODate}T00:00:00Z`);
   if (Number.isNaN(from)) return Number.POSITIVE_INFINITY;
-  return (to.getTime() - from) / 86_400_000;
+  return (to.getTime() - from) / MS_PER_DAY;
 }
 
 export interface RemixOptions {

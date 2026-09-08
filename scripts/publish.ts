@@ -8,7 +8,7 @@
 // the end. Both come from lib/errorReporting.ts and both are keyed off
 // config/generation.json's sentryDsn. This is the only point at which a
 // bundle is touched — nothing downstream may transform it again.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import { toGeneratedMeta } from '#lib/extract-bundle-shared.ts';
@@ -17,12 +17,12 @@ import { isManifest } from '#lib/manifest.ts';
 import { QUOTA_EXCEEDED, type RunStatus } from '#lib/status.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import type { GenresConfig } from '#scripts/lib/config/genres.ts';
+import { MS_PER_DAY } from '#scripts/lib/dates.ts';
 import { buildBundleCspMeta, buildErrorReportingSnippet } from '#scripts/lib/errorReporting.ts';
 import type { FailureKind, HistoryGameEntry } from '#scripts/lib/history-store.ts';
 import { appendEntry, writeGamesJson, writeGamesMd } from '#scripts/lib/history-store.ts';
+import { readJsonOrNull, writeJson } from '#scripts/lib/json-file.ts';
 import { createPaths, paths as defaultPaths, type Paths } from '#scripts/lib/paths.ts';
-
-const MS_PER_DAY = 86_400_000;
 
 /**
  * Cap on a stored failure reason. Smoke-test reasons carry the game's own
@@ -199,7 +199,7 @@ export function publish({
   const hardened = withHeadMeta(html, buildBundleCspMeta(generationConfig.sentryDsn));
   const snippet = buildErrorReportingSnippet(generationConfig.sentryDsn, slug);
   writeFileSync(join(gameDir, 'game.html'), `${hardened}${snippet}`, 'utf8');
-  writeFileSync(join(gameDir, 'meta.json'), `${JSON.stringify(meta, null, 2)}\n`, 'utf8');
+  writeJson(join(gameDir, 'meta.json'), meta);
   writeFileSync(join(gameDir, 'prompt.txt'), prompt, 'utf8');
 
   const manifest = buildManifest({
@@ -212,7 +212,7 @@ export function publish({
     genres,
     paths,
   });
-  writeFileSync(paths.manifest, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  writeJson(paths.manifest, manifest);
 
   const entry: HistoryGameEntry = {
     date,
@@ -305,7 +305,7 @@ export function writeRunStatus({
     state: QUOTA_EXCEEDED,
     retryAt: computeExpiresAt(cronSchedule, generatedAt),
   };
-  writeFileSync(paths.status, `${JSON.stringify(status, null, 2)}\n`, 'utf8');
+  writeJson(paths.status, status);
   return status;
 }
 
@@ -340,12 +340,7 @@ export interface RestoreManifestParams {
 function manifestServesAGame(paths: Paths): boolean {
   if (!existsSync(paths.manifest)) return false;
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(paths.manifest, 'utf8'));
-  } catch {
-    return false;
-  }
+  const parsed = readJsonOrNull(paths.manifest);
   if (!isManifest(parsed)) return false;
   return paths.isArchivedFile(parsed.path) && existsSync(join(paths.root, parsed.path));
 }
@@ -361,14 +356,7 @@ function readArchivedMeta(paths: Paths, slug: string): GeneratedMeta | null {
   const gameDir = paths.archiveGameDir(slug);
   if (!existsSync(join(gameDir, 'game.html'))) return null;
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(join(gameDir, 'meta.json'), 'utf8'));
-  } catch {
-    return null;
-  }
-
-  const meta = toGeneratedMeta(parsed);
+  const meta = toGeneratedMeta(readJsonOrNull(join(gameDir, 'meta.json')));
   return meta.title.length > 0 ? meta : null;
 }
 
@@ -421,7 +409,7 @@ export function restoreManifestFromArchive({
       hasArchivedPrompt: existsSync(join(paths.archiveGameDir(slug), 'prompt.txt')),
       paths,
     });
-    writeFileSync(paths.manifest, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+    writeJson(paths.manifest, manifest);
     return { status: 'restored', manifest };
   }
 

@@ -8,7 +8,6 @@
 //
 // Writes nothing at all unless a configured model has actually gone, and
 // refuses to write anything the config's own validator would reject.
-import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { isRecord } from '#lib/guards.ts';
 import {
@@ -17,8 +16,11 @@ import {
   type ModelsConfig,
   validateModelsConfig,
 } from '#scripts/lib/config/models.ts';
+import { isoDate } from '#scripts/lib/dates.ts';
 import { type HistoryGameEntry, readHotWindow } from '#scripts/lib/history-store.ts';
+import { writeJson } from '#scripts/lib/json-file.ts';
 import { createPaths, paths as defaultPaths } from '#scripts/lib/paths.ts';
+import { isStringArray } from '#scripts/lib/validation.ts';
 
 export const CATALOG_URL = 'https://openrouter.ai/api/v1/models';
 
@@ -70,7 +72,7 @@ function toCatalogModel(value: unknown): CatalogModel | null {
   if (!isRecord(architecture) || !isRecord(provider)) return null;
   const modalities = architecture['output_modalities'];
   const maxTokens = provider['max_completion_tokens'];
-  if (!Array.isArray(modalities) || !modalities.every((m) => typeof m === 'string')) return null;
+  if (!isStringArray(modalities)) return null;
   if (typeof maxTokens !== 'number') return null;
   return {
     id,
@@ -198,7 +200,7 @@ export async function checkModels({
   }
 
   if (!dryRun) {
-    writeFileSync(paths.modelsConfig, `${JSON.stringify(updated, null, 2)}\n`, 'utf8');
+    writeJson(paths.modelsConfig, updated);
   }
   return {
     status: 'updated',
@@ -229,7 +231,7 @@ function describe(result: CheckModelsResult): string {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const dryRun = process.argv.includes('--dry-run');
-  const today = new Date().toISOString().slice(0, 10);
+  const today = isoDate(new Date());
   // A hand-run check is always allowed; the workflow's is gated on the day
   // having produced no game.
   const forced = dryRun || process.argv.includes('--force');
