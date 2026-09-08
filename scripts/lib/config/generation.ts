@@ -1,6 +1,6 @@
 // Everything about `config/generation.json`: its shape, its rules, and how
-// it is read. These are the knobs on the daily run — window sizes, retry
-// temperatures, the cron the countdown is computed from.
+// it is read. These are the knobs on the daily run — window sizes, sampling
+// temperature, the cron the countdown is computed from.
 import { parseSentryDsn } from '#scripts/lib/errorReporting.ts';
 import { paths } from '#scripts/lib/paths.ts';
 import {
@@ -34,15 +34,20 @@ export interface GenerationConfig {
   /** How far back in days a remix may reach for its subject. */
   remixLookbackDays: number;
   /**
-   * Sampling temperature for each attempt in order, index 0 being the first.
+   * Sampling temperature for the generation call, from 0 to 2.
    *
    * @remarks
-   * One entry per active model in `config/models.json`, since a run makes one
-   * attempt per model. Rising values start where the two fenced output blocks
-   * are most likely and loosen from there, so a retry is not a near-copy of the
-   * answer that just failed. A list shorter than the run repeats its last value.
+   * One value for every attempt. Low keeps the model on its most probable
+   * wording, which is what following the two fenced output blocks asks for, and
+   * a failure to follow them is the most common way a generation is thrown
+   * away. Retries need no variation of their own: each one runs on the next
+   * model in the rotation, against a prompt carrying the last failure, and
+   * sampling is stochastic regardless.
+   *
+   * The moderation and reflection calls set their own at the call site, since
+   * neither is generating a game.
    */
-  retryTemperatures: number[];
+  temperature: number;
   /**
    * Where errors are reported, or `null` to report none.
    *
@@ -91,12 +96,8 @@ export function validateGenerationConfig(json: unknown): ValidationResult {
   if (!isFiniteNumber(json.remixLookbackDays) || json.remixLookbackDays <= 0) {
     errors.push('remixLookbackDays must be a positive number');
   }
-  if (
-    !Array.isArray(json.retryTemperatures) ||
-    json.retryTemperatures.length === 0 ||
-    json.retryTemperatures.some((t: unknown) => !isFiniteNumber(t))
-  ) {
-    errors.push('retryTemperatures must be a non-empty array of numbers');
+  if (!isFiniteNumber(json.temperature) || json.temperature < 0 || json.temperature > 2) {
+    errors.push('temperature must be a number between 0 and 2');
   }
   if (json.sentryDsn !== null) {
     // Checked for shape, not just presence: an unparseable DSN makes

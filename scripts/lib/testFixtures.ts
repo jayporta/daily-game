@@ -91,7 +91,7 @@ export const GENERATION_CONFIG: GenerationConfig = {
   rollupTriggerEntries: 60,
   remixProbability: 0.2,
   remixLookbackDays: 90,
-  retryTemperatures: [0.7, 0.9, 1.0],
+  temperature: 0.7,
   sentryDsn: null,
   cronSchedule: '0 13 * * *',
 };

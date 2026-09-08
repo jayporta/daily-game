@@ -103,11 +103,6 @@ export async function generateDailyGame({
       console.log(`\n[Attempt ${attempt}/${maxAttempts}] Using model: ${model}`);
     }
 
-    const temperature =
-      generationConfig.retryTemperatures[attempt - 1] ??
-      generationConfig.retryTemperatures.at(-1) ??
-      0.7;
-
     const prompt = buildPrompt({
       guardrailsText: guardrails,
       genres,
@@ -131,7 +126,7 @@ export async function generateDailyGame({
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: prompt },
         ],
-        temperature,
+        temperature: generationConfig.temperature,
       }));
 
       if (verbose) {

@@ -8,7 +8,7 @@ test('validateGenerationConfig accepts a valid config', () => {
     rollupTriggerEntries: 60,
     remixProbability: 0.2,
     remixLookbackDays: 90,
-    retryTemperatures: [0.7, 0.9, 1.0],
+    temperature: 0.7,
     sentryDsn: null,
     cronSchedule: '0 13 * * *',
   });
@@ -21,7 +21,7 @@ test('validateGenerationConfig rejects negative historyHotWindowDays', () => {
     rollupTriggerEntries: 60,
     remixProbability: 0.2,
     remixLookbackDays: 90,
-    retryTemperatures: [0.7],
+    temperature: 0.7,
     sentryDsn: null,
     cronSchedule: '0 13 * * *',
   });
@@ -35,7 +35,7 @@ test('validateGenerationConfig rejects out-of-range remixProbability', () => {
     rollupTriggerEntries: 60,
     remixProbability: 1.5,
     remixLookbackDays: 90,
-    retryTemperatures: [0.7],
+    temperature: 0.7,
     sentryDsn: null,
     cronSchedule: '0 13 * * *',
   });
@@ -49,7 +49,7 @@ test('validateGenerationConfig accepts a well-formed sentry dsn', () => {
     rollupTriggerEntries: 60,
     remixProbability: 0.2,
     remixLookbackDays: 90,
-    retryTemperatures: [0.7],
+    temperature: 0.7,
     sentryDsn: 'https://pub1ickey@o42.ingest.example/4567',
     cronSchedule: '0 13 * * *',
   });
@@ -64,10 +64,26 @@ test('validateGenerationConfig rejects a malformed sentry dsn', () => {
     rollupTriggerEntries: 60,
     remixProbability: 0.2,
     remixLookbackDays: 90,
-    retryTemperatures: [0.7],
+    temperature: 0.7,
     sentryDsn: 'https://o42.ingest.example/4567',
     cronSchedule: '0 13 * * *',
   });
   assert.equal(result.valid, false);
   assert.ok(result.errors.some((e) => e.includes('sentryDsn')));
+});
+
+// Above 2 the OpenAI-shaped API rejects the request outright, and the run
+// would lose every attempt to the same argument error.
+test('validateGenerationConfig rejects an out-of-range temperature', () => {
+  const result = validateGenerationConfig({
+    historyHotWindowDays: 45,
+    rollupTriggerEntries: 60,
+    remixProbability: 0.2,
+    remixLookbackDays: 90,
+    temperature: 2.5,
+    sentryDsn: null,
+    cronSchedule: '0 13 * * *',
+  });
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((e) => e.includes('temperature')));
 });
