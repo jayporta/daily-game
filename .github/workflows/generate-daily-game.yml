@@ -49,7 +49,7 @@ concurrency:
 # Everything the pipeline may write. Both the change check and `git add` read
 # this list; add stages only what is on disk, and nothing here deletes a path.
 env:
-  PUBLISHED_PATHS: manifest.json status.json games/archive history
+  PUBLISHED_PATHS: manifest.json status.json config/models.json games/archive history
 
 jobs:
   generate:
@@ -105,6 +105,20 @@ jobs:
             args+=("--force-model=$FORCE_MODEL")
           fi
           node --experimental-strip-types scripts/call-openrouter.ts "${args[@]}"
+
+      # A rotation entry that has quietly disappeared is one reason a run
+      # fails on every attempt. The catalogue is free and unauthenticated,
+      # and the script asks for nothing on a day that produced a game.
+      - name: Check the model rotation
+        continue-on-error: true
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=()
+          if [ "$DRY_RUN" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          node --experimental-strip-types scripts/check-models.ts "${args[@]}"
 
       # Distils the hot window into the lessons note the next prompt reads.
       # Like the rollup, it must not cost an already-published game its commit.

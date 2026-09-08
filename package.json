@@ -27,6 +27,7 @@
     "lint:fix": "biome check --write . && eslint --fix .",
     "validate": "node --experimental-strip-types scripts/validate-config.ts",
     "rollup": "node --experimental-strip-types scripts/rollup-history.ts",
+    "check-models": "node --experimental-strip-types scripts/check-models.ts",
     "schema": "node --experimental-strip-types scripts/reaction-store-schema.ts",
     "reflect": "node --env-file-if-exists=.env --experimental-strip-types scripts/reflect-lessons.ts",
     "dry-run": "node --env-file-if-exists=.env --experimental-strip-types scripts/call-openrouter.ts --dry-run",
