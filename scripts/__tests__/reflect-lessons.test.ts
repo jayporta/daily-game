@@ -7,7 +7,7 @@ import type { HistoryGameEntry, HistorySummary } from '#scripts/lib/history-stor
 import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
 import { buildLessonsMessages, isLessonsRequest } from '#scripts/lib/lessons-prompt.ts';
 import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
-import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { OPENROUTER_TIMEOUT_MS, type OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 import { loadFixture } from '#scripts/lib/testFixtures.ts';
 import { closingTag } from '#scripts/lib/untrusted-block.ts';
 import { reflectLessons, rewriteLessons } from '#scripts/reflect-lessons.ts';
@@ -265,4 +265,24 @@ test('reflectLessons distils the recent window, not aged-out games', async (t) =
   });
 
   assert.match(seen, /yesterday tide clocks/);
+});
+
+// Same reason as moderation's cap: reflection shares a client with
+// generation and would otherwise inherit a deadline sized for writing a
+// whole game, on top of a rotation's worth of attempts.
+test('reflection asks for a shorter deadline than a generation gets', async () => {
+  let requestedTimeoutMs: number | undefined;
+  const client: OpenRouterClient = {
+    async complete(request) {
+      requestedTimeoutMs = request.timeoutMs;
+      return { text: 'Guard every lookup.', stop: 'complete' };
+    },
+  };
+
+  await rewriteLessons(client, { model: 'reflector', summary: EMPTY_SUMMARY, aging: [] });
+
+  assert.ok(
+    requestedTimeoutMs !== undefined && requestedTimeoutMs < OPENROUTER_TIMEOUT_MS,
+    `reflection would inherit the ${OPENROUTER_TIMEOUT_MS}ms generation cap`,
+  );
 });

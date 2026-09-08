@@ -201,6 +201,17 @@ export type ModerationFailure =
 export type AiModerationResult =
   { pass: true; raw: string } | { pass: false; failure: ModerationFailure; raw: string };
 
+/**
+ * How long the moderation call gets.
+ *
+ * @remarks
+ * The answer is one word, so this is generous by a wide margin. It exists
+ * because moderation shares a client with generation, whose default cap is
+ * sized for a model writing a whole game — inheriting that would let one
+ * attempt spend most of the workflow's budget deciding PASS or FAIL.
+ */
+const MODERATION_TIMEOUT_MS = 120_000;
+
 export async function aiModerationCheck(
   client: OpenRouterClient,
   {
@@ -216,6 +227,7 @@ export async function aiModerationCheck(
       model,
       messages: buildModerationMessages(guardrailsText, meta, html),
       temperature: 0,
+      timeoutMs: MODERATION_TIMEOUT_MS,
     }));
   } catch (error) {
     // An unreachable moderator is not permission to publish.

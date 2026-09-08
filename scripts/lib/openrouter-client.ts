@@ -27,6 +27,18 @@ export interface CompletionRequest {
   model: string;
   messages: ChatMessage[];
   temperature: number;
+  /**
+   * Overall cap for this one call, overriding the client's default.
+   *
+   * @remarks
+   * For a call that is not a generation. The default is sized for a model
+   * writing a whole game, which is minutes of output; a moderation verdict or
+   * a lessons note needs a small fraction of that, and letting either inherit
+   * the generation cap is what pushes a worst-case run past the workflow's
+   * limit. The idle deadline is unaffected — silence means the same thing
+   * whatever the call is for.
+   */
+  timeoutMs?: number;
 }
 
 export interface CompletionResult {
@@ -53,15 +65,26 @@ export interface OpenRouterClient {
 export const OPENROUTER_IDLE_TIMEOUT_MS = 60_000;
 
 /**
- * The most one completion may take however steadily it streams.
+ * The most one generation may take however steadily it streams.
  *
  * @remarks
  * A backstop against a provider that trickles forever rather than stopping,
- * which idle time alone would never catch. Sized so that a run exhausting the
- * model rotation still fits inside the workflow's 90-minute cap alongside
- * moderation, the smoke tests and the rollup.
+ * which idle time alone would never catch. Sized by working backwards from
+ * the workflow's 90-minute cap, since a job killed by that cap never records
+ * `failed_kept_previous`:
+ *
+ * ```
+ * 4 setup + 7 attempts x (9 generation + 2 moderation + 0.6 smoke)
+ *   + 2 reflection + 1 rollup = 88.2 min
+ * ```
+ *
+ * Nine minutes is the largest value that fits, and it clears a measured
+ * healthy generation (469s) by only about a minute. That margin is thin on
+ * purpose: aborting an honest generation costs one attempt out of seven,
+ * while overrunning the cap costs the run its whole failure path. Recompute
+ * this whenever the rotation in `config/models.json` grows.
  */
-export const OPENROUTER_TIMEOUT_MS = 600_000;
+export const OPENROUTER_TIMEOUT_MS = 540_000;
 
 export interface CreateOpenRouterClientOptions {
   apiKey: string;
@@ -184,8 +207,13 @@ export function createOpenRouterClient({
   if (!apiKey) throw new Error('createOpenRouterClient requires an apiKey');
 
   return {
-    async complete({ model, messages, temperature }: CompletionRequest): Promise<CompletionResult> {
-      const deadlines = createDeadlines(idleTimeoutMs, timeoutMs);
+    async complete({
+      model,
+      messages,
+      temperature,
+      timeoutMs: requestTimeoutMs,
+    }: CompletionRequest): Promise<CompletionResult> {
+      const deadlines = createDeadlines(idleTimeoutMs, requestTimeoutMs ?? timeoutMs);
       try {
         const response = await fetchImpl(`${baseUrl}/chat/completions`, {
           method: 'POST',

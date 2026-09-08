@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
-import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import { OPENROUTER_TIMEOUT_MS, type OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 import { loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
 import { closingTag } from '#scripts/lib/untrusted-block.ts';
 import {
@@ -303,4 +303,30 @@ test('a banned term hidden in the reported controls is still caught', async () =
   });
 
   assert.equal(result.pass, false);
+});
+
+// Moderation shares a client with generation, whose default cap is sized for
+// a model writing a whole game. Seven attempts inheriting it on the
+// moderation call too is what overruns the workflow cap, and a run killed by
+// that cap records no history entry at all.
+test('moderation asks for a shorter deadline than a generation gets', async () => {
+  let requestedTimeoutMs: number | undefined;
+  const client: OpenRouterClient = {
+    async complete(request) {
+      requestedTimeoutMs = request.timeoutMs;
+      return { text: 'PASS', stop: 'complete' };
+    },
+  };
+
+  await aiModerationCheck(client, {
+    model: 'moderator',
+    guardrailsText: GUARDRAILS,
+    meta: CLEAN_META,
+    html: '<div></div>',
+  });
+
+  assert.ok(
+    requestedTimeoutMs !== undefined && requestedTimeoutMs < OPENROUTER_TIMEOUT_MS,
+    `moderation would inherit the ${OPENROUTER_TIMEOUT_MS}ms generation cap`,
+  );
 });

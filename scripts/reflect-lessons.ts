@@ -17,6 +17,17 @@ import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 import { createPaths, paths as defaultPaths } from '#scripts/lib/paths.ts';
 
 /**
+ * How long the reflection call gets.
+ *
+ * @remarks
+ * The answer is capped at {@link MAX_LESSONS_LENGTH} characters, so this is
+ * generous. Set for the same reason as moderation's: reflection shares a
+ * client with generation and would otherwise inherit a cap sized for writing
+ * a whole game.
+ */
+const REFLECTION_TIMEOUT_MS = 120_000;
+
+/**
  * Asks the model for a rewritten lessons note.
  *
  * @returns The new note, or `null` when the call fails or comes back empty.
@@ -38,6 +49,7 @@ export async function rewriteLessons(
       model,
       messages: buildLessonsMessages(summary, aging),
       temperature: 0.3,
+      timeoutMs: REFLECTION_TIMEOUT_MS,
     }));
   } catch {
     return null;

@@ -57,6 +57,17 @@ jobs:
     # Each active model gets one attempt, including a model call and browser
     # smoke test. This bounds a provider that accepts the connection and then
     # never answers, rather than letting GitHub's 6-hour default apply.
+    #
+    # Being killed by this cap is the one failure that skips
+    # `failed_kept_previous` entirely, so the per-call caps are sized to fit
+    # inside it rather than the other way round:
+    #
+    #   4 setup + 7 attempts x (9 generation + 2 moderation + 0.6 smoke)
+    #     + 2 reflection + 1 rollup = 88.2 min
+    #
+    # The three call caps are OPENROUTER_TIMEOUT_MS, MODERATION_TIMEOUT_MS and
+    # REFLECTION_TIMEOUT_MS. Adding a model to config/models.json adds an
+    # attempt: redo this sum and lower a call cap, never raise this one.
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

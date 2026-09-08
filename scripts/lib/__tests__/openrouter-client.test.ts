@@ -243,6 +243,30 @@ test('a stream that goes quiet rejects on the idle deadline', { timeout: 5_000 }
   assert.ok(Date.now() - started < 2_000, 'waited for the overall cap instead of the idle one');
 });
 
+// Moderation and reflection share this client with generation, whose default
+// cap is sized for writing a whole game. Seven attempts inheriting it on both
+// calls overruns the workflow's 90-minute cap, which is the one failure that
+// records no history entry at all.
+test(
+  'a request-level cap ends the call before the client default',
+  { timeout: 5_000 },
+  async () => {
+    const client = createOpenRouterClient({
+      apiKey: 'test-key',
+      // Steady enough that the idle clock never fires: only a deadline on the
+      // whole request can stop this stream.
+      fetchImpl: streamsSlowly(['tick ', 'tick ', 'tick ', 'tick '], 60),
+      timeoutMs: 60_000,
+      idleTimeoutMs: 5_000,
+    });
+
+    await assert.rejects(
+      () => client.complete({ model: 'm', messages: [], temperature: 0.7, timeoutMs: 100 }),
+      /gave up after/,
+    );
+  },
+);
+
 // A generation runs for minutes. If the idle clock were not restarted by the
 // bytes arriving, it would fire partway through every honest answer.
 test('a slow but steady stream outlives its idle deadline', { timeout: 10_000 }, async () => {
