@@ -1,0 +1,59 @@
+# Every gate the repo has, on pull requests and on main.
+#
+# Runs on push to main as well as pull requests for the same reason the
+# secret scan does: an admin is exempt from the review requirement on main,
+# so a PR-only trigger would never fire on the path most changes take.
+#
+# Deploy does not depend on this run and must not be made to. Its own build
+# job repeats these gates, which is what actually stops a bad push from
+# reaching Pages; see the deploy trigger invariant in CLAUDE.md.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A superseded run on the same branch has nothing left to prove.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # Cheapest first: these need no browser and fail in seconds.
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Validate config and history
+        run: npm run validate
+
+      # The smoke tests drive headless Chromium.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Test
+        run: npm test
+
+      - name: Build and assemble the site
+        run: npm run build:site

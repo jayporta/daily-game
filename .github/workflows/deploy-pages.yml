@@ -39,8 +39,20 @@ jobs:
 
       - run: npm ci
 
+      # Repeated from ci.yml rather than depended on: deploy has to stay a
+      # plain `push` trigger, so nothing here can gate on another workflow's
+      # result. These are what actually stop a bad push from reaching Pages.
       - name: Type-check
         run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Validate config and history
+        run: npm run validate
 
       - name: Install Chromium for the smoke tests
         run: npx playwright install --with-deps chromium
