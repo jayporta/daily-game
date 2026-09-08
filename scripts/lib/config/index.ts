@@ -9,6 +9,7 @@ import { type GenerationConfig, loadGenerationConfig } from '#scripts/lib/config
 import { type GenresConfig, loadGenresConfig } from '#scripts/lib/config/genres.ts';
 import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
 import { loadModelsConfig, type ModelsConfig } from '#scripts/lib/config/models.ts';
+import { createPaths, paths } from '#scripts/lib/paths.ts';
 
 export interface LoadedConfig {
   models: ModelsConfig;
@@ -24,13 +25,16 @@ export interface LoadedConfig {
  * separately through `loadReactionConfigOrUnconfigured` so a hand-edit that
  * breaks it cannot cost the day its game.
  *
+ * @param root Overrides the repo root, so tests can point every file this
+ *   reads at a scratch directory instead of the real `config/`.
  * @throws If any config file is missing, unparseable or invalid.
  */
-export function loadAllConfig(): LoadedConfig {
+export function loadAllConfig(root?: string): LoadedConfig {
+  const p = root ? createPaths(root) : paths;
   return {
-    models: loadModelsConfig(),
-    genres: loadGenresConfig(),
-    generation: loadGenerationConfig(),
-    guardrails: loadGuardrails(),
+    models: loadModelsConfig(p.modelsConfig),
+    genres: loadGenresConfig(p.genresConfig),
+    generation: loadGenerationConfig(p.generationConfig),
+    guardrails: loadGuardrails(p.guardrails),
   };
 }

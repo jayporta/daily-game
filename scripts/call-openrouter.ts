@@ -4,10 +4,10 @@
 //
 // Each attempt: pick a model → build a prompt (feeding back the previous
 // attempt's specific failure) → generate → extract → moderate → smoke
-// test. Three failures is a normal outcome, not a CI failure: a live site
-// keeps the game it is already serving, and the run still exits green. The
-// one write a failed run can make is repointing a manifest that has stopped
-// naming a game at all back at the archive.
+// test. Exhausting the active model rotation is a normal outcome, not a CI
+// failure: a live site keeps the game it is already serving, and the run still
+// exits green. The one write a failed run can make is repointing a manifest
+// that has stopped naming a game at all back at the archive.
 import { pathToFileURL } from 'node:url';
 import { errorMessage } from '#lib/errors.ts';
 import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
@@ -32,11 +32,11 @@ import {
   writeGamesMd,
 } from '#scripts/lib/history-store.ts';
 import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
-import { paths } from '#scripts/lib/paths.ts';
+import { createPaths, type Paths, paths } from '#scripts/lib/paths.ts';
 import { moderate } from '#scripts/moderate.ts';
 import type { ManifestRestoreResult } from '#scripts/publish.ts';
 import { publish, recordFailure, restoreManifestFromArchive } from '#scripts/publish.ts';
-import { selectNextModel } from '#scripts/select-model.ts';
+import { activeModels, selectNextModel } from '#scripts/select-model.ts';
 import { createSmokeTester, type SmokeTester, type SmokeTestResult } from '#scripts/smoke-test.ts';
 
 export const MAX_ATTEMPTS = 3;
@@ -89,6 +89,8 @@ export interface GenerateDailyGameParams {
   historyEntries: HistoryGameEntry[];
   summary: HistorySummary;
   smokeTester: SmokeTester;
+  /** Logs each stage of every attempt. A hand-run debugging aid, off by default. */
+  verbose?: boolean;
   /** Overrides model rotation entirely — used by the workflow's force_model input. */
   forceModel?: string;
   lastUsedModelId?: string;
@@ -105,6 +107,7 @@ export async function generateDailyGame({
   historyEntries,
   summary,
   smokeTester,
+  verbose = false,
   forceModel,
   lastUsedModelId,
   rng = Math.random,
@@ -114,6 +117,7 @@ export async function generateDailyGame({
   const kinds: FailureKind[] = [];
   let priorFailureFeedback: string | undefined;
   let model = forceModel ?? selectNextModel(modelsConfig, lastUsedModelId).id;
+  const maxAttempts = forceModel ? MAX_ATTEMPTS : activeModels(modelsConfig).length;
 
   const remixSuggestion = selectRemixSuggestion(summary, {
     remixProbability: generationConfig.remixProbability,
@@ -122,7 +126,11 @@ export async function generateDailyGame({
     now,
   });
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (verbose) {
+      console.log(`\n[Attempt ${attempt}/${maxAttempts}] Using model: ${model}`);
+    }
+
     const temperature =
       generationConfig.retryTemperatures[attempt - 1] ??
       generationConfig.retryTemperatures.at(-1) ??
@@ -139,6 +147,11 @@ export async function generateDailyGame({
 
     let raw: string;
     let stop: ProviderStopReason;
+
+    if (verbose) {
+      console.log(`[Attempt ${attempt}] Requesting LLM generation...`);
+    }
+
     try {
       ({ text: raw, stop } = await client.complete({
         model,
@@ -148,10 +161,17 @@ export async function generateDailyGame({
         ],
         temperature,
       }));
+
+      if (verbose) {
+        console.log(`[Attempt ${attempt}] Generation finished (Stop reason: ${stop})`);
+      }
     } catch (error) {
       const reason = `attempt ${attempt} (${model}): generation call failed — ${errorMessage(error)}`;
       reasons.push(reason);
       kinds.push('generation-call');
+      if (verbose) {
+        console.log(`[Attempt ${attempt}] ${reason}`);
+      }
       priorFailureFeedback =
         'The previous request failed before returning a game. Return the two fenced blocks exactly as specified.';
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
@@ -159,6 +179,11 @@ export async function generateDailyGame({
     }
 
     const extracted = extractBundle(raw);
+
+    if (verbose) {
+      console.log(`[Attempt ${attempt}] Bundle extraction: ${extracted.ok ? 'Success' : 'Failed'}`);
+    }
+
     if (!extracted.ok) {
       // A truncated response loses its closing fence first, which reads as
       // a missing block — naming the real cause here is what makes it
@@ -173,6 +198,10 @@ export async function generateDailyGame({
       continue;
     }
 
+    if (verbose) {
+      console.log(`[Attempt ${attempt}] Running moderation...`);
+    }
+
     const moderation = await moderate(client, {
       meta: extracted.meta,
       html: extracted.html,
@@ -184,9 +213,16 @@ export async function generateDailyGame({
         `attempt ${attempt} (${model}): moderation rejected — ${moderation.reasons.join('; ')}`,
       );
       kinds.push('moderation');
+      if (verbose) {
+        console.log(`[Attempt ${attempt}] Moderation failed: ${moderation.reasons.join('; ')}`);
+      }
       priorFailureFeedback = `Your previous game violated the content rules: ${moderation.reasons.join('; ')}. Re-read the content rules and avoid this entirely.`;
       model = nextModelAfterFailure(modelsConfig, model, forceModel);
       continue;
+    }
+
+    if (verbose) {
+      console.log(`[Attempt ${attempt}] Running smoke test...`);
     }
 
     const smoke = await smokeTester.test(extracted.html);
@@ -211,7 +247,7 @@ export async function generateDailyGame({
     };
   }
 
-  return { status: 'failed_kept_previous', attempts: MAX_ATTEMPTS, reasons, kinds, model };
+  return { status: 'failed_kept_previous', attempts: maxAttempts, reasons, kinds, model };
 }
 
 /**
@@ -239,7 +275,18 @@ function todayISODate(now: Date): string {
 export interface RunDailyPipelineOptions {
   dryRun?: boolean;
   forceModel?: string;
+  /** Logs each stage of every attempt. A hand-run debugging aid, off by default. */
+  verbose?: boolean;
   now?: Date;
+  /** Overrides the repo root, so tests read and write a scratch directory. */
+  root?: string;
+  /** Overrides the real-or-mock client {@link getOpenRouterClient} would pick. */
+  client?: OpenRouterClient;
+  /**
+   * A caller-supplied tester is the caller's to close; only one this function
+   * creates itself is closed here.
+   */
+  smokeTester?: SmokeTester;
 }
 
 /**
@@ -253,6 +300,7 @@ export interface RunDailyPipelineOptions {
 async function reconcileYesterday(
   entries: HistoryGameEntry[],
   dryRun: boolean,
+  currentPaths: Paths,
 ): Promise<HistoryGameEntry[]> {
   const previous = lastPublishedEntry(entries);
   if (previous?.slug === undefined) return entries;
@@ -265,8 +313,8 @@ async function reconcileYesterday(
   });
 
   if (reconciled !== entries && !dryRun) {
-    writeGamesJson(paths.historyGames, reconciled);
-    writeGamesMd(paths.historyGamesMd, reconciled);
+    writeGamesJson(currentPaths.historyGames, reconciled);
+    writeGamesMd(currentPaths.historyGamesMd, reconciled);
   }
   return reconciled;
 }
@@ -274,16 +322,25 @@ async function reconcileYesterday(
 /** Loads real config/history from disk, generates, and publishes on success. */
 export async function runDailyPipeline({
   dryRun = false,
+  verbose = false,
   forceModel,
   now = new Date(),
+  root,
+  client: suppliedClient,
+  smokeTester: suppliedSmokeTester,
 }: RunDailyPipelineOptions = {}): Promise<PipelineResult> {
-  const { models, genres, generation, guardrails } = loadAllConfig();
-  const summary = readSummary();
+  const currentPaths = root ? createPaths(root) : paths;
+  const { models, genres, generation, guardrails } = loadAllConfig(root);
+  const summary = readSummary(currentPaths.historySummary);
   const date = todayISODate(now);
 
   // Reconciled before anything can fail: a generation that later gives up
   // must still leave yesterday's reactions recorded.
-  const historyEntries = await reconcileYesterday(readHotWindow(), dryRun);
+  const historyEntries = await reconcileYesterday(
+    readHotWindow(currentPaths.historyGames),
+    dryRun,
+    currentPaths,
+  );
 
   // Two triggers reach this day on purpose — a punctual external dispatch and
   // the Actions schedule behind it — and a dispatch can also be retried. Only
@@ -297,8 +354,8 @@ export async function runDailyPipeline({
     return { status: 'already_published', slug: today.slug };
   }
 
-  const client = getOpenRouterClient();
-  const smokeTester = await createSmokeTester();
+  const client = suppliedClient ?? getOpenRouterClient();
+  const smokeTester = suppliedSmokeTester ?? (await createSmokeTester());
 
   let result: GenerateResult;
   try {
@@ -310,13 +367,14 @@ export async function runDailyPipeline({
       generationConfig: generation,
       historyEntries,
       summary,
+      verbose,
       smokeTester,
       forceModel,
       lastUsedModelId: lastPublishedEntry(historyEntries)?.model,
       now,
     });
   } finally {
-    await smokeTester.close();
+    if (suppliedSmokeTester === undefined) await smokeTester.close();
   }
 
   if (dryRun) {
@@ -337,6 +395,7 @@ export async function runDailyPipeline({
       genres,
       historyEntries,
       generatedAt: now.toISOString(),
+      root,
     });
     console.log(
       `Published ${published.slug} (model ${result.model}, ${result.attempts} attempt(s))`,
@@ -349,6 +408,7 @@ export async function runDailyPipeline({
       reasons: result.reasons,
       kinds: result.kinds,
       historyEntries,
+      root,
     });
     // Keeping the previous manifest only serves a game while it still names
     // one. A seed-state or dangling manifest is repointed at the newest
@@ -357,6 +417,7 @@ export async function runDailyPipeline({
       historyEntries: recorded,
       generationConfig: generation,
       genres,
+      root,
     });
     console.log(`All ${result.attempts} attempts failed — ${describeRestore(restored)}. Reasons:`);
     for (const reason of result.reasons) console.log(`  - ${reason}`);
@@ -385,6 +446,7 @@ function parseCliArgs(argv: string[]): RunDailyPipelineOptions {
   const forceModel = forceModelArg?.slice(FORCE_MODEL_FLAG.length);
   return {
     dryRun: argv.includes('--dry-run'),
+    verbose: argv.includes('--verbose'),
     ...(forceModel ? { forceModel } : {}),
   };
 }

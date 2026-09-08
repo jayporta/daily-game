@@ -9,7 +9,7 @@ import type { HistorySummary } from '#scripts/lib/history-store.ts';
 import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
 import { createMockOpenRouterClient } from '#scripts/lib/openrouter-client.mock.ts';
 import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
-import { GENERATION_CONFIG, loadFixture } from '#scripts/lib/testFixtures.ts';
+import { GENERATION_CONFIG, loadFixture, scriptedClient } from '#scripts/lib/testFixtures.ts';
 import { isModerationRequest } from '#scripts/moderate.ts';
 import { createSmokeTester, type SmokeTester } from '#scripts/smoke-test.ts';
 
@@ -21,6 +21,21 @@ const MODELS: ModelsConfig = {
   models: [
     { id: 'a/model:free', active: true, provider: 'openrouter' },
     { id: 'b/model:free', active: true, provider: 'openrouter' },
+    { id: 'c/model:free', active: true, provider: 'openrouter' },
+  ],
+};
+
+// Deliberately more active models than MAX_ATTEMPTS, and one inactive entry:
+// only a pool of a different size than the forced cap can tell the two apart.
+const WIDE_MODELS: ModelsConfig = {
+  moderationModel: 'mod/model:free',
+  models: [
+    { id: 'a/model:free', active: true, provider: 'openrouter' },
+    { id: 'b/model:free', active: true, provider: 'openrouter' },
+    { id: 'skipped/model:free', active: false, provider: 'openrouter' },
+    { id: 'c/model:free', active: true, provider: 'openrouter' },
+    { id: 'd/model:free', active: true, provider: 'openrouter' },
+    { id: 'e/model:free', active: true, provider: 'openrouter' },
   ],
 };
 
@@ -38,23 +53,6 @@ before(async () => {
 after(async () => {
   await smokeTester?.close();
 });
-
-/**
- * The generator and the moderator share one client, so a mock must answer
- * both. Generation fixtures are consumed in order; every other call is a
- * moderation call and gets the given verdict.
- */
-function scriptedClient(generations: string[], moderationVerdict = 'PASS'): OpenRouterClient {
-  const remaining = [...generations];
-  return {
-    async complete({ messages }) {
-      if (isModerationRequest(messages)) return { text: moderationVerdict, stop: 'complete' };
-      const next = remaining.shift();
-      if (next === undefined) throw new Error('no generation fixture left');
-      return { text: next, stop: 'complete' };
-    },
-  };
-}
 
 function baseParams() {
   return {
@@ -120,7 +118,7 @@ test('an extraction failure caused by truncation names the output cap, not just 
   }
 });
 
-test('gives up after three failures and keeps the previous game', async () => {
+test('gives up once the model pool is exhausted and keeps the previous game', async () => {
   const result = await generateDailyGame({
     ...baseParams(),
     client: scriptedClient([
@@ -131,8 +129,8 @@ test('gives up after three failures and keeps the previous game', async () => {
   });
 
   assert.equal(result.status, 'failed_kept_previous');
-  assert.equal(result.attempts, MAX_ATTEMPTS);
-  assert.equal(result.reasons.length, MAX_ATTEMPTS);
+  assert.equal(result.attempts, MODELS.models.length);
+  assert.equal(result.reasons.length, MODELS.models.length);
   assert.match(String(result.reasons[0]), /uncaught JS error/);
   assert.match(String(result.reasons[1]), /not self-contained/);
   assert.match(String(result.reasons[2]), /could not extract bundle/);
@@ -187,20 +185,51 @@ test('a guardrail-violating bundle is rejected even when it runs fine', async ()
   assert.equal(result.attempts, 2);
 });
 
-test('rotates to a different model after a failed attempt', async () => {
+test('tries every active model once before giving up', async () => {
   const modelsSeen: string[] = [];
   const client: OpenRouterClient = {
     async complete({ model, messages }) {
       if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
       modelsSeen.push(model);
-      const fixture =
-        modelsSeen.length === 1 ? loadFixture('bad-js-error') : loadFixture('good-maze');
-      return { text: fixture, stop: 'complete' };
+      return { text: loadFixture('bad-js-error'), stop: 'complete' };
     },
   };
 
-  await generateDailyGame({ ...baseParams(), client });
-  assert.deepEqual(modelsSeen, ['a/model:free', 'b/model:free']);
+  const result = await generateDailyGame({
+    ...baseParams(),
+    modelsConfig: WIDE_MODELS,
+    client,
+  });
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(result.attempts, 5);
+  assert.deepEqual(modelsSeen, [
+    'a/model:free',
+    'b/model:free',
+    'c/model:free',
+    'd/model:free',
+    'e/model:free',
+  ]);
+});
+
+test('a forced model still gives up after MAX_ATTEMPTS, however many models are active', async () => {
+  const modelsSeen: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+      modelsSeen.push(model);
+      return { text: loadFixture('bad-js-error'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({
+    ...baseParams(),
+    modelsConfig: WIDE_MODELS,
+    client,
+    forceModel: 'forced/model:free',
+  });
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(result.attempts, MAX_ATTEMPTS);
+  assert.equal(modelsSeen.length, MAX_ATTEMPTS);
 });
 
 test('forceModel pins every attempt to one model', async () => {

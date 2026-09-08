@@ -1,12 +1,13 @@
 {
   "moderationModel": "google/gemma-4-31b-it:free",
   "models": [
+    { "id": "nvidia/nemotron-3.5-lightning:free", "active": true, "provider": "openrouter" },
+    { "id": "liquid/lfm-2.5-2.6b:free", "active": true, "provider": "openrouter" },
     { "id": "cohere/north-mini-code:free", "active": true, "provider": "openrouter" },
     { "id": "poolside/laguna-s-2.1:free", "active": true, "provider": "openrouter" },
-    { "id": "thinkingmachines/inkling:free", "active": true, "provider": "openrouter" },
     { "id": "nvidia/nemotron-3-super-120b-a12b:free", "active": true, "provider": "openrouter" },
-    { "id": "dots-studio/dots-3-note-preview:free", "active": false, "provider": "openrouter" },
-    { "id": "inclusionai/ling-3.0-flash-fin:free", "active": false, "provider": "openrouter" },
-    { "id": "nvidia/nemotron-3-ultra-550b-a55b:free", "active": false, "provider": "openrouter" }
+    { "id": "dots-studio/dots-3-note-preview:free", "active": true, "provider": "openrouter" },
+    { "id": "inclusionai/ling-3.0-flash-fin:free", "active": true, "provider": "openrouter" },
+    { "id": "nvidia/nemotron-3-ultra-550b-a55b:free", "active": true, "provider": "openrouter" }
   ]
 }

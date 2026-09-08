@@ -54,10 +54,10 @@ env:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    # Three attempts, each a model call plus a browser smoke test, measured at
-    # ~5 minutes. This bounds a provider that accepts the connection and then
+    # Each active model gets one attempt, including a model call and browser
+    # smoke test. This bounds a provider that accepts the connection and then
     # never answers, rather than letting GitHub's 6-hour default apply.
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
@@ -137,9 +137,9 @@ jobs:
           fi
           node --experimental-strip-types scripts/rollup-history.ts "${args[@]}"
 
-      # The tree is the source of truth for what happened. Three failed
-      # attempts is a successful run that writes only history and leaves
-      # manifest.json alone, so the two questions are asked separately.
+      # The tree is the source of truth for what happened. Exhausting the
+      # active model rotation is a successful run that writes only history and
+      # leaves manifest.json alone, so the two questions are asked separately.
       - name: Check what changed
         id: publish-check
         run: |
