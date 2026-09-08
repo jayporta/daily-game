@@ -5,3 +5,4 @@ dist/
 *.local
 design_handoff/
 .DS_Store
+.remember/
