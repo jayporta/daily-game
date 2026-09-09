@@ -27,7 +27,7 @@ describe('GenerationConsole', () => {
   it('names the provider and model before any output arrives', () => {
     renderConsole(streaming(''));
 
-    const log = screen.getByRole('log', { name: /generation output/i });
+    const log = screen.getByRole('region', { name: /generation output/i });
     expect(log).toHaveTextContent('connecting to Anthropic');
     expect(log).toHaveTextContent('claude-opus-5');
   });
@@ -35,7 +35,9 @@ describe('GenerationConsole', () => {
   it('shows the output as it arrives', () => {
     renderConsole(streaming('```json\n{"title": "Prism Garden"}'));
 
-    expect(screen.getByRole('log')).toHaveTextContent('Prism Garden');
+    expect(screen.getByRole('region', { name: /generation output/i })).toHaveTextContent(
+      'Prism Garden',
+    );
   });
 
   // The console is a progress indicator, not a code reader: the full document
@@ -47,7 +49,7 @@ describe('GenerationConsole', () => {
 
     renderConsole(streaming(lines.join('\n')));
 
-    const log = screen.getByRole('log');
+    const log = screen.getByRole('region', { name: /generation output/i });
     expect(log).toHaveTextContent('line 399');
     expect(log).not.toHaveTextContent('line 0 ');
   });
@@ -55,7 +57,7 @@ describe('GenerationConsole', () => {
   it('keeps a short generation whole rather than anchoring it to the bottom', () => {
     renderConsole(streaming('first\nsecond\nthird'));
 
-    expect(screen.getByRole('log')).toHaveTextContent('first');
+    expect(screen.getByRole('region', { name: /generation output/i })).toHaveTextContent('first');
   });
 
   // The reason the console stays on screen after a failure: the partial
@@ -68,7 +70,7 @@ describe('GenerationConsole', () => {
       message: 'anthropic request failed (401): invalid key',
     });
 
-    const log = screen.getByRole('log');
+    const log = screen.getByRole('region', { name: /generation output/i });
     expect(log).toHaveTextContent('half a game');
     expect(log).toHaveTextContent(/failed: anthropic request failed \(401\)/);
   });
@@ -78,8 +80,42 @@ describe('GenerationConsole', () => {
   it('renders model markup as text, never as elements', () => {
     renderConsole(streaming('<img src="x" onerror="boom">'));
 
-    const log = screen.getByRole('log');
+    const log = screen.getByRole('region', { name: /generation output/i });
     expect(log.querySelector('img')).toBeNull();
     expect(log).toHaveTextContent('<img src="x" onerror="boom">');
+  });
+
+  // A polite region repainted on every streamed fragment queues one
+  // utterance per frame, which a screen reader reads long after the run has
+  // finished. The output is silent; one status line speaks for it.
+  it('leaves the streamed output unannounced', () => {
+    renderConsole(streaming('line one\nline two'));
+
+    expect(screen.getByRole('region', { name: /generation output/i })).toHaveAttribute(
+      'aria-live',
+      'off',
+    );
+    // The role itself must not announce either: `log` would, whatever
+    // aria-live says on the screen readers that honour it unevenly.
+    expect(screen.queryByRole('log')).toBeNull();
+  });
+
+  it('announces the run once, naming the provider', () => {
+    renderConsole(streaming('half a game'));
+
+    expect(screen.getByRole('status')).toHaveTextContent('Generating with Anthropic');
+  });
+
+  it('announces a failure in place of the run', () => {
+    renderConsole({
+      status: 'error',
+      run: RUN,
+      output: 'half a game',
+      message: 'anthropic request failed (401): invalid key',
+    });
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Generation failed: anthropic request failed (401): invalid key',
+    );
   });
 });

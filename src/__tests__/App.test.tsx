@@ -247,7 +247,7 @@ describe('App', () => {
     await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
     await userEvent.click(screen.getByRole('button', { name: /generate/i }));
 
-    const console_ = await screen.findByRole('log', { name: /generation output/i });
+    const console_ = await screen.findByRole('region', { name: /generation output/i });
     expect(console_).toHaveTextContent('connecting to OpenRouter');
 
     await act(async () => {
@@ -277,7 +277,7 @@ describe('App', () => {
     await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
     await userEvent.click(screen.getByRole('button', { name: /generate/i }));
 
-    const console_ = await screen.findByRole('log', { name: /generation output/i });
+    const console_ = await screen.findByRole('region', { name: /generation output/i });
     expect(console_).toHaveTextContent('nowhere near a game bundle');
     expect(console_).toHaveTextContent(/failed:/);
 
@@ -297,7 +297,7 @@ describe('App', () => {
     await screen.findByTitle(MANIFEST.title);
     await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
     await userEvent.click(screen.getByRole('button', { name: /^generate$/i }));
-    await screen.findByRole('log', { name: /generation output/i });
+    await screen.findByRole('region', { name: /generation output/i });
 
     expect(screen.getByRole('button', { name: /^generate$/i })).toBeEnabled();
   });
@@ -351,7 +351,7 @@ describe('App', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /^stop$/i }));
 
-    expect(screen.queryByRole('log', { name: /generation output/i })).toBeNull();
+    expect(screen.queryByRole('region', { name: /generation output/i })).toBeNull();
     expect(screen.getByTitle(MANIFEST.title)).toBeVisible();
     expect(screen.queryByRole('button', { name: /^stop$/i })).toBeNull();
 
@@ -364,7 +364,7 @@ describe('App', () => {
     });
 
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(screen.queryByRole('log', { name: /generation output/i })).toBeNull();
+    expect(screen.queryByRole('region', { name: /generation output/i })).toBeNull();
     expect(screen.getByTitle(MANIFEST.title)).toBeVisible();
   });
 
@@ -378,7 +378,7 @@ describe('App', () => {
     await screen.findByTitle(MANIFEST.title);
     await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
     await userEvent.click(screen.getByRole('button', { name: /^generate$/i }));
-    await screen.findByRole('log', { name: /generation output/i });
+    await screen.findByRole('region', { name: /generation output/i });
 
     expect(screen.queryByRole('button', { name: /^stop$/i })).toBeNull();
   });
@@ -530,7 +530,7 @@ describe('App', () => {
     // Cleared on success, so it must be retyped for the retry.
     await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
     await userEvent.click(screen.getByRole('button', { name: /generate/i }));
-    await screen.findByRole('log', { name: /generation output/i });
+    await screen.findByRole('region', { name: /generation output/i });
 
     await userEvent.click(screen.getByRole('button', { name: /back to today/i }));
     expect(await screen.findByTitle(MANIFEST.title)).toBeVisible();

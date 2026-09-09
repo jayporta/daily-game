@@ -55,6 +55,13 @@ export function GameView({ html }: GameViewProps) {
       {/* One box, two occupants: while a visitor's own generation runs, its
           output stands where the game will appear, so nothing on the page
           moves when the game takes over. */}
+      {/* Empty until a visitor's own generation takes the frame, so it says
+          nothing on an ordinary page load and announces once when one
+          arrives. The console it replaces has gone by then. */}
+      <p className="sr-only" role="status">
+        {byokOverride === null ? '' : `Your game is ready: ${byokOverride.title}`}
+      </p>
+
       {status.status === 'idle' ? (
         <GameFrame html={shown.html} title={shown.title} />
       ) : (

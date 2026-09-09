@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useByokStatus } from '@/features/byok/state/context/useByokStatus.ts';
+import { lastLines } from '@/features/byok/state/helpers/lastLines.ts';
 import { GameBox } from '@/features/game/GameBox.tsx';
 
 /**
@@ -24,6 +25,7 @@ export function GenerationConsole() {
   // Idle is unreachable while this is mounted: GameView renders the frame
   // instead. Read defensively anyway so the component has no impossible case.
   const output = status.status === 'idle' ? '' : status.output;
+  const providerLabel = status.status === 'idle' ? '' : status.run.providerLabel;
   const failure = status.status === 'error' ? status.message : null;
   const tail = useMemo(() => lastLines(output, VISIBLE_LINES), [output]);
 
@@ -37,16 +39,27 @@ export function GenerationConsole() {
 
   return (
     <GameBox ground="console">
-      <div
+      {/* One announcement per edge of the run, in place of the output's own.
+          A polite region repainted on every streamed fragment queues an
+          utterance per frame, which a screen reader then reads long after
+          the run has finished. */}
+      <p className="sr-only" role="status">
+        {failure === null ? `Generating with ${providerLabel}…` : `Generation failed: ${failure}`}
+      </p>
+
+      {/* A named section rather than a log. `role="log"` carries live
+          semantics of its own, and suppressing those with aria-live="off" is
+          spec-valid but honoured unevenly — so nothing here claims a role
+          that announces, and aria-live says so a second time. */}
+      <section
         ref={scroller}
-        role="log"
         aria-label="Generation output"
-        aria-live="polite"
+        aria-live="off"
         className="h-full overflow-auto p-4 font-mono text-xs leading-5 text-slate-300"
       >
         {status.status !== 'idle' && (
           <>
-            <p className="text-emerald-400">{`● connecting to ${status.run.providerLabel}…`}</p>
+            <p className="text-emerald-400">{`● connecting to ${providerLabel}…`}</p>
             <p className="text-emerald-400">{`● model ${status.run.modelId}`}</p>
           </>
         )}
@@ -61,18 +74,7 @@ export function GenerationConsole() {
         ) : (
           <p className="mt-2 text-rose-400">{`● failed: ${failure}`}</p>
         )}
-      </div>
+      </section>
     </GameBox>
   );
-}
-
-/**
- * The last `limit` lines of `text`.
- *
- * @returns The whole string when it is shorter than the limit, so a short
- *   run reads from its first line rather than being anchored to the bottom.
- */
-function lastLines(text: string, limit: number): string {
-  const lines = text.split('\n');
-  return lines.length <= limit ? text : lines.slice(-limit).join('\n');
 }
