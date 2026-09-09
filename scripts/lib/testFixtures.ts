@@ -7,7 +7,7 @@ import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import { extractBundle } from '#lib/extract-bundle-shared.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import type { GenresConfig } from '#scripts/lib/config/genres.ts';
-import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
+import type { FailedEntry, HistoryGameEntry, PublishedEntry } from '#scripts/lib/history-store.ts';
 import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 import { isModerationRequest } from '#scripts/moderate.ts';
 
@@ -179,11 +179,11 @@ export const GENERATION_CONFIG: GenerationConfig = {
   cronSchedule: '0 13 * * *',
 };
 
-/** The published day's slug. Separate because `slug` is optional on {@link HistoryGameEntry}. */
+/** The published day's slug, named so a test can assert against it directly. */
 export const PUBLISHED_SLUG = '2026-08-28-beetle';
 
 /** A day that published, as `publish.ts` records it. */
-export const PUBLISHED_ENTRY: HistoryGameEntry = {
+export const PUBLISHED_ENTRY: PublishedEntry = {
   date: '2026-08-28',
   status: 'published',
   model: 'a/model:free',
@@ -194,10 +194,45 @@ export const PUBLISHED_ENTRY: HistoryGameEntry = {
   title: 'Beetle Maze',
 };
 
-/** A day that gave up after three attempts and kept the previous game. */
-export const FAILED_ENTRY: HistoryGameEntry = {
+/** A day that gave up and kept the previous game, as `recordFailure` records it. */
+export const FAILED_ENTRY: FailedEntry = {
   date: '2026-08-29',
   status: 'failed_kept_previous',
   model: 'b/model:free',
   attempts: 3,
+  failureReasons: ['attempt 1 (b/model:free): smoke test failed — uncaught JS error'],
+  failureKinds: ['smoke-js-error'],
 };
+
+/**
+ * The entry at `index`, insisting it is a published one.
+ *
+ * Assertions about likes, dislikes or a slug only typecheck against
+ * {@link PublishedEntry}, and a test that finds a failed entry there has
+ * already lost the thing it meant to assert on.
+ *
+ * @throws If there is no entry at `index`, or it is not published.
+ */
+export function publishedAt(entries: readonly HistoryGameEntry[], index: number): PublishedEntry {
+  const entry = entries[index];
+  if (entry === undefined || entry.status !== 'published') {
+    throw new Error(`expected a published entry at ${index}, got ${JSON.stringify(entry)}`);
+  }
+  return entry;
+}
+
+/**
+ * The entry at `index`, insisting the run failed.
+ *
+ * The mirror of {@link publishedAt}, for assertions about failure reasons
+ * and kinds, which only {@link FailedEntry} carries.
+ *
+ * @throws If there is no entry at `index`, or it published a game.
+ */
+export function failedAt(entries: readonly HistoryGameEntry[], index: number): FailedEntry {
+  const entry = entries[index];
+  if (entry === undefined || entry.status !== 'failed_kept_previous') {
+    throw new Error(`expected a failed entry at ${index}, got ${JSON.stringify(entry)}`);
+  }
+  return entry;
+}

@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
+import type { FailedEntry, HistoryGameEntry, PublishedEntry } from '#scripts/lib/history-store.ts';
 import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
 import { createPaths } from '#scripts/lib/paths.ts';
 import { GENERATION_CONFIG } from '#scripts/lib/testFixtures.ts';
@@ -20,7 +20,7 @@ import {
 const NOW = new Date('2026-08-30T12:00:00.000Z');
 
 /** A published entry `daysAgo` days before the frozen clock. */
-function published(daysAgo: number, over: Partial<HistoryGameEntry> = {}): HistoryGameEntry {
+function published(daysAgo: number, over: Partial<PublishedEntry> = {}): PublishedEntry {
   const date = new Date(NOW.getTime() - daysAgo * 86_400_000).toISOString().slice(0, 10);
   return {
     date,
@@ -124,10 +124,12 @@ test('summariseEntries records the most recent date a genre was used', () => {
 });
 
 test('summariseEntries ignores failed runs, which have no genre', () => {
-  const failed: HistoryGameEntry = {
+  const failed: FailedEntry = {
     date: '2026-05-01',
     status: 'failed_kept_previous',
     model: 'a/model:free',
+    failureReasons: [],
+    failureKinds: [],
   };
 
   const merged = summariseEntries([failed]);

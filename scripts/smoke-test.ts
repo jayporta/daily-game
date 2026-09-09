@@ -9,13 +9,13 @@ import { type Browser, chromium } from 'playwright';
 import { errorMessage } from '#lib/errors.ts';
 
 export interface SmokeTestResult {
-  pass: boolean;
-  reasons: string[];
-  warnings: string[];
-  consoleErrors: string[];
-  pageErrors: string[];
-  networkAttempts: string[];
-  canvasDrawn: boolean;
+  readonly pass: boolean;
+  readonly reasons: string[];
+  readonly warnings: string[];
+  readonly consoleErrors: string[];
+  readonly pageErrors: string[];
+  readonly networkAttempts: string[];
+  readonly canvasDrawn: boolean;
 }
 
 export interface SmokeTestOptions {

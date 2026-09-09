@@ -9,14 +9,14 @@ import {
 } from '#scripts/lib/validation.ts';
 
 export interface ModelEntry {
-  id: string;
-  active: boolean;
-  provider: string;
+  readonly id: string;
+  readonly active: boolean;
+  readonly provider: string;
 }
 
 export interface ModelsConfig {
-  moderationModel: string;
-  models: ModelEntry[];
+  readonly moderationModel: string;
+  readonly models: ModelEntry[];
 }
 
 /**

@@ -19,14 +19,14 @@ import {
 } from '#lib/provider-response.ts';
 
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
+  readonly role: 'system' | 'user' | 'assistant';
+  readonly content: string;
 }
 
 export interface CompletionRequest {
-  model: string;
-  messages: ChatMessage[];
-  temperature: number;
+  readonly model: string;
+  readonly messages: ChatMessage[];
+  readonly temperature: number;
   /**
    * Overall cap for this one call, overriding the client's default.
    *
@@ -38,7 +38,7 @@ export interface CompletionRequest {
    * limit. The idle deadline is unaffected — silence means the same thing
    * whatever the call is for.
    */
-  timeoutMs?: number;
+  readonly timeoutMs?: number;
 }
 
 export interface CompletionResult {

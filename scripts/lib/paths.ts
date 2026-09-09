@@ -7,25 +7,25 @@ import { fileURLToPath } from 'node:url';
 export const REPO_ROOT = fileURLToPath(new URL('../../', import.meta.url));
 
 export interface Paths {
-  root: string;
-  modelsConfig: string;
-  byokModelsConfig: string;
-  genresConfig: string;
-  generationConfig: string;
-  reactionConfig: string;
-  guardrails: string;
+  readonly root: string;
+  readonly modelsConfig: string;
+  readonly byokModelsConfig: string;
+  readonly genresConfig: string;
+  readonly generationConfig: string;
+  readonly reactionConfig: string;
+  readonly guardrails: string;
   /** The page shell, whose CSP has to permit the reaction store's origin. */
-  indexHtml: string;
-  historyGames: string;
-  historySummary: string;
-  historyGamesMd: string;
-  historyArchiveDir: string;
+  readonly indexHtml: string;
+  readonly historyGames: string;
+  readonly historySummary: string;
+  readonly historyGamesMd: string;
+  readonly historyArchiveDir: string;
   /** Cold storage for one month of aged-out entries, as JSONL. */
   historyArchiveFile(month: string): string;
-  manifest: string;
+  readonly manifest: string;
   /** Why the last run produced no game, when it had a reason worth publishing. */
-  status: string;
-  archiveDir: string;
+  readonly status: string;
+  readonly archiveDir: string;
   archiveGameDir(slug: string): string;
   /** Path recorded inside manifest.json — always POSIX-style, URL-facing. */
   archiveGameUrlPath(slug: string): string;

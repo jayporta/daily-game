@@ -23,22 +23,35 @@ export function buildLessonsMessages(
 ): ChatMessage[] {
   const digest = aging
     .map((entry) => {
-      const parts = [
-        `date: ${entry.date}`,
-        `status: ${entry.status}`,
-        `genre: ${entry.genre ?? 'unknown'}`,
-        `theme: ${entry.theme ?? 'unknown'}`,
-        `mechanics: ${entry.mechanics?.join(', ') || 'unrecorded'}`,
-        `attempts: ${entry.attempts ?? 'unrecorded'}`,
-      ];
-      if (entry.likes !== undefined) parts.push(`likes: ${entry.likes}`);
-      if (entry.dislikes !== undefined) parts.push(`dislikes: ${entry.dislikes}`);
-      const reasons = Object.entries(entry.dislikeReasons ?? {})
-        .filter(([, count]) => count > 0)
-        .map(([id, count]) => `${id}: ${count}`);
-      if (reasons.length > 0) parts.push(`disliked for: ${reasons.join(', ')}`);
-      if (entry.errors?.length) parts.push(`runtime errors: ${entry.errors.length}`);
-      for (const reason of entry.failureReasons ?? []) parts.push(`failed: ${reason}`);
+      const parts = [`date: ${entry.date}`, `status: ${entry.status}`];
+
+      if (entry.status === 'published') {
+        parts.push(
+          `genre: ${entry.genre || 'unknown'}`,
+          `theme: ${entry.theme || 'unknown'}`,
+          `mechanics: ${entry.mechanics.join(', ') || 'unrecorded'}`,
+          `attempts: ${entry.attempts ?? 'unrecorded'}`,
+        );
+        if (entry.likes !== undefined) parts.push(`likes: ${entry.likes}`);
+        if (entry.dislikes !== undefined) parts.push(`dislikes: ${entry.dislikes}`);
+        const reasons = Object.entries(entry.dislikeReasons ?? {})
+          .filter(([, count]) => count > 0)
+          .map(([id, count]) => `${id}: ${count}`);
+        if (reasons.length > 0) parts.push(`disliked for: ${reasons.join(', ')}`);
+        if (entry.errors?.length) parts.push(`runtime errors: ${entry.errors.length}`);
+      } else {
+        // A failed day never had a game to describe. These placeholders are
+        // what the reflection prompt has always been shown in their place.
+        parts.push(
+          'genre: unknown',
+          'theme: unknown',
+          'mechanics: unrecorded',
+          `attempts: ${entry.attempts ?? 'unrecorded'}`,
+        );
+        if (entry.errors?.length) parts.push(`runtime errors: ${entry.errors.length}`);
+        for (const reason of entry.failureReasons) parts.push(`failed: ${reason}`);
+      }
+
       return `- ${parts.join(' · ')}`;
     })
     .join('\n');

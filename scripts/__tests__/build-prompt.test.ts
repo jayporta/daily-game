@@ -13,7 +13,12 @@ import {
   recentlyUsedGenreIds,
   selectRemixSuggestion,
 } from '#scripts/build-prompt.ts';
-import type { HistoryGameEntry, HistorySummary } from '#scripts/lib/history-store.ts';
+import type {
+  FailedEntry,
+  HistoryGameEntry,
+  HistorySummary,
+  PublishedEntry,
+} from '#scripts/lib/history-store.ts';
 import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
 import { GENRES } from '#scripts/lib/testFixtures.ts';
 
@@ -26,6 +31,7 @@ const HISTORY: HistoryGameEntry[] = [
     genre: 'puzzle',
     theme: 'floating lanterns',
     mechanics: ['drag', 'match'],
+    title: 'Lantern Drift',
   },
   {
     date: '2026-08-28',
@@ -35,8 +41,15 @@ const HISTORY: HistoryGameEntry[] = [
     genre: 'maze-adventure',
     theme: 'glass beetles',
     mechanics: ['move', 'collect'],
+    title: 'Beetle Maze',
   },
-  { date: '2026-08-26', status: 'failed_kept_previous', model: 'c/model:free' },
+  {
+    date: '2026-08-26',
+    status: 'failed_kept_previous',
+    model: 'c/model:free',
+    failureReasons: [],
+    failureKinds: [],
+  },
 ];
 
 const SUMMARY: HistorySummary = {
@@ -292,7 +305,7 @@ test('the contract example anchors the model to none of our own content', () => 
 });
 
 /** A published day with a given reception. */
-function received(date: string, over: Partial<HistoryGameEntry> = {}): HistoryGameEntry {
+function received(date: string, over: Partial<PublishedEntry> = {}): PublishedEntry {
   return {
     date,
     status: 'published',
@@ -301,6 +314,7 @@ function received(date: string, over: Partial<HistoryGameEntry> = {}): HistoryGa
     genre: 'puzzle',
     theme: 'tide clocks',
     mechanics: ['drag'],
+    title: 'Tide Clock',
     ...over,
   };
 }
@@ -331,6 +345,7 @@ test('digestHistory shows failed days and what broke', () => {
       status: 'failed_kept_previous',
       model: 'm',
       attempts: 3,
+      failureReasons: [],
       failureKinds: ['smoke-js-error', 'moderation'],
     },
   ]);
@@ -373,11 +388,12 @@ test('correctiveDirectives leads with the most frequent problem', () => {
 });
 
 test('correctiveDirectives responds to recurring generation failures', () => {
-  const failed = (date: string): HistoryGameEntry => ({
+  const failed = (date: string): FailedEntry => ({
     date,
     status: 'failed_kept_previous',
     model: 'm',
     attempts: 3,
+    failureReasons: [],
     failureKinds: ['smoke-network', 'smoke-network'],
   });
 

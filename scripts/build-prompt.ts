@@ -11,7 +11,9 @@ import type {
   HistoryGameEntry,
   HistorySummary,
   PopularityEntry,
+  PublishedEntry,
 } from '#scripts/lib/history-store.ts';
+import { isPublished } from '#scripts/lib/history-store.ts';
 
 /**
  * The two-fenced-block contract. This is the parsing contract enforced by
@@ -77,12 +79,12 @@ export function formatGenreCatalog(genres: GenresConfig, recentGenreIds: string[
   return genres.map((genre) => formatGenreLine(genre, recent.has(genre.id))).join('\n');
 }
 
-function publishedEntries(entries: HistoryGameEntry[]): HistoryGameEntry[] {
-  return entries.filter((entry) => entry.status === 'published');
+function publishedEntries(entries: HistoryGameEntry[]): PublishedEntry[] {
+  return entries.filter(isPublished);
 }
 
 /** Most recent published entries first. */
-function mostRecentFirst(entries: HistoryGameEntry[]): HistoryGameEntry[] {
+function mostRecentFirst(entries: HistoryGameEntry[]): PublishedEntry[] {
   return [...publishedEntries(entries)].sort((a, b) => b.date.localeCompare(a.date));
 }
 
@@ -90,12 +92,12 @@ export function recentlyUsedGenreIds(entries: HistoryGameEntry[], limit = 10): s
   const ids = mostRecentFirst(entries)
     .slice(0, limit)
     .map((entry) => entry.genre)
-    .filter((genre): genre is string => typeof genre === 'string' && genre.length > 0);
+    .filter((genre) => genre.length > 0);
   return [...new Set(ids)];
 }
 
 /** How a published game was received, or '' when nothing is recorded yet. */
-function reception(entry: HistoryGameEntry): string {
+function reception(entry: PublishedEntry): string {
   const parts: string[] = [];
   if (entry.likes !== undefined || entry.dislikes !== undefined) {
     parts.push(`${entry.likes ?? 0} liked, ${entry.dislikes ?? 0} disliked`);
@@ -128,11 +130,11 @@ export function digestHistory(entries: HistoryGameEntry[], limit = 10): string {
   return recent
     .map((entry) => {
       if (entry.status !== 'published') {
-        const kinds = entry.failureKinds?.join(', ') || 'unrecorded';
+        const kinds = entry.failureKinds.join(', ') || 'unrecorded';
         return `- ${entry.date} · FAILED after ${entry.attempts ?? '?'} attempts · ${kinds}`;
       }
-      const mechanics = entry.mechanics?.length ? entry.mechanics.join(', ') : 'unrecorded';
-      return `- ${entry.date} · genre: ${entry.genre ?? 'unknown'} · theme: ${entry.theme ?? 'unknown'} · mechanics: ${mechanics}${reception(entry)}`;
+      const mechanics = entry.mechanics.length > 0 ? entry.mechanics.join(', ') : 'unrecorded';
+      return `- ${entry.date} · genre: ${entry.genre || 'unknown'} · theme: ${entry.theme || 'unknown'} · mechanics: ${mechanics}${reception(entry)}`;
     })
     .join('\n');
 }
@@ -274,12 +276,15 @@ export function correctiveDirectives(entries: HistoryGameEntry[], limit = 10): s
   const complaints: DislikeReason[] = [];
   const failures: FailureKind[] = [];
   for (const entry of recent) {
-    for (const [id, count] of Object.entries(entry.dislikeReasons ?? {})) {
-      // A reason given by several visitors on one day is still one game's
-      // problem; count days, not votes.
-      if (count > 0 && isDislikeReason(id)) complaints.push(id);
+    if (entry.status === 'published') {
+      for (const [id, count] of Object.entries(entry.dislikeReasons ?? {})) {
+        // A reason given by several visitors on one day is still one game's
+        // problem; count days, not votes.
+        if (count > 0 && isDislikeReason(id)) complaints.push(id);
+      }
+    } else {
+      for (const kind of entry.failureKinds) failures.push(kind);
     }
-    for (const kind of entry.failureKinds ?? []) failures.push(kind);
   }
 
   const ranked = [

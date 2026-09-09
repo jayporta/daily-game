@@ -4,6 +4,7 @@ import { applyFeedback, tallyReactions } from '#scripts/fetch-feedback.ts';
 import {
   neverAnswers,
   PUBLISHED_ENTRY as PUBLISHED,
+  publishedAt,
   PUBLISHED_SLUG as SLUG,
 } from '#scripts/lib/testFixtures.ts';
 
@@ -121,9 +122,10 @@ test('applyFeedback records the tally against the matching entry', async () => {
     fetchImpl: async () => new Response(JSON.stringify([row('like'), row('dislike', ['no-load'])])),
   });
 
-  assert.equal(entries[0]?.likes, 1);
-  assert.equal(entries[0]?.dislikes, 1);
-  assert.deepEqual({ ...entries[0]?.dislikeReasons }, { 'no-load': 1 });
+  const entry = publishedAt(entries, 0);
+  assert.equal(entry.likes, 1);
+  assert.equal(entry.dislikes, 1);
+  assert.deepEqual({ ...entry.dislikeReasons }, { 'no-load': 1 });
 });
 
 test('applyFeedback scores a game by likes against dislikes', async () => {
@@ -134,7 +136,7 @@ test('applyFeedback scores a game by likes against dislikes', async () => {
     fetchImpl: async () => new Response(JSON.stringify([row('like'), row('like'), row('dislike')])),
   });
 
-  assert.equal(entries[0]?.popularityScore, 1);
+  assert.equal(publishedAt(entries, 0).popularityScore, 1);
 });
 
 // Today's shipped state.

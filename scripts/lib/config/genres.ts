@@ -9,9 +9,9 @@ import {
 } from '#scripts/lib/validation.ts';
 
 export interface GenreEntry {
-  id: string;
-  label: string;
-  examples: string[];
+  readonly id: string;
+  readonly label: string;
+  readonly examples: string[];
 }
 
 export type GenresConfig = GenreEntry[];

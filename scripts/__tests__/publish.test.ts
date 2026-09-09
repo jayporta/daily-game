@@ -7,9 +7,14 @@ import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import { extractBundle } from '#lib/extract-bundle-shared.ts';
 import { isManifest } from '#lib/manifest.ts';
 import { buildBundleCspMeta } from '#scripts/lib/errorReporting.ts';
-import type { HistoryGameEntry } from '#scripts/lib/history-store.ts';
-import { readHotWindow } from '#scripts/lib/history-store.ts';
-import { GENERATION_CONFIG, GENRES, loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
+import type { HistoryGameEntry, PublishedEntry } from '#scripts/lib/history-store.ts';
+import { isPublished, readHotWindow } from '#scripts/lib/history-store.ts';
+import {
+  failedAt,
+  GENERATION_CONFIG,
+  GENRES,
+  loadFixtureBundle,
+} from '#scripts/lib/testFixtures.ts';
 import {
   buildManifest,
   buildSlug,
@@ -274,6 +279,9 @@ test('publish preserves earlier history entries', (t) => {
       model: 'old/model:free',
       slug: '2026-08-28-old',
       genre: 'puzzle',
+      theme: 'floating lanterns',
+      title: 'Old One',
+      mechanics: ['drag'],
     },
   ];
 
@@ -331,7 +339,7 @@ test('recordFailure keeps the reason each attempt failed', (t) => {
     root,
   });
 
-  assert.deepEqual(entries[0]?.failureReasons, [
+  assert.deepEqual(failedAt(entries, 0).failureReasons, [
     'attempt 1: uncaught JS error',
     'attempt 2: moderation rejected',
   ]);
@@ -353,7 +361,7 @@ test('recordFailure bounds a runaway reason', (t) => {
     root,
   });
 
-  assert.equal(entries[0]?.failureReasons?.[0]?.length, 300);
+  assert.equal(failedAt(entries, 0).failureReasons[0]?.length, 300);
 });
 
 test('recordFailure writes the reasons to disk, not just the returned array', (t) => {
@@ -386,7 +394,7 @@ test('recordFailure stores the closed-vocabulary kinds beside the prose', (t) =>
     root,
   });
 
-  assert.deepEqual(entries[0]?.failureKinds, ['smoke-network', 'moderation']);
+  assert.deepEqual(failedAt(entries, 0).failureKinds, ['smoke-network', 'moderation']);
 });
 
 test('recordFailure marks a quota-exhausted run on disk', (t) => {
@@ -536,7 +544,7 @@ test('history readers accept an entry published from a sparse meta block', (t) =
 // still holds a playable game.
 
 /** Publishes `count` days into `root`, oldest first, and returns the history. */
-function publishDays(root: string, count: number): HistoryGameEntry[] {
+function publishDays(root: string, count: number): PublishedEntry[] {
   const { meta, html } = loadFixtureBundle('good-maze');
   let entries: HistoryGameEntry[] = [];
   for (let day = 0; day < count; day += 1) {
@@ -547,7 +555,7 @@ function publishDays(root: string, count: number): HistoryGameEntry[] {
       root,
     }).historyEntries;
   }
-  return entries;
+  return entries.filter(isPublished);
 }
 
 const restoreParams = { generationConfig: GENERATION_CONFIG, genres: GENRES };

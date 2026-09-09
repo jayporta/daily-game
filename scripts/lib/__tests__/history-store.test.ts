@@ -17,7 +17,12 @@ import {
   writeGamesJson,
   writeGamesMd,
 } from '#scripts/lib/history-store.ts';
-import { FAILED_ENTRY as FAILED, PUBLISHED_ENTRY as PUBLISHED } from '#scripts/lib/testFixtures.ts';
+import { writeJson } from '#scripts/lib/json-file.ts';
+import {
+  FAILED_ENTRY as FAILED,
+  PUBLISHED_ENTRY as PUBLISHED,
+  publishedAt,
+} from '#scripts/lib/testFixtures.ts';
 
 function scratchDir(t: { after(fn: () => void): void }): string {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-history-'));
@@ -115,7 +120,8 @@ test('writeGamesJson round-trips through readHotWindow', (t) => {
 test('readHotWindow rejects a structurally invalid history file', (t) => {
   const dir = scratchDir(t);
   const file = join(dir, 'games.json');
-  writeGamesJson(file, [{ date: 'not-a-date', status: 'published', model: 'm' }]);
+  // Written raw: the point is a file the writer would never produce.
+  writeJson(file, [{ date: 'not-a-date', status: 'published', model: 'm' }]);
   assert.throws(() => readHotWindow(file), /invalid/);
 });
 
@@ -207,8 +213,8 @@ test('patchEntry does not mutate its input', () => {
 test('patchEntry overwrites counts from an earlier run rather than adding to them', () => {
   const patched = patchEntry([RATED], '2026-08-28-beetle', { likes: 9, dislikes: 3 });
 
-  assert.equal(patched[0]?.likes, 9);
-  assert.equal(patched[0]?.dislikes, 3);
+  assert.equal(publishedAt(patched, 0).likes, 9);
+  assert.equal(publishedAt(patched, 0).dislikes, 3);
 });
 
 test('renderGamesMd reports how a published game was received', () => {
@@ -244,9 +250,55 @@ test('validateHistoryGames accepts a valid published entry', () => {
       model: 'a/model:free',
       slug: '2026-08-29-thing',
       genre: 'maze-adventure',
+      theme: 'glass beetles',
+      title: 'Beetle Maze',
+      mechanics: ['move'],
     },
   ]);
   assert.equal(result.valid, true);
+});
+
+// The descriptive fields are empty rather than absent when a model omitted
+// them: toGeneratedMeta coerces before publish.ts writes, so the validator
+// must accept what the writer produces or a published day cannot be read
+// back at all.
+test('validateHistoryGames accepts a published entry whose metadata came back empty', () => {
+  const result = validateHistoryGames([
+    {
+      date: '2026-08-29',
+      status: 'published',
+      model: 'a/model:free',
+      slug: '2026-08-29-thing',
+      genre: '',
+      theme: '',
+      title: '',
+      mechanics: [],
+    },
+  ]);
+  assert.equal(result.valid, true);
+});
+
+// PublishedEntry declares these required and loadValidatedJson casts to it,
+// so a validator that let one through would hand every reader a `string`
+// that is undefined at runtime.
+test('validateHistoryGames rejects a published entry missing its metadata', () => {
+  for (const field of ['genre', 'theme', 'title', 'mechanics']) {
+    const entry: Record<string, unknown> = {
+      date: '2026-08-29',
+      status: 'published',
+      model: 'a/model:free',
+      slug: '2026-08-29-thing',
+      genre: 'maze-adventure',
+      theme: 'glass beetles',
+      title: 'Beetle Maze',
+      mechanics: ['move'],
+    };
+    delete entry[field];
+
+    const result = validateHistoryGames([entry]);
+    assert.equal(result.valid, false, `a published entry without ${field} was accepted`);
+    assert.ok(result.errors.some((error) => error.includes(field)));
+  }
 });
 
 test('validateHistoryGames rejects a malformed date', () => {
@@ -271,11 +323,36 @@ test('validateHistoryGames rejects an invalid status', () => {
   assert.ok(result.errors.some((e) => e.includes('status')));
 });
 
-test('validateHistoryGames requires slug/genre only when published', () => {
+test('validateHistoryGames asks a failed day for its failures, not a slug', () => {
   const result = validateHistoryGames([
-    { date: '2026-08-29', status: 'failed_kept_previous', model: 'a/model:free' },
+    {
+      date: '2026-08-29',
+      status: 'failed_kept_previous',
+      model: 'a/model:free',
+      failureReasons: ['attempt 1: smoke test failed'],
+      failureKinds: ['smoke-js-error'],
+    },
   ]);
   assert.equal(result.valid, true);
+});
+
+// FailedEntry declares both required, for the same reason PublishedEntry
+// declares its metadata required.
+test('validateHistoryGames rejects a failed entry with no record of what failed', () => {
+  for (const field of ['failureReasons', 'failureKinds']) {
+    const entry: Record<string, unknown> = {
+      date: '2026-08-29',
+      status: 'failed_kept_previous',
+      model: 'a/model:free',
+      failureReasons: ['attempt 1: smoke test failed'],
+      failureKinds: ['smoke-js-error'],
+    };
+    delete entry[field];
+
+    const result = validateHistoryGames([entry]);
+    assert.equal(result.valid, false, `a failed entry without ${field} was accepted`);
+    assert.ok(result.errors.some((error) => error.includes(field)));
+  }
 });
 
 test('validateHistorySummary accepts a summary with every field present', () => {

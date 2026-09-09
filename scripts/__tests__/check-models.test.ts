@@ -6,6 +6,7 @@ import { test } from 'node:test';
 import { checkModels, readCatalog, shouldCheckModels } from '#scripts/check-models.ts';
 import type { ModelsConfig } from '#scripts/lib/config/models.ts';
 import { createPaths } from '#scripts/lib/paths.ts';
+import { FAILED_ENTRY, PUBLISHED_ENTRY } from '#scripts/lib/testFixtures.ts';
 
 // Literal caps rather than ones derived from MIN_OUTPUT_TOKENS: a test whose
 // inputs move with the constant it guards can never fail when that constant
@@ -48,8 +49,8 @@ function readConfig(root: string): ModelsConfig {
 }
 
 test('shouldCheckModels only fires on a day that produced no game', () => {
-  const failed = [{ date: '2026-09-10', status: 'failed_kept_previous' as const, model: 'm' }];
-  const published = [{ date: '2026-09-10', status: 'published' as const, model: 'm' }];
+  const failed = [{ ...FAILED_ENTRY, date: '2026-09-10' }];
+  const published = [{ ...PUBLISHED_ENTRY, date: '2026-09-10' }];
 
   assert.equal(shouldCheckModels(failed, '2026-09-10'), true);
   assert.equal(shouldCheckModels(published, '2026-09-10'), false);
