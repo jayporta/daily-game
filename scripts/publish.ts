@@ -166,9 +166,25 @@ export interface PublishParams {
   genres: GenresConfig;
   historyEntries: HistoryGameEntry[];
   generatedAt?: string;
+  /**
+   * The commit this game was published from, tagged onto any error the
+   * bundle reports.
+   *
+   * Passed in rather than read from the environment here, so a test names it
+   * and nothing about publishing depends on where it is running.
+   */
+  release?: string;
   /** Repo root to write into — overridden in tests. */
   root?: string;
 }
+
+/**
+ * The release name for a game published outside CI.
+ *
+ * A local `generate:local` produces a real bundle, and an error from one
+ * should not be filed under whatever commit happened to be checked out.
+ */
+const UNRELEASED = 'dev';
 
 export interface PublishResult {
   slug: string;
@@ -188,6 +204,7 @@ export function publish({
   genres,
   historyEntries,
   generatedAt = new Date().toISOString(),
+  release = UNRELEASED,
   root,
 }: PublishParams): PublishResult {
   const paths = root ? createPaths(root) : defaultPaths;
@@ -197,7 +214,7 @@ export function publish({
   mkdirSync(gameDir, { recursive: true });
 
   const hardened = withHeadMeta(html, buildBundleCspMeta(generationConfig.sentryDsn));
-  const snippet = buildErrorReportingSnippet(generationConfig.sentryDsn, slug);
+  const snippet = buildErrorReportingSnippet(generationConfig.sentryDsn, slug, release);
   writeFileSync(join(gameDir, 'game.html'), `${hardened}${snippet}`, 'utf8');
   writeJson(join(gameDir, 'meta.json'), meta);
   writeFileSync(join(gameDir, 'prompt.txt'), prompt, 'utf8');

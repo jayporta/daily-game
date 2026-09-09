@@ -185,6 +185,10 @@ export async function runDailyPipeline({
       genres,
       historyEntries,
       generatedAt: now.toISOString(),
+      // The commit the workflow is running, so an error a published game
+      // reports names the deploy that produced it. Absent locally, where
+      // `publish` falls back to its own name for an unreleased build.
+      release: process.env['GITHUB_SHA'],
       root,
     });
     log(`Published ${published.slug} (model ${result.model}, ${result.attempts} attempt(s))`);

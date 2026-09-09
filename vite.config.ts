@@ -103,6 +103,9 @@ export default defineConfig(({ mode }) => ({
     // visitor's clock, which is theirs to set: the site rebuilds on every
     // publish, so this is the year it last published.
     __BUILD_YEAR__: JSON.stringify(String(new Date().getUTCFullYear())),
+    // Ties an event to the deploy that produced it. `dev` locally, where
+    // there is no deploy to name.
+    __SENTRY_RELEASE__: JSON.stringify(process.env['GITHUB_SHA'] ?? 'dev'),
   },
   plugins: [serveArchivedGamesRaw(), react(), tailwindcss()],
   build: {

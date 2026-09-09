@@ -89,7 +89,11 @@ export function buildBundleCspMeta(sentryDsn: string | null): string {
  *   published bundle is byte-identical to what the model wrote.
  * @param slug Tags the event, so an error can be traced to the day's game.
  */
-export function buildErrorReportingSnippet(sentryDsn: string | null, slug: string): string {
+export function buildErrorReportingSnippet(
+  sentryDsn: string | null,
+  slug: string,
+  release: string,
+): string {
   const dsn = sentryDsn === null ? null : parseSentryDsn(sentryDsn);
   if (dsn === null) return '';
 
@@ -99,6 +103,7 @@ export function buildErrorReportingSnippet(sentryDsn: string | null, slug: strin
 (function () {
   var ENDPOINT = ${JSON.stringify(envelopeUrl(dsn))};
   var SLUG = ${JSON.stringify(slug)};
+  var RELEASE = ${JSON.stringify(release)};
 
   function eventId() {
     var id = '';
@@ -119,6 +124,7 @@ export function buildErrorReportingSnippet(sentryDsn: string | null, slug: strin
           timestamp: Date.now() / 1000,
           platform: 'javascript',
           level: 'error',
+          release: RELEASE,
           tags: { slug: SLUG },
           exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
           extra: extra

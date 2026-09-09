@@ -34,6 +34,9 @@
     "generate:local": "node --env-file-if-exists=.env scripts/call-openrouter.ts",
     "build:site": "vite build && node scripts/assemble-site.ts",
     "test:node": "node --test",
+    "coverage": "npm run coverage:node && npm run coverage:web",
+    "coverage:node": "node --test --experimental-test-coverage --test-coverage-lines=96 --test-coverage-branches=89 --test-coverage-functions=95",
+    "coverage:web": "vitest run --coverage",
     "test:web": "vitest run",
     "test:watch": "vitest"
   },

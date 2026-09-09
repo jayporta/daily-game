@@ -23,6 +23,7 @@ import type { BrowserOptions } from '@sentry/react';
  * same field — a second copy in the source would drift from it.
  */
 declare const __SENTRY_DSN__: string | null;
+declare const __SENTRY_RELEASE__: string;
 
 /** Vite's build mode, inlined by `vite.config.ts`; tags every event. */
 declare const __SENTRY_ENVIRONMENT__: string;
@@ -98,11 +99,14 @@ export function reportError(error: unknown, tags?: ErrorTags): void {
  * @param dsn A DSN already known to be present.
  * @param environment Tags events, so a local run stays filterable apart
  *   from real visitors' errors.
+ * @param release The commit the site was built from, so an event can be
+ *   traced to the deploy that produced it. `dev` outside CI.
  */
-export function sentryOptions(dsn: string, environment: string): BrowserOptions {
+export function sentryOptions(dsn: string, environment: string, release: string): BrowserOptions {
   return {
     dsn,
     environment,
+    release,
     // Console output never leaves the browser. The SDK captures it as
     // breadcrumbs by default, and a console line here can carry a provider's
     // verbatim error body — which on a rejected key echoes back part of the
@@ -142,11 +146,13 @@ export function reactErrorReporter(): (error: unknown, info: ReactErrorInfo) => 
  *
  * @param dsn Defaults to the build-time DSN; tests pass one explicitly.
  * @param environment Defaults to Vite's build mode.
+ * @param release Defaults to the commit the build came from.
  * @returns Resolves once the SDK is live and the backlog has been sent.
  */
 export async function startErrorMonitoring(
   dsn: string | null = __SENTRY_DSN__,
   environment: string = __SENTRY_ENVIRONMENT__,
+  release: string = __SENTRY_RELEASE__,
 ): Promise<void> {
   if (dsn === null) return;
 
@@ -162,7 +168,7 @@ export async function startErrorMonitoring(
     // namespace object instead pulls in the whole SDK and triples this chunk
     // (28.9 kB gzip against 155.9 kB, measured).
     const { captureException, init, reactErrorHandler } = await import('@sentry/react');
-    init(sentryOptions(dsn, environment));
+    init(sentryOptions(dsn, environment, release));
 
     const handleReactError = reactErrorHandler();
     deliver = (error, info, tags) => {

@@ -36,6 +36,7 @@ Every item here has been violated at least once and cost a review cycle.
 ```bash
 npm run dev          # Vite dev server, serving the real pipeline output
 npm test             # both runners (~15s; smoke tests launch headless Chromium)
+npm run coverage     # both runners again, with thresholds that fail the run
 npm run test:node    # node --test only  (*.test.ts)
 npm run test:web     # vitest only       (*.test.tsx)
 npm run test:watch   # vitest in watch mode

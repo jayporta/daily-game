@@ -6,3 +6,6 @@ dist/
 design_handoff/
 .DS_Store
 .remember/
+
+# Coverage reports, written by `npm run coverage`.
+coverage/

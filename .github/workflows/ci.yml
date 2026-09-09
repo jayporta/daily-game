@@ -52,8 +52,10 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Test
-        run: npm test
+      # Runs both suites, and fails if either drops below the coverage
+      # thresholds in vitest.config.ts and package.json.
+      - name: Test with coverage
+        run: npm run coverage
 
       - name: Build and assemble the site
         run: npm run build:site

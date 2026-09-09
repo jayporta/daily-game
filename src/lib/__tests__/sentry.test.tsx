@@ -41,10 +41,17 @@ vi.mock('@sentry/react', async (importOriginal) => {
 });
 
 const DSN = 'https://examplekey@o1.ingest.us.sentry.io/2';
+const RELEASE = 'c0ffee1';
 
 describe('sentryOptions', () => {
   test('tags events with the environment it is given', () => {
-    expect(sentryOptions(DSN, 'production').environment).toBe('production');
+    expect(sentryOptions(DSN, 'production', RELEASE).environment).toBe('production');
+  });
+
+  // Without it an event names no deploy, so there is no way to tell an error
+  // the last publish introduced from one that has been there for weeks.
+  test('tags events with the release they came from', () => {
+    expect(sentryOptions(DSN, 'production', RELEASE).release).toBe(RELEASE);
   });
 
   // The trap: any non-empty value here attaches `sentry-trace` and `baggage`
@@ -52,13 +59,13 @@ describe('sentryOptions', () => {
   // cross-origin request and breaks generation against providers that reject
   // the unexpected headers.
   test('propagates trace headers to nothing', () => {
-    expect(sentryOptions(DSN, 'production').tracePropagationTargets).toEqual([]);
+    expect(sentryOptions(DSN, 'production', RELEASE).tracePropagationTargets).toEqual([]);
   });
 
   // Tracing was the majority of this site's JavaScript and sampled every
   // pageview, for a page that renders a header and one iframe.
   test('starts no tracing', () => {
-    const options = sentryOptions(DSN, 'production');
+    const options = sentryOptions(DSN, 'production', RELEASE);
 
     expect(options.tracesSampleRate).toBeUndefined();
     expect(options.integrations).toBeUndefined();
@@ -69,13 +76,13 @@ describe('sentryOptions', () => {
   // output as breadcrumbs by default, which would carry that text out of the
   // browser attached to some later event.
   test('drops console breadcrumbs', () => {
-    const beforeBreadcrumb = sentryOptions(DSN, 'production').beforeBreadcrumb;
+    const beforeBreadcrumb = sentryOptions(DSN, 'production', RELEASE).beforeBreadcrumb;
 
     expect(beforeBreadcrumb?.({ category: 'console', message: 'sk-live-abc' }, {})).toBeNull();
   });
 
   test('keeps breadcrumbs that are not console output', () => {
-    const beforeBreadcrumb = sentryOptions(DSN, 'production').beforeBreadcrumb;
+    const beforeBreadcrumb = sentryOptions(DSN, 'production', RELEASE).beforeBreadcrumb;
     const navigation = { category: 'navigation' };
 
     expect(beforeBreadcrumb?.(navigation, {})).toBe(navigation);

@@ -22,6 +22,16 @@ export default mergeConfig(
       globals: true,
       setupFiles: ['./src/vitest.setup.ts'],
       restoreMocks: true,
+      coverage: {
+        // Only what ships. Test files and fixtures are the measurement, not
+        // the thing measured.
+        include: ['src/**/*.{ts,tsx}'],
+        exclude: ['src/**/__tests__/**', 'src/**/testFixtures.ts', 'src/vitest.setup.ts'],
+        // Set just under what the suite measured when they were introduced,
+        // so they ratchet upwards as coverage improves rather than standing
+        // for a number nobody chose. Raise them; do not lower them.
+        thresholds: { statements: 88, branches: 80, functions: 92, lines: 91 },
+      },
     },
   }),
 );
