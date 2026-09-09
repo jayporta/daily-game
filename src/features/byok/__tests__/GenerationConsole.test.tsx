@@ -1,16 +1,31 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { GenerationConsole } from '@/features/byok/GenerationConsole.tsx';
+import { ByokStatusContext } from '@/features/byok/state/context/byokStatusContext.ts';
+import type { ByokStatus } from '@/features/byok/state/useByok.ts';
 
-const RUNNING = {
-  providerLabel: 'Anthropic',
-  modelId: 'claude-opus-5',
-  failure: null,
-};
+const RUN = { providerLabel: 'Anthropic', modelId: 'claude-opus-5' };
+
+/**
+ * The console against one exact status.
+ *
+ * Wrapped in the context rather than the real provider: every case here is
+ * about what a given status renders, and the provider offers no way to be
+ * put into one.
+ */
+function renderConsole(status: ByokStatus) {
+  return render(
+    <ByokStatusContext.Provider value={status}>
+      <GenerationConsole />
+    </ByokStatusContext.Provider>,
+  );
+}
+
+const streaming = (output: string): ByokStatus => ({ status: 'streaming', run: RUN, output });
 
 describe('GenerationConsole', () => {
   it('names the provider and model before any output arrives', () => {
-    render(<GenerationConsole {...RUNNING} output="" />);
+    renderConsole(streaming(''));
 
     const log = screen.getByRole('log', { name: /generation output/i });
     expect(log).toHaveTextContent('connecting to Anthropic');
@@ -18,7 +33,7 @@ describe('GenerationConsole', () => {
   });
 
   it('shows the output as it arrives', () => {
-    render(<GenerationConsole {...RUNNING} output={'```json\n{"title": "Prism Garden"}'} />);
+    renderConsole(streaming('```json\n{"title": "Prism Garden"}'));
 
     expect(screen.getByRole('log')).toHaveTextContent('Prism Garden');
   });
@@ -30,7 +45,7 @@ describe('GenerationConsole', () => {
   it('paints only the tail of a long generation', () => {
     const lines = Array.from({ length: 400 }, (_, index) => `line ${index}`);
 
-    render(<GenerationConsole {...RUNNING} output={lines.join('\n')} />);
+    renderConsole(streaming(lines.join('\n')));
 
     const log = screen.getByRole('log');
     expect(log).toHaveTextContent('line 399');
@@ -38,7 +53,7 @@ describe('GenerationConsole', () => {
   });
 
   it('keeps a short generation whole rather than anchoring it to the bottom', () => {
-    render(<GenerationConsole {...RUNNING} output={'first\nsecond\nthird'} />);
+    renderConsole(streaming('first\nsecond\nthird'));
 
     expect(screen.getByRole('log')).toHaveTextContent('first');
   });
@@ -46,13 +61,12 @@ describe('GenerationConsole', () => {
   // The reason the console stays on screen after a failure: the partial
   // output plus the reason is the only record of what went wrong.
   it('reports a failure beneath what the model managed to say', () => {
-    render(
-      <GenerationConsole
-        {...RUNNING}
-        output="half a game"
-        failure="anthropic request failed (401): invalid key"
-      />,
-    );
+    renderConsole({
+      status: 'error',
+      run: RUN,
+      output: 'half a game',
+      message: 'anthropic request failed (401): invalid key',
+    });
 
     const log = screen.getByRole('log');
     expect(log).toHaveTextContent('half a game');
@@ -62,7 +76,7 @@ describe('GenerationConsole', () => {
   // The output is AI-authored markup. It renders as text through JSX, so
   // React escapes it; nothing on this page may ever interpret it as HTML.
   it('renders model markup as text, never as elements', () => {
-    render(<GenerationConsole {...RUNNING} output='<img src="x" onerror="boom">' />);
+    renderConsole(streaming('<img src="x" onerror="boom">'));
 
     const log = screen.getByRole('log');
     expect(log.querySelector('img')).toBeNull();

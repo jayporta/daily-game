@@ -1,16 +1,16 @@
-import { useReducer, useState } from 'react';
+import { useMemo, useReducer, useState } from 'react';
 import {
   type ByokModelsConfig,
   type ByokProvider,
   isByokProvider,
 } from '#lib/byok-config-types.ts';
-import type { ControlHint } from '#lib/extract-bundle-shared.ts';
+import { useByokActions } from '@/features/byok/state/context/useByokActions.ts';
+import { useByokStatus } from '@/features/byok/state/context/useByokStatus.ts';
 import { byokModelsConfig } from '@/features/byok/state/helpers/byokCatalogue.ts';
 import {
   type ByokPromptParts,
   composeByokPrompt,
 } from '@/features/byok/state/helpers/composeByokPrompt.ts';
-import type { UseByokResult } from '@/features/byok/state/useByok.ts';
 import { type PromptTextState, usePromptText } from '@/features/byok/state/usePromptText.ts';
 import { reportError } from '@/lib/sentry.ts';
 import { Disclosure } from '@/shared_components/Disclosure.tsx';
@@ -19,24 +19,7 @@ import { FIELD_CONTROL, FormField } from '@/shared_components/FormField.tsx';
 import { Panel } from '@/shared_components/Panel.tsx';
 import { PillButton } from '@/shared_components/PillButton.tsx';
 
-export interface ByokResult {
-  readonly html: string;
-  readonly title: string;
-  /**
-   * The regenerated game's own controls — not the day's. The legend describes
-   * whatever game is in the frame, and a BYOK game invents its own scheme.
-   */
-  readonly controls: readonly ControlHint[];
-  readonly providerLabel: string;
-  readonly modelId: string;
-}
-
 export interface ByokPanelProps {
-  /**
-   * The generation the page is running. Owned above this panel because the
-   * live output renders in the game's place, which this panel sits under.
-   */
-  readonly byok: UseByokResult;
   /**
    * Where the exact prompt that produced today's published game is published.
    * Fetched on first engagement with this panel, not with the page — most
@@ -50,8 +33,6 @@ export interface ByokPanelProps {
    * restart.
    */
   readonly currentGameHtml: string;
-  /** Called with the regenerated bundle on success. */
-  readonly onResult: (result: ByokResult) => void;
   /** Overridden in tests; defaults to the config this site shipped with. */
   readonly catalogue?: ByokModelsConfig;
   /** Replaces global `fetch`; injected by tests. */
@@ -132,15 +113,14 @@ function promptText(
  * `useByok`'s state.
  */
 export function ByokPanel({
-  byok,
   promptPath,
   currentGameHtml,
-  onResult,
   catalogue = byokModelsConfig,
   fetchImpl,
 }: ByokPanelProps) {
   const { state: prompt, load: loadPrompt } = usePromptText(promptPath, fetchImpl);
-  const { status, priorFailureFeedback, clearFeedback, generate, stop } = byok;
+  const status = useByokStatus();
+  const { priorFailureFeedback, clearFeedback, generate, stop, showResult } = useByokActions();
   // Lazy: the initial value is a scan of the catalogue, and a non-lazy
   // initializer runs that scan on every render to discard the result.
   const [{ provider, modelId }, select] = useReducer(reduceSelection, catalogue, initialSelection);
@@ -159,6 +139,18 @@ export function ByokPanel({
     priorFailureFeedback,
     ...(includeCurrentGame ? { currentGameHtml } : {}),
   };
+
+  // Concatenating the whole game onto the whole prompt, so it is held rather
+  // than rebuilt: with "include the current game" ticked this is tens of
+  // kilobytes, and the panel re-renders while a generation streams.
+  const shownPrompt = useMemo(
+    () =>
+      promptText(prompt, {
+        priorFailureFeedback,
+        ...(includeCurrentGame ? { currentGameHtml } : {}),
+      }),
+    [prompt, priorFailureFeedback, includeCurrentGame, currentGameHtml],
+  );
 
   // A correction describes what the last model got wrong; it is addressed to
   // nobody once a different one is picked. Both handlers clear it, because
@@ -200,7 +192,7 @@ export function ByokPanel({
       if (generated === null) return;
       setApiKey('');
 
-      onResult({
+      showResult({
         html: generated.html,
         title: generated.meta.title,
         controls: generated.meta.controls,
@@ -245,7 +237,7 @@ export function ByokPanel({
           onToggle={() => void loadPrompt()}
         >
           <pre className="max-h-48 overflow-auto rounded-lg bg-chip p-2 text-xs whitespace-pre-wrap dark:bg-slate-800">
-            {promptText(prompt, additions)}
+            {shownPrompt}
           </pre>
         </Disclosure>
 

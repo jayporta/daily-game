@@ -5,10 +5,11 @@
 // three — game, reaction and byok — and belongs to none of them.
 
 import { ByokFacts } from '@/features/byok/ByokFacts.tsx';
-import { ByokPanel, type ByokResult } from '@/features/byok/ByokPanel.tsx';
+import { ByokPanel } from '@/features/byok/ByokPanel.tsx';
 import { GeneratedCode } from '@/features/byok/GeneratedCode.tsx';
 import { GenerationConsole } from '@/features/byok/GenerationConsole.tsx';
-import type { UseByokResult } from '@/features/byok/state/useByok.ts';
+import { useByokActions } from '@/features/byok/state/context/useByokActions.ts';
+import { useByokStatus } from '@/features/byok/state/context/useByokStatus.ts';
 import { ControlLegend } from '@/features/game/ControlLegend.tsx';
 import { GameFacts } from '@/features/game/GameFacts.tsx';
 import { GameFrame } from '@/features/game/GameFrame.tsx';
@@ -20,12 +21,6 @@ import { PillButton } from '@/shared_components/PillButton.tsx';
 
 export interface GameViewProps {
   readonly html: string;
-  /** A visitor's own generation, shown in place of the day's game. */
-  readonly byokOverride: ByokResult | null;
-  /** The visitor's generation, whose live output takes the frame's place. */
-  readonly byok: UseByokResult;
-  readonly onByokResult: (result: ByokResult) => void;
-  readonly onDismissByok: () => void;
 }
 
 /**
@@ -36,8 +31,10 @@ export interface GameViewProps {
  * which game is on screen. Only the provenance line and the dismiss button
  * branch again, because they exist for one case and not the other.
  */
-export function GameView({ html, byokOverride, byok, onByokResult, onDismissByok }: GameViewProps) {
+export function GameView({ html }: GameViewProps) {
   const manifest = useManifestContext();
+  const status = useByokStatus();
+  const { override: byokOverride, backToTodaysGame } = useByokActions();
   const shown =
     byokOverride === null
       ? {
@@ -53,33 +50,18 @@ export function GameView({ html, byokOverride, byok, onByokResult, onDismissByok
           controls: byokOverride.controls,
         };
 
-  // Always the full reset, wherever it's rendered from: aborts a run in
-  // flight (or no-ops if idle) and drops any earlier override (or no-ops if
-  // there isn't one). Without both, a retry that fails after an earlier
-  // success left one control clearing the run but not the stale override —
-  // "back to today's game" needed two clicks to actually get there.
-  const backToTodaysGame = (): void => {
-    byok.stop();
-    onDismissByok();
-  };
-
   return (
     <>
       {/* One box, two occupants: while a visitor's own generation runs, its
           output stands where the game will appear, so nothing on the page
           moves when the game takes over. */}
-      {byok.status.status === 'idle' ? (
+      {status.status === 'idle' ? (
         <GameFrame html={shown.html} title={shown.title} />
       ) : (
-        <GenerationConsole
-          providerLabel={byok.status.run.providerLabel}
-          modelId={byok.status.run.modelId}
-          output={byok.status.output}
-          failure={byok.status.status === 'error' ? byok.status.message : null}
-        />
+        <GenerationConsole />
       )}
 
-      {byok.status.status === 'error' && (
+      {status.status === 'error' && (
         <div className="mt-3">
           <PillButton tone="neutral" onClick={backToTodaysGame}>
             Back to today&rsquo;s game
@@ -111,7 +93,7 @@ export function GameView({ html, byokOverride, byok, onByokResult, onDismissByok
             one value, so the code on display is always the code running. */}
         <GeneratedCode html={shown.html} title={shown.title} />
 
-        {byokOverride !== null && byok.status.status !== 'error' && (
+        {byokOverride !== null && status.status !== 'error' && (
           <div className="mt-4">
             <PillButton tone="neutral" onClick={backToTodaysGame}>
               Back to today&rsquo;s game
@@ -123,12 +105,7 @@ export function GameView({ html, byokOverride, byok, onByokResult, onDismissByok
       {/* The panel re-runs the day's exact prompt, so a game archived before
           prompts were has nothing for it to send. */}
       {manifest.promptPath !== undefined && (
-        <ByokPanel
-          byok={byok}
-          promptPath={manifest.promptPath}
-          currentGameHtml={shown.html}
-          onResult={onByokResult}
-        />
+        <ByokPanel promptPath={manifest.promptPath} currentGameHtml={shown.html} />
       )}
     </>
   );

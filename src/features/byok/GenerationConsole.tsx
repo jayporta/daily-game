@@ -1,16 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { useByokStatus } from '@/features/byok/state/context/useByokStatus.ts';
 import { GameBox } from '@/features/game/GameBox.tsx';
-
-export interface GenerationConsoleProps {
-  /** Readable provider name, for the opening line. */
-  readonly providerLabel: string;
-  /** The model the visitor picked, for the line under it. */
-  readonly modelId: string;
-  /** The model's raw output so far. */
-  readonly output: string;
-  /** Why the run stopped, or `null` while it is still going. */
-  readonly failure: string | null;
-}
 
 /**
  * How much of the tail is painted.
@@ -28,13 +18,13 @@ const VISIBLE_LINES = 120;
  * Occupies exactly the frame's box, so the game can take over the same space
  * without the page shifting under the visitor.
  */
-export function GenerationConsole({
-  providerLabel,
-  modelId,
-  output,
-  failure,
-}: GenerationConsoleProps) {
+export function GenerationConsole() {
+  const status = useByokStatus();
   const scroller = useRef<HTMLDivElement>(null);
+  // Idle is unreachable while this is mounted: GameView renders the frame
+  // instead. Read defensively anyway so the component has no impossible case.
+  const output = status.status === 'idle' ? '' : status.output;
+  const failure = status.status === 'error' ? status.message : null;
   const tail = useMemo(() => lastLines(output, VISIBLE_LINES), [output]);
 
   // Synchronising with the element's own scroll position, which React does
@@ -54,8 +44,12 @@ export function GenerationConsole({
         aria-live="polite"
         className="h-full overflow-auto p-4 font-mono text-xs leading-5 text-slate-300"
       >
-        <p className="text-emerald-400">{`● connecting to ${providerLabel}…`}</p>
-        <p className="text-emerald-400">{`● model ${modelId}`}</p>
+        {status.status !== 'idle' && (
+          <>
+            <p className="text-emerald-400">{`● connecting to ${status.run.providerLabel}…`}</p>
+            <p className="text-emerald-400">{`● model ${status.run.modelId}`}</p>
+          </>
+        )}
 
         {/* The model's own text. Rendered as a string inside JSX, so React
             escapes it — this is AI-authored markup and nothing here may

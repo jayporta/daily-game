@@ -37,6 +37,19 @@ export default tseslint.config(
 
   {
     rules: {
+      // These exist on `window`, so a call to one typechecks and runs while
+      // doing nothing anyone wanted. `onClick={stop}` reached window.stop()
+      // for a whole commit here, with tsc and the type system content.
+      'no-restricted-globals': [
+        'error',
+        { name: 'stop', message: 'Did you mean a local `stop`? This is window.stop().' },
+        { name: 'close', message: 'Did you mean a local `close`? This is window.close().' },
+        { name: 'open', message: 'Did you mean a local `open`? This is window.open().' },
+        { name: 'status', message: 'Did you mean a local `status`? This is window.status.' },
+        { name: 'name', message: 'Did you mean a local `name`? This is window.name.' },
+        { name: 'length', message: 'Did you mean a local `length`? This is window.length.' },
+        { name: 'event', message: 'Did you mean a local `event`? This is window.event.' },
+      ],
       // `const { controls: _omitted, ...rest }` is how this repo drops a
       // field to test a guard. The rest sibling is the point; the binding
       // it leaves behind is not.

@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react';
 import { errorMessage } from '#lib/errors.ts';
 import type { Manifest } from '#lib/manifest.ts';
-import { SYSTEM_PROMPT } from '#lib/system-prompt.ts';
-import type { ByokResult } from '@/features/byok/ByokPanel.tsx';
-import { useByok } from '@/features/byok/state/useByok.ts';
+import { ByokProvider } from '@/features/byok/state/context/ByokProvider.tsx';
 import { GameView } from '@/features/game/GameView.tsx';
 import { ManifestProvider } from '@/features/game/state/context/ManifestProvider.tsx';
 import { RunStatusProvider } from '@/features/game/state/context/RunStatusProvider.tsx';
@@ -28,10 +26,6 @@ type LoadState =
 /** Loads the day's manifest and bundle, then hands the bundle to the sandbox. */
 export function App() {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
-  const [byokOverride, setByokOverride] = useState<ByokResult | null>(null);
-  // Owned here rather than in the panel: the live output renders in the
-  // game's place, above the panel that starts it.
-  const byok = useByok({ systemPrompt: SYSTEM_PROMPT });
 
   useEffect(() => {
     let cancelled = false;
@@ -100,13 +94,9 @@ export function App() {
         {state.status === 'ready' && (
           <ManifestProvider manifest={state.manifest}>
             <RunStatusProvider>
-              <GameView
-                html={state.html}
-                byokOverride={byokOverride}
-                byok={byok}
-                onByokResult={setByokOverride}
-                onDismissByok={() => setByokOverride(null)}
-              />
+              <ByokProvider>
+                <GameView html={state.html} />
+              </ByokProvider>
             </RunStatusProvider>
           </ManifestProvider>
         )}

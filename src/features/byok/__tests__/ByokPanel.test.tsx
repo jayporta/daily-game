@@ -1,9 +1,12 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { useEffect } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { ByokModelsConfig } from '#lib/byok-config-types.ts';
 import { ByokPanel, type ByokPanelProps } from '@/features/byok/ByokPanel.tsx';
-import { useByok } from '@/features/byok/state/useByok.ts';
+import { ByokProvider } from '@/features/byok/state/context/ByokProvider.tsx';
+import type { ByokResult } from '@/features/byok/state/context/byokResult.ts';
+import { useByokActions } from '@/features/byok/state/context/useByokActions.ts';
 import {
   BYOK_COMPLETION,
   BYOK_HTML,
@@ -42,18 +45,41 @@ function routedFetch(provider: () => Response): ReturnType<typeof vi.fn<typeof f
 }
 
 /**
- * The panel with a real generation hook behind it.
+ * Reports the finished generation the provider is holding.
  *
- * The hook lives in `App` in production, because its live output renders
- * above this panel. Standing one up here keeps these tests exercising the
- * genuine request path rather than a hand-written stub of it.
+ * The panel hands a result to shared state rather than to a callback, so
+ * this is where a test observes one — through the same context the game
+ * view reads it from.
+ */
+function OverrideSpy({ onOverride }: { readonly onOverride: (result: ByokResult | null) => void }) {
+  const { override } = useByokActions();
+  useEffect(() => {
+    onOverride(override);
+  }, [override, onOverride]);
+  return null;
+}
+
+/**
+ * The panel inside the real provider.
+ *
+ * The provider owns the run in production, because its live output renders
+ * above this panel. Standing up the real one keeps these tests exercising
+ * the genuine request path and the genuine wiring.
  */
 function PanelWithByok({
   currentGameHtml = CURRENT_GAME,
+  onOverride,
   ...props
-}: Omit<ByokPanelProps, 'byok' | 'currentGameHtml'> & { currentGameHtml?: string }) {
-  const byok = useByok({ systemPrompt: 'system', fetchImpl: props.fetchImpl });
-  return <ByokPanel byok={byok} currentGameHtml={currentGameHtml} {...props} />;
+}: Omit<ByokPanelProps, 'currentGameHtml'> & {
+  currentGameHtml?: string;
+  onOverride?: (result: ByokResult | null) => void;
+}) {
+  return (
+    <ByokProvider {...(props.fetchImpl ? { fetchImpl: props.fetchImpl } : {})}>
+      <ByokPanel currentGameHtml={currentGameHtml} {...props} />
+      {onOverride && <OverrideSpy onOverride={onOverride} />}
+    </ByokProvider>
+  );
 }
 
 const generateButton = (): HTMLElement => screen.getByRole('button', { name: /generate/i });
@@ -63,7 +89,6 @@ describe('ByokPanel', () => {
     render(
       <PanelWithByok
         promptPath={PROMPT_PATH}
-        onResult={() => {}}
         catalogue={CATALOGUE}
         fetchImpl={routedFetch(() => jsonResponse({}))}
       />,
@@ -83,14 +108,7 @@ describe('ByokPanel', () => {
   // selected while the request still carries the old provider's model.
   it('sends the new provider a model that provider has', async () => {
     const fetchImpl = routedFetch(() => completionResponse(BYOK_COMPLETION));
-    render(
-      <PanelWithByok
-        promptPath={PROMPT_PATH}
-        onResult={() => {}}
-        catalogue={CATALOGUE}
-        fetchImpl={fetchImpl}
-      />,
-    );
+    render(<PanelWithByok promptPath={PROMPT_PATH} catalogue={CATALOGUE} fetchImpl={fetchImpl} />);
 
     await userEvent.selectOptions(screen.getByLabelText(/provider/i), 'Anthropic');
     await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
@@ -108,7 +126,6 @@ describe('ByokPanel', () => {
     render(
       <PanelWithByok
         promptPath={PROMPT_PATH}
-        onResult={() => {}}
         catalogue={CATALOGUE}
         fetchImpl={routedFetch(() => jsonResponse({}))}
       />,
@@ -125,7 +142,6 @@ describe('ByokPanel', () => {
     render(
       <PanelWithByok
         promptPath={PROMPT_PATH}
-        onResult={() => {}}
         catalogue={CATALOGUE}
         fetchImpl={routedFetch(() => jsonResponse({}))}
       />,
@@ -136,14 +152,7 @@ describe('ByokPanel', () => {
 
   it('clears the key input immediately after submitting', async () => {
     const fetchImpl = routedFetch(() => completionResponse(BYOK_COMPLETION));
-    render(
-      <PanelWithByok
-        promptPath={PROMPT_PATH}
-        onResult={() => {}}
-        catalogue={CATALOGUE}
-        fetchImpl={fetchImpl}
-      />,
-    );
+    render(<PanelWithByok promptPath={PROMPT_PATH} catalogue={CATALOGUE} fetchImpl={fetchImpl} />);
 
     const keyInput = screen.getByLabelText(/api key/i);
     await userEvent.type(keyInput, 'sk-test-key');
@@ -152,13 +161,13 @@ describe('ByokPanel', () => {
     expect(keyInput).toHaveValue('');
   });
 
-  it('calls onResult with the extracted bundle on success', async () => {
+  it('hands the extracted bundle to shared state on success', async () => {
     const fetchImpl = routedFetch(() => completionResponse(BYOK_COMPLETION));
-    const onResult = vi.fn();
+    const onOverride = vi.fn();
     render(
       <PanelWithByok
         promptPath={PROMPT_PATH}
-        onResult={onResult}
+        onOverride={onOverride}
         catalogue={CATALOGUE}
         fetchImpl={fetchImpl}
       />,
@@ -168,7 +177,7 @@ describe('ByokPanel', () => {
     await userEvent.click(generateButton());
 
     await waitFor(() =>
-      expect(onResult).toHaveBeenCalledWith(
+      expect(onOverride).toHaveBeenCalledWith(
         expect.objectContaining({
           html: BYOK_HTML,
           title: 'Regenerated Title',
@@ -186,14 +195,7 @@ describe('ByokPanel', () => {
       providerCalls += 1;
       return new Response('', { status: 401 });
     });
-    render(
-      <PanelWithByok
-        promptPath={PROMPT_PATH}
-        onResult={() => {}}
-        catalogue={CATALOGUE}
-        fetchImpl={fetchImpl}
-      />,
-    );
+    render(<PanelWithByok promptPath={PROMPT_PATH} catalogue={CATALOGUE} fetchImpl={fetchImpl} />);
 
     await userEvent.type(screen.getByLabelText(/api key/i), 'sk-test-key');
     await userEvent.click(generateButton());
@@ -233,14 +235,7 @@ describe('ByokPanel prompt composition', () => {
 
   it('sends the current game only when the visitor asks for it', async () => {
     const fetchImpl = queuedFetch([completionResponse(BYOK_COMPLETION)]);
-    render(
-      <PanelWithByok
-        promptPath={PROMPT_PATH}
-        onResult={() => {}}
-        catalogue={CATALOGUE}
-        fetchImpl={fetchImpl}
-      />,
-    );
+    render(<PanelWithByok promptPath={PROMPT_PATH} catalogue={CATALOGUE} fetchImpl={fetchImpl} />);
 
     await generateOnce();
 
@@ -250,14 +245,7 @@ describe('ByokPanel prompt composition', () => {
 
   it('sends the current game when the box is ticked', async () => {
     const fetchImpl = queuedFetch([completionResponse(BYOK_COMPLETION)]);
-    render(
-      <PanelWithByok
-        promptPath={PROMPT_PATH}
-        onResult={() => {}}
-        catalogue={CATALOGUE}
-        fetchImpl={fetchImpl}
-      />,
-    );
+    render(<PanelWithByok promptPath={PROMPT_PATH} catalogue={CATALOGUE} fetchImpl={fetchImpl} />);
 
     await userEvent.click(screen.getByRole('checkbox', { name: /include the current game/i }));
     await generateOnce();
@@ -269,14 +257,7 @@ describe('ByokPanel prompt composition', () => {
   // two places is how that promise quietly stops being true.
   it('shows the visitor exactly the prompt it sends', async () => {
     const fetchImpl = queuedFetch([completionResponse(BYOK_COMPLETION)]);
-    render(
-      <PanelWithByok
-        promptPath={PROMPT_PATH}
-        onResult={() => {}}
-        catalogue={CATALOGUE}
-        fetchImpl={fetchImpl}
-      />,
-    );
+    render(<PanelWithByok promptPath={PROMPT_PATH} catalogue={CATALOGUE} fetchImpl={fetchImpl} />);
 
     await userEvent.click(screen.getByRole('checkbox', { name: /include the current game/i }));
     await userEvent.click(screen.getByText(/see the exact prompt/i));
@@ -293,14 +274,7 @@ describe('ByokPanel prompt composition', () => {
       truncatedCompletionResponse(),
       completionResponse(BYOK_COMPLETION),
     ]);
-    render(
-      <PanelWithByok
-        promptPath={PROMPT_PATH}
-        onResult={() => {}}
-        catalogue={CATALOGUE}
-        fetchImpl={fetchImpl}
-      />,
-    );
+    render(<PanelWithByok promptPath={PROMPT_PATH} catalogue={CATALOGUE} fetchImpl={fetchImpl} />);
 
     await generateOnce();
     await screen.findByRole('alert');
@@ -318,14 +292,7 @@ describe('ByokPanel prompt composition', () => {
       truncatedCompletionResponse(),
       completionResponse(BYOK_COMPLETION),
     ]);
-    render(
-      <PanelWithByok
-        promptPath={PROMPT_PATH}
-        onResult={() => {}}
-        catalogue={CATALOGUE}
-        fetchImpl={fetchImpl}
-      />,
-    );
+    render(<PanelWithByok promptPath={PROMPT_PATH} catalogue={CATALOGUE} fetchImpl={fetchImpl} />);
 
     await generateOnce();
     await screen.findByRole('alert');
@@ -338,14 +305,7 @@ describe('ByokPanel prompt composition', () => {
 
   it('explains a truncated response instead of blaming the model', async () => {
     const fetchImpl = queuedFetch([truncatedCompletionResponse()]);
-    render(
-      <PanelWithByok
-        promptPath={PROMPT_PATH}
-        onResult={() => {}}
-        catalogue={CATALOGUE}
-        fetchImpl={fetchImpl}
-      />,
-    );
+    render(<PanelWithByok promptPath={PROMPT_PATH} catalogue={CATALOGUE} fetchImpl={fetchImpl} />);
 
     await generateOnce();
 
