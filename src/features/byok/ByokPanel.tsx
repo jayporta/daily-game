@@ -1,9 +1,6 @@
-import { useMemo, useReducer, useState } from 'react';
-import {
-  type ByokModelsConfig,
-  type ByokProvider,
-  isByokProvider,
-} from '#lib/byok-config-types.ts';
+import { useMemo, useState } from 'react';
+import type { ByokModelsConfig } from '#lib/byok-config-types.ts';
+import { ByokForm } from '@/features/byok/ByokForm.tsx';
 import { useByokActions } from '@/features/byok/state/context/useByokActions.ts';
 import { useByokStatus } from '@/features/byok/state/context/useByokStatus.ts';
 import { byokModelsConfig } from '@/features/byok/state/helpers/byokCatalogue.ts';
@@ -12,12 +9,9 @@ import {
   composeByokPrompt,
 } from '@/features/byok/state/helpers/composeByokPrompt.ts';
 import { type PromptTextState, usePromptText } from '@/features/byok/state/usePromptText.ts';
-import { reportError } from '@/lib/sentry.ts';
 import { Disclosure } from '@/shared_components/Disclosure.tsx';
 import { ErrorText } from '@/shared_components/ErrorText.tsx';
-import { FIELD_CONTROL, FormField } from '@/shared_components/FormField.tsx';
 import { Panel } from '@/shared_components/Panel.tsx';
-import { PillButton } from '@/shared_components/PillButton.tsx';
 
 export interface ByokPanelProps {
   /**
@@ -37,47 +31,6 @@ export interface ByokPanelProps {
   readonly catalogue?: ByokModelsConfig;
   /** Replaces global `fetch`; injected by tests. */
   readonly fetchImpl?: typeof fetch;
-}
-
-function firstModelId(catalogue: ByokModelsConfig, provider: ByokProvider): string {
-  return catalogue.find((entry) => entry.provider === provider)?.models[0]?.id ?? '';
-}
-
-/** Which provider and model this run will use. */
-interface Selection {
-  readonly provider: ByokProvider;
-  readonly modelId: string;
-}
-
-/**
- * A provider carries its model with it, because a provider left beside
- * another provider's model would describe a request no catalogue entry
- * covers. The action supplies both, so the pair cannot be moved by halves.
- */
-type SelectionAction =
-  | { type: 'provider'; provider: ByokProvider; modelId: string }
-  | { type: 'model'; modelId: string };
-
-function reduceSelection(selection: Selection, action: SelectionAction): Selection {
-  switch (action.type) {
-    case 'provider':
-      return { provider: action.provider, modelId: action.modelId };
-    case 'model':
-      return { provider: selection.provider, modelId: action.modelId };
-  }
-}
-
-/**
- * The first entry in the catalogue.
- *
- * The `?? 'openrouter'` is unreachable past the empty-catalogue guard in the
- * panel; it is there because the type has no empty case.
- */
-function initialSelection(catalogue: ByokModelsConfig): Selection {
-  return {
-    provider: catalogue[0]?.provider ?? 'openrouter',
-    modelId: catalogue[0]?.models[0]?.id ?? '',
-  };
 }
 
 /**
@@ -120,92 +73,24 @@ export function ByokPanel({
 }: ByokPanelProps) {
   const { state: prompt, load: loadPrompt } = usePromptText(promptPath, fetchImpl);
   const status = useByokStatus();
-  const { priorFailureFeedback, clearFeedback, generate, stop, showResult } = useByokActions();
-  // Lazy: the initial value is a scan of the catalogue, and a non-lazy
-  // initializer runs that scan on every render to discard the result.
-  const [{ provider, modelId }, select] = useReducer(reduceSelection, catalogue, initialSelection);
-  const [apiKey, setApiKey] = useState('');
+  const { priorFailureFeedback } = useByokActions();
   const [includeCurrentGame, setIncludeCurrentGame] = useState(false);
 
-  // One lookup, not three: the entry answers both what to list and what to label.
-  const selected = catalogue.find((entry) => entry.provider === provider);
-  const models = selected?.models ?? [];
-  const generating = status.status === 'streaming';
-  const canSubmit = apiKey.length > 0 && modelId.length > 0 && !generating;
-
   // What this run adds to the archived prompt. Shared by the disclosure and
-  // the submit handler so the two cannot describe different requests.
-  const additions = {
-    priorFailureFeedback,
-    ...(includeCurrentGame ? { currentGameHtml } : {}),
-  };
+  // the form's submission so the two cannot describe different requests.
+  const additions = useMemo<Omit<ByokPromptParts, 'basePrompt'>>(
+    () => ({ priorFailureFeedback, ...(includeCurrentGame ? { currentGameHtml } : {}) }),
+    [priorFailureFeedback, includeCurrentGame, currentGameHtml],
+  );
 
   // Concatenating the whole game onto the whole prompt, so it is held rather
   // than rebuilt: with "include the current game" ticked this is tens of
   // kilobytes, and the panel re-renders while a generation streams.
-  const shownPrompt = useMemo(
-    () =>
-      promptText(prompt, {
-        priorFailureFeedback,
-        ...(includeCurrentGame ? { currentGameHtml } : {}),
-      }),
-    [prompt, priorFailureFeedback, includeCurrentGame, currentGameHtml],
-  );
+  const shownPrompt = useMemo(() => promptText(prompt, additions), [prompt, additions]);
 
-  // A correction describes what the last model got wrong; it is addressed to
-  // nobody once a different one is picked. Both handlers clear it, because
-  // both land on a different model.
-  const handleModelChange = (nextModelId: string): void => {
-    select({ type: 'model', modelId: nextModelId });
-    clearFeedback();
-  };
-
-  const handleProviderChange = (nextProvider: ByokProvider): void => {
-    select({
-      type: 'provider',
-      provider: nextProvider,
-      modelId: firstModelId(catalogue, nextProvider),
-    });
-    clearFeedback();
-  };
-
-  const handleSubmit = async (): Promise<void> => {
-    if (!canSubmit) return;
-
-    try {
-      // Awaited rather than gating the button: warmed on first contact with
-      // the panel, so this has almost always already resolved.
-      const basePrompt = await loadPrompt();
-      if (basePrompt === null) return;
-
-      const generated = await generate({
-        provider,
-        modelId,
-        providerLabel: selected?.label ?? provider,
-        apiKey,
-        userPrompt: composeByokPrompt({ basePrompt, ...additions }),
-      });
-      // Kept on a failure so Generate still works: a run that did not produce
-      // a game is one the visitor will want to retry, and clearing the field
-      // would leave them with a control they cannot use. Cleared on success,
-      // and never written anywhere but this input either way.
-      if (generated === null) return;
-      setApiKey('');
-
-      showResult({
-        html: generated.html,
-        title: generated.meta.title,
-        controls: generated.meta.controls,
-        providerLabel: generated.providerLabel,
-        modelId: generated.modelId,
-      });
-    } catch (error) {
-      // Fired as `void handleSubmit()`, so anything escaping here would be an
-      // unhandled rejection and nothing else. `generate` reports its own
-      // failures; this covers the handing-over on either side of it.
-      reportError(error, { area: 'byok', stage: 'submit' });
-      stop();
-    }
+  const composePrompt = async (): Promise<string | null> => {
+    const basePrompt = await loadPrompt();
+    return basePrompt === null ? null : composeByokPrompt({ basePrompt, ...additions });
   };
 
   // A malformed config/byok-models.json degrades the catalogue to empty. There
@@ -241,85 +126,11 @@ export function ByokPanel({
           </pre>
         </Disclosure>
 
-        {/* Warmed when the visitor first reaches for the form, so the await in
-            handleSubmit has almost always already resolved. */}
-        <div
-          className="mt-3 flex flex-wrap items-end gap-2"
-          onFocusCapture={() => void loadPrompt()}
-        >
-          <FormField label="Provider">
-            <select
-              value={provider}
-              onChange={(e) => {
-                if (isByokProvider(e.target.value)) handleProviderChange(e.target.value);
-              }}
-              className={FIELD_CONTROL}
-            >
-              {catalogue.map((entry) => (
-                <option key={entry.provider} value={entry.provider}>
-                  {entry.label}
-                </option>
-              ))}
-            </select>
-          </FormField>
-
-          <FormField label="Model">
-            <select
-              value={modelId}
-              onChange={(e) => handleModelChange(e.target.value)}
-              className={FIELD_CONTROL}
-            >
-              {models.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.label}
-                </option>
-              ))}
-            </select>
-          </FormField>
-
-          <FormField label="API key">
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              autoComplete="off"
-              className={FIELD_CONTROL}
-            />
-          </FormField>
-
-          <div className="flex items-center gap-2">
-            {/* The spinner sits over the button rather than beside it, so
-                the control the visitor just pressed is what shows it is
-                working. Wrapping only the button makes the overlay take the
-                button's own box, which a fixed width would not: the label
-                changes with the state and a guessed width lands off centre. */}
-            <span className="relative inline-flex">
-              <PillButton tone="strong" onClick={() => void handleSubmit()} disabled={!canSubmit}>
-                {/* Transparent rather than `invisible` or removed: the
-                    button keeps its width so nothing shifts, and it keeps its
-                    accessible name, which `visibility: hidden` would strip —
-                    leaving a disabled, unnamed button. */}
-                <span className={generating ? 'text-transparent' : undefined}>Generate</span>
-              </PillButton>
-
-              {generating && (
-                <span
-                  role="status"
-                  aria-label="Generating"
-                  className="pointer-events-none absolute inset-0 grid place-items-center"
-                >
-                  <span className="size-4 animate-spin rounded-full border-2 border-body border-t-transparent dark:border-slate-100 dark:border-t-transparent" />
-                </span>
-              )}
-            </span>
-
-            {generating && (
-              <PillButton tone="neutral" onClick={stop}>
-                Stop
-              </PillButton>
-            )}
-          </div>
-        </div>
+        <ByokForm
+          catalogue={catalogue}
+          onEngage={() => void loadPrompt()}
+          composePrompt={composePrompt}
+        />
 
         <label className="mt-3 flex w-fit items-center gap-2 text-meta dark:text-slate-400">
           <input
