@@ -34,8 +34,8 @@ const CLOSE_ICON = (
 
 /**
  * The viewer's document: a header carrying the title, the copy button and the
- * full-screen toggle, over a line-numbered listing. `CodeViewer` wraps this
- * in a `role="dialog"` container while full screen.
+ * full-screen toggle, over a line-numbered listing. `CodeViewer` puts this
+ * inside a native `<dialog>` while full screen.
  *
  * The gutter and the code are one text node each rather than an element per
  * line: a generated game runs to hundreds of lines, and a row per line would
