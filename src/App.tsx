@@ -13,6 +13,9 @@ import { CodeChip } from '@/shared_components/CodeChip.tsx';
 import { GitHubLink } from '@/shared_components/GitHubLink.tsx';
 import { MetaText } from '@/shared_components/MetaText.tsx';
 
+/** The year this build was made, inlined by `vite.config.ts`. */
+declare const __BUILD_YEAR__: string;
+
 /**
  * What the viewer is showing. `empty` is a normal state, not a failure:
  * the seed manifest is `null` until the pipeline first publishes.
@@ -69,7 +72,7 @@ export function App() {
 
         <div className="flex items-center gap-2">
           <span className="text-xs text-faint dark:text-slate-500">
-            &copy;2026 Jason Matthew Porta
+            &copy;{__BUILD_YEAR__} Jason Matthew Porta
           </span>
           <GitHubLink />
           <ThemeToggle />

@@ -99,6 +99,10 @@ export default defineConfig(({ mode }) => ({
     // fails the build instead of shipping a client that posts nowhere.
     __SENTRY_DSN__: JSON.stringify(loadGenerationConfig().sentryDsn),
     __SENTRY_ENVIRONMENT__: JSON.stringify(mode),
+    // The footer's copyright year. Taken from the build rather than the
+    // visitor's clock, which is theirs to set: the site rebuilds on every
+    // publish, so this is the year it last published.
+    __BUILD_YEAR__: JSON.stringify(String(new Date().getUTCFullYear())),
   },
   plugins: [serveArchivedGamesRaw(), react(), tailwindcss()],
   build: {

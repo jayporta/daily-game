@@ -51,7 +51,7 @@ npm run build:site   # vite build + assemble-site.ts → deployable dist/
 
 First run also needs `npx playwright install chromium`.
 
-- One Node file: `node --experimental-strip-types --test scripts/__tests__/moderate.test.ts`
+- One Node file: `node --test scripts/__tests__/moderate.test.ts`
 - One web file: `npx vitest run src/features/game/__tests__/GameFacts.test.tsx`
 - By name under `node --test`, **always scope it to a file**: append
   `--test-name-pattern "fails closed"`. Repo-wide it hangs — the smoke-test

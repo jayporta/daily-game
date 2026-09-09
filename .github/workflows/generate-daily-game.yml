@@ -115,7 +115,7 @@ jobs:
           if [ -n "$FORCE_MODEL" ]; then
             args+=("--force-model=$FORCE_MODEL")
           fi
-          node --experimental-strip-types scripts/call-openrouter.ts "${args[@]}"
+          node scripts/call-openrouter.ts "${args[@]}"
 
       # A rotation entry that has quietly disappeared is one reason a run
       # fails on every attempt. The catalogue is free and unauthenticated,
@@ -129,7 +129,7 @@ jobs:
           if [ "$DRY_RUN" = "true" ]; then
             args+=(--dry-run)
           fi
-          node --experimental-strip-types scripts/check-models.ts "${args[@]}"
+          node scripts/check-models.ts "${args[@]}"
 
       # Distils the hot window into the lessons note the next prompt reads.
       # Like the rollup, it must not cost an already-published game its commit.
@@ -143,7 +143,7 @@ jobs:
           if [ "$DRY_RUN" = "true" ]; then
             args+=(--dry-run)
           fi
-          node --experimental-strip-types scripts/reflect-lessons.ts "${args[@]}"
+          node scripts/reflect-lessons.ts "${args[@]}"
 
       # After the day's entry exists so it counts toward the trigger, and
       # before the change check so the archive lands in the same commit.
@@ -160,7 +160,7 @@ jobs:
           if [ "$DRY_RUN" = "true" ]; then
             args+=(--dry-run)
           fi
-          node --experimental-strip-types scripts/rollup-history.ts "${args[@]}"
+          node scripts/rollup-history.ts "${args[@]}"
 
       # The tree is the source of truth for what happened. Exhausting the
       # active model rotation is a successful run that writes only history and

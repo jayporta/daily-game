@@ -9,7 +9,7 @@
 // feedback disappears with nothing to notice.
 //
 // Print it with:
-//   node --experimental-strip-types scripts/reaction-store-schema.ts
+//   node scripts/reaction-store-schema.ts
 import { pathToFileURL } from 'node:url';
 import { DISLIKE_REASONS, REACTION_KINDS, SLUG_PATTERN } from '#lib/reaction-types.ts';
 

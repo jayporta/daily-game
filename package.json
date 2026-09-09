@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A free GitHub Pages site that shows a brand-new AI-generated browser game every day.",
   "engines": {
-    "node": ">=23.6.0"
+    "node": ">=24"
   },
   "imports": {
     "#lib/*": "./lib/*",
@@ -25,15 +25,15 @@
     "lint:biome": "biome check .",
     "lint:eslint": "eslint .",
     "lint:fix": "biome check --write . && eslint --fix .",
-    "validate": "node --experimental-strip-types scripts/validate-config.ts",
-    "rollup": "node --experimental-strip-types scripts/rollup-history.ts",
-    "check-models": "node --experimental-strip-types scripts/check-models.ts",
-    "schema": "node --experimental-strip-types scripts/reaction-store-schema.ts",
-    "reflect": "node --env-file-if-exists=.env --experimental-strip-types scripts/reflect-lessons.ts",
-    "dry-run": "node --env-file-if-exists=.env --experimental-strip-types scripts/call-openrouter.ts --dry-run",
-    "generate:local": "node --env-file-if-exists=.env --experimental-strip-types scripts/call-openrouter.ts",
-    "build:site": "vite build && node --experimental-strip-types scripts/assemble-site.ts",
-    "test:node": "node --experimental-strip-types --test",
+    "validate": "node scripts/validate-config.ts",
+    "rollup": "node scripts/rollup-history.ts",
+    "check-models": "node scripts/check-models.ts",
+    "schema": "node scripts/reaction-store-schema.ts",
+    "reflect": "node --env-file-if-exists=.env scripts/reflect-lessons.ts",
+    "dry-run": "node --env-file-if-exists=.env scripts/call-openrouter.ts --dry-run",
+    "generate:local": "node --env-file-if-exists=.env scripts/call-openrouter.ts",
+    "build:site": "vite build && node scripts/assemble-site.ts",
+    "test:node": "node --test",
     "test:web": "vitest run",
     "test:watch": "vitest"
   },

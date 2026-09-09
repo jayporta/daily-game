@@ -161,5 +161,5 @@ These files are meant to be hand-edited without touching code:
 - `config/genres.json` — the genre catalog the model chooses from
 - `config/models.json` — the OpenRouter model rotation (flip `active` to
   disable one without removing it)
-- `config/generation.json` — retry temperatures, remix odds, history
+- `config/generation.json` — sampling temperature, remix odds, history
   window size
