@@ -2,6 +2,18 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-09 — generation failed, previous game kept
+
+- model: nvidia/nemotron-3.5-lightning:free
+- attempts: 7
+- attempt 1 (nvidia/nemotron-3.5-lightning:free): moderation call failed: OpenRouter request failed: 429 Provider returned error
+- attempt 2 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
+- attempt 3 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error
+- attempt 4 (nvidia/nemotron-3-super-120b-a12b:free): moderation call failed: OpenRouter request failed: 429 Provider returned error
+- attempt 5 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
+- attempt 6 (inclusionai/ling-3.0-flash-fin:free): could not extract bundle — missing-meta-block
+- attempt 7 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+
 ## 2026-09-08 — generation failed, previous game kept
 
 - model: nvidia/nemotron-3.5-lightning:free
