@@ -1,26 +1,18 @@
 {
-  "date": "2026-09-06",
-  "slug": "2026-09-06-lily-leap",
-  "path": "games/archive/2026-09-06-lily-leap/game.html",
-  "promptPath": "games/archive/2026-09-06-lily-leap/prompt.txt",
-  "title": "Lily Leap",
-  "genre": "platformer",
-  "genreLabel": "Platformer",
-  "model": "minimax/minimax-m2.7:free",
-  "generatedAt": "2026-09-06T20:57:42.547Z",
-  "expiresAt": "2026-09-07T19:00:00.000Z",
+  "date": "2026-09-11",
+  "slug": "2026-09-11-untitled",
+  "path": "games/archive/2026-09-11-untitled/game.html",
+  "promptPath": "games/archive/2026-09-11-untitled/prompt.txt",
+  "title": "...",
+  "genre": "...",
+  "genreLabel": "...",
+  "model": "nvidia/nemotron-3.5-lightning:free",
+  "generatedAt": "2026-09-11T19:00:49.114Z",
+  "expiresAt": "2026-09-12T19:00:00.000Z",
   "controls": [
     {
-      "action": "Jump / Move up",
-      "key": "Space or Click or Up Arrow"
-    },
-    {
-      "action": "Move left",
-      "key": "Left Arrow or A"
-    },
-    {
-      "action": "Move right",
-      "key": "Right Arrow or D"
+      "action": "...",
+      "key": "..."
     }
   ]
 }

@@ -240,5 +240,20 @@
       "extract",
       "extract"
     ]
+  },
+  {
+    "date": "2026-09-11",
+    "status": "published",
+    "model": "nvidia/nemotron-3.5-lightning:free",
+    "slug": "2026-09-11-untitled",
+    "genre": "...",
+    "theme": "...",
+    "mechanics": [
+      "...",
+      "..."
+    ],
+    "title": "...",
+    "attempts": 1,
+    "canvasDrawn": false
   }
 ]

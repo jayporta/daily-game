@@ -1,0 +1,126 @@
+# Build today's game
+
+Invent a complete, original browser game. Pick its genre, theme and
+mechanics yourself from the catalog below — you are not being assigned one.
+
+## Content rules — non-negotiable
+
+# Content Guardrails
+
+These rules are non-negotiable and are injected verbatim into every
+generation and moderation prompt. Editing this file changes what both the
+generator and the moderator check for — they must always stay in sync,
+which is why both read this exact file.
+
+A generated game must NEVER contain:
+
+- Blood, gore, or death/killing of any kind
+- Sexual content or innuendo of any kind
+- Depictions or references to drugs, alcohol, or cigarettes/vaping
+- Foul language, slurs, or profanity of any kind
+- **Human characters.** No people, no human silhouettes, no human body
+  parts. All characters, avatars, and entities must be non-human: animals,
+  creatures, robots, plants, abstract shapes, vehicles, elements (fire,
+  water, etc.), or other invented non-human forms. This rule exists
+  specifically so the game can never accidentally depict a real-world
+  race, ethnicity, or human likeness.
+- References to real-world religions, religious symbols, or religious
+  practices
+- References to real-world ethnicities, nationalities, or political
+  figures/parties/movements
+- Real-world brand names, trademarks, or copyrighted characters
+
+A generated game MUST be:
+
+- A single self-contained HTML file: inline `<style>` and `<script>` only
+- Drawn entirely in code (Canvas, CSS, and/or SVG), with optional Web Audio
+  for sound — no external image or audio files
+- Free of any network requests (no `fetch`, `XMLHttpRequest`, WebSocket,
+  or remote resource loading of any kind)
+
+## Genre catalog
+
+Choose ONE genre id from this list. Genres marked as recently used should
+be avoided so the site stays varied.
+
+- maze-adventure (Maze Adventure) [RECENTLY USED — avoid]: navigate a shifting maze to reach an exit; collect keys scattered through a labyrinth
+- platformer (Platformer) [RECENTLY USED — avoid]: jump between platforms to reach the top; run and jump past obstacles to a goal
+- puzzle (Puzzle) [RECENTLY USED — avoid]: rearrange tiles to match a pattern; solve a logic grid before time runs out
+- tower-defense (Tower Defense): place defenders along a path to stop invaders; upgrade towers to survive waves
+- endless-runner (Endless Runner): dodge obstacles in an ever-scrolling world; collect items while outrunning a chaser
+- physics-sandbox (Physics Sandbox) [RECENTLY USED — avoid]: stack objects without toppling them; launch a projectile to hit a target
+- rhythm (Rhythm): hit cues in time with a beat; match a sequence of visual pulses
+- tile-matching (Tile Matching): match three or more tiles to clear them; swap adjacent tiles to form patterns
+- growth-sim (Growth Simulation) [RECENTLY USED — avoid]: nurture a garden that grows over time; manage a small ecosystem's balance
+- racing (Racing): race a course avoiding hazards; beat the clock across a track
+
+## Recent days — how each one went
+
+Do not repeat these themes or mechanic combinations, and learn from how they
+were received.
+
+- 2026-09-10 · FAILED after 7 attempts · generation-call, generation-call, generation-call, generation-call, generation-call, extract, extract
+- 2026-09-09 · FAILED after 7 attempts · generation-call, extract, generation-call, generation-call, generation-call, generation-call, extract
+- 2026-09-08 · FAILED after 7 attempts · generation-call, generation-call, generation-call, generation-call, generation-call, generation-call, extract
+- 2026-09-07 · FAILED after 3 attempts · generation-call, generation-call, generation-call
+- 2026-09-06 · genre: platformer · theme: A tiny geometric salamander hops across floating lily pads in a twilight pond, collecting fireflies to illuminate the way to a glowing lotus gate · mechanics: Jump between platforms to reach the lotus gate at the top of each level, Collect glowing firefly pickups to fill a progress meter, Collect all fireflies on each level to fully open the gate, Progress through 5 hand-crafted levels of increasing difficulty · 2 liked, 0 disliked · took 3 attempts
+- 2026-09-05 · genre: puzzle · theme: A tiny crystal cube navigating a grid of gem pedestals, collecting them before they shatter · mechanics: Navigate a small cube character across a grid to collect falling gems, Gems fall from the top in a predictable pattern the player must intercept, Collect all gems on the level to unlock the exit portal, Reach the exit portal to complete each level · 0 liked, 0 disliked
+- 2026-09-04 · genre: growth-sim · theme: A tiny seedling sprouting colors across a stone courtyard, attracting friendly floating pollen spirits · mechanics: Tap/click to make the plant bloom and spread color, Manage water and sunlight resources to grow different flower types, Attract helpful pollen spirits that assist in growth, Progress through a small set of hand-authored garden layouts · 0 liked, 0 disliked · took 2 attempts
+- 2026-09-03 · FAILED after 3 attempts · generation-call, moderation, generation-call
+- 2026-09-02 · genre: physics-sandbox · theme: Elemental spirit creatures stack together to reach a floating beacon · mechanics: Stack elemental shapes on platforms, Balance physics objects to reach the goal, Place creatures strategically across 5 levels · 0 liked, 1 disliked · marked: broken, controls-unclear · took 2 attempts · drew nothing on screen
+- 2026-09-01 · FAILED after 3 attempts · extract, generation-call, moderation
+
+## Fix what has been going wrong
+
+- Recent attempts failed before returning anything. Return both fenced blocks and nothing else.
+- Recent attempts returned a response that could not be parsed. Return exactly two fenced blocks, tagged json and html, with valid JSON in the first.
+- Recent attempts were rejected by the content rules. Re-read them and stay well clear of anything borderline.
+
+## Lessons from past builds
+
+The growth-sim and the puzzle entry both landed cleanly — the growth-sim on its second attempt and the puzzle game on its very first — and together they sharpen a picture the earlier refinement had already been pointing toward. Tap to bloom, intercept falling gems, manage two resources, attract small helpers, navigate a small bounded grid with discrete pickups and one explicit terminal goal: that is the same hand-authored handful of levels dressed with light procedural variation, just with a different verb each time. The puzzle entry sits most comfortably at the authored end of that spectrum — finite, legible, and produced with essentially no scaffolding — and that ease is worth taking seriously.
+
+The dislikes on the physics-sandbox remain the one caution worth folding forward. When the terminal goal depends on precise placement or stacking, the interaction has to be legible from frame one, not discovered through failure, and the feedback suggested the sandbox fell short on both broken and unclear controls. Mood and identity continue to carry the hook; pressure-based variants still have not shipped and should stay a secondary thread.
+
+The infrastructure failures sandwiched between these builds are no longer representative — they were provider flakiness, not problems with the skeleton, and the recent record has moved past them, so they should not be carried into the next prompt.
+
+What reliably worked, then, is a clear small character with a clear small want, rendered simply, in a small bounded space with discrete pickups or placements and one explicit terminal objective, wrapped in a mood and identity that earns attention. Worth revisiting next is the same skeleton in fresh skins — puzzle, growth, traversal, whatever verb fits — with a hand-authored handful of levels dressed in light procedural variation, and controls that read clearly from the very first frame.
+
+## How your game is displayed
+
+Your document is loaded on its own into a frame that fills the middle of the
+page. Nothing outside your document paints any part of that frame, so
+whatever you leave unfilled shows as blank space around your game.
+
+- Fill the frame. Give `html` and `body` no margin and the full width and
+  height available, and paint your own background across all of it.
+- Size to the frame at runtime, never to a constant. If you draw on a
+  canvas, set its width and height from its measured container rather than
+  with fixed attributes, and redraw when the frame is resized.
+- Assume nothing about its shape. It is as wide and as tall as the visitor's
+  window makes it, in any proportion, on a phone or on a desktop.
+- Keep the whole playfield inside it. Never require the player to scroll.
+
+## Output format
+
+Return EXACTLY two fenced code blocks and nothing else that could be mistaken for them.
+
+First, a block tagged `json` containing only this object:
+```json
+{"title": "...", "genre": "...", "theme": "...", "mechanics": ["...", "..."], "controls": [{"action": "...", "key": "..."}]}
+```
+
+Second, a block tagged `html` containing the entire game as ONE self-contained HTML file:
+```html
+<!doctype html>
+...your complete game, with inline <style> and <script> only...
+```
+
+The `genre` value must be one of the genre ids listed above. The html block
+must be a complete, immediately playable document that needs no other files.
+
+The `controls` array must list the inputs your game actually listens for,
+using whatever control scheme you chose — `action` describes what it does in
+your game, `key` is what the player presses, clicks or drags. List only
+inputs the code really handles, and return an empty array if the game needs
+none.
