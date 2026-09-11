@@ -254,6 +254,10 @@
     ],
     "title": "...",
     "attempts": 1,
-    "canvasDrawn": false
+    "canvasDrawn": false,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
   }
 ]

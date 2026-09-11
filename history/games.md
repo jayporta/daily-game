@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: ..., ...
 - model: nvidia/nemotron-3.5-lightning:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-09-10 — generation failed, previous game kept
 
