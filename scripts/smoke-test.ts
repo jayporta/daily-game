@@ -90,8 +90,7 @@ async function runSmokeTest(
       // Something a viewer would actually see: a background that is not
       // transparent, on an element that is not hidden.
       const isPainted = (element: Element): boolean => {
-        const { backgroundColor, backgroundImage, visibility, opacity } =
-          getComputedStyle(element);
+        const { backgroundColor, backgroundImage, visibility, opacity } = getComputedStyle(element);
         if (visibility === 'hidden' || opacity === '0') return false;
         return (
           backgroundImage !== 'none' ||

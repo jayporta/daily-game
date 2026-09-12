@@ -220,7 +220,8 @@ test('a stand-in moderator answers when the dedicated one cannot be reached', as
   const asked: string[] = [];
   const client: OpenRouterClient = {
     async complete({ model, messages }) {
-      if (!isModerationRequest(messages)) return { text: loadFixture('good-maze'), stop: 'complete' };
+      if (!isModerationRequest(messages))
+        return { text: loadFixture('good-maze'), stop: 'complete' };
       asked.push(model);
       if (model === 'mod/model:free') throw new Error('rate limited');
       return { text: 'PASS', stop: 'complete' };
