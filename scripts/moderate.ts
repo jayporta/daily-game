@@ -274,12 +274,27 @@ export interface ModerateParams {
   html: string;
   guardrailsText: string;
   moderationModel: string;
+  /**
+   * Stand-in moderators, tried in order and ONLY when one could not be
+   * reached at all. A verdict is never retried elsewhere.
+   *
+   * The dedicated moderator is a single free-tier model, so a 429 there
+   * would otherwise discard a game that was already generated and parsed.
+   */
+  fallbackModels?: readonly string[];
   bannedTerms?: readonly string[];
 }
 
 export async function moderate(
   client: OpenRouterClient,
-  { meta, html, guardrailsText, moderationModel, bannedTerms = BANNED_TERMS }: ModerateParams,
+  {
+    meta,
+    html,
+    guardrailsText,
+    moderationModel,
+    fallbackModels = [],
+    bannedTerms = BANNED_TERMS,
+  }: ModerateParams,
 ): Promise<ModerationResult> {
   const scan = keywordScan(moderatableText(meta, html), bannedTerms);
   if (!scan.pass) {
@@ -291,12 +306,21 @@ export async function moderate(
     };
   }
 
-  const ai = await aiModerationCheck(client, {
+  let ai = await aiModerationCheck(client, {
     model: moderationModel,
     guardrailsText,
     meta,
     html,
   });
+
+  // Only a moderator that never answered moves to the next candidate. A
+  // verdict is final either way: asking another model after a FAIL would be
+  // shopping for a PASS, which is the one thing this layer must never do.
+  for (const fallback of fallbackModels) {
+    if (ai.pass || ai.failure === 'rejected') break;
+    ai = await aiModerationCheck(client, { model: fallback, guardrailsText, meta, html });
+  }
+
   if (!ai.pass) {
     // `raw` already names the cause when the call itself failed; only a real
     // verdict needs saying that the model rejected the game.

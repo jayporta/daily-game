@@ -35,6 +35,26 @@ function throwingModerator(message: string): OpenRouterClient {
   };
 }
 
+/**
+ * A panel of moderators keyed by model id, recording who was asked.
+ *
+ * A model mapped to `null` is unreachable; one missing entirely throws too,
+ * so a test cannot pass by asking a model it never set up.
+ */
+function moderatorPanel(
+  replies: Readonly<Record<string, string | null>>,
+  asked: string[],
+): OpenRouterClient {
+  return {
+    async complete({ model }) {
+      asked.push(model);
+      const reply = replies[model];
+      if (reply === undefined || reply === null) throw new Error(`unreachable: ${model}`);
+      return { text: reply, stop: 'complete' };
+    },
+  };
+}
+
 const CLEAN_META: GeneratedMeta = {
   controls: [],
   title: 'Beetle Maze',
@@ -156,6 +176,48 @@ test('moderate reports an unreachable moderator without claiming the game was re
   assert.equal(result.failure, 'call-failed');
   assert.match(result.reasons.join(' '), /moderation call failed/);
   assert.doesNotMatch(result.reasons.join(' '), /rejected the game/);
+});
+
+test('an unreachable moderator falls back to the next model', async () => {
+  const asked: string[] = [];
+  const result = await moderate(moderatorPanel({ mod: null, 'stand-in': 'PASS' }, asked), {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+    fallbackModels: ['stand-in'],
+  });
+  assert.equal(result.pass, true);
+  assert.deepEqual(asked, ['mod', 'stand-in']);
+});
+
+test('a FAIL verdict is never retried against a fallback', async () => {
+  // The safety property of the fallback: only an unanswered call moves on.
+  // Asking another model after a FAIL would be shopping for a PASS.
+  const asked: string[] = [];
+  const result = await moderate(moderatorPanel({ mod: 'FAIL', 'stand-in': 'PASS' }, asked), {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+    fallbackModels: ['stand-in'],
+  });
+  assert.equal(result.pass, false);
+  assert.deepEqual(asked, ['mod']);
+});
+
+test('a whole panel of unreachable moderators still fails closed', async () => {
+  const asked: string[] = [];
+  const result = await moderate(moderatorPanel({ mod: null, a: null, b: null }, asked), {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+    fallbackModels: ['a', 'b'],
+  });
+  assert.ok(!result.pass);
+  assert.equal(result.failure, 'call-failed');
+  assert.deepEqual(asked, ['mod', 'a', 'b']);
 });
 
 test('moderate rejects the known-bad guardrail fixture', async () => {

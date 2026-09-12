@@ -235,16 +235,28 @@ const DISLIKE_DIRECTIVES: Record<DislikeReason, string> = {
 };
 
 /** The same, for the ways a generation attempt can fail. */
-const FAILURE_DIRECTIVES: Record<FailureKind, string> = {
+/**
+ * What a recurring failure tells the next generation to do differently.
+ *
+ * `null` where the failure was ours, not the model's: an infrastructure
+ * outage gives a model nothing to correct, and inventing guidance for one
+ * teaches it to fix something it never broke.
+ */
+const FAILURE_DIRECTIVES: Record<FailureKind, string | null> = {
   'generation-call':
     'Recent attempts failed before returning anything. Return both fenced blocks and ' +
     'nothing else.',
   extract:
     'Recent attempts returned a response that could not be parsed. Return exactly two ' +
     'fenced blocks, tagged json and html, with valid JSON in the first.',
+  'unknown-genre':
+    'Recent attempts named a genre that is not in the catalogue. Copy one of the genre ids ' +
+    'listed above into the json block exactly, and do not invent one or leave the example in.',
   moderation:
     'Recent attempts were rejected by the content rules. Re-read them and stay well ' +
     'clear of anything borderline.',
+  // The game was generated and parsed fine; the moderator never answered.
+  'moderation-unreachable': null,
   'smoke-js-error':
     'Recent games threw uncaught JavaScript errors. Guard every lookup, initialise ' +
     'state before the first frame, and never index an array without checking length.',
@@ -252,6 +264,10 @@ const FAILURE_DIRECTIVES: Record<FailureKind, string> = {
     'Recent games tried to load something over the network. Everything must be inline ' +
     'in the one HTML file — no fetch, no external images, fonts or scripts.',
   'smoke-load': 'Recent games failed to load at all. Return a complete, valid HTML document.',
+  'smoke-blank':
+    'Recent games loaded but showed nothing. Do not return the output format example or a ' +
+    'placeholder: write the real game, paint a background, and draw the opening state before ' +
+    'any input.',
 };
 
 /** Counts occurrences of each key across the window. */
@@ -294,7 +310,7 @@ export function correctiveDirectives(entries: HistoryGameEntry[], limit = 10): s
     .filter((entry) => entry.count >= DIRECTIVE_THRESHOLD)
     .sort((a, b) => b.count - a.count);
 
-  return ranked.map((entry) => entry.text);
+  return ranked.flatMap((entry) => (entry.text === null ? [] : [entry.text]));
 }
 
 function directivesSection(directives: readonly string[]): string {

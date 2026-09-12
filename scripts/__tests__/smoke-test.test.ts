@@ -59,6 +59,29 @@ test('rejects the output contract skeleton returned verbatim', async () => {
   assert.match(result.reasons.join(' '), /rendered nothing visible/);
 });
 
+test('accepts a canvas game that paints its background but draws on first input', async () => {
+  // DISPLAY_CONTRACT tells every game to paint its own background, so one
+  // that waits for input before drawing is still visibly there.
+  const waitsForInput =
+    '<!doctype html><html><head><style>body{background:#123}</style></head>' +
+    '<body><canvas id="c" width="50" height="50"></canvas>' +
+    '<script>addEventListener("keydown",()=>{' +
+    'const x=document.getElementById("c").getContext("2d");x.fillRect(0,0,50,50);});</script>' +
+    '</body></html>';
+  const result = await tester.test(waitsForInput, { settleMs: 300 });
+  assert.equal(result.canvasDrawn, false);
+  assert.equal(result.pass, true);
+});
+
+test('a hidden painted element does not count as rendering something', async () => {
+  const hidden =
+    '<!doctype html><html><body><div style="visibility:hidden;background:#f00;' +
+    'width:80px;height:80px"></div></body></html>';
+  const result = await tester.test(hidden, { settleMs: 300 });
+  assert.equal(result.pass, false);
+  assert.match(result.reasons.join(' '), /rendered nothing visible/);
+});
+
 test('accepts a game that renders DOM content without drawing to a canvas', async () => {
   const domGame =
     '<!doctype html><html><body><canvas id="c" width="50" height="50"></canvas>' +

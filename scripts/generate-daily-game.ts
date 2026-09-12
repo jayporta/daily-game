@@ -30,6 +30,18 @@ import type { SmokeTester, SmokeTestResult } from '#scripts/smoke-test.ts';
  */
 export const FORCED_MODEL_ATTEMPTS = 3;
 
+/**
+ * How many stand-in moderators one attempt may try after the dedicated one
+ * fails to answer.
+ *
+ * Bounded because each gets its own timeout: the rotation is the attempt
+ * count, so an unbounded chain multiplies the two and a run of hung
+ * moderators would overrun the workflow's cap before it could record
+ * `failed_kept_previous`. A 429 — the case this exists for — fails
+ * immediately and never approaches that.
+ */
+export const MAX_MODERATION_FALLBACKS = 2;
+
 export type GenerateResult =
   | {
       status: 'success';
@@ -90,7 +102,11 @@ interface AttemptParams {
   readonly model: string;
   readonly prompt: string;
   readonly guardrails: string;
+  /** The catalogue the reported genre has to name one of. */
+  readonly genres: GenresConfig;
   readonly moderationModel: string;
+  /** Stand-in moderators, used only when {@link moderationModel} is unreachable. */
+  readonly moderationFallbacks: readonly string[];
   readonly temperature: number;
   readonly smokeTester: SmokeTester;
   /** Already bound to this attempt's number by the loop. */
@@ -108,7 +124,9 @@ async function runAttempt({
   model,
   prompt,
   guardrails,
+  genres,
   moderationModel,
+  moderationFallbacks,
   temperature,
   smokeTester,
   log,
@@ -155,12 +173,28 @@ async function runAttempt({
     };
   }
 
+  // The one field of the model's metadata with a fixed vocabulary, so the
+  // one that can be checked outright. A response that leaves the output
+  // format's example in place fails here rather than publishing as "...".
+  if (!genres.some((genre) => genre.id === extracted.meta.genre)) {
+    return {
+      ok: false,
+      kind: 'unknown-genre',
+      reason: 'reported a genre that is not in the catalogue',
+      feedback:
+        'Your previous game named a genre that is not in the catalogue. Use one of the listed ' +
+        'genre ids exactly, copied from the list above.',
+      quota: false,
+    };
+  }
+
   log('Running moderation...');
   const moderation = await moderate(client, {
     meta: extracted.meta,
     html: extracted.html,
     guardrailsText: guardrails,
     moderationModel,
+    fallbackModels: moderationFallbacks,
   });
 
   if (!moderation.pass) {
@@ -168,7 +202,7 @@ async function runAttempt({
     const unreachable = moderation.failure === 'call-failed';
     return {
       ok: false,
-      kind: unreachable ? 'generation-call' : 'moderation',
+      kind: unreachable ? 'moderation-unreachable' : 'moderation',
       // A failed call's detail already names itself; only a verdict needs a label.
       reason: unreachable ? detail : `moderation rejected — ${detail}`,
       // A moderator that never answered judged nothing, so the model is told
@@ -267,7 +301,15 @@ export async function generateDailyGame({
       model,
       prompt,
       guardrails,
+      genres,
       moderationModel: modelsConfig.moderationModel,
+      // The rotation stands in when the dedicated moderator cannot be
+      // reached, minus the model that wrote this bundle — nothing judges
+      // its own work.
+      moderationFallbacks: activeModels(modelsConfig)
+        .map((entry) => entry.id)
+        .filter((id) => id !== model && id !== modelsConfig.moderationModel)
+        .slice(0, MAX_MODERATION_FALLBACKS),
       temperature: generationConfig.temperature,
       smokeTester,
       log: (message) => log(`[Attempt ${attempt}] ${message}`),
@@ -313,6 +355,9 @@ export async function generateDailyGame({
 function smokeFailureKind(smoke: SmokeTestResult): FailureKind {
   if (smoke.networkAttempts.length > 0) return 'smoke-network';
   if (smoke.pageErrors.length > 0 || smoke.consoleErrors.length > 0) return 'smoke-js-error';
+  // Checked after the two above, which describe a page that ran badly rather
+  // than one that ran cleanly and drew nothing.
+  if (!smoke.renderedSomething) return 'smoke-blank';
   return 'smoke-load';
 }
 

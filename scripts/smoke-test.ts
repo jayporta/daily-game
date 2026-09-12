@@ -87,26 +87,37 @@ async function runSmokeTest(
         return false;
       });
 
-      // A game built from DOM elements rather than a canvas still has to
-      // put something on screen: readable text, an image, or an element it
-      // painted a background onto.
+      // Something a viewer would actually see: a background that is not
+      // transparent, on an element that is not hidden.
+      const isPainted = (element: Element): boolean => {
+        const { backgroundColor, backgroundImage, visibility, opacity } =
+          getComputedStyle(element);
+        if (visibility === 'hidden' || opacity === '0') return false;
+        return (
+          backgroundImage !== 'none' ||
+          (backgroundColor !== 'transparent' && backgroundColor !== 'rgba(0, 0, 0, 0)')
+        );
+      };
+
+      // `html` and `body` are where DISPLAY_CONTRACT tells a game to paint its
+      // background, and neither is matched by a descendant query.
+      const ground = [document.documentElement, document.body];
+      const hasPaintedGround = ground.some((element) => element !== null && isPainted(element));
+
+      // A DOM-based game shows text or media instead of canvas pixels.
       const hasText = (document.body?.innerText ?? '').trim().length > 0;
       const hasMedia = document.querySelector('img, svg, video') !== null;
       const hasPaintedElement = Array.from(document.body?.querySelectorAll('*') ?? []).some(
         (element) => {
           const box = element.getBoundingClientRect();
-          if (box.width === 0 || box.height === 0) return false;
-          const { backgroundColor, backgroundImage } = getComputedStyle(element);
-          return (
-            backgroundImage !== 'none' ||
-            (backgroundColor !== 'transparent' && backgroundColor !== 'rgba(0, 0, 0, 0)')
-          );
+          return box.width > 0 && box.height > 0 && isPainted(element);
         },
       );
 
       return {
         canvasDrawn: drewToCanvas,
-        renderedSomething: drewToCanvas || hasText || hasMedia || hasPaintedElement,
+        renderedSomething:
+          drewToCanvas || hasText || hasMedia || hasPaintedGround || hasPaintedElement,
       };
     }));
   } catch (error) {

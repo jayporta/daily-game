@@ -14,16 +14,11 @@ Generated automatically — do not edit by hand.
 - attempt 6 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
 - attempt 7 (nvidia/nemotron-3.5-lightning:free): moderation call failed: OpenRouter request failed: 429 Provider returned error
 
-## 2026-09-11 — ...
+## 2026-09-11 — generation failed, previous game kept
 
-- genre: ...
-- theme: ...
-- mechanics: ..., ...
 - model: nvidia/nemotron-3.5-lightning:free
 - attempts: 1
-- reactions: 0
-- likes: 0
-- dislikes: 0
+- attempt 1 (nvidia/nemotron-3.5-lightning:free): returned the output format's example verbatim — no catalogue genre, and a bundle that rendered nothing. Recorded as published at the time; corrected once the gates that now reject it existed.
 
 ## 2026-09-10 — generation failed, previous game kept
 

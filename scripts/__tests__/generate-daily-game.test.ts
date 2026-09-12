@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import { FORCED_MODEL_ATTEMPTS, generateDailyGame } from '#scripts/generate-daily-game.ts';
+import {
+  FORCED_MODEL_ATTEMPTS,
+  generateDailyGame,
+  MAX_MODERATION_FALLBACKS,
+} from '#scripts/generate-daily-game.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import { loadGenresConfig } from '#scripts/lib/config/genres.ts';
 import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
@@ -178,7 +182,79 @@ test('an unreachable moderator is recorded as a call failure, not a content reje
   const result = await generateDailyGame({ ...baseParams(), client });
 
   assert.equal(result.status, 'failed_kept_previous');
-  assert.deepEqual(result.kinds, ['generation-call', 'generation-call', 'generation-call']);
+  // Neither a content rejection nor a generation that never returned: the
+  // game was written and parsed, and only our moderator was down.
+  assert.deepEqual(result.kinds, [
+    'moderation-unreachable',
+    'moderation-unreachable',
+    'moderation-unreachable',
+  ]);
+});
+
+test('a genre outside the catalogue is rejected before moderation', async () => {
+  // The exact metadata that published a blank game on 2026-09-11: the output
+  // format's example object, returned verbatim.
+  const skeleton =
+    '```json\n{"title": "...", "genre": "...", "theme": "...", "mechanics": ["...", "..."], ' +
+    '"controls": [{"action": "...", "key": "..."}]}\n```\n\n' +
+    '```html\n<!doctype html><html><body><canvas id="c"></canvas></body></html>\n```';
+  let moderated = false;
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) {
+        moderated = true;
+        return { text: 'PASS', stop: 'complete' };
+      }
+      return { text: skeleton, stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.deepEqual(result.kinds, ['unknown-genre', 'unknown-genre', 'unknown-genre']);
+  assert.equal(moderated, false, 'a bundle this broken should not reach the moderator');
+});
+
+test('a stand-in moderator answers when the dedicated one cannot be reached', async () => {
+  const asked: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (!isModerationRequest(messages)) return { text: loadFixture('good-maze'), stop: 'complete' };
+      asked.push(model);
+      if (model === 'mod/model:free') throw new Error('rate limited');
+      return { text: 'PASS', stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'success');
+  assert.equal(asked[0], 'mod/model:free');
+  assert.ok(asked.length > 1, 'a stand-in should have been asked');
+});
+
+test('the stand-in moderators one attempt tries are bounded', async () => {
+  // Each gets its own timeout, so an unbounded chain multiplied by the
+  // rotation would overrun the workflow before it can record a failure.
+  const perAttempt: string[][] = [];
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (!isModerationRequest(messages)) {
+        perAttempt.push([]);
+        return { text: loadFixture('good-maze'), stop: 'complete' };
+      }
+      perAttempt.at(-1)?.push(model);
+      throw new Error('rate limited');
+    },
+  };
+
+  await generateDailyGame({ ...baseParams(), modelsConfig: WIDE_MODELS, client });
+
+  for (const models of perAttempt) {
+    assert.equal(models.length, MAX_MODERATION_FALLBACKS + 1);
+    assert.equal(new Set(models).size, models.length, 'no moderator is asked twice');
+  }
 });
 
 test('an unreachable moderator does not tell the next attempt it broke the content rules', async () => {

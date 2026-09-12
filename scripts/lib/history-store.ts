@@ -30,10 +30,13 @@ export type HistoryStatus = 'published' | 'failed_kept_previous';
 export const FAILURE_KINDS = [
   'generation-call',
   'extract',
+  'unknown-genre',
   'moderation',
+  'moderation-unreachable',
   'smoke-js-error',
   'smoke-network',
   'smoke-load',
+  'smoke-blank',
 ] as const;
 
 /** One of {@link FAILURE_KINDS}. */

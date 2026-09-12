@@ -403,6 +403,37 @@ test('correctiveDirectives responds to recurring generation failures', () => {
   assert.match(String(directives[0]), /over the network/);
 });
 
+test('a recurring moderator outage hands the model no corrective wording', () => {
+  // The generation succeeded and parsed every time; only our moderator was
+  // down. Guidance here would tell the model to fix what it never broke.
+  const outage: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 3,
+    failureReasons: [],
+    failureKinds: ['moderation-unreachable', 'moderation-unreachable'],
+  };
+
+  assert.deepEqual(correctiveDirectives([outage]), []);
+});
+
+test('a recurring blank render tells the model to draw something', () => {
+  const blank: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 3,
+    failureReasons: [],
+    failureKinds: ['smoke-blank', 'smoke-blank'],
+  };
+
+  const directives = correctiveDirectives([blank]);
+
+  assert.equal(directives.length, 1);
+  assert.match(String(directives[0]), /showed nothing/);
+});
+
 // Only ids from the closed vocabularies select wording, so nothing a visitor
 // or a past generation wrote can reach the prompt through this path.
 test('correctiveDirectives ignores a reason outside the vocabulary', () => {
