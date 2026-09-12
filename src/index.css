@@ -1,6 +1,99 @@
 @import 'tailwindcss';
 
 /*
+  The three faces, self-hosted from npm packages. Only the latin and latin-ext
+  subsets are declared; the packages also ship Cyrillic, Greek and Vietnamese,
+  which nothing here renders.
+
+  latin-ext comes first on purpose. The two ranges overlap on the combining
+  marks U+0304, U+0308 and U+0329, and a later @font-face wins, so this order
+  is what sends those to the smaller latin file.
+
+  The ranges repeat because a @font-face descriptor cannot read a custom
+  property. Both variable packages register the family as `<Name> Variable`,
+  which is how the `--font-*` tokens below spell it; mono is the static weight
+  500, the only weight anything uses.
+
+  A url() that stops resolving is a build warning, not an error, so
+  src/__tests__/same-origin-assets.test.ts is what catches a package upgrade
+  moving one of these files.
+*/
+
+@font-face {
+  font-family: 'Nunito Variable';
+  font-style: normal;
+  font-weight: 200 1000;
+  font-display: swap;
+  src: url('@fontsource-variable/nunito/files/nunito-latin-ext-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Nunito Variable';
+  font-style: normal;
+  font-weight: 200 1000;
+  font-display: swap;
+  src: url('@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Quicksand Variable';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('@fontsource-variable/quicksand/files/quicksand-latin-ext-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Quicksand Variable';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('@fontsource-variable/quicksand/files/quicksand-latin-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-ext-500-normal.woff2')
+    format('woff2');
+  unicode-range:
+    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
+    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+    U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff2') format('woff2');
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/*
   Make `dark:` follow the `data-theme` attribute the page sets, rather than
   the operating system alone — otherwise the toggle in the header could not
   override a visitor's OS setting. `index.html` sets the attribute before
@@ -67,11 +160,11 @@
 
   /* Quicksand carries the title, Nunito the interface, JetBrains Mono
      anything the viewer is meant to read as literal input or an
-     identifier. Loaded in index.html; each keeps a real fallback stack so
-     a blocked or slow font request degrades rather than reflows to
-     something unrelated. */
-  --font-sans: 'Nunito', ui-sans-serif, system-ui, sans-serif;
-  --font-display: 'Quicksand', ui-sans-serif, system-ui, sans-serif;
+     identifier. Declared at the top of this file; each keeps a real
+     fallback stack so a blocked or slow font request degrades rather than
+     reflows to something unrelated. */
+  --font-sans: 'Nunito Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Quicksand Variable', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Lifts the game off the page without a border, which would compete with

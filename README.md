@@ -66,7 +66,7 @@ handles the AI-generated title, genre and model text.
 
 ## Development
 
-Requires Node 23.6+ (the pipeline is TypeScript, run directly via Node's
+Requires Node 24+ (the pipeline is TypeScript, run directly via Node's
 native type stripping — no `ts-node`, and no build step for the pipeline).
 
 ```
