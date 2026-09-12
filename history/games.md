@@ -2,6 +2,18 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-12 — generation failed, previous game kept
+
+- model: cohere/north-mini-code:free
+- attempts: 7
+- attempt 1 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
+- attempt 2 (poolside/laguna-s-2.1:free): moderation call failed: OpenRouter request failed: 429 Provider returned error
+- attempt 3 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter request failed: 502 Upstream error from Nvidia: Service temporarily overloaded
+- attempt 4 (dots-studio/dots-3-note-preview:free): moderation call failed: OpenRouter request failed: 429 Provider returned error
+- attempt 5 (inclusionai/ling-3.0-flash-fin:free): could not extract bundle — missing-meta-block (response truncated at the output cap)
+- attempt 6 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+- attempt 7 (nvidia/nemotron-3.5-lightning:free): moderation call failed: OpenRouter request failed: 429 Provider returned error
+
 ## 2026-09-11 — ...
 
 - genre: ...
