@@ -4,7 +4,7 @@ Try it on GitHub Pages: https://jayporta.github.io/daily-game/
 
 > Hi! The following message was typed by me, [Jay Porta](https://github.com/jayporta):
 >
-> I had this idea to build a site that hosts a game that an AI agent would create on its own given some guardrails. You can also plug in your own AI buddy. Since I'm extremely low-income (to put it nicely) this project uses all free resources. I can't imagine the output from a free AI agent is going to be amazing but that's part of the experiment.
+> I had this idea to build a site that hosts a game that an AI agent would create on its own given some guardrails. You can also plug in your own AI buddy. Since I'm extremely low-income (to put it nicely) this project uses all free resources (free models via OpenRouter, Sentry's free plan, cron-job.org, and Supabase). I can't imagine the output from a free AI agent is going to be amazing but that's part of the experiment. 
 >
 > 🌳 If you fork this, a shoutout somewhere in your README would be cool.
 >
