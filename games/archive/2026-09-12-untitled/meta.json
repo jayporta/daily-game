@@ -1,0 +1,15 @@
+{
+  "title": "...",
+  "genre": "racing",
+  "theme": "...",
+  "mechanics": [
+    "...",
+    "..."
+  ],
+  "controls": [
+    {
+      "action": "...",
+      "key": "..."
+    }
+  ]
+}

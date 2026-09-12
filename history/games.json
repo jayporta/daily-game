@@ -256,26 +256,17 @@
   },
   {
     "date": "2026-09-12",
-    "status": "failed_kept_previous",
-    "model": "cohere/north-mini-code:free",
-    "attempts": 7,
-    "failureReasons": [
-      "attempt 1 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block",
-      "attempt 2 (poolside/laguna-s-2.1:free): moderation call failed: OpenRouter request failed: 429 Provider returned error",
-      "attempt 3 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter request failed: 502 Upstream error from Nvidia: Service temporarily overloaded",
-      "attempt 4 (dots-studio/dots-3-note-preview:free): moderation call failed: OpenRouter request failed: 429 Provider returned error",
-      "attempt 5 (inclusionai/ling-3.0-flash-fin:free): could not extract bundle — missing-meta-block (response truncated at the output cap)",
-      "attempt 6 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block",
-      "attempt 7 (nvidia/nemotron-3.5-lightning:free): moderation call failed: OpenRouter request failed: 429 Provider returned error"
+    "status": "published",
+    "model": "nvidia/nemotron-3.5-lightning:free",
+    "slug": "2026-09-12-untitled",
+    "genre": "racing",
+    "theme": "...",
+    "mechanics": [
+      "...",
+      "..."
     ],
-    "failureKinds": [
-      "extract",
-      "generation-call",
-      "generation-call",
-      "generation-call",
-      "extract",
-      "extract",
-      "generation-call"
-    ]
+    "title": "...",
+    "attempts": 1,
+    "canvasDrawn": false
   }
 ]
