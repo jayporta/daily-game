@@ -1,6 +1,6 @@
 // Loads a generated bundle in headless Chromium and checks it actually
 // works: no uncaught JS errors, no outbound network requests (the bundle
-// must be fully self-contained), and — softly — that something was drawn.
+// must be fully self-contained), and that it renders something visible.
 //
 // Network blocking is an assertion, not just a safety net: a bundle that
 // *tries* to reach the network has broken the self-contained rule and is
@@ -16,6 +16,15 @@ export interface SmokeTestResult {
   readonly pageErrors: string[];
   readonly networkAttempts: string[];
   readonly canvasDrawn: boolean;
+  /**
+   * Whether the bundle put anything on screen at all — canvas pixels, text,
+   * an image, or an element it painted a background onto.
+   *
+   * Distinct from {@link canvasDrawn}, which is false for any game built
+   * without a canvas. A model that returns the output contract's own
+   * skeleton parses, moderates and runs cleanly; this is what catches it.
+   */
+  readonly renderedSomething: boolean;
 }
 
 export interface SmokeTestOptions {
@@ -58,6 +67,7 @@ async function runSmokeTest(
   });
 
   let canvasDrawn = false;
+  let renderedSomething = false;
   const reasons: string[] = [];
   const warnings: string[] = [];
 
@@ -65,10 +75,8 @@ async function runSmokeTest(
     await page.setContent(html, { waitUntil: 'load' });
     await page.waitForTimeout(settleMs);
 
-    canvasDrawn = await page.evaluate(() => {
-      const canvases = Array.from(document.querySelectorAll('canvas'));
-      if (canvases.length === 0) return false;
-      return canvases.some((canvas) => {
+    ({ canvasDrawn, renderedSomething } = await page.evaluate(() => {
+      const drewToCanvas = Array.from(document.querySelectorAll('canvas')).some((canvas) => {
         const ctx = canvas.getContext('2d');
         if (!ctx || canvas.width === 0 || canvas.height === 0) return false;
         const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -78,7 +86,29 @@ async function runSmokeTest(
         }
         return false;
       });
-    });
+
+      // A game built from DOM elements rather than a canvas still has to
+      // put something on screen: readable text, an image, or an element it
+      // painted a background onto.
+      const hasText = (document.body?.innerText ?? '').trim().length > 0;
+      const hasMedia = document.querySelector('img, svg, video') !== null;
+      const hasPaintedElement = Array.from(document.body?.querySelectorAll('*') ?? []).some(
+        (element) => {
+          const box = element.getBoundingClientRect();
+          if (box.width === 0 || box.height === 0) return false;
+          const { backgroundColor, backgroundImage } = getComputedStyle(element);
+          return (
+            backgroundImage !== 'none' ||
+            (backgroundColor !== 'transparent' && backgroundColor !== 'rgba(0, 0, 0, 0)')
+          );
+        },
+      );
+
+      return {
+        canvasDrawn: drewToCanvas,
+        renderedSomething: drewToCanvas || hasText || hasMedia || hasPaintedElement,
+      };
+    }));
   } catch (error) {
     reasons.push(`page failed to load: ${errorMessage(error)}`);
   } finally {
@@ -94,8 +124,13 @@ async function runSmokeTest(
   if (networkAttempts.length > 0) {
     reasons.push(`bundle is not self-contained — it requested: ${networkAttempts.join(', ')}`);
   }
-  if (!canvasDrawn) {
-    // Soft signal only: some games legitimately draw nothing until input.
+  if (!renderedSomething) {
+    reasons.push(
+      'the page rendered nothing visible — no canvas pixels, no text and no painted elements',
+    );
+  } else if (!canvasDrawn) {
+    // Soft signal only: a game built from DOM elements draws to no canvas,
+    // and some canvas games paint nothing until the first input.
     warnings.push('nothing was drawn to a canvas during the settle window');
   }
 
@@ -107,6 +142,7 @@ async function runSmokeTest(
     pageErrors,
     networkAttempts,
     canvasDrawn,
+    renderedSomething,
   };
 }
 

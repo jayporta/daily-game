@@ -41,10 +41,29 @@ test('rejects a bundle that attempts a network request', async () => {
   assert.match(result.networkAttempts.join(' '), /example\.com/);
 });
 
-test('reports a blank canvas as a soft warning, not a failure', async () => {
+test('rejects a bundle that renders nothing visible', async () => {
   const blank =
     '<!doctype html><html><body><canvas id="c" width="50" height="50"></canvas></body></html>';
   const result = await tester.test(blank, { settleMs: 300 });
+  assert.equal(result.renderedSomething, false);
+  assert.equal(result.pass, false);
+  assert.match(result.reasons.join(' '), /rendered nothing visible/);
+});
+
+test('rejects the output contract skeleton returned verbatim', async () => {
+  const skeleton =
+    '<!doctype html><html><head><style>/* game styles */</style></head>' +
+    '<body><canvas id="gameCanvas"></canvas><script>// game logic</script></body></html>';
+  const result = await tester.test(skeleton, { settleMs: 300 });
+  assert.equal(result.pass, false);
+  assert.match(result.reasons.join(' '), /rendered nothing visible/);
+});
+
+test('accepts a game that renders DOM content without drawing to a canvas', async () => {
+  const domGame =
+    '<!doctype html><html><body><canvas id="c" width="50" height="50"></canvas>' +
+    '<div id="board">Score: 0</div></body></html>';
+  const result = await tester.test(domGame, { settleMs: 300 });
   assert.equal(result.canvasDrawn, false);
   assert.equal(result.pass, true);
   assert.match(result.warnings.join(' '), /nothing was drawn/);
