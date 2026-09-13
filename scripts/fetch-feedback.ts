@@ -103,11 +103,27 @@ export interface ApplyFeedbackParams {
  * This runs before generation starts, so a store that accepts the connection
  * and then goes silent would stall a run that has not yet tried to generate
  * anything. The `catch` below cannot bound that on its own: a hung socket
- * never rejects. One slug-scoped GET of three columns needs nowhere near this.
+ * never rejects. It bounds the whole paginated read rather than each page, so
+ * the stall a slow store can cause does not grow with the number of pages.
  */
 export const REACTION_STORE_TIMEOUT_MS = 10_000;
 
-/** Asks the store for one game's rows, or `null` if it could not be asked. */
+// Rows asked for per page. A short page means only that the store's own
+// max-rows is lower, never that the rows have run out.
+const REACTION_PAGE_SIZE = 1_000;
+
+// Pages one read may fetch before it gives up rather than tally short.
+const MAX_REACTION_PAGES = 20;
+
+/**
+ * Asks the store for every one of a game's rows, or `null` if it could not be
+ * asked.
+ *
+ * Paged, because the store caps how many rows one response may carry —
+ * PostgREST's default is 1,000 — and returns that many with no indication
+ * that more exist. A single request therefore undercounts a popular game
+ * silently, which is indistinguishable from an unpopular one.
+ */
 async function readRows({
   slug,
   endpointUrl,
@@ -117,24 +133,50 @@ async function readRows({
 }: ApplyFeedbackParams): Promise<unknown> {
   if (endpointUrl === null) return null;
 
-  const url = `${endpointUrl}?slug=eq.${encodeURIComponent(slug)}&select=slug,reaction,reasons`;
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  // Ordered by primary key: offset paging partitions the rows only if the
+  // store sorts them the same way for every page.
+  const url = `${endpointUrl}?slug=eq.${encodeURIComponent(slug)}&select=slug,reaction,reasons&order=id`;
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+    'Range-Unit': 'items',
+  };
   if (apiKey !== null) {
     headers['apikey'] = apiKey;
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
 
+  // Shared across every page, not one timer per request.
+  const signal = AbortSignal.timeout(timeoutMs);
+  const rows: unknown[] = [];
+
   try {
-    const response = await fetchImpl(url, {
-      headers,
-      cache: 'no-store',
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (!response.ok) return null;
-    return await response.json();
+    for (let page = 0; page < MAX_REACTION_PAGES; page += 1) {
+      const from = rows.length;
+      const response = await fetchImpl(url, {
+        headers: { ...headers, Range: `${from}-${from + REACTION_PAGE_SIZE - 1}` },
+        cache: 'no-store',
+        signal,
+      });
+
+      // An offset past the last row ends the data. On the first page there is
+      // nothing to be past, so a 416 there is a refused read, not an empty game.
+      if (response.status === 416) return rows.length > 0 ? rows : null;
+      if (!response.ok) return null;
+
+      // Annotated rather than left to `Array.isArray`, which narrows an
+      // `unknown` to `any[]` and would spread untyped values into `rows`.
+      const parsed: unknown = await response.json();
+      const page: unknown[] | null = Array.isArray(parsed) ? parsed : null;
+      if (page === null) return null;
+      if (page.length === 0) return rows;
+
+      rows.push(...page);
+    }
   } catch {
     return null;
   }
+
+  return null;
 }
 
 /**

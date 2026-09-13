@@ -16,6 +16,24 @@ const row = (reaction: string, reasons: unknown[] = [], slug = SLUG): unknown =>
   reasons,
 });
 
+// A store that caps a page below what the read asked for, the way PostgREST
+// clamps a range wider than its own max-rows.
+function pagedStore(rows: unknown[], maxRows: number, pastEndStatus = 200) {
+  const ranges: string[] = [];
+  const urls: string[] = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const range = new Headers(init?.headers).get('Range') ?? '';
+    ranges.push(range);
+    urls.push(String(input));
+    const from = Number(range.split('-')[0]);
+    if (from >= rows.length && pastEndStatus === 416) {
+      return new Response('range not satisfiable', { status: 416 });
+    }
+    return new Response(JSON.stringify(rows.slice(from, from + maxRows)));
+  };
+  return { fetchImpl, ranges, urls };
+}
+
 test('tallyReactions counts likes and dislikes separately', () => {
   const tally = tallyReactions([row('like'), row('like'), row('dislike')], SLUG);
 
@@ -119,7 +137,7 @@ test('applyFeedback records the tally against the matching entry', async () => {
     slug: SLUG,
     endpointUrl: ENDPOINT,
     apiKey: 'service-key',
-    fetchImpl: async () => new Response(JSON.stringify([row('like'), row('dislike', ['no-load'])])),
+    fetchImpl: pagedStore([row('like'), row('dislike', ['no-load'])], 1_000).fetchImpl,
   });
 
   const entry = publishedAt(entries, 0);
@@ -133,7 +151,7 @@ test('applyFeedback scores a game by likes against dislikes', async () => {
     slug: SLUG,
     endpointUrl: ENDPOINT,
     apiKey: 'service-key',
-    fetchImpl: async () => new Response(JSON.stringify([row('like'), row('like'), row('dislike')])),
+    fetchImpl: pagedStore([row('like'), row('like'), row('dislike')], 1_000).fetchImpl,
   });
 
   assert.equal(publishedAt(entries, 0).popularityScore, 1);
@@ -187,6 +205,90 @@ test(
     assert.deepEqual(entries, [PUBLISHED]);
   },
 );
+
+// The defect this guards: one request returns the store's page limit with no
+// sign that more rows exist, so a popular game tallies as an unpopular one.
+test('applyFeedback counts rows the store could not fit in one page', async () => {
+  const rows = [...Array.from({ length: 5 }, () => row('like')), row('dislike'), row('dislike')];
+  const { fetchImpl, ranges } = pagedStore(rows, 3);
+
+  const entries = await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+  });
+
+  const entry = publishedAt(entries, 0);
+  assert.equal(entry.likes, 5);
+  assert.equal(entry.dislikes, 2);
+  assert.ok(ranges.length > 1, 'expected more than one page to be requested');
+});
+
+test('applyFeedback stops when the store reports the offset is past the last row', async () => {
+  const { fetchImpl } = pagedStore([row('like'), row('like')], 3, 416);
+
+  const entries = await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+  });
+
+  assert.equal(publishedAt(entries, 0).likes, 2);
+});
+
+// Anyone who loads the page holds the insert key, so one slug's row count is
+// not something this side controls. A tally cut short would undercount in
+// exactly the way the pagination exists to prevent.
+test('applyFeedback leaves history untouched when a game has more rows than one read may fetch', async () => {
+  const { fetchImpl } = pagedStore(
+    Array.from({ length: 61 }, () => row('like')),
+    3,
+  );
+
+  const entries = await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+  });
+
+  assert.deepEqual(entries, [PUBLISHED]);
+});
+
+// Every other failure here leaves history alone. A refused first page must
+// too: an empty tally would overwrite the entry's real counts with zeros.
+test('applyFeedback leaves history untouched when the store refuses the first range', async () => {
+  const { fetchImpl } = pagedStore([], 3, 416);
+
+  const entries = await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+  });
+
+  assert.deepEqual(entries, [PUBLISHED]);
+});
+
+// Offset paging is a consistent partition of the rows only while the store
+// sorts them, and anyone holding the public key can insert mid-read.
+test('applyFeedback asks the store for a stable row order', async () => {
+  const { fetchImpl, urls } = pagedStore([row('like')], 3);
+
+  await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+  });
+
+  assert.ok(
+    urls.length > 0 && urls.every((url) => url.includes('order=id')),
+    `every request must order by id, got ${JSON.stringify(urls)}`,
+  );
+});
 
 test('applyFeedback leaves history untouched when the store answers with an error', async () => {
   const entries = await applyFeedback([PUBLISHED], {
