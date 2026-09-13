@@ -207,6 +207,22 @@ export interface PublishParams {
   canvasDrawn?: boolean;
   /** The exact user-turn prompt that produced `html` — see BYOK. */
   prompt: string;
+  /**
+   * Failure kinds for attempts that failed before this one succeeded,
+   * parallel to `attemptModels` by index. Omitted, or empty, when the first
+   * attempt won.
+   *
+   * Recorded so `check-models.ts`'s reliability tally can see a model that
+   * fails its attempt every day but is always rescued by a later one in the
+   * rotation — without this, such a day never produces a
+   * `failed_kept_previous` entry, so that model would accumulate no
+   * evidence at all.
+   */
+  kinds?: readonly FailureKind[];
+  /** The model each of those attempts used, parallel to `kinds` by index. */
+  attemptModels?: readonly string[];
+  /** Whether any of those attempts was refused for provider capacity. */
+  quotaAffected?: boolean;
   /** The parsed `config/generation.json`; supplies the cron schedule and the Sentry DSN. */
   generationConfig: GenerationConfig;
   /** Genre catalogue, used to resolve {@link Manifest.genreLabel}. */
@@ -271,6 +287,9 @@ export function publish({
   attempts,
   canvasDrawn,
   prompt,
+  kinds,
+  attemptModels,
+  quotaAffected = false,
   generationConfig,
   genres,
   historyEntries,
@@ -278,6 +297,11 @@ export function publish({
   release = UNRELEASED,
   root,
 }: PublishParams): PublishResult {
+  if (attemptModels !== undefined && kinds !== undefined && attemptModels.length !== kinds.length) {
+    throw new Error(
+      `attemptModels (${attemptModels.length}) must be parallel to kinds (${kinds.length})`,
+    );
+  }
   const paths = root ? createPaths(root) : defaultPaths;
   const slug = buildSlug(date, meta.title);
 
@@ -313,6 +337,11 @@ export function publish({
     title: meta.title,
     attempts,
     ...(canvasDrawn === undefined ? {} : { canvasDrawn }),
+    ...(kinds === undefined || kinds.length === 0 ? {} : { failureKinds: [...kinds] }),
+    ...(attemptModels === undefined || attemptModels.length === 0
+      ? {}
+      : { attemptModels: [...attemptModels] }),
+    ...(quotaAffected ? { quotaAffected: true } : {}),
   };
   const updatedEntries = appendEntry(historyEntries, entry);
   writeGamesJson(paths.historyGames, updatedEntries);

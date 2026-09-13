@@ -53,6 +53,16 @@ export type GenerateResult =
       canvasDrawn: boolean;
       /** The exact user-turn prompt that produced this bundle — persisted by publish.ts. */
       prompt: string;
+      /**
+       * The same failures as `reasons` would describe on a failed run, as
+       * closed-vocabulary ids, for every attempt before this one succeeded.
+       * Empty when the first attempt won.
+       */
+      kinds: FailureKind[];
+      /** The model each of those attempts used, parallel to `kinds` by index. */
+      attemptModels: string[];
+      /** Whether any of those attempts was refused for provider capacity. */
+      quotaAffected: boolean;
     }
   | {
       status: 'failed_kept_previous';
@@ -356,6 +366,9 @@ export async function generateDailyGame({
         attempts: attempt,
         canvasDrawn: outcome.canvasDrawn,
         prompt,
+        kinds: [...kinds],
+        attemptModels: [...attemptModels],
+        quotaAffected: quotaFailures > 0,
       };
     }
 

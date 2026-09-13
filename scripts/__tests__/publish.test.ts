@@ -531,6 +531,56 @@ test('publish records whether the game drew anything', (t) => {
   assert.equal(history[0].canvasDrawn, false);
 });
 
+// So check-models.ts's reliability tally can see a model that fails its own
+// attempt on a day that still ends in a game, not just one that fails
+// outright — see the AGENTS.md invariant on `failed_kept_previous`.
+test('publish records attempts that failed before the winning one', (t) => {
+  const root = scratchRoot(t);
+  const { meta, html } = loadFixtureBundle('good-maze');
+
+  publish({
+    ...baseParams(root, meta, html),
+    kinds: ['generation-call'],
+    attemptModels: ['x/model:free'],
+    quotaAffected: true,
+  });
+
+  const history = JSON.parse(readFileSync(join(root, 'history', 'games.json'), 'utf8'));
+  assert.deepEqual(history[0].failureKinds, ['generation-call']);
+  assert.deepEqual(history[0].attemptModels, ['x/model:free']);
+  assert.equal(history[0].quotaAffected, true);
+});
+
+// Absent rather than an empty array, matching recordFailure's own omission —
+// an entry from before this field existed should not read as a run with a
+// recorded, empty prior-attempt history.
+test('publish omits the prior-attempt fields when the first attempt won', (t) => {
+  const root = scratchRoot(t);
+  const { meta, html } = loadFixtureBundle('good-maze');
+
+  publish(baseParams(root, meta, html));
+
+  const history = JSON.parse(readFileSync(join(root, 'history', 'games.json'), 'utf8'));
+  assert.equal('failureKinds' in history[0], false);
+  assert.equal('attemptModels' in history[0], false);
+  assert.equal('quotaAffected' in history[0], false);
+});
+
+test('publish refuses attemptModels that is not parallel to kinds', (t) => {
+  const root = scratchRoot(t);
+  const { meta, html } = loadFixtureBundle('good-maze');
+
+  assert.throws(
+    () =>
+      publish({
+        ...baseParams(root, meta, html),
+        kinds: ['generation-call', 'extract'],
+        attemptModels: ['x/model:free'],
+      }),
+    /attemptModels \(1\) must be parallel to kinds \(2\)/,
+  );
+});
+
 test('buildManifest shows the genre by its readable label', () => {
   const manifest = buildManifest({
     date: '2026-08-29',

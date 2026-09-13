@@ -60,6 +60,38 @@ interface HistoryEntryCommon {
   readonly attempts?: number;
   /** Runtime errors seen after publishing, if any were ever recorded. */
   readonly errors?: string[];
+  /**
+   * The same failures as `failureReasons` (on a `failed_kept_previous`
+   * entry) would describe, as closed-vocabulary ids, for every attempt
+   * before the run's outcome was decided.
+   *
+   * On a `failed_kept_previous` entry, every attempt that day. On a
+   * `published` entry, only the attempts that failed before the one that
+   * eventually succeeded — absent, or empty, when the first attempt won.
+   * Drawn from {@link FAILURE_KINDS}, so `build-prompt.ts` can turn a
+   * recurring failure into fixed guidance without quoting anything a model
+   * wrote.
+   */
+  readonly failureKinds?: FailureKind[];
+  /**
+   * The model id each attempt used, parallel to `failureKinds` by index.
+   *
+   * Absent on entries written before it was recorded. Lets `check-models.ts`
+   * tell a model that is failing from one that merely rotated in once — on
+   * either kind of day. Without evidence from `published` days too, a model
+   * rescued every time by a later one in the rotation could fail its own
+   * attempt every single day and never accumulate any.
+   */
+  readonly attemptModels?: string[];
+  /**
+   * Whether any attempt among `attemptModels` — not necessarily every one —
+   * was refused for provider capacity.
+   *
+   * `check-models.ts`'s reliability tally skips a day this flags entirely,
+   * so a model that happened to fail its attempt on a capacity refusal is
+   * not blamed for it as a `generation-call` failure.
+   */
+  readonly quotaAffected?: boolean;
 }
 
 /**
@@ -108,42 +140,20 @@ export interface FailedEntry extends HistoryEntryCommon {
    * and nothing downstream can learn what went wrong.
    */
   readonly failureReasons: string[];
-  /**
-   * The same failures as `failureReasons`, as closed-vocabulary ids.
-   *
-   * Drawn from {@link FAILURE_KINDS}, so `build-prompt.ts` can turn a
-   * recurring failure into fixed guidance without quoting anything a model
-   * wrote.
-   */
+  /** Narrower than {@link HistoryEntryCommon.failureKinds}: every attempt failed, so this is never absent. */
   readonly failureKinds: FailureKind[];
-  /**
-   * The model id each attempt used, parallel to `failureKinds` by index.
-   *
-   * Absent on entries written before it was recorded. Lets `check-models.ts`
-   * tell a model that is failing from one that merely rotated in once —
-   * without it, the only per-model record is embedded in `failureReasons`'
-   * prose, which this file's own writers never parse back out.
-   */
-  readonly attemptModels?: string[];
   /**
    * Whether every attempt failed because the provider had no capacity left.
    *
    * Deliberately not a {@link FAILURE_KINDS} member: that vocabulary exists so
    * `build-prompt.ts` can turn a recurring failure into corrective guidance,
    * and there is nothing a model can do about an account-level quota.
+   *
+   * A superset relationship runs the other way from {@link
+   * HistoryEntryCommon.quotaAffected}: this is true only when every attempt
+   * hit the cap, where `quotaAffected` is true when any attempt did.
    */
   readonly quotaExhausted?: boolean;
-  /**
-   * Whether any attempt — not necessarily every one — was refused for
-   * provider capacity.
-   *
-   * A superset of `quotaExhausted`: absent or `false` only when no attempt
-   * hit the provider's cap. `check-models.ts`'s reliability tally skips a day
-   * this flags entirely, so a model that happened to run out a mixed-failure
-   * day on a capacity refusal is not blamed for it as a `generation-call`
-   * failure the way `quotaExhausted` alone (all-or-nothing) would miss.
-   */
-  readonly quotaAffected?: boolean;
 }
 
 /**
@@ -269,6 +279,10 @@ function historyGameEntryErrors(value: unknown): string[] {
   );
   required(isNonEmptyString(value.model), 'model must be a non-empty string');
 
+  const validFailureKinds = (v: unknown): boolean =>
+    Array.isArray(v) &&
+    v.every((kind: unknown) => typeof kind === 'string' && FAILURE_KIND_IDS.has(kind));
+
   // Required per status, because the type says so and the cast in
   // loadValidatedJson is only honest while these checks match it. Present,
   // not necessarily non-empty — see the note above: publish.ts writes
@@ -288,27 +302,33 @@ function historyGameEntryErrors(value: unknown): string[] {
       'failureReasons must be an array of strings when the run failed',
     );
     required(
-      Array.isArray(value.failureKinds) &&
-        value.failureKinds.every(
-          (kind: unknown) => typeof kind === 'string' && FAILURE_KIND_IDS.has(kind),
-        ),
-      `failureKinds must be an array of: ${FAILURE_KINDS.join(', ')}`,
+      validFailureKinds(value.failureKinds),
+      `failureKinds must be an array of: ${FAILURE_KINDS.join(', ')} when the run failed`,
     );
-    // Read by index alongside failureKinds — modelReliability() would
-    // otherwise pair an attempt's failure with the wrong model, or with
-    // none at all.
-    optional(
-      value.attemptModels,
-      isStringArray(value.attemptModels),
-      'attemptModels must be an array of strings',
+  }
+
+  // failureKinds/attemptModels can also record attempts that failed before a
+  // published day's eventual success — see HistoryEntryCommon. Shape-checked
+  // regardless of status; presence is only ever required above, when failed.
+  optional(
+    value.failureKinds,
+    validFailureKinds(value.failureKinds),
+    `failureKinds must be an array of: ${FAILURE_KINDS.join(', ')}`,
+  );
+  // Read by index alongside failureKinds — modelReliability() would
+  // otherwise pair an attempt's failure with the wrong model, or with
+  // none at all.
+  optional(
+    value.attemptModels,
+    isStringArray(value.attemptModels),
+    'attemptModels must be an array of strings',
+  );
+  if (value.attemptModels !== undefined && Array.isArray(value.failureKinds)) {
+    required(
+      !isStringArray(value.attemptModels) ||
+        value.attemptModels.length === value.failureKinds.length,
+      'attemptModels must have the same length as failureKinds',
     );
-    if (value.attemptModels !== undefined && Array.isArray(value.failureKinds)) {
-      required(
-        !isStringArray(value.attemptModels) ||
-          value.attemptModels.length === value.failureKinds.length,
-        'attemptModels must have the same length as failureKinds',
-      );
-    }
   }
 
   optional(value.errors, isStringArray(value.errors), 'errors must be an array of strings');

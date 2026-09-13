@@ -90,6 +90,27 @@ test('retries after a JS-error bundle and succeeds on the second attempt', async
 
   assert.equal(result.status, 'success');
   assert.equal(result.attempts, 2);
+  // The failed first attempt is not lost just because the day succeeded —
+  // check-models.ts's reliability tally reads this from a published day too.
+  if (result.status === 'success') {
+    assert.deepEqual(result.kinds, ['smoke-js-error']);
+    assert.deepEqual(result.attemptModels, ['a/model:free']);
+    assert.equal(result.quotaAffected, false);
+  }
+});
+
+test('a successful run reports no prior failures when the first attempt wins', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: scriptedClient([loadFixture('good-maze')]),
+  });
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.deepEqual(result.kinds, []);
+    assert.deepEqual(result.attemptModels, []);
+    assert.equal(result.quotaAffected, false);
+  }
 });
 
 test('retries after an unparseable response', async () => {
@@ -339,6 +360,27 @@ test('a run that fails for mixed reasons is not marked quota exhausted, but is q
   assert.equal(result.status, 'failed_kept_previous');
   assert.equal(result.quotaExhausted, false);
   assert.equal(result.quotaAffected, true);
+});
+
+test('a successful run is quota affected when an earlier attempt was refused for capacity', async () => {
+  let calls = 0;
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+      calls += 1;
+      if (calls === 1) throw new OpenRouterHttpError(429, 'rate limited');
+      return { text: loadFixture('good-maze'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.deepEqual(result.kinds, ['generation-call']);
+    assert.deepEqual(result.attemptModels, ['a/model:free']);
+    assert.equal(result.quotaAffected, true);
+  }
 });
 
 test('a moderator refused for capacity marks the attempt quota affected, without exhausting the quota', async () => {

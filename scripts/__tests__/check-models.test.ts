@@ -346,6 +346,42 @@ test("modelReliability counts a forced run's several attempts on one model as a 
   });
 });
 
+// The gap Copilot flagged on PR #13: a model that fails its own attempt
+// every day but is always rescued by a later model in the rotation never
+// produces a failed_kept_previous entry, so without reading this evidence
+// from a published day too, the tally would never see it.
+test("modelReliability counts a published day's earlier failed attempt against the model that lost, not the one that published", () => {
+  const entries: HistoryGameEntry[] = [
+    {
+      ...PUBLISHED_ENTRY,
+      date: '2026-09-01',
+      model: 'b/model:free',
+      failureKinds: ['generation-call'],
+      attemptModels: ['a/model:free'],
+    },
+  ];
+
+  assert.deepEqual(modelReliability(entries).get('a/model:free'), {
+    days: 1,
+    generationCallDays: 1,
+  });
+  assert.equal(modelReliability(entries).get('b/model:free'), undefined);
+});
+
+test('modelReliability ignores a published day whose earlier attempt hit a capacity refusal', () => {
+  const entries: HistoryGameEntry[] = [
+    {
+      ...PUBLISHED_ENTRY,
+      date: '2026-09-01',
+      failureKinds: ['generation-call'],
+      attemptModels: ['a/model:free'],
+      quotaAffected: true,
+    },
+  ];
+
+  assert.deepEqual([...modelReliability(entries)], []);
+});
+
 test('unreliableModelIds needs MIN_UNRELIABLE_DAYS of evidence before naming a model', () => {
   const entries: HistoryGameEntry[] = [];
   for (let day = 1; day < MIN_UNRELIABLE_DAYS; day += 1) {

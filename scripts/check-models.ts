@@ -186,6 +186,11 @@ export interface ModelReliability {
  * Reads `attemptModels`/`failureKinds`, a closed-vocabulary pair written by
  * `publish.ts`, never `failureReasons` — so nothing here parses prose to
  * decide anything.
+ *
+ * A `published` entry carries the same pair for attempts that failed before
+ * the day's eventual success, so it is read here too — without that, a
+ * model rescued every day by a later one in the rotation would fail its own
+ * attempt every single day and never accumulate any evidence at all.
  */
 export function modelReliability(
   entries: readonly HistoryGameEntry[],
@@ -194,10 +199,14 @@ export function modelReliability(
   const tally = new Map<string, { days: number; generationCallDays: number }>();
 
   for (const entry of entries) {
-    if (entry.status !== 'failed_kept_previous' || entry.attemptModels === undefined) continue;
-    if (entry.quotaExhausted === true || entry.quotaAffected === true) continue;
+    if (entry.attemptModels === undefined) continue;
+    // `quotaExhausted` only exists on a failed entry — a published day, by
+    // definition, did not have every attempt fail.
+    const quotaExhausted = entry.status === 'failed_kept_previous' && entry.quotaExhausted === true;
+    if (quotaExhausted || entry.quotaAffected === true) continue;
 
     const { failureKinds, attemptModels } = entry;
+    if (failureKinds === undefined) continue;
 
     // One entry per distinct model attempted that day, keyed to its first
     // attempt's kind — a forced run repeats a single id several times, and
