@@ -1,18 +1,34 @@
 {
-  "date": "2026-09-12",
-  "slug": "2026-09-12-untitled",
-  "path": "games/archive/2026-09-12-untitled/game.html",
-  "promptPath": "games/archive/2026-09-12-untitled/prompt.txt",
-  "title": "...",
-  "genre": "racing",
-  "genreLabel": "Racing",
-  "model": "nvidia/nemotron-3.5-lightning:free",
-  "generatedAt": "2026-09-12T21:57:24.056Z",
-  "expiresAt": "2026-09-13T19:00:00.000Z",
+  "date": "2026-09-13",
+  "slug": "2026-09-13-storm-island-defender",
+  "path": "games/archive/2026-09-13-storm-island-defender/game.html",
+  "promptPath": "games/archive/2026-09-13-storm-island-defender/prompt.txt",
+  "title": "Storm Island Defender",
+  "genre": "tower-defense",
+  "genreLabel": "Tower Defense",
+  "model": "cohere/north-mini-code:free",
+  "generatedAt": "2026-09-13T22:08:34.771Z",
+  "expiresAt": "2026-09-14T19:00:00.000Z",
   "controls": [
     {
-      "action": "...",
-      "key": "..."
+      "action": "Select wind turbine tower",
+      "key": "1"
+    },
+    {
+      "action": "Select water sprinkler tower",
+      "key": "2"
+    },
+    {
+      "action": "Select luminous balloon tower",
+      "key": "3"
+    },
+    {
+      "action": "Place selected tower",
+      "key": "Click"
+    },
+    {
+      "action": "Upgrade tower",
+      "key": "Click"
     }
   ]
 }

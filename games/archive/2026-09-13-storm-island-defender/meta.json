@@ -1,0 +1,33 @@
+{
+  "title": "Storm Island Defender",
+  "genre": "tower-defense",
+  "theme": "A floating archipelago of colorful islands is besieged by chaotic storm clouds that drop disruptive lightning bolts. The player must place protective towers—wind turbines, water sprinklers, and luminous balloons—to intercept the bolts and preserve the islands' stability.",
+  "mechanics": [
+    "Place defensive towers along a path to block incoming threats",
+    "Upgrade towers to increase interception range and power",
+    "Survive multiple waves of lightning bolts without letting any hit the islands",
+    "Manage limited resources (energy crystals) to afford tower upgrades"
+  ],
+  "controls": [
+    {
+      "action": "Select wind turbine tower",
+      "key": "1"
+    },
+    {
+      "action": "Select water sprinkler tower",
+      "key": "2"
+    },
+    {
+      "action": "Select luminous balloon tower",
+      "key": "3"
+    },
+    {
+      "action": "Place selected tower",
+      "key": "Click"
+    },
+    {
+      "action": "Upgrade tower",
+      "key": "Click"
+    }
+  ]
+}

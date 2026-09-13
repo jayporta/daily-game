@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Storm Island Defender</title>
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; }
+#gameCanvas { display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Resize canvas to fill window
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+const ISLAND_HEIGHT = 60;
+const ISLAND_COUNT = 5;
+const ISLAND_WIDTH = 80;
+const ISLAND_SPACING = 20;
+
+// Generate islands at bottom
+let islands = [];
+let totalWidth = ISLAND_COUNT * (ISLAND_WIDTH + ISLAND_SPACING);
+let startX = (canvas.width - totalWidth) / 2;
+for (let i = 0; i < ISLAND_COUNT; i++) {
+  islands.push({
+    x: startX + i * (ISLAND_WIDTH + ISLAND_SPACING),
+    y: canvas.height - ISLAND_HEIGHT,
+    w: ISLAND_WIDTH,
+    h: ISLAND_HEIGHT,
+    color: ['#2a7834', '#1e5631', '#3a9c38', '#276e2d', '#1b4d21'][i % 5]
+  });
+}
+
+// Tower definitions
+const towerTypes = {
+  1: { name: 'wind turbine', cost: 30, upgradeCost: 20, range: 60, color: '#aaa' },
+  2: { name: 'water sprinkler', cost: 35, upgradeCost: 25, range: 50, color: '#0af' },
+  3: { name: 'luminous balloon', cost: 40, upgradeCost: 30, range: 70, color: '#f90' }
+};
+
+// Game state
+let gameState = 'playing'; // playing, gameOver, victory
+let crystals = 100;
+let stability = 5;
+let waveNumber = 0;
+const MAX_WAVES = 10;
+let towers = [];
+let bolts = [];
+let selectedTowerType = null;
+let lastWaveTime = 0;
+const SPAWN_INTERVAL = 2000; // ms between waves
+
+// UI selection area (tower icons)
+let selectUI = [];
+
+// Input handling
+function getMousePos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  };
+}
+
+canvas.addEventListener('mousedown', (e) => {
+  const pos = getMousePos(e);
+
+  // If game over or victory, restart on any click
+  if (gameState !== 'playing') {
+    resetGame();
+    return;
+  }
+
+  // Check selection UI
+  for (const sel of selectUI) {
+    if (pos.x >= sel.x && pos.x <= sel.x + sel.w &&
+        pos.y >= sel.y && pos.y <= sel.y + sel.h) {
+      selectedTowerType = sel.type;
+      return;
+    }
+  }
+
+  // Check if click on a tower (upgrade)
+  for (const tower of towers) {
+    const dx = tower.x - pos.x;
+    const dy = tower.y - pos.y;
+    if (dx*dx + dy*dy <= (tower.range * 0.5) ** 2) {
+      upgradeTower(tower);
+      return;
+    }
+  }
+
+  // If a tower type selected, try to place
+  if (selectedTowerType) {
+    // Prevent placement on islands
+    let onIsland = false;
+    for (const isl of islands) {
+      if (pos.x >= isl.x && pos.x <= isl.x + isl.w &&
+          pos.y >= isl.y && pos.y <= isl.y + isl.h) {
+        onIsland = true;
+        break;
+      }
+    }
+    if (!onIsland && pos.y < canvas.height - ISLAND_HEIGHT) {
+      // Check distance to existing towers
+      let tooClose = false;
+      for (const t of towers) {
+        const d = Math.hypot(t.x - pos.x, t.y - pos.y);
+        if (d < 30) {
+          tooClose = true;
+          break;
+        }
+      }
+      if (!tooClose) {
+        placeTower(pos.x, pos.y, selectedTowerType);
+      }
+    }
+    selectedTowerType = null;
+  }
+});
+
+// Tower actions
+function placeTower(x, y, type) {
+  const cost = towerTypes[type].cost;
+  if (crystals >= cost) {
+    towers.push({ x, y, type, level: 1, range: towerTypes[type].range });
+    crystals -= cost;
+  }
+}
+
+function upgradeTower(tower) {
+  const cost = towerTypes[tower.type].upgradeCost;
+  if (crystals >= cost) {
+    tower.level++;
+    tower.range = Math.min(tower.range * 1.5, 120);
+    crystals -= cost;
+  }
+}
+
+// Wave spawning
+function spawnWave() {
+  waveNumber++;
+  // Number of bolts increases with wave, cap at 8
+  const numBolts = Math.min(3 + waveNumber, 8);
+  for (let i = 0; i < numBolts; i++) {
+    const x = Math.random() * canvas.width;
+    bolts.push({ x, y: -10, speed: 3 + waveNumber * 0.2 });
+  }
+}
+
+// Drawing utilities
+function drawBackground() {
+  const grd = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  grd.addColorStop(0, '#001144');
+  grd.addColorStop(1, '#004488');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawIslands() {
+  for (const isl of islands) {
+    ctx.fillStyle = isl.color;
+    ctx.fillRect(isl.x, isl.y, isl.w, isl.h);
+  }
+}
+
+function drawGround() {
+  const grassY = canvas.height - ISLAND_HEIGHT;
+  const grd = ctx.createLinearGradient(0, grassY, 0, canvas.height);
+  grd.addColorStop(0, '#2a7834');
+  grd.addColorStop(1, '#1e5631');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, grassY, canvas.width, ISLAND_HEIGHT);
+}
+
+function drawTower(ctx, tower) {
+  const def = towerTypes[tower.type];
+  ctx.fillStyle = def.color;
+  if (tower.type === 1) {
+    // Wind turbine
+    ctx.fillRect(tower.x - 5, tower.y - 30, 10, 30);
+    ctx.beginPath();
+    ctx.moveTo(tower.x, tower.y - 30);
+    ctx.lineTo(tower.x + 15, tower.y - 40);
+    ctx.lineTo(tower.x + 30, tower.y - 30);
+    ctx.closePath();
+    ctx.fill();
+  } else if (tower.type === 2) {
+    // Water sprinkler
+    ctx.beginPath();
+    ctx.arc(tower.x, tower.y - 10, 12, 0, Math.PI * 2);
+    ctx.fill();
+    // Water spray arcs (animated)
+    ctx.fillStyle = '#a0ffff';
+    const now = Date.now() * 0.005;
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * Math.PI * 2 / 8) + (now + i * 0.3) % (Math.PI * 2);
+      ctx.beginPath();
+      ctx.moveTo(tower.x, tower.y - 10);
+      ctx.lineTo(tower.x + Math.cos(angle) * 30, tower.y - 10 + Math.sin(angle) * 30);
+      ctx.strokeStyle = '#a0ffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  } else if (tower.type === 3) {
+    // Luminous balloon
+    for (let j = 0; j < 3; j++) {
+      const r = 10 + j * 5;
+      ctx.beginPath();
+      ctx.arc(tower.x, tower.y - 15, r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, ${150 - j * 50}, 0, ${0.5 / (j + 1)})`;
+      ctx.fill();
+    }
+    ctx.fillStyle = def.color;
+    ctx.beginPath();
+    ctx.arc(tower.x, tower.y - 15, 10, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawBolts() {
+  for (const b of bolts) {
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(b.x - 2, b.y, 4, 10);
+  }
+}
+
+function drawUI() {
+  // Crystals (yellow icon)
+  ctx.fillStyle = '#ff0';
+  ctx.fillRect(10, 10, 30, 20);
+  ctx.fillStyle = '#000';
+  ctx.font = '16px sans-serif';
+  ctx.fillText(crystals, 45, 25);
+
+  // Stability hearts
+  for (let i = 0; i < stability; i++) {
+    ctx.fillStyle = '#f00';
+    ctx.beginPath();
+    ctx.arc(250 + i * 30, 10, 10, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Wave indicator
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px sans-serif';
+  ctx.fillText(`Wave: ${waveNumber}`, canvas.width / 2 - 80, 35);
+
+  // Tower selection icons
+  const icons = [
+    { type: 1, label: '1', color: '#aaa' },
+    { type: 2, label: '2', color: '#0af' },
+    { type: 3, label: '3', color: '#f90' }
+  ];
+  selectUI = [];
+  for (let i = 0; i < icons.length; i++) {
+    const ic = icons[i];
+    const x = 10 + i * 50;
+    const y = canvas.height - 60;
+    selectUI.push({ x, y, w: 40, h: 40, type: ic.type });
+    ctx.fillStyle = selectedTowerType === ic.type ? '#fff' : ic.color;
+    ctx.fillRect(x, y, 40, 40);
+    ctx.strokeStyle = '#000';
+    ctx.strokeRect(x, y, 40, 40);
+    ctx.fillStyle = '#000';
+    ctx.font = '24px sans-serif';
+    ctx.fillText(ic.label, x + 15, y + 30);
+  }
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#f00';
+  ctx.font = '48px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 30);
+  ctx.font = '24px sans-serif';
+  ctx.fillText('Click to restart', canvas.width / 2, canvas.height / 2 + 20);
+}
+
+function drawVictory() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#0f0';
+  ctx.font = '48px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('VICTORY', canvas.width / 2, canvas.height / 2 - 30);
+  ctx.font = '24px sans-serif';
+  ctx.fillText('Click to restart', canvas.width / 2, canvas.height / 2 + 20);
+}
+
+// Reset game
+function resetGame() {
+  towers = [];
+  crystals = 100;
+  stability = 5;
+  waveNumber = 0;
+  bolts = [];
+  gameState = 'playing';
+  lastWaveTime = 0;
+}
+
+// Game loop
+function gameLoop(timestamp) {
+  // Handle resize
+  if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+    resizeCanvas();
+    // Regenerate islands after resize
+    totalWidth = ISLAND_COUNT * (ISLAND_WIDTH + ISLAND_SPACING);
+    startX = (canvas.width - totalWidth) / 2;
+    for (let i = 0; i < ISLAND_COUNT; i++) {
+      islands[i] = {
+        x: startX + i * (ISLAND_WIDTH + ISLAND_SPACING),
+        y: canvas.height - ISLAND_HEIGHT,
+        w: ISLAND_WIDTH,
+        h: ISLAND_HEIGHT,
+        color: ['#2a7834', '#1e5631', '#3a9c38', '#276e2d', '#1b4d21'][i % 5]
+      };
+    }
+  }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  drawBackground();
+  drawIslands();
+  drawGround();
+
+  // Spawn wave if needed
+  if (bolts.length === 0 && waveNumber < MAX_WAVES) {
+    if (timestamp - lastWaveTime > SPAWN_INTERVAL) {
+      spawnWave();
+      lastWaveTime = timestamp;
+    }
+  }
+
+  // Update bolts
+  for (let i = bolts.length - 1; i >= 0; i--) {
+    const b = bolts[i];
+    b.y += b.speed;
+
+    // Intercept by towers
+    let blocked = false;
+    for (const t of towers) {
+      if (Math.abs(b.x - t.x) < t.range) {
+        blocked = true;
+        break;
+      }
+    }
+    if (blocked) {
+      bolts.splice(i, 1);
+      continue;
+    }
+
+    // Hit island
+    if (b.y > canvas.height) {
+      stability--;
+      bolts.splice(i, 1);
+      if (stability <= 0) {
+        gameState = 'gameOver';
+      }
+    }
+  }
+
+  drawBolts();
+
+  // Draw towers
+  for (const t of towers) {
+    drawTower(ctx, t);
+  }
+
+  drawUI();
+
+  // Win condition
+  if (waveNumber >= MAX_WAVES && bolts.length === 0) {
+    gameState = 'victory';
+  }
+
+  if (gameState === 'gameOver') {
+    drawGameOver();
+  } else if (gameState === 'victory') {
+    drawVictory();
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// Start game
+resetGame();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-13-storm-island-defender";
+  var RELEASE = "afff83a0f2701c1083ce902ad80a5c8e8b07e30e";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
