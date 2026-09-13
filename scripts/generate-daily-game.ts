@@ -242,7 +242,7 @@ async function runAttempt({
       feedback: unreachable
         ? undefined
         : `Your previous game violated the content rules: ${detail}. Re-read the content rules and avoid this entirely.`,
-      quota: false,
+      quota: moderation.quota,
     };
   }
 

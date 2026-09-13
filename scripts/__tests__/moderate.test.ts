@@ -5,7 +5,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
-import { OPENROUTER_TIMEOUT_MS, type OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import {
+  OPENROUTER_TIMEOUT_MS,
+  OpenRouterHttpError,
+  type OpenRouterClient,
+} from '#scripts/lib/openrouter-client.ts';
 import { loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
 import { closingTag } from '#scripts/lib/untrusted-block.ts';
 import {
@@ -31,6 +35,15 @@ function throwingModerator(message: string): OpenRouterClient {
   return {
     async complete() {
       throw new Error(message);
+    },
+  };
+}
+
+/** A moderator refused for provider capacity rather than merely unreachable. */
+function quotaThrowingModerator(): OpenRouterClient {
+  return {
+    async complete() {
+      throw new OpenRouterHttpError(429, 'rate limited');
     },
   };
 }
@@ -152,6 +165,19 @@ test('a moderator that cannot be reached is tagged as a failed call', async () =
   });
   assert.ok(!result.pass);
   assert.equal(result.failure, 'call-failed');
+  assert.equal(result.quota, false);
+});
+
+test('a moderator refused for capacity is tagged as a quota failure', async () => {
+  const result = await aiModerationCheck(quotaThrowingModerator(), {
+    model: 'mod',
+    guardrailsText: GUARDRAILS,
+    meta: CLEAN_META,
+    html: '<div></div>',
+  });
+  assert.ok(!result.pass);
+  assert.equal(result.failure, 'call-failed');
+  assert.equal(result.quota, true);
 });
 
 test('a FAIL verdict is tagged as a rejection', async () => {
@@ -163,6 +189,7 @@ test('a FAIL verdict is tagged as a rejection', async () => {
   });
   assert.ok(!result.pass);
   assert.equal(result.failure, 'rejected');
+  assert.equal(result.quota, false);
 });
 
 test('moderate reports an unreachable moderator without claiming the game was rejected', async () => {
@@ -176,6 +203,19 @@ test('moderate reports an unreachable moderator without claiming the game was re
   assert.equal(result.failure, 'call-failed');
   assert.match(result.reasons.join(' '), /moderation call failed/);
   assert.doesNotMatch(result.reasons.join(' '), /rejected the game/);
+  assert.equal(result.quota, false);
+});
+
+test('moderate flags a capacity refusal so the caller can tell it apart from an ordinary outage', async () => {
+  const result = await moderate(quotaThrowingModerator(), {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+  });
+  assert.ok(!result.pass);
+  assert.equal(result.failure, 'call-failed');
+  assert.equal(result.quota, true);
 });
 
 test('an unreachable moderator falls back to the next model', async () => {

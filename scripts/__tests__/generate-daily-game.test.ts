@@ -323,7 +323,7 @@ test('a run whose every attempt is refused for capacity is marked quota exhauste
   assert.equal(result.quotaExhausted, true);
 });
 
-test('a run that fails for mixed reasons is not marked quota exhausted', async () => {
+test('a run that fails for mixed reasons is not marked quota exhausted, but is quota affected', async () => {
   let calls = 0;
   const client: OpenRouterClient = {
     async complete({ messages }) {
@@ -338,6 +338,30 @@ test('a run that fails for mixed reasons is not marked quota exhausted', async (
 
   assert.equal(result.status, 'failed_kept_previous');
   assert.equal(result.quotaExhausted, false);
+  assert.equal(result.quotaAffected, true);
+});
+
+test('a moderator refused for capacity marks the attempt quota affected, without exhausting the quota', async () => {
+  let attempt = 0;
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) {
+        // Only the middle attempt's moderator (and its fallbacks) is out of capacity.
+        if (attempt === 2) throw new OpenRouterHttpError(429, 'rate limited');
+        return { text: 'PASS', stop: 'complete' };
+      }
+      attempt += 1;
+      // Passes moderation but fails the smoke test — a non-quota failure for
+      // the attempts that are not the middle one.
+      return { text: loadFixture('bad-js-error'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(result.quotaExhausted, false);
+  assert.equal(result.quotaAffected, true);
 });
 
 test('a server fault is not mistaken for an exhausted quota', async () => {

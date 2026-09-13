@@ -8,7 +8,11 @@
 
 import { errorMessage } from '#lib/errors.ts';
 import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
-import type { ChatMessage, OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import {
+  isQuotaFailure,
+  type ChatMessage,
+  type OpenRouterClient,
+} from '#scripts/lib/openrouter-client.ts';
 import { untrustedBlock } from '#scripts/lib/untrusted-block.ts';
 
 /**
@@ -253,10 +257,13 @@ export type ModerationFailure =
  * One moderating model's answer, with the response text it was read from.
  *
  * `raw` carries the model's reply on a verdict, and the error description
- * when the call failed before producing one.
+ * when the call failed before producing one. `quota` is only ever true
+ * alongside a `call-failed` failure — a verdict, reached or not, is never a
+ * capacity issue.
  */
 export type AiModerationResult =
-  { pass: true; raw: string } | { pass: false; failure: ModerationFailure; raw: string };
+  | { pass: true; raw: string }
+  | { pass: false; failure: ModerationFailure; raw: string; quota: boolean };
 
 /**
  * How long the moderation call gets.
@@ -306,6 +313,7 @@ export async function aiModerationCheck(
       pass: false,
       failure: 'call-failed',
       raw: `moderation call failed: ${errorMessage(error)}`,
+      quota: isQuotaFailure(error),
     };
   }
 
@@ -315,7 +323,7 @@ export async function aiModerationCheck(
 
   // Fail closed: only an unambiguous PASS is a pass.
   if (saysPass && !saysFail) return { pass: true, raw };
-  return { pass: false, failure: 'rejected', raw };
+  return { pass: false, failure: 'rejected', raw, quota: false };
 }
 
 /**
@@ -324,11 +332,12 @@ export async function aiModerationCheck(
  *
  * `reasons` is phrased for the history entry and is empty on a pass. On a
  * failure, {@link ModerationFailure} says whether the game was judged and
- * rejected or never judged at all.
+ * rejected or never judged at all, and `quota` says whether that failure was
+ * the provider having no capacity left.
  */
 export type ModerationResult =
   | { pass: true; reasons: string[] }
-  | { pass: false; failure: ModerationFailure; reasons: string[] };
+  | { pass: false; failure: ModerationFailure; reasons: string[]; quota: boolean };
 
 /** Everything {@link moderate} needs to judge one generated bundle. */
 export interface ModerateParams {
@@ -379,6 +388,7 @@ export async function moderate(
       pass: false,
       failure: 'rejected',
       reasons: [`banned terms present: ${scan.hits.join(', ')}`],
+      quota: false,
     };
   }
 
@@ -407,6 +417,7 @@ export async function moderate(
       reasons: [
         ai.failure === 'call-failed' ? detail : `moderation model rejected the game: ${detail}`,
       ],
+      quota: ai.quota,
     };
   }
 
