@@ -15,8 +15,6 @@ import { isRecord } from '#lib/guards.ts';
  * generation prompt. That is what makes freetext feedback unnecessary here,
  * and with it a whole prompt-injection path.
  *
- * The UI's "All of the above" is a select-all convenience, not a member —
- * choosing it stores these ids.
  */
 export const DISLIKE_REASONS = [
   { id: 'no-load', label: "Doesn't load" },
