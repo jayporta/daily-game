@@ -73,6 +73,19 @@ test('accepts a canvas game that paints its background but draws on first input'
   assert.equal(result.pass, true);
 });
 
+// The canvas is read in strips rather than one allocation, so paint that
+// falls outside the first strip still has to be found.
+test('finds paint below the first strip of a tall canvas', async () => {
+  const paintsLow =
+    '<!doctype html><html><head><style>body{background:#123}</style></head>' +
+    '<body><canvas id="c" width="20" height="300"></canvas>' +
+    '<script>const x=document.getElementById("c").getContext("2d");' +
+    'x.fillRect(0,290,20,10);</script></body></html>';
+  const result = await tester.test(paintsLow, { settleMs: 300 });
+
+  assert.equal(result.canvasDrawn, true);
+});
+
 test('a hidden painted element does not count as rendering something', async () => {
   const hidden =
     '<!doctype html><html><body><div style="visibility:hidden;background:#f00;' +
