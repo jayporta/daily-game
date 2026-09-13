@@ -159,18 +159,16 @@ create trigger reactions_rate_limit
 -- One row per game, so the pipeline reads a tally instead of every row. The
 -- reason columns come from the same vocabulary as the constraints above, so a
 -- renamed reason renames its column with it.
-create view public.reaction_counts as
+-- security_invoker belongs in the create, not a statement after it. This DDL
+-- is pasted in by hand and may not run in one transaction, and a view that
+-- exists for even a moment with its owner's rights reads straight past the
+-- row level security below.
+create view public.reaction_counts with (security_invoker = on) as
 select
   slug,
 ${countColumns}
 from public.reactions
 group by slug;
-
--- The view runs as whoever queries it rather than as its owner, so the
--- table's row level security still applies through it. Without this a view
--- reads with the owner's rights, and the key that ships in the page would get
--- every game's tallies from a table it cannot select a single row of.
-alter view public.reaction_counts set (security_invoker = on);
 
 revoke all on public.reaction_counts from anon;
 `;

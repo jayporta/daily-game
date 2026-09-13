@@ -413,3 +413,22 @@ test('applyFeedback records zeros for a game the view has no row for', async () 
 
   assert.equal(publishedAt(entries, 0).popularityScore, 0);
 });
+
+// A configured endpoint may end in a slash, and the table's name is then not
+// the last path segment. Deriving the wrong one costs the whole point of the
+// view: it 404s and every run pages the table instead.
+test('applyFeedback finds the view when the endpoint ends in a slash', async () => {
+  const { fetchImpl, urls } = countsStore([{ slug: SLUG, likes: 2, dislikes: 0 }]);
+
+  await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: `${ENDPOINT}/`,
+    apiKey: 'service-key',
+    fetchImpl,
+  });
+
+  assert.ok(
+    urls[0]?.startsWith('https://proj.supabase.co/rest/v1/reaction_counts?'),
+    `asked for ${String(urls[0])}`,
+  );
+});

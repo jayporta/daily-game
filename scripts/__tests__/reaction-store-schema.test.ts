@@ -115,11 +115,12 @@ test('the view exposes a column for every reason the app can send', () => {
 
 // A view runs with its owner's rights by default, which would read the table
 // past the row level security that is the only thing keeping the key shipped
-// in the page from selecting rows.
-test('the view defers to the querying role rather than its owner', () => {
+// in the page from selecting rows. It has to be set by the create itself: the
+// DDL is pasted in by hand and a later statement may never run.
+test('the view defers to the querying role from the moment it exists', () => {
   assert.match(
     buildReactionStoreDdl(),
-    /create view public\.reaction_counts[\s\S]*?security_invoker = on/,
+    /create view public\.reaction_counts with \(security_invoker = on\) as/,
   );
 });
 

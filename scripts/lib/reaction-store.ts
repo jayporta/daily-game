@@ -135,12 +135,19 @@ async function readTableRows({
   return null;
 }
 
-/** Swaps the table's last path segment for the view's, keeping the rest. */
+/** Swaps the table's name for the view's, keeping the rest of the path. */
 function countsUrl(endpointUrl: string): string | null {
   try {
     const url = new URL(endpointUrl);
     const segments = url.pathname.split('/');
+
+    // A configured endpoint may end in a slash, which leaves a trailing empty
+    // segment. The table's name is the last segment that is not empty, and
+    // replacing the empty one instead asks the table for a child relation
+    // that cannot exist — losing the view on every run, quietly.
+    while (segments.length > 0 && segments[segments.length - 1] === '') segments.pop();
     if (segments.length < 2) return null;
+
     segments[segments.length - 1] = COUNTS_VIEW;
     url.pathname = segments.join('/');
     return url.toString();
