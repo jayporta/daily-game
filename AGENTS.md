@@ -4,13 +4,8 @@ This file provides guidance to AI when working with code in this repository.
 
 ## Git
 
-- Never run `git add`, `git commit`, or `git push`. The repo owner reviews
-  and commits every change by hand.
+- Never run `git add`, `git commit`, or `git push` unless given explicit permission by the repo owner.
 - Ignore global rule to load skills/conventional-commits for this codebase only.
-- When a unit of work is done, work the checklist below, then run a code
-  review subagent, fix what it finds, and hand the tree back. The review is
-  a backstop — anything on that checklist it has to catch was a wasted
-  round trip.
 - Confirm before reconfiguring the GitHub remote or Pages, and before
   provisioning real OpenRouter or Sentry credentials.
 
@@ -66,7 +61,6 @@ First run also needs `npx playwright install chromium`.
 
 - Imports carry explicit `.ts`/`.tsx` extensions — Node strips types at
   runtime and there is no bundler for pipeline code.
-- Never `any`. Use `unknown` at boundaries and narrow with a type guard.
 - Model states as discriminated unions rather than several optional fields.
   Prefer exhaustive `switch`/ternaries over defensive `if (x?.y)` chains.
 - Annotate exported signatures; let inference handle locals.
@@ -84,7 +78,6 @@ First run also needs `npx playwright install chromium`.
   validator that lives beside the file it describes; anything else gets a
   guard that narrows field by field. Every reader of a given file validates,
   or the one that doesn't becomes the crash.
-- `satisfies` to validate an object against a type without widening it.
 - Prefer `readonly` for parameters and fields that are never reassigned.
 
 ## React
@@ -93,11 +86,6 @@ First run also needs `npx playwright install chromium`.
   `React.FC`.
 - Import hooks and types by name (`import { useState, type ReactNode }`).
   Don't reach for a global `React.` namespace.
-- `useEffect` is only for synchronizing with something outside React.
-  Anything derivable during render should be computed during render, not
-  mirrored into state.
-- Every effect that starts something must stop it — clear intervals, abort
-  requests, and guard against setting state after unmount.
 - Keep state at the lowest component that needs it. Lift only when shared.
 - Hold in state what the component renders, not the raw value it is derived
   from, when the derived value changes less often. React bails out on an
@@ -109,69 +97,6 @@ First run also needs `npx playwright install chromium`.
   else.
 - Extract non-visual logic into plain functions or hooks so it can be tested
   without rendering.
-- One component per file.
-- One hook per file. Don't create a hook or Context in the same file as a component.
-
-## Tailwind
-
-- Configuration is CSS-first (`@import 'tailwindcss'` in `src/index.css`).
-  There is no `tailwind.config.js`.
-- Utilities in markup. Reach for `@apply` only when a pattern genuinely
-  repeats and cannot be a component.
-- Use scale values (`p-4`, `text-slate-400`). Arbitrary values like
-  `[13px]` or `[#1a1a1a]` mean the scale should have grown instead.
-- A class string that appears twice is already a duplicate — extract a
-  component (`PillButton`, `CodeChip`). Don't wait for a third copy.
-- Variants belong in a `Record<Variant, string>` of complete class strings.
-  Never assemble one from fragments: Tailwind only generates what it can
-  read whole in the source.
-- Don't repeat a background a parent already paints. A child with none
-  shows the ancestor's.
-- Mobile-first: unprefixed base, then `sm:`/`md:` to widen.
-- No inline `style` for anything a utility covers.
-
-## Testing
-
-- Test observable behavior, not internals. A test should fail only when
-  something a caller cares about actually broke.
-- Prefer real collaborators; inject a seam (`fetchImpl`, a clock, a client)
-  rather than reaching for broad mocks.
-- Each test asserts one thing, with a name stating the expected behavior.
-- Cover the edges that matter: empty, malformed, expired, unreachable.
-- Never assert something that cannot fail, and avoid snapshots for logic.
-  Two ways this has slipped through: an assertion that cannot *observe*
-  what its name claims (`Node.contains` never crosses into an iframe's
-  document, so it cannot see what is inside the sandbox — assert on the
-  `srcdoc` string), and an assertion that is only true at compile time
-  (`node --test` strips types rather than checking them, so only
-  `npm run typecheck` ever sees it).
-- A new test must be able to fail while the tests beside it pass. If a
-  stronger assertion nearby already covers it, it is documentation — put it
-  in a comment, not a second run. This matters most where a test is
-  expensive: the smoke tests each launch a browser.
-- Fixtures come from `scripts/lib/testFixtures.ts` or
-  `src/lib/testFixtures.ts`. Never paste a manifest, config or history entry
-  into a second test file.
-- A test guarding an invariant must fail when that invariant is broken.
-  Check it by breaking the code on purpose, not by reading the test.
-- Tests live in a `__tests__/` directory beside the code they cover, so a
-  source directory lists only source. Test-only helpers and mock data keep
-  their `test`-prefixed camelCase name (`testFixtures.ts`) and stay *out* of
-  `__tests__/`, beside the code instead — they are imported by tests in
-  several directories.
-
-  Keep the `.test.ts`/`.test.tsx` suffix on every test file. `test:node` is
-  a bare `node --test` with no glob, so discovery is Node's default: it
-  matches the suffix at any depth, but would silently skip a file renamed to
-  `testFoo.ts` — a green run with the tests quietly gone. The `test` prefix
-  must never be hyphenated (`test-foo.ts`) for the mirror-image reason: Node
-  claims that pattern and would run a helper as a suite.
-- Two runners, split by what the code needs:
-  `*.test.tsx` under **Vitest + jsdom** (rendering, hooks, interaction) and
-  `*.test.ts` under **`node --test`** (pure logic and the Node pipeline).
-  The patterns are disjoint, so nothing runs twice — keep them that way.
-  Node cannot load `.tsx` at all: its type stripping does not transform JSX.
-- Query by role or visible text, not by test id or class name.
 
 ## Comments
 
