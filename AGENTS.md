@@ -4,13 +4,8 @@ This file provides guidance to AI when working with code in this repository.
 
 ## Git
 
-- Never run `git add`, `git commit`, or `git push`. The repo owner reviews
-  and commits every change by hand.
+- Never run `git add`, `git commit`, or `git push` unless given explicit permission by the repo owner.
 - Ignore global rule to load skills/conventional-commits for this codebase only.
-- When a unit of work is done, work the checklist below, then run a code
-  review subagent, fix what it finds, and hand the tree back. The review is
-  a backstop — anything on that checklist it has to catch was a wasted
-  round trip.
 - Confirm before reconfiguring the GitHub remote or Pages, and before
   provisioning real OpenRouter or Sentry credentials.
 
