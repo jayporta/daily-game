@@ -143,9 +143,16 @@ export type HistoryGameEntry = PublishedEntry | FailedEntry;
 export interface PopularityEntry {
   /** The slug the game is served under, and the leaderboard's identity key. */
   slug: string;
-  /** The game's theme. Empty when the game reported none. */
+  /**
+   * The game's theme, as its history entry recorded it. Non-empty:
+   * {@link validateHistorySummary} rejects a blank one, since it is
+   * interpolated into the generation prompt as a remix suggestion.
+   */
   theme: string;
-  /** The game's mechanics joined with `', '`. Empty when the game listed none. */
+  /**
+   * The game's mechanics joined with `', '`. Non-empty, for the same reason
+   * {@link theme} is.
+   */
   mechanicsSummary: string;
   /** Likes less dislikes. Ties break by slug, so the ordering is stable. */
   popularityScore: number;
