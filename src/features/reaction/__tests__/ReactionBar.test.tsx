@@ -119,27 +119,6 @@ describe('ReactionBar', () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it('ticks every reason when the viewer picks all of the above', async () => {
-    render(<ReactionBar slug={SLUG} config={UNCONFIGURED} />);
-    await userEvent.click(dislike());
-
-    await userEvent.click(screen.getByRole('checkbox', { name: /all of the above/i }));
-
-    for (const reason of DISLIKE_REASONS) {
-      expect(screen.getByRole('checkbox', { name: reason.label })).toBeChecked();
-    }
-  });
-
-  it('unticks all of the above once a reason is cleared', async () => {
-    render(<ReactionBar slug={SLUG} config={UNCONFIGURED} />);
-    await userEvent.click(dislike());
-    await userEvent.click(screen.getByRole('checkbox', { name: /all of the above/i }));
-
-    await userEvent.click(screen.getByRole('checkbox', { name: DISLIKE_REASONS[0].label }));
-
-    expect(screen.getByRole('checkbox', { name: /all of the above/i })).not.toBeChecked();
-  });
-
   it('sends the chosen reasons with the dislike', async () => {
     const fetchImpl = okFetch();
     render(<ReactionBar slug={SLUG} config={CONFIGURED} fetchImpl={fetchImpl} />);

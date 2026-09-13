@@ -27,7 +27,6 @@ function inVocabularyOrder(chosen: readonly DislikeReason[]): readonly DislikeRe
  */
 export function DislikeReasons({ onSubmit }: DislikeReasonsProps) {
   const [chosen, setChosen] = useState<readonly DislikeReason[]>([]);
-  const allChosen = chosen.length === ALL_REASON_IDS.length;
 
   const toggle = (id: DislikeReason): void =>
     setChosen((previous) =>
@@ -48,15 +47,6 @@ export function DislikeReasons({ onSubmit }: DislikeReasonsProps) {
             />
           </li>
         ))}
-        {/* Set apart from the five: a convenience that ticks them all, not a
-            sixth reason. What gets stored is always the concrete set. */}
-        <li className="mt-2 border-t border-hairline pt-2 dark:border-slate-800">
-          <CheckboxRow
-            label="All of the above"
-            checked={allChosen}
-            onToggle={() => setChosen(allChosen ? [] : ALL_REASON_IDS)}
-          />
-        </li>
       </ul>
 
       <div className="mt-3 flex gap-2">
