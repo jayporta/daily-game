@@ -174,7 +174,9 @@ async function readCountsRow(
   { slug, apiKey, fetchImpl = fetch, timeoutMs = REACTION_STORE_TIMEOUT_MS }: ReactionStoreParams,
   base: string,
 ): Promise<CountsRead> {
-  const url = `${base}?slug=eq.${encodeURIComponent(slug)}&select=*`;
+  const url = new URL(base);
+  url.searchParams.set('slug', `eq.${slug}`);
+  url.searchParams.set('select', '*');
 
   try {
     const response = await fetchImpl(url, {
