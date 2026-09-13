@@ -73,10 +73,6 @@ create policy "anon may insert one reaction"
 -- security definer is load-bearing: the count reads public.reactions, and the
 -- inserting key has no select policy, so an invoker-rights function would
 -- count zero every time and the limit would never fire.
---
--- The count is a snapshot, so inserts racing each other can each see room and
--- carry a window a few rows past the cap. The limit is a bound on the rate,
--- not an exact ceiling on the window.
 create or replace function public.reactions_rate_limit()
 returns trigger
 language plpgsql
@@ -84,11 +80,25 @@ security definer
 set search_path = ''
 as $$
 begin
+  -- The policy above admits any column, not just the ones the page sends, so
+  -- a caller can supply its own created_at. Stamping it here is what makes
+  -- the window below mean anything: rows dated last year would otherwise
+  -- never be counted and the cap would never fire.
+  new.created_at := now();
+
+  -- Serialises inserts for one slug. Without it each concurrent transaction
+  -- counts the same committed rows, every one of them finds room, and a burst
+  -- lands in full however low the cap. Released when the transaction ends.
+  perform pg_advisory_xact_lock(hashtext(new.slug)::bigint);
+
   if (
     select count(*)
       from public.reactions
      where slug = new.slug
        and created_at > now() - interval '1 minute'
+       -- Rows stamped in the future predate this trigger and would otherwise
+       -- sit in every window from now on, closing the slug permanently.
+       and created_at <= now()
   ) >= ${MAX_INSERTS_PER_SLUG_PER_MINUTE} then
     raise exception 'too many reactions for % in one minute', new.slug
       using errcode = 'check_violation';

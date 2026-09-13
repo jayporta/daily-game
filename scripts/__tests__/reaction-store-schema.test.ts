@@ -69,3 +69,22 @@ test('the rate limit reads rows the inserting key cannot select', () => {
     /create or replace function public\.reactions_rate_limit[\s\S]*?security definer/,
   );
 });
+
+// The insert policy admits any column, not only the ones the page sends, so a
+// caller can supply its own created_at. Rows dated last year would sit outside
+// every window the limit counts, and the cap would never fire.
+test('the rate limit stamps the insert time rather than trusting the row', () => {
+  assert.match(buildReactionStoreDdl(), /new\.created_at := now\(\)/);
+});
+
+// Without serialisation each concurrent transaction counts the same committed
+// rows, all of them find room, and a burst lands in full however low the cap.
+test('the rate limit serialises inserts for one slug', () => {
+  assert.match(buildReactionStoreDdl(), /pg_advisory_xact_lock\(hashtext\(new\.slug\)/);
+});
+
+// A row stamped in the future predates the trigger, and counting it would keep
+// it in every window from then on, closing that slug for good.
+test('the rate limit ignores rows dated in the future', () => {
+  assert.match(buildReactionStoreDdl(), /created_at <= now\(\)/);
+});
