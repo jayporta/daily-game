@@ -13,13 +13,21 @@
 import { pathToFileURL } from 'node:url';
 import { DISLIKE_REASONS, REACTION_KINDS, SLUG_PATTERN } from '#lib/reaction-types.ts';
 
+/**
+ * Rows one slug may collect in a minute before the store refuses further
+ * inserts. Generous for a hobby site: it bounds abuse without capping a
+ * genuinely popular day.
+ */
+export const MAX_INSERTS_PER_SLUG_PER_MINUTE = 60;
+
 /** Renders `['a', 'b']` as the SQL literal list `'a','b'`. */
 function sqlList(values: readonly string[]): string {
   return values.map((value) => `'${value.replaceAll("'", "''")}'`).join(',');
 }
 
 /**
- * DDL for the reaction table, its constraints and its RLS policy.
+ * DDL for the reaction table, its constraints, its RLS policy and the trigger
+ * that rate-limits inserts.
  *
  * The `anon` key ships in the page, so anyone who loads the site can post
  * to this table. These constraints — not the checks in the browser — are
@@ -44,7 +52,10 @@ create table public.reactions (
               check (cardinality(reasons) <= ${reasons.length})
 );
 
-create index reactions_slug_idx on public.reactions (slug);
+-- The leading column still serves slug lookups; created_at bounds the rate
+-- limit's count to the rows inside its window rather than every row the slug
+-- has ever collected.
+create index reactions_slug_created_at_idx on public.reactions (slug, created_at);
 
 alter table public.reactions enable row level security;
 
@@ -54,6 +65,41 @@ alter table public.reactions enable row level security;
 -- array, not an error.
 create policy "anon may insert one reaction"
   on public.reactions for insert to anon with check (true);
+
+-- That policy admits any row, so this is what bounds how fast one game can
+-- collect them. The tally already tolerates junk, so the limit is abuse
+-- resistance, not correctness.
+--
+-- security definer is load-bearing: the count reads public.reactions, and the
+-- inserting key has no select policy, so an invoker-rights function would
+-- count zero every time and the limit would never fire.
+--
+-- The count is a snapshot, so inserts racing each other can each see room and
+-- carry a window a few rows past the cap. The limit is a bound on the rate,
+-- not an exact ceiling on the window.
+create or replace function public.reactions_rate_limit()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if (
+    select count(*)
+      from public.reactions
+     where slug = new.slug
+       and created_at > now() - interval '1 minute'
+  ) >= ${MAX_INSERTS_PER_SLUG_PER_MINUTE} then
+    raise exception 'too many reactions for % in one minute', new.slug
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger reactions_rate_limit
+  before insert on public.reactions
+  for each row execute function public.reactions_rate_limit();
 `;
 }
 

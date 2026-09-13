@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { DISLIKE_REASONS, REACTION_KINDS, SLUG_PATTERN } from '#lib/reaction-types.ts';
-import { buildReactionStoreDdl } from '#scripts/reaction-store-schema.ts';
+import {
+  buildReactionStoreDdl,
+  MAX_INSERTS_PER_SLUG_PER_MINUTE,
+} from '#scripts/reaction-store-schema.ts';
 
 test('the schema allows every reason the app can send', () => {
   const ddl = buildReactionStoreDdl();
@@ -46,4 +49,23 @@ test('the schema grants the public key insert and no other verb', () => {
   const policyVerbs = [...ddl.matchAll(/for (\w+) to anon/g)].map((match) => match[1]);
 
   assert.deepEqual(policyVerbs, ['insert']);
+});
+
+// The insert policy admits any row, so nothing above this bounds how fast one
+// game can collect them. Only a before-insert trigger can refuse the row.
+test('the schema refuses inserts once a slug hits the rate limit in a minute', () => {
+  const ddl = buildReactionStoreDdl();
+
+  assert.match(ddl, /create trigger \w+\s+before insert on public\.reactions/);
+  assert.ok(ddl.includes(`>= ${MAX_INSERTS_PER_SLUG_PER_MINUTE} then`));
+});
+
+// The limit counts existing rows for the slug, and the inserting key has no
+// select policy. Under invoker rights that count is zero however many rows
+// exist, so the trigger would install cleanly and never once fire.
+test('the rate limit reads rows the inserting key cannot select', () => {
+  assert.match(
+    buildReactionStoreDdl(),
+    /create or replace function public\.reactions_rate_limit[\s\S]*?security definer/,
+  );
 });
