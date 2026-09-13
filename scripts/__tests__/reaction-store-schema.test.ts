@@ -102,3 +102,27 @@ test('the rate limit serialises inserts for one slug', () => {
 test('the rate limit ignores rows dated in the future', () => {
   assert.match(buildReactionStoreDdl(), /created_at <= now\(\)/);
 });
+
+// The pipeline reads one aggregated row per game rather than every row, so the
+// view has to carry a column for every reason the app can send.
+test('the view exposes a column for every reason the app can send', () => {
+  const ddl = buildReactionStoreDdl();
+
+  for (const reason of DISLIKE_REASONS) {
+    assert.ok(ddl.includes(`as "${reason.id}"`), `${reason.id} has no column in the view`);
+  }
+});
+
+// A view runs with its owner's rights by default, which would read the table
+// past the row level security that is the only thing keeping the key shipped
+// in the page from selecting rows.
+test('the view defers to the querying role rather than its owner', () => {
+  assert.match(
+    buildReactionStoreDdl(),
+    /create view public\.reaction_counts[\s\S]*?security_invoker = on/,
+  );
+});
+
+test('the view grants the public key nothing', () => {
+  assert.match(buildReactionStoreDdl(), /revoke all on public\.reaction_counts from anon/);
+});

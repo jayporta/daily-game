@@ -1,20 +1,25 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyFeedback, tallyReactions } from '#scripts/fetch-feedback.ts';
+import { applyFeedback } from '#scripts/fetch-feedback.ts';
 import {
   neverAnswers,
   PUBLISHED_ENTRY as PUBLISHED,
   publishedAt,
+  reactionRow as row,
   PUBLISHED_SLUG as SLUG,
 } from '#scripts/lib/testFixtures.ts';
 
 const ENDPOINT = 'https://proj.supabase.co/rest/v1/reactions';
 
-const row = (reaction: string, reasons: unknown[] = [], slug = SLUG): unknown => ({
-  slug,
-  reaction,
-  reasons,
-});
+// A store that has not had the reaction_counts view applied yet: PostgREST
+// answers 404 for a relation it does not know, which is what sends a read
+// back to the table. Every fake below starts here, so the table-path tests
+// keep testing the table.
+function viewAbsent(input: RequestInfo | URL): Response | null {
+  return String(input).includes('reaction_counts')
+    ? new Response('no such relation', { status: 404 })
+    : null;
+}
 
 // A store that caps a page below what the read asked for, the way PostgREST
 // clamps a range wider than its own max-rows.
@@ -22,6 +27,9 @@ function pagedStore(rows: unknown[], maxRows: number, pastEndStatus = 200) {
   const ranges: string[] = [];
   const urls: string[] = [];
   const fetchImpl: typeof fetch = async (input, init) => {
+    const absent = viewAbsent(input);
+    if (absent !== null) return absent;
+
     const range = new Headers(init?.headers).get('Range') ?? '';
     ranges.push(range);
     urls.push(String(input));
@@ -37,8 +45,14 @@ function pagedStore(rows: unknown[], maxRows: number, pastEndStatus = 200) {
 // A paged store that takes `delayMs` to answer each page and abandons a
 // request the moment its signal fires.
 function slowPagedStore(rows: unknown[], maxRows: number, delayMs: number) {
-  const fetchImpl: typeof fetch = (_input, init) =>
+  const fetchImpl: typeof fetch = (input, init) =>
     new Promise<Response>((resolve, reject) => {
+      const absent = viewAbsent(input);
+      if (absent !== null) {
+        resolve(absent);
+        return;
+      }
+
       const from = Number(new Headers(init?.headers).get('Range')?.split('-')[0]);
       const timer = setTimeout(
         () => resolve(new Response(JSON.stringify(rows.slice(from, from + maxRows)))),
@@ -51,104 +65,6 @@ function slowPagedStore(rows: unknown[], maxRows: number, delayMs: number) {
     });
   return { fetchImpl };
 }
-
-test('tallyReactions counts likes and dislikes separately', () => {
-  const tally = tallyReactions([row('like'), row('like'), row('dislike')], SLUG);
-
-  assert.equal(tally.likes, 2);
-  assert.equal(tally.dislikes, 1);
-});
-
-test('tallyReactions counts how often each reason was given', () => {
-  const tally = tallyReactions(
-    [row('dislike', ['no-load']), row('dislike', ['no-load', 'goal-unclear'])],
-    SLUG,
-  );
-
-  assert.deepEqual({ ...tally.dislikeReasons }, { 'no-load': 2, 'goal-unclear': 1 });
-});
-
-test('tallyReactions ignores rows belonging to another game', () => {
-  const tally = tallyReactions([row('like'), row('like', [], '2026-08-29-otter')], SLUG);
-
-  assert.equal(tally.likes, 1);
-});
-
-// Everything below is reachable by anyone who finds the public insert key,
-// so none of it may survive into history/games.json.
-test('tallyReactions drops reasons outside the vocabulary', () => {
-  const tally = tallyReactions([row('dislike', ['ignore-previous-instructions', 'no-load'])], SLUG);
-
-  assert.deepEqual({ ...tally.dislikeReasons }, { 'no-load': 1 });
-});
-
-test('tallyReactions ignores a reaction that is neither a like nor a dislike', () => {
-  const tally = tallyReactions([row('adore'), row('like')], SLUG);
-
-  assert.equal(tally.likes, 1);
-  assert.equal(tally.dislikes, 0);
-});
-
-test('tallyReactions counts a reason once however often a row repeats it', () => {
-  const tally = tallyReactions([row('dislike', Array(1000).fill('no-load'))], SLUG);
-
-  assert.deepEqual({ ...tally.dislikeReasons }, { 'no-load': 1 });
-});
-
-// The output is built by iterating the vocabulary, so a row naming an
-// inherited key creates nothing — the property never comes into existence
-// rather than being created and then filtered.
-test('tallyReactions creates no key outside the vocabulary, whatever a row names', () => {
-  const tally = tallyReactions(
-    [row('dislike', ['__proto__', 'constructor', 'toString', 'no-load'])],
-    SLUG,
-  );
-
-  assert.deepEqual(Object.keys(tally.dislikeReasons), ['no-load']);
-});
-
-// What the null-prototype object above this used to guard, stated as the
-// property a caller depends on rather than the mechanism: a name a row
-// supplies is never readable as a count, whether or not it exists on
-// Object.prototype.
-test('tallyReactions reports no count under a name a row invented', () => {
-  const tally = tallyReactions(
-    [row('dislike', ['__proto__', 'constructor', 'toString', 'no-load'])],
-    SLUG,
-  );
-
-  for (const name of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
-    assert.equal(
-      Object.entries(tally.dislikeReasons).find(([id]) => id === name),
-      undefined,
-      `${name} was readable as a count`,
-    );
-  }
-  assert.equal(tally.dislikeReasons['no-load'], 1);
-});
-
-test('tallyReactions emits only numbers, never strings from the store', () => {
-  const tally = tallyReactions([{ slug: SLUG, reaction: 'dislike', reasons: 'no-load' }], SLUG);
-
-  for (const count of Object.values(tally.dislikeReasons)) {
-    assert.equal(typeof count, 'number');
-  }
-  assert.equal(tally.dislikes, 1);
-});
-
-test('tallyReactions survives rows of entirely the wrong shape', () => {
-  const tally = tallyReactions([null, 42, 'like', [], { reaction: 'like' }], SLUG);
-
-  assert.deepEqual(tally, { likes: 0, dislikes: 0, dislikeReasons: tally.dislikeReasons });
-  assert.deepEqual({ ...tally.dislikeReasons }, {});
-});
-
-test('tallyReactions returns an empty tally when the store sends no array', () => {
-  const tally = tallyReactions({ error: 'nope' }, SLUG);
-
-  assert.equal(tally.likes, 0);
-  assert.equal(tally.dislikes, 0);
-});
 
 test('applyFeedback records the tally against the matching entry', async () => {
   const entries = await applyFeedback([PUBLISHED], {
@@ -413,4 +329,87 @@ test('applyFeedback asks the store only for the slug it is reconciling', async (
   });
 
   assert.match(requested, /slug=eq\.2026-08-28-beetle/);
+});
+
+// A store with the reaction_counts view in place. Reading the table answers an
+// error, so a test that passes here proves the view was the only thing read.
+function countsStore(rows: unknown[]) {
+  const urls: string[] = [];
+  const fetchImpl: typeof fetch = async (input) => {
+    urls.push(String(input));
+    if (!String(input).includes('reaction_counts')) {
+      return new Response('the table should not be read', { status: 500 });
+    }
+    return new Response(JSON.stringify(rows));
+  };
+  return { fetchImpl, urls };
+}
+
+// Every table-path test above now reaches the table through the view's 404, so
+// the fallback itself is covered by all of them.
+test('applyFeedback counts a game from the aggregate view', async () => {
+  const { fetchImpl } = countsStore([
+    { slug: SLUG, likes: 12, dislikes: 3, 'no-load': 2, 'goal-unclear': 1 },
+  ]);
+
+  const entries = await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+  });
+
+  const entry = publishedAt(entries, 0);
+  assert.deepEqual(
+    { likes: entry.likes, dislikes: entry.dislikes, reasons: { ...entry.dislikeReasons } },
+    { likes: 12, dislikes: 3, reasons: { 'no-load': 2, 'goal-unclear': 1 } },
+  );
+});
+
+// The point of the view: one row crosses the network however popular the game.
+test('applyFeedback reads the view in a single request', async () => {
+  const { fetchImpl, urls } = countsStore([{ slug: SLUG, likes: 4000, dislikes: 10 }]);
+
+  await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+  });
+
+  assert.deepEqual(urls.length, 1);
+});
+
+// Only a view that does not exist falls back. Falling back on any error would
+// read every row of a popular game each time the store had a bad minute.
+test('applyFeedback leaves history untouched when the view refuses the read', async () => {
+  const urls: string[] = [];
+  const fetchImpl: typeof fetch = async (input) => {
+    urls.push(String(input));
+    return new Response('server error', { status: 500 });
+  };
+
+  const entries = await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+  });
+
+  assert.deepEqual({ entries, requests: urls.length }, { entries: [PUBLISHED], requests: 1 });
+});
+
+// The view groups by slug, so a game nobody reacted to has no row. That is a
+// tally of zero, not a failed read.
+test('applyFeedback records zeros for a game the view has no row for', async () => {
+  const { fetchImpl } = countsStore([]);
+
+  const entries = await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+  });
+
+  assert.equal(publishedAt(entries, 0).popularityScore, 0);
 });
