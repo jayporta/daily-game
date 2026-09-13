@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { stripAttemptFeedback } from '#lib/attempt-feedback.ts';
-import { extractBundle } from '#lib/extract-bundle-shared.ts';
+import { extractBundle, toGeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import {
   buildPrompt,
   correctiveDirectives,
@@ -312,12 +312,7 @@ test('isPlaceholderMeta rejects the contract example verbatim, with a real genre
   const example = /^\{.*\}$/m.exec(OUTPUT_FORMAT_CONTRACT)?.[0] ?? '';
   assert.notEqual(example, '', 'contract should show an example meta object');
 
-  const parsed = JSON.parse(example) as {
-    title: string;
-    theme: string;
-    mechanics: string[];
-    controls: { action: string; key: string }[];
-  };
+  const parsed = toGeneratedMeta(JSON.parse(example));
 
   assert.equal(isPlaceholderMeta({ ...parsed, genre: 'maze-adventure' }), true);
 });
