@@ -331,6 +331,12 @@ export function publish({
  *   parallel to it by index. These are what the next generation's prompt
  *   reads directly; `reasons` embed console output from AI-written games and
  *   reach a prompt only by way of the reflection note.
+ * @param attemptModels The model each attempt used, parallel to `kinds` by
+ *   index — what `check-models.ts` reads to tell a model that is failing
+ *   from one that merely rotated in once.
+ * @param quotaAffected Set when any attempt — not necessarily every one —
+ *   was refused for provider capacity, so `check-models.ts` can skip the
+ *   whole day rather than blame a model for the account's own cap.
  */
 export function recordFailure({
   date,
@@ -338,7 +344,9 @@ export function recordFailure({
   attempts,
   reasons,
   kinds,
+  attemptModels,
   quotaExhausted = false,
+  quotaAffected = false,
   historyEntries,
   root,
 }: {
@@ -347,12 +355,20 @@ export function recordFailure({
   attempts: number;
   reasons: readonly string[];
   kinds: readonly FailureKind[];
+  attemptModels?: readonly string[];
   /** Set when every attempt failed on provider capacity. Omitted when false. */
   quotaExhausted?: boolean;
+  /** Set when any attempt failed on provider capacity. Omitted when false. */
+  quotaAffected?: boolean;
   historyEntries: HistoryGameEntry[];
   root?: string;
 }): HistoryGameEntry[] {
   const paths = root ? createPaths(root) : defaultPaths;
+  if (attemptModels !== undefined && attemptModels.length !== kinds.length) {
+    throw new Error(
+      `attemptModels (${attemptModels.length}) must be parallel to kinds (${kinds.length})`,
+    );
+  }
   const updatedEntries = appendEntry(historyEntries, {
     date,
     status: 'failed_kept_previous',
@@ -360,7 +376,9 @@ export function recordFailure({
     attempts,
     failureReasons: reasons.map((reason) => reason.slice(0, MAX_FAILURE_REASON_LENGTH)),
     failureKinds: [...kinds],
+    ...(attemptModels === undefined ? {} : { attemptModels: [...attemptModels] }),
     ...(quotaExhausted ? { quotaExhausted: true } : {}),
+    ...(quotaAffected ? { quotaAffected: true } : {}),
   });
   writeGamesJson(paths.historyGames, updatedEntries);
   writeGamesMd(paths.historyGamesMd, updatedEntries);

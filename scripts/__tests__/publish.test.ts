@@ -397,6 +397,62 @@ test('recordFailure stores the closed-vocabulary kinds beside the prose', (t) =>
   assert.deepEqual(failedAt(entries, 0).failureKinds, ['smoke-network', 'moderation']);
 });
 
+test('recordFailure stores attemptModels beside the kinds it is parallel to', (t) => {
+  const root = scratchRoot(t);
+
+  const entries = recordFailure({
+    date: '2026-08-29',
+    model: 'b/model:free',
+    attempts: 2,
+    reasons: ['attempt 1 (a/model:free): smoke', 'attempt 2 (b/model:free): moderation'],
+    kinds: ['smoke-network', 'moderation'],
+    attemptModels: ['a/model:free', 'b/model:free'],
+    historyEntries: [],
+    root,
+  });
+
+  assert.deepEqual(failedAt(entries, 0).attemptModels, ['a/model:free', 'b/model:free']);
+});
+
+// modelReliability() reads failureKinds and attemptModels as one pair by
+// index; a mismatch would attribute a failure to the wrong model or to none.
+test('recordFailure refuses attemptModels that is not parallel to kinds', (t) => {
+  const root = scratchRoot(t);
+
+  assert.throws(
+    () =>
+      recordFailure({
+        date: '2026-08-29',
+        model: 'a/model:free',
+        attempts: 2,
+        reasons: ['attempt 1: smoke', 'attempt 2: moderation'],
+        kinds: ['smoke-network', 'moderation'],
+        attemptModels: ['a/model:free'],
+        historyEntries: [],
+        root,
+      }),
+    /attemptModels \(1\) must be parallel to kinds \(2\)/,
+  );
+});
+
+// Absent rather than an empty array, so an entry from before this field
+// existed does not read as a run where nothing was attempted.
+test('recordFailure omits attemptModels when the caller does not pass any', (t) => {
+  const root = scratchRoot(t);
+
+  const entries = recordFailure({
+    date: '2026-08-29',
+    model: 'a/model:free',
+    attempts: 1,
+    reasons: ['attempt 1: smoke test failed'],
+    kinds: ['smoke-js-error'],
+    historyEntries: [],
+    root,
+  });
+
+  assert.equal('attemptModels' in failedAt(entries, 0), false);
+});
+
 test('recordFailure marks a quota-exhausted run on disk', (t) => {
   const root = scratchRoot(t);
 

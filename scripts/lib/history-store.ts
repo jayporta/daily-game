@@ -38,6 +38,7 @@ export const FAILURE_KINDS = [
   'generation-call',
   'extract',
   'unknown-genre',
+  'placeholder-meta',
   'moderation',
   'moderation-unreachable',
   'smoke-js-error',
@@ -116,6 +117,15 @@ export interface FailedEntry extends HistoryEntryCommon {
    */
   readonly failureKinds: FailureKind[];
   /**
+   * The model id each attempt used, parallel to `failureKinds` by index.
+   *
+   * Absent on entries written before it was recorded. Lets `check-models.ts`
+   * tell a model that is failing from one that merely rotated in once —
+   * without it, the only per-model record is embedded in `failureReasons`'
+   * prose, which this file's own writers never parse back out.
+   */
+  readonly attemptModels?: string[];
+  /**
    * Whether every attempt failed because the provider had no capacity left.
    *
    * Deliberately not a {@link FAILURE_KINDS} member: that vocabulary exists so
@@ -123,6 +133,17 @@ export interface FailedEntry extends HistoryEntryCommon {
    * and there is nothing a model can do about an account-level quota.
    */
   readonly quotaExhausted?: boolean;
+  /**
+   * Whether any attempt — not necessarily every one — was refused for
+   * provider capacity.
+   *
+   * A superset of `quotaExhausted`: absent or `false` only when no attempt
+   * hit the provider's cap. `check-models.ts`'s reliability tally skips a day
+   * this flags entirely, so a model that happened to run out a mixed-failure
+   * day on a capacity refusal is not blamed for it as a `generation-call`
+   * failure the way `quotaExhausted` alone (all-or-nothing) would miss.
+   */
+  readonly quotaAffected?: boolean;
 }
 
 /**
@@ -273,6 +294,21 @@ function historyGameEntryErrors(value: unknown): string[] {
         ),
       `failureKinds must be an array of: ${FAILURE_KINDS.join(', ')}`,
     );
+    // Read by index alongside failureKinds — modelReliability() would
+    // otherwise pair an attempt's failure with the wrong model, or with
+    // none at all.
+    optional(
+      value.attemptModels,
+      isStringArray(value.attemptModels),
+      'attemptModels must be an array of strings',
+    );
+    if (value.attemptModels !== undefined && Array.isArray(value.failureKinds)) {
+      required(
+        !isStringArray(value.attemptModels) ||
+          value.attemptModels.length === value.failureKinds.length,
+        'attemptModels must have the same length as failureKinds',
+      );
+    }
   }
 
   optional(value.errors, isStringArray(value.errors), 'errors must be an array of strings');
@@ -293,6 +329,11 @@ function historyGameEntryErrors(value: unknown): string[] {
     value.quotaExhausted,
     typeof value.quotaExhausted === 'boolean',
     'quotaExhausted must be a boolean',
+  );
+  optional(
+    value.quotaAffected,
+    typeof value.quotaAffected === 'boolean',
+    'quotaAffected must be a boolean',
   );
   optional(
     value.dislikeReasons,

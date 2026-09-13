@@ -11,7 +11,7 @@ import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import { EXTRACTION_RETRY_FEEDBACK, extractBundle } from '#lib/extract-bundle-shared.ts';
 import type { ProviderStopReason } from '#lib/provider-response.ts';
 import { SYSTEM_PROMPT } from '#lib/system-prompt.ts';
-import { buildPrompt, selectRemixSuggestion } from '#scripts/build-prompt.ts';
+import { buildPrompt, isPlaceholderMeta, selectRemixSuggestion } from '#scripts/build-prompt.ts';
 import type { GenerationConfig } from '#scripts/lib/config/generation.ts';
 import type { GenresConfig } from '#scripts/lib/config/genres.ts';
 import type { ModelsConfig } from '#scripts/lib/config/models.ts';
@@ -60,12 +60,25 @@ export type GenerateResult =
       reasons: string[];
       /** The same failures as `reasons`, as closed-vocabulary ids. */
       kinds: FailureKind[];
+      /** The model each attempt used, parallel to `kinds` by index. */
+      attemptModels: string[];
       model: string;
       /**
        * Whether every attempt failed because the provider had no capacity
        * left, which is the one failure no retry and no other model can fix.
        */
       quotaExhausted: boolean;
+      /**
+       * Whether any attempt — not necessarily every one — was refused for
+       * provider capacity.
+       *
+       * A superset of `quotaExhausted`: true whenever that is, and also true
+       * on a day that failed for mixed reasons. `check-models.ts` skips a day
+       * this flags entirely rather than only the exhausted case, so a model
+       * that merely happened to run out the rotation's clock on a quota
+       * refusal is not blamed for it as a `generation-call` failure.
+       */
+      quotaAffected: boolean;
     };
 
 /**
@@ -188,6 +201,24 @@ async function runAttempt({
     };
   }
 
+  // The rest of the metadata has no fixed vocabulary, so it is checked here
+  // for the literal example text instead. A model can pair a real genre id
+  // with an otherwise-unfilled example — and a game that paints a static
+  // overlay still passes the smoke test's render check — so this is what
+  // catches it.
+  if (isPlaceholderMeta(extracted.meta)) {
+    return {
+      ok: false,
+      kind: 'placeholder-meta',
+      reason: "echoed the output format's placeholder metadata instead of describing the game",
+      feedback:
+        'Your previous game left the output format\'s example values ("...") in the json ' +
+        'block. Every field — title, theme, mechanics, controls — must describe the real ' +
+        'game you built, not the example.',
+      quota: false,
+    };
+  }
+
   log('Running moderation...');
   const moderation = await moderate(client, {
     meta: extracted.meta,
@@ -269,6 +300,7 @@ export async function generateDailyGame({
 }: GenerateDailyGameParams): Promise<GenerateResult> {
   const reasons: string[] = [];
   const kinds: FailureKind[] = [];
+  const attemptModels: string[] = [];
   // Compared against the attempt total below: a run counts as quota-exhausted
   // only when no attempt failed for any other reason.
   let quotaFailures = 0;
@@ -331,6 +363,7 @@ export async function generateDailyGame({
     log(`[Attempt ${attempt}] ${reason}`);
     reasons.push(reason);
     kinds.push(outcome.kind);
+    attemptModels.push(model);
     if (outcome.quota) quotaFailures += 1;
     priorFailureFeedback = outcome.feedback;
     model = nextModelAfterFailure(modelsConfig, model, forceModel);
@@ -341,8 +374,10 @@ export async function generateDailyGame({
     attempts: maxAttempts,
     reasons,
     kinds,
+    attemptModels,
     model,
     quotaExhausted: quotaFailures === maxAttempts,
+    quotaAffected: quotaFailures > 0,
   };
 }
 

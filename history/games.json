@@ -256,16 +256,8 @@
   },
   {
     "date": "2026-09-12",
-    "status": "published",
+    "status": "failed_kept_previous",
     "model": "nvidia/nemotron-3.5-lightning:free",
-    "slug": "2026-09-12-untitled",
-    "genre": "racing",
-    "theme": "...",
-    "mechanics": [
-      "...",
-      "..."
-    ],
-    "title": "...",
     "attempts": 1,
     "canvasDrawn": false,
     "likes": 0,

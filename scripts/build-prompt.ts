@@ -3,6 +3,7 @@
 // games, guardrails and output format is decided here.
 
 import { renderAttemptFeedback } from '#lib/attempt-feedback.ts';
+import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import { type DislikeReason, isDislikeReason } from '#lib/reaction-types.ts';
 import type { GenreEntry, GenresConfig } from '#scripts/lib/config/genres.ts';
 import { MS_PER_DAY } from '#scripts/lib/dates.ts';
@@ -41,6 +42,36 @@ using whatever control scheme you chose — \`action\` describes what it does in
 your game, \`key\` is what the player presses, clicks or drags. List only
 inputs the code really handles, and return an empty array if the game needs
 none.`;
+
+/** The literal placeholder text used by every field in {@link OUTPUT_FORMAT_CONTRACT}'s example. */
+const PLACEHOLDER_TEXT = '...';
+
+/**
+ * Whether the model left the output contract's own example values in place
+ * instead of describing the game it wrote.
+ *
+ * @remarks
+ * `genre` is checked separately, against the catalogue — this covers the
+ * fields with no fixed vocabulary, so a response that fills in a real genre
+ * but leaves every other field as `"..."` still fails. A model can pair a
+ * real genre with a game that otherwise paints something (a static score
+ * overlay, say), which passes the smoke test's render check while every
+ * other field is still the unfilled example — this is the metadata-side
+ * check that catches that case.
+ *
+ * @param meta - The extracted metadata to check.
+ */
+export function isPlaceholderMeta(meta: GeneratedMeta): boolean {
+  return (
+    meta.title.trim() === PLACEHOLDER_TEXT ||
+    meta.theme.trim() === PLACEHOLDER_TEXT ||
+    meta.mechanics.some((mechanic) => mechanic.trim() === PLACEHOLDER_TEXT) ||
+    meta.controls.some(
+      (control) =>
+        control.action.trim() === PLACEHOLDER_TEXT || control.key.trim() === PLACEHOLDER_TEXT,
+    )
+  );
+}
 
 /**
  * How the finished game is presented, which the model has no other way to
@@ -286,6 +317,10 @@ const FAILURE_DIRECTIVES: Record<FailureKind, string | null> = {
   'unknown-genre':
     'Recent attempts named a genre that is not in the catalogue. Copy one of the genre ids ' +
     'listed above into the json block exactly, and do not invent one or leave the example in.',
+  'placeholder-meta':
+    'Recent attempts left the output format\'s example values ("...") in the json block ' +
+    'instead of describing the game actually built. Every field — title, theme, mechanics, ' +
+    'controls — must describe your real game, not the example.',
   moderation:
     'Recent attempts were rejected by the content rules. Re-read them and stay well ' +
     'clear of anything borderline.',

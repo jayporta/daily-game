@@ -9,6 +9,7 @@ import {
   DISPLAY_CONTRACT,
   digestHistory,
   formatGenreCatalog,
+  isPlaceholderMeta,
   OUTPUT_FORMAT_CONTRACT,
   recentlyUsedGenreIds,
   selectRemixSuggestion,
@@ -304,7 +305,76 @@ test('the contract example anchors the model to none of our own content', () => 
   assert.deepEqual([...new Set(leaves)], ['...']);
 });
 
-/** A published day with a given reception. */
+// Guards PLACEHOLDER_TEXT against drifting away from the contract's own
+// example: if the example's placeholder ever changes, this fails instead of
+// isPlaceholderMeta silently missing the model's own literal copy of it.
+test('isPlaceholderMeta rejects the contract example verbatim, with a real genre', () => {
+  const example = /^\{.*\}$/m.exec(OUTPUT_FORMAT_CONTRACT)?.[0] ?? '';
+  assert.notEqual(example, '', 'contract should show an example meta object');
+
+  const parsed = JSON.parse(example) as {
+    title: string;
+    theme: string;
+    mechanics: string[];
+    controls: { action: string; key: string }[];
+  };
+
+  assert.equal(isPlaceholderMeta({ ...parsed, genre: 'maze-adventure' }), true);
+});
+
+const REAL_META = {
+  title: 'Beetle of a Thousand Mirrors',
+  genre: 'maze-adventure',
+  theme: 'glass beetles navigating a mirrored maze',
+  mechanics: ['arrow-key movement', 'collect shards'],
+  controls: [{ action: 'Move', key: 'Arrow keys' }],
+};
+
+test('isPlaceholderMeta accepts a real, fully-described game', () => {
+  assert.equal(isPlaceholderMeta(REAL_META), false);
+});
+
+test('isPlaceholderMeta rejects the contract example echoed verbatim, even with a real genre', () => {
+  // The exact shape that published a black-screen game on 2026-09-12: a
+  // valid genre paired with the example's placeholder everywhere else, which
+  // the genre check alone cannot catch.
+  assert.equal(
+    isPlaceholderMeta({
+      title: '...',
+      genre: 'racing',
+      theme: '...',
+      mechanics: ['...', '...'],
+      controls: [{ action: '...', key: '...' }],
+    }),
+    true,
+  );
+});
+
+test('isPlaceholderMeta rejects a placeholder title alone', () => {
+  assert.equal(isPlaceholderMeta({ ...REAL_META, title: '...' }), true);
+});
+
+test('isPlaceholderMeta rejects a placeholder theme alone', () => {
+  assert.equal(isPlaceholderMeta({ ...REAL_META, theme: '...' }), true);
+});
+
+test('isPlaceholderMeta rejects a placeholder mechanic among real ones', () => {
+  assert.equal(isPlaceholderMeta({ ...REAL_META, mechanics: ['arrow-key movement', '...'] }), true);
+});
+
+test('isPlaceholderMeta rejects a placeholder control among real ones', () => {
+  assert.equal(
+    isPlaceholderMeta({
+      ...REAL_META,
+      controls: [
+        { action: 'Move', key: 'Arrow keys' },
+        { action: '...', key: '...' },
+      ],
+    }),
+    true,
+  );
+});
+
 function received(date: string, over: Partial<PublishedEntry> = {}): PublishedEntry {
   return {
     date,
@@ -432,6 +502,22 @@ test('a recurring blank render tells the model to draw something', () => {
 
   assert.equal(directives.length, 1);
   assert.match(String(directives[0]), /showed nothing/);
+});
+
+test('a recurring placeholder-metadata failure tells the model to describe the real game', () => {
+  const placeholder: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 3,
+    failureReasons: [],
+    failureKinds: ['placeholder-meta', 'placeholder-meta'],
+  };
+
+  const directives = correctiveDirectives([placeholder]);
+
+  assert.equal(directives.length, 1);
+  assert.match(String(directives[0]), /example values/);
 });
 
 // Only ids from the closed vocabularies select wording, so nothing a visitor

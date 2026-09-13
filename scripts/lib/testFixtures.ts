@@ -115,7 +115,8 @@ export type FixtureName =
   | 'bad-js-error'
   | 'bad-fetch-attempt'
   | 'bad-guardrail-word'
-  | 'bad-malformed-blocks';
+  | 'bad-malformed-blocks'
+  | 'bad-placeholder-meta';
 
 /** Raw model-style response text, exactly as the mock client would return it. */
 export function loadFixture(name: FixtureName): string {

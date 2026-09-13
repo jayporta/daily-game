@@ -216,6 +216,40 @@ test('a genre outside the catalogue is rejected before moderation', async () => 
   assert.equal(moderated, false, 'a bundle this broken should not reach the moderator');
 });
 
+// The exact metadata that published a black-screen game on 2026-09-12: a
+// valid genre (so the genre check cannot catch it) with every other field
+// left as the output format's own placeholder, and an HTML block that shows
+// static text but whose script never runs (so the smoke test's
+// renderedSomething check cannot catch it either).
+test('placeholder metadata is rejected even when the genre is valid and the page renders text', async () => {
+  let moderated = false;
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) {
+        moderated = true;
+        return { text: 'PASS', stop: 'complete' };
+      }
+      return { text: loadFixture('bad-placeholder-meta'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.deepEqual(result.kinds, ['placeholder-meta', 'placeholder-meta', 'placeholder-meta']);
+  assert.equal(moderated, false, 'a bundle this broken should not reach the moderator');
+});
+
+test('retries after placeholder metadata and succeeds on the second attempt', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: scriptedClient([loadFixture('bad-placeholder-meta'), loadFixture('good-maze')]),
+  });
+
+  assert.equal(result.status, 'success');
+  assert.equal(result.attempts, 2);
+});
+
 test('a stand-in moderator answers when the dedicated one cannot be reached', async () => {
   const asked: string[] = [];
   const client: OpenRouterClient = {
@@ -363,6 +397,33 @@ test('tries every active model once before giving up', async () => {
     'd/model:free',
     'e/model:free',
   ]);
+});
+
+// The load-bearing detail: attemptModels[i] must be the model that MADE
+// attempt i, not the one rotated in for the next attempt. Comparing against
+// an independent record of which model answered each call is what would
+// catch attemptModels.push(model) landing on the wrong side of the
+// model-rotation line — a mismatch neither the parallel-length check in
+// recordFailure nor the validator can see, since both leave the length
+// alone.
+test('attemptModels records which model made each attempt, not the one rotated in next', async () => {
+  const modelsSeen: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+      modelsSeen.push(model);
+      return { text: loadFixture('bad-js-error'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({
+    ...baseParams(),
+    modelsConfig: WIDE_MODELS,
+    client,
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.deepEqual(result.attemptModels, modelsSeen);
 });
 
 test('a forced model still gives up after FORCED_MODEL_ATTEMPTS, however many models are active', async () => {

@@ -12,9 +12,6 @@ Generated automatically — do not edit by hand.
 
 ## 2026-09-12 — ...
 
-- genre: racing
-- theme: ...
-- mechanics: ..., ...
 - model: nvidia/nemotron-3.5-lightning:free
 - attempts: 1
 - reactions: 0
