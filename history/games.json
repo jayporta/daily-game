@@ -267,6 +267,34 @@
     ],
     "title": "...",
     "attempts": 1,
-    "canvasDrawn": false
+    "canvasDrawn": false,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-09-13",
+    "status": "failed_kept_previous",
+    "model": "cohere/north-mini-code:free",
+    "attempts": 7,
+    "failureReasons": [
+      "attempt 1 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content",
+      "attempt 2 (poolside/laguna-s-2.1:free): moderation call failed: OpenRouter stream carried no content",
+      "attempt 3 (nvidia/nemotron-3-super-120b-a12b:free): reported a genre that is not in the catalogue",
+      "attempt 4 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content",
+      "attempt 5 (inclusionai/ling-3.0-flash-fin:free): could not extract bundle — missing-meta-block (response truncated at the output cap)",
+      "attempt 6 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block",
+      "attempt 7 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream ended early: gave up after 540s"
+    ],
+    "failureKinds": [
+      "generation-call",
+      "moderation-unreachable",
+      "unknown-genre",
+      "generation-call",
+      "extract",
+      "extract",
+      "generation-call"
+    ]
   }
 ]
