@@ -182,6 +182,20 @@ export const GENERATION_CONFIG: GenerationConfig = {
 /** The published day's slug, named so a test can assert against it directly. */
 export const PUBLISHED_SLUG = '2026-08-28-beetle';
 
+/**
+ * One row as the reaction store returns it. Shared by the tally tests and the
+ * pipeline tests, which read the same rows from opposite ends.
+ *
+ * @param reaction Deliberately a plain string: the store is writable by anyone
+ *   who loads the page, so a test must be able to send a reaction outside the
+ *   vocabulary.
+ */
+export const reactionRow = (
+  reaction: string,
+  reasons: unknown[] = [],
+  slug = PUBLISHED_SLUG,
+): unknown => ({ slug, reaction, reasons });
+
 /** A day that published, as `publish.ts` records it. */
 export const PUBLISHED_ENTRY: PublishedEntry = {
   date: '2026-08-28',

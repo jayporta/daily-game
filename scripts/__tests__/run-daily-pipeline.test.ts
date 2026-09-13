@@ -115,9 +115,12 @@ test('the reaction store read follows the scratch root, not the committed config
   });
 
   assert.equal(requested.length, 1);
+  // The pipeline reads the aggregate view beside the configured table, so the
+  // relation differs; which deployment it came from is what this guards.
+  const scratchBase = SCRATCH_ENDPOINT.slice(0, SCRATCH_ENDPOINT.lastIndexOf('/') + 1);
   assert.ok(
-    requested[0]?.startsWith(`${SCRATCH_ENDPOINT}?`),
-    `expected a read of the scratch endpoint, got ${String(requested[0])}`,
+    requested[0]?.startsWith(scratchBase),
+    `expected a read of the scratch deployment, got ${String(requested[0])}`,
   );
 });
 
