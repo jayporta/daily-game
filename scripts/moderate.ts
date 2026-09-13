@@ -9,8 +9,8 @@
 import { errorMessage } from '#lib/errors.ts';
 import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import {
-  isQuotaFailure,
   type ChatMessage,
+  isQuotaFailure,
   type OpenRouterClient,
 } from '#scripts/lib/openrouter-client.ts';
 import { untrustedBlock } from '#scripts/lib/untrusted-block.ts';

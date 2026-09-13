@@ -7,8 +7,8 @@ import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
 import {
   OPENROUTER_TIMEOUT_MS,
-  OpenRouterHttpError,
   type OpenRouterClient,
+  OpenRouterHttpError,
 } from '#scripts/lib/openrouter-client.ts';
 import { loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
 import { closingTag } from '#scripts/lib/untrusted-block.ts';
