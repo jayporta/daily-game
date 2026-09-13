@@ -4,6 +4,12 @@ import { IconButton } from '@/shared_components/IconButton.tsx';
 
 const REVERTS_AFTER_MS = 2_000;
 
+/** Props for {@link CopyCodeButton}. */
+export interface CopyCodeButtonProps {
+  /** The text placed on the clipboard, copied whole. */
+  readonly code: string;
+}
+
 /**
  * Copies the source to the clipboard, confirming with a checkmark that
  * reverts on its own — no toast, no layout shift.
@@ -11,7 +17,7 @@ const REVERTS_AFTER_MS = 2_000;
  * A rejected `writeText` (permissions, an insecure context) is swallowed:
  * there is no recovery action to offer a visitor here beyond trying again.
  */
-export function CopyCodeButton({ code }: { code: string }) {
+export function CopyCodeButton({ code }: CopyCodeButtonProps) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {

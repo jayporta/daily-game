@@ -18,6 +18,8 @@ import { untrustedBlock } from '#scripts/lib/untrusted-block.ts';
  * on word boundaries, so `killTimer` and `manifest` do not trip `kill`
  * and `man`. Keep this list unambiguous: a term common in ordinary game
  * code (`player`, `shoot`, `hit`) belongs in the AI check, not here.
+ *
+ * ALLOW EXPORT FOR TESTING
  */
 export const BANNED_TERMS: readonly string[] = [
   // violence / gore
@@ -82,8 +84,11 @@ export const BANNED_TERMS: readonly string[] = [
   'torah',
 ];
 
+/** The outcome of the cheap pre-filter that runs before any model is asked. */
 export interface KeywordScanResult {
+  /** Whether the text is clear of every banned term. True when {@link hits} is empty. */
   pass: boolean;
+  /** The banned terms actually found, in list order. Safe to quote: these are our own words. */
   hits: string[];
 }
 
@@ -97,25 +102,30 @@ function escapeRegExp(term: string): string {
   return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function compileBannedTerms(terms: readonly string[]): readonly BannedTermPattern[] {
-  return terms.map((term) => ({
-    term,
-    pattern: new RegExp(`\\b${escapeRegExp(term)}\\b`, 'i'),
-  }));
-}
+// Built once, and every generated bundle is scanned against it. The patterns
+// must stay non-global: `test` on a /g/ regex advances lastIndex, so a reused
+// one would start mid-string on its next call.
+const BANNED_TERM_PATTERNS: readonly BannedTermPattern[] = BANNED_TERMS.map((term) => ({
+  term,
+  pattern: new RegExp(`\\b${escapeRegExp(term)}\\b`, 'i'),
+}));
 
-// Built once for the default list, which every generated bundle is scanned
-// against. The patterns must stay non-global: `test` on a /g/ regex advances
-// lastIndex, so a reused one would start mid-string on its next call.
-const BANNED_TERM_PATTERNS = compileBannedTerms(BANNED_TERMS);
-
-export function keywordScan(
-  text: string,
-  bannedTerms: readonly string[] = BANNED_TERMS,
-): KeywordScanResult {
-  const compiled =
-    bannedTerms === BANNED_TERMS ? BANNED_TERM_PATTERNS : compileBannedTerms(bannedTerms);
-  const hits = compiled.filter(({ pattern }) => pattern.test(text)).map(({ term }) => term);
+/**
+ * Scans text for banned terms, matching whole words case-insensitively.
+ *
+ * @remarks
+ * A deliberately blunt first pass. It catches the unambiguous cases without
+ * spending a model call, and its word-boundary matching means a term never
+ * fires inside a longer innocent word.
+ *
+ * @param text - Everything a reader would see; build it with {@link moderatableText}.
+ *
+ * @returns The verdict and the terms found.
+ */
+export function keywordScan(text: string): KeywordScanResult {
+  const hits = BANNED_TERM_PATTERNS.filter(({ pattern }) => pattern.test(text)).map(
+    ({ term }) => term,
+  );
   return { pass: hits.length === 0, hits };
 }
 
@@ -147,6 +157,14 @@ function describeMeta(meta: GeneratedMeta): string {
     .join('\n');
 }
 
+/**
+ * The system message every moderation call opens with.
+ *
+ * @remarks
+ * Doubles as the marker {@link isModerationRequest} looks for, so mocks can
+ * tell a moderation call from a generation call on the same client. Changing
+ * this string changes that detection.
+ */
 export const MODERATION_SYSTEM_PROMPT =
   'You are a strict content moderator. You answer with exactly one word: PASS or FAIL. ' +
   'If any rule is broken, or you are unsure, answer FAIL.';
@@ -160,6 +178,21 @@ export function isModerationRequest(messages: ChatMessage[]): boolean {
   return messages[0]?.content === MODERATION_SYSTEM_PROMPT;
 }
 
+/**
+ * Assembles the two-message moderation request.
+ *
+ * @remarks
+ * The metadata and the source are wrapped in {@link untrustedBlock} and
+ * labelled as content to inspect, because both were written by the model
+ * being judged and may contain instructions aimed at the moderator.
+ *
+ * @param guardrailsText - The rules to judge against, verbatim from `config/`.
+ * @param meta - The generated metadata, rendered as labelled lines.
+ * @param html - The complete generated bundle.
+ *
+ * @returns A system message of {@link MODERATION_SYSTEM_PROMPT} followed by
+ * the user message carrying the rules and the material.
+ */
 export function buildModerationMessages(
   guardrailsText: string,
   meta: GeneratedMeta,
@@ -216,6 +249,12 @@ export type ModerationFailure =
   /** The moderator could not be reached, so nothing was judged. */
   | 'call-failed';
 
+/**
+ * One moderating model's answer, with the response text it was read from.
+ *
+ * `raw` carries the model's reply on a verdict, and the error description
+ * when the call failed before producing one.
+ */
 export type AiModerationResult =
   { pass: true; raw: string } | { pass: false; failure: ModerationFailure; raw: string };
 
@@ -230,6 +269,20 @@ export type AiModerationResult =
  */
 const MODERATION_TIMEOUT_MS = 120_000;
 
+/**
+ * Asks one model for a verdict on one bundle.
+ *
+ * @remarks
+ * Fails closed on every uncertain path: an unreachable model, a reply
+ * holding neither word, and a reply holding both all come back as
+ * `pass: false`. Only an unambiguous PASS passes.
+ *
+ * @param client - The OpenRouter client; the call is capped well below the
+ * generation deadline since the answer is one word.
+ * @param params - The model id to ask, the rules, and the material to judge.
+ *
+ * @returns The verdict. Never rejects — a failed call is a failed verdict.
+ */
 export async function aiModerationCheck(
   client: OpenRouterClient,
   {
@@ -265,38 +318,61 @@ export async function aiModerationCheck(
   return { pass: false, failure: 'rejected', raw };
 }
 
+/**
+ * The moderation verdict for a bundle, after the keyword scan and — only if
+ * that passed — the moderator and any stand-ins.
+ *
+ * `reasons` is phrased for the history entry and is empty on a pass. On a
+ * failure, {@link ModerationFailure} says whether the game was judged and
+ * rejected or never judged at all.
+ */
 export type ModerationResult =
   | { pass: true; reasons: string[] }
   | { pass: false; failure: ModerationFailure; reasons: string[] };
 
+/** Everything {@link moderate} needs to judge one generated bundle. */
 export interface ModerateParams {
+  /** The generated metadata. Every string in it is scanned, however deeply nested. */
   meta: GeneratedMeta;
+  /** The complete generated bundle, scanned as source and judged as content. */
   html: string;
+  /** The rules to judge against, verbatim from `config/`. */
   guardrailsText: string;
+  /** Model id of the dedicated moderator, asked first. */
   moderationModel: string;
   /**
-   * Stand-in moderators, tried in order and ONLY when one could not be
-   * reached at all. A verdict is never retried elsewhere.
+   * Stand-in moderators, tried in order and ONLY when the call before them
+   * failed before producing a verdict. A verdict is never retried
+   * elsewhere.
    *
    * The dedicated moderator is a single free-tier model, so a 429 there
    * would otherwise discard a game that was already generated and parsed.
    */
   fallbackModels?: readonly string[];
-  bannedTerms?: readonly string[];
 }
 
+/**
+ * Decides whether a generated bundle may be published.
+ *
+ * @remarks
+ * Runs the cheap {@link keywordScan} first and skips the model call when it
+ * already rejects. A model that answers is final: stand-ins from
+ * `fallbackModels` are tried only when the call before them failed before
+ * producing a verdict, never to appeal a FAIL.
+ *
+ * Every uncertain path fails closed. A false rejection costs one retry; a
+ * false acceptance publishes banned content to a public site.
+ *
+ * @param client - The OpenRouter client shared with generation.
+ * @param params - The bundle, the rules, and which models to ask.
+ *
+ * @returns The verdict. Never rejects.
+ */
 export async function moderate(
   client: OpenRouterClient,
-  {
-    meta,
-    html,
-    guardrailsText,
-    moderationModel,
-    fallbackModels = [],
-    bannedTerms = BANNED_TERMS,
-  }: ModerateParams,
+  { meta, html, guardrailsText, moderationModel, fallbackModels = [] }: ModerateParams,
 ): Promise<ModerationResult> {
-  const scan = keywordScan(moderatableText(meta, html), bannedTerms);
+  const scan = keywordScan(moderatableText(meta, html));
   if (!scan.pass) {
     // Already definitively rejected — skip the AI call rather than pay for it.
     return {

@@ -38,6 +38,17 @@ const MAX_FAILURE_REASON_LENGTH = 300;
  */
 const MAX_SLUG_LENGTH = 60;
 
+/**
+ * Reduces free text to a URL- and filesystem-safe slug.
+ *
+ * @remarks
+ * Runs on a model-authored title, so it has to survive any input: every
+ * run of non-alphanumerics collapses to a single dash, and the result is
+ * truncated then re-trimmed so a cut mid-word cannot leave a trailing dash.
+ *
+ * @param text - The title to reduce.
+ * @returns The slug, or `'untitled'` when nothing usable survives.
+ */
 export function slugify(text: string): string {
   const slug = text
     .toLowerCase()
@@ -48,6 +59,15 @@ export function slugify(text: string): string {
   return slug.length > 0 ? slug : 'untitled';
 }
 
+/**
+ * The directory name and URL segment one published game is served under.
+ *
+ * @param date - The day, as `YYYY-MM-DD`.
+ * @param title - The game's title; reduced with {@link slugify}.
+ * @returns The date followed by the slugified title. Two titles that
+ * slugify alike produce the same value, so this is distinct only because
+ * one game is published per day.
+ */
 export function buildSlug(date: string, title: string): string {
   return `${date}-${slugify(title)}`;
 }
@@ -105,12 +125,23 @@ export function withHeadMeta(html: string, meta: string): string {
   return html.replace(/<html\b[^>]*>/i, (tag) => `${tag}\n${meta}`);
 }
 
+/** Everything {@link buildManifest} needs to describe one published game. */
 export interface BuildManifestParams {
+  /** The day the game is for, as `YYYY-MM-DD`. */
   date: string;
+  /** The slug the game is served under, from {@link buildSlug}. */
   slug: string;
+  /** The generated metadata: title, genre, theme, mechanics, controls. */
   meta: GeneratedMeta;
+  /** OpenRouter model id that wrote the game. */
   model: string;
+  /** When generation finished, as an ISO 8601 timestamp. */
   generatedAt: string;
+  /**
+   * When the next game is due, as a `M H * * *` cron expression. Drives the
+   * front-end countdown, and is deliberately an hour earlier than the
+   * workflow's own cron.
+   */
   cronSchedule: string;
   /** Genre catalogue, used to resolve {@link Manifest.genreLabel}. */
   genres: GenresConfig;
@@ -120,9 +151,18 @@ export interface BuildManifestParams {
    * {@link Manifest.promptPath} rather than name a file that 404s.
    */
   hasArchivedPrompt?: boolean;
+  /** Path builder to resolve URLs against — overridden in tests. */
   paths?: Paths;
 }
 
+/**
+ * Builds the manifest the front-end reads to find today's game.
+ *
+ * @param params - See {@link BuildManifestParams}.
+ * @returns The manifest. `genreLabel` falls back to the raw genre id when
+ * the model named one outside the catalogue, and `promptPath` is omitted
+ * entirely when no prompt was archived.
+ */
 export function buildManifest({
   date,
   slug,
@@ -151,20 +191,33 @@ export function buildManifest({
   };
 }
 
+/** Everything {@link publish} needs to put one game live. */
 export interface PublishParams {
+  /** The day the game is for, as `YYYY-MM-DD`. */
   date: string;
+  /** The generated metadata, written alongside the bundle as `meta.json`. */
   meta: GeneratedMeta;
+  /** The complete bundle, as moderation and the smoke test approved it. */
   html: string;
+  /** OpenRouter model id that wrote the game. */
   model: string;
+  /** Which attempt succeeded, counting from 1. Recorded in history. */
   attempts: number;
   /** Whether the game painted anything during the smoke test. */
   canvasDrawn?: boolean;
   /** The exact user-turn prompt that produced `html` — see BYOK. */
   prompt: string;
+  /** The parsed `config/generation.json`; supplies the cron schedule and the Sentry DSN. */
   generationConfig: GenerationConfig;
   /** Genre catalogue, used to resolve {@link Manifest.genreLabel}. */
   genres: GenresConfig;
+  /** History as it stands; the new entry is appended to a copy. */
   historyEntries: HistoryGameEntry[];
+  /**
+   * When generation finished, as an ISO 8601 timestamp.
+   *
+   * @defaultValue the current time
+   */
   generatedAt?: string;
   /**
    * The commit this game was published from, tagged onto any error the
@@ -186,12 +239,30 @@ export interface PublishParams {
  */
 const UNRELEASED = 'dev';
 
+/** What one successful publish wrote. */
 export interface PublishResult {
+  /** The slug the game is now served under. */
   slug: string;
+  /** The manifest now on disk, naming this game. */
   manifest: Manifest;
+  /** History including the new `published` entry. Not the array passed in. */
   historyEntries: HistoryGameEntry[];
 }
 
+/**
+ * Puts one game live: archives the bundle, repoints the manifest at it, and
+ * records the day in history.
+ *
+ * @remarks
+ * The bundle ships byte-for-byte except for two additions, both keyed off
+ * `sentryDsn`: a `connect-src` meta inside `<head>`, and the error-reporting
+ * snippet appended at the end. A bundle carrying neither `<head>` nor
+ * `<html>` is published without the meta rather than failed — the sandbox is
+ * the control, this is defence in depth.
+ *
+ * @param params - See {@link PublishParams}.
+ * @returns The slug, the manifest written, and the updated history.
+ */
 export function publish({
   date,
   meta,
@@ -256,6 +327,10 @@ export function publish({
  * @param reasons Why each attempt failed. Required rather than optional so
  *   a caller cannot quietly drop the only record of what went wrong; pass
  *   an empty array if there is genuinely nothing to say.
+ * @param kinds The same failures as `reasons`, as closed-vocabulary ids,
+ *   parallel to it by index. These are what the next generation's prompt
+ *   reads directly; `reasons` embed console output from AI-written games and
+ *   reach a prompt only by way of the reflection note.
  */
 export function recordFailure({
   date,
@@ -336,6 +411,7 @@ export function writeRunStatus({
 export type ManifestRestoreResult =
   { status: 'intact' } | { status: 'restored'; manifest: Manifest } | { status: 'no-candidate' };
 
+/** Options for {@link restoreManifestFromArchive}. */
 export interface RestoreManifestParams {
   /** The hot window, oldest first, as {@link readHotWindow} returns it. */
   historyEntries: readonly HistoryGameEntry[];

@@ -74,6 +74,15 @@ function formatGenreLine(genre: GenreEntry, isRecentlyUsed: boolean): string {
   return `- ${genre.id} (${genre.label})${marker}: ${examples}`;
 }
 
+/**
+ * Renders the genre catalog as one line per genre, flagging the ones to avoid.
+ *
+ * @param genres - The parsed `config/genres.json`, in file order.
+ * @param recentGenreIds - Ids to mark as recently used, typically from
+ * {@link recentlyUsedGenreIds}. Ids not present in `genres` are ignored.
+ *
+ * @returns Newline-separated lines, each naming a genre's id, label and examples.
+ */
 export function formatGenreCatalog(genres: GenresConfig, recentGenreIds: string[] = []): string {
   const recent = new Set(recentGenreIds);
   return genres.map((genre) => formatGenreLine(genre, recent.has(genre.id))).join('\n');
@@ -88,6 +97,18 @@ function mostRecentFirst(entries: HistoryGameEntry[]): PublishedEntry[] {
   return [...publishedEntries(entries)].sort((a, b) => b.date.localeCompare(a.date));
 }
 
+/**
+ * The distinct genres of the most recently published games, newest first.
+ *
+ * @remarks
+ * Failed days hold no genre and are skipped, so `limit` counts published
+ * games rather than calendar days.
+ *
+ * @param entries - History entries in any order.
+ * @param limit - How many published entries to look back over.
+ *
+ * @returns Genre ids without duplicates, most recent first.
+ */
 export function recentlyUsedGenreIds(entries: HistoryGameEntry[], limit = 10): string[] {
   const ids = mostRecentFirst(entries)
     .slice(0, limit)
@@ -149,10 +170,23 @@ function daysBetween(fromISODate: string, to: Date): number {
   return (to.getTime() - from) / MS_PER_DAY;
 }
 
+/** Tuning and seams for {@link selectRemixSuggestion}. */
 export interface RemixOptions {
+  /** Chance of suggesting a remix at all, from 0 to 1. */
   remixProbability: number;
+  /** How far back a game may have been published and still be a candidate, in days. */
   remixLookbackDays: number;
+  /**
+   * Source of the roll against `remixProbability`.
+   *
+   * @defaultValue `Math.random`
+   */
   rng?: () => number;
+  /**
+   * The moment to measure `remixLookbackDays` against.
+   *
+   * @defaultValue the current time
+   */
   now?: Date;
 }
 
@@ -322,16 +356,60 @@ ${directives.map((directive) => `- ${directive}`).join('\n')}
 `;
 }
 
+/** Everything {@link buildPrompt} assembles a generation prompt from. */
 export interface BuildPromptParams {
+  /** The content rules, verbatim from `config/`. */
   guardrailsText: string;
+  /** The parsed `config/genres.json`, offered as a catalog to choose from. */
   genres: GenresConfig;
+  /** History entries, used for the recent-days digest and the corrective directives. */
   historyEntries: HistoryGameEntry[];
+  /** The rolled-up history summary. Only its `lessons` note reaches the prompt. */
   summary: HistorySummary;
+  /** A past game to suggest a successor to, from {@link selectRemixSuggestion}. Omitted most days. */
   remixSuggestion?: PopularityEntry | null;
+  /**
+   * What went wrong on the attempt just before this one. Absent on a first
+   * attempt; otherwise rendered as its own section by
+   * {@link renderAttemptFeedback}.
+   *
+   * @remarks
+   * This section survives into the archived `prompt.txt`, which is the exact
+   * prompt that produced that day's game. BYOK is what removes it, at replay
+   * time, so a visitor's fresh generation is not told to fix a failure that
+   * never happened to it — see `stripAttemptFeedback` in
+   * `lib/attempt-feedback.ts`.
+   */
   priorFailureFeedback?: string;
+  /**
+   * How many recent published entries the digest, the corrective directives
+   * and the recently-used genre marks each look back over.
+   *
+   * @defaultValue `10`
+   */
   historyDigestLimit?: number;
 }
 
+/**
+ * Assembles the full generation prompt for one attempt.
+ *
+ * @remarks
+ * Model-authored history is shown as labelled data, never as guidance, and
+ * the closed `DISLIKE_REASONS` and `FAILURE_KINDS` vocabularies key the
+ * fixed wording of the corrective directives, so no text a visitor or a
+ * previous generation wrote is quoted into the instructions.
+ *
+ * `summary.lessons` is the one exception, and a deliberate one: a model
+ * writes that note during reflection from history that embeds
+ * `failureReasons`, and it lands here as guidance. It is the single path by
+ * which model-authored text steers a later generation. Both hops are
+ * length-capped; keep them.
+ *
+ * @param params - See {@link BuildPromptParams}.
+ *
+ * @returns The complete prompt, ending with the output-format contract that
+ * `lib/extract-bundle-shared.ts` parses. The two must change together.
+ */
 export function buildPrompt({
   guardrailsText,
   genres,

@@ -8,14 +8,35 @@ import {
   type ValidationResult,
 } from '#scripts/lib/validation.ts';
 
+/** One model in the daily rotation. */
 export interface ModelEntry {
+  /**
+   * OpenRouter model id, such as `openai/gpt-4o-mini`. Expected to be unique
+   * across the file, though nothing validates that — unlike a genre id.
+   */
   readonly id: string;
+  /**
+   * Whether the rotation includes this entry. Set `false` to retire a model
+   * without deleting it — an ordinary run attempts each active entry once, so
+   * this also changes how many attempts a failing day gets.
+   */
   readonly active: boolean;
+  /** Who serves the model, for the run log and the front-end credit. */
   readonly provider: string;
 }
 
+/** The parsed `config/models.json`. */
 export interface ModelsConfig {
+  /**
+   * Model id asked to judge generated games. Separate from the rotation: it
+   * never writes a game, and a game is never judged by the model that wrote it.
+   */
   readonly moderationModel: string;
+  /**
+   * Every entry, inactive ones included. `activeModels` in `select-model.ts`
+   * filters this down to the rotation attempts actually walk, so the two are
+   * not interchangeable. At least one entry must be active.
+   */
   readonly models: ModelEntry[];
 }
 

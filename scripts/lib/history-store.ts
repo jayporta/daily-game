@@ -16,6 +16,13 @@ import {
   type ValidationResult,
 } from '#scripts/lib/validation.ts';
 
+/**
+ * What became of one day.
+ *
+ * `failed_kept_previous` is a successful run: every model in the rotation was
+ * tried, none produced a publishable game, and the live site kept the game it
+ * already had.
+ */
 export type HistoryStatus = 'published' | 'failed_kept_previous';
 
 /**
@@ -127,20 +134,65 @@ export interface FailedEntry extends HistoryEntryCommon {
  */
 export type HistoryGameEntry = PublishedEntry | FailedEntry;
 
+/**
+ * One published game on the popularity leaderboard.
+ *
+ * Only games that were actually rated appear: an entry with no
+ * `popularityScore` is skipped rather than scored zero.
+ */
 export interface PopularityEntry {
+  /** The slug the game is served under, and the leaderboard's identity key. */
   slug: string;
+  /**
+   * The game's theme, as its history entry recorded it. Non-empty:
+   * {@link validateHistorySummary} rejects a blank one, since it is
+   * interpolated into the generation prompt as a remix suggestion.
+   */
   theme: string;
+  /**
+   * The game's mechanics joined with `', '`. Non-empty, for the same reason
+   * {@link theme} is.
+   */
   mechanicsSummary: string;
+  /** Likes less dislikes. Ties break by slug, so the ordering is stable. */
   popularityScore: number;
 }
 
+/**
+ * The rolled-up view of every day the project has run.
+ *
+ * @remarks
+ * The tallies are derived from the whole archive each time, never added to the
+ * previous summary — that is what makes a repeated or interrupted rollup safe.
+ * Ownership is split: `rollup-history.ts` writes the tallies and carries
+ * `lessons` through untouched, while `reflect-lessons.ts` writes only
+ * `lessons`. Two writers of one field would race.
+ */
 export interface HistorySummary {
+  /** How many published games used each genre id, counted over the whole archive. */
   genreCounts: Record<string, number>;
+  /** The most recent date each genre id was published, as `YYYY-MM-DD`. */
   genreLastUsed: Record<string, string>;
+  /** The best-rated games, highest score first, capped in length. */
   popularityLeaderboard: PopularityEntry[];
+  /**
+   * A model-written note on what has been going wrong, which reaches the
+   * generation prompt as guidance.
+   *
+   * The one path by which model-authored text influences a later generation:
+   * `reflect-lessons.ts` distils it from `failureReasons`, which embed console
+   * output from AI-written games. Length-capped at both hops on purpose.
+   */
   lessons: string;
 }
 
+/**
+ * The summary a project with no history starts from.
+ *
+ * Also what a reader falls back to when `summary.json` is absent or
+ * unreadable, so a missing file degrades to "nothing learned yet" rather than
+ * failing a run.
+ */
 export const EMPTY_SUMMARY: HistorySummary = {
   genreCounts: {},
   genreLastUsed: {},
@@ -416,6 +468,12 @@ export function publishedEntryOn(
   return entries.filter(isPublished).find((entry) => entry.date === date);
 }
 
+/**
+ * Writes the hot window back to `history/games.json`.
+ *
+ * @param filePath - Destination; build it from {@link Paths} rather than joining by hand.
+ * @param entries - The full window to persist, replacing the file's contents.
+ */
 export function writeGamesJson(filePath: string, entries: HistoryGameEntry[]): void {
   writeJson(filePath, entries);
 }
@@ -459,6 +517,13 @@ export function renderGamesMd(entries: HistoryGameEntry[]): string {
   return `${lines.join('\n')}\n`;
 }
 
+/**
+ * Writes the human-readable companion to `history/games.json`.
+ *
+ * @param filePath - Destination for the rendered Markdown.
+ * @param entries - The same entries {@link writeGamesJson} is given; both
+ * files are written together so they cannot disagree.
+ */
 export function writeGamesMd(filePath: string, entries: HistoryGameEntry[]): void {
   writeTextEnsuringDir(filePath, renderGamesMd(entries));
 }
