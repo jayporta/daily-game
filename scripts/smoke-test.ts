@@ -109,10 +109,17 @@ async function runSmokeTest(
       const drewToCanvas = Array.from(document.querySelectorAll('canvas')).some((canvas) => {
         const ctx = canvas.getContext('2d');
         if (!ctx || canvas.width === 0 || canvas.height === 0) return false;
-        const { data } = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        // Any non-transparent pixel means something was painted.
-        for (let i = 3; i < data.length; i += 4) {
-          if (data[i] !== 0) return true;
+
+        // Read in strips: one full-canvas getImageData allocates four bytes
+        // per pixel at once, which is tens of megabytes at full-page sizes.
+        const stripHeight = 64;
+        for (let top = 0; top < canvas.height; top += stripHeight) {
+          const height = Math.min(stripHeight, canvas.height - top);
+          const { data } = ctx.getImageData(0, top, canvas.width, height);
+          // Any non-transparent pixel means something was painted.
+          for (let i = 3; i < data.length; i += 4) {
+            if (data[i] !== 0) return true;
+          }
         }
         return false;
       });
