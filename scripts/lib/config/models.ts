@@ -11,8 +11,9 @@ import {
 /** One model in the daily rotation. */
 export interface ModelEntry {
   /**
-   * OpenRouter model id, such as `openai/gpt-4o-mini`. Expected to be unique
-   * across the file, though nothing validates that — unlike a genre id.
+   * OpenRouter model id, such as `openai/gpt-4o-mini`. Unique across the whole
+   * file, inactive entries included — {@link validateModelsConfig} rejects a
+   * duplicate.
    */
   readonly id: string;
   /**

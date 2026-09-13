@@ -14,12 +14,14 @@ test('validateModelsConfig accepts a valid config', () => {
   assert.deepEqual(result.errors, []);
 });
 
+// The rule is file-wide, so the duplicate pair spans an active entry and an
+// inactive one: a check that only walked the rotation would miss it.
 test('validateModelsConfig rejects duplicate ids', () => {
   const result = validateModelsConfig({
     moderationModel: 'mistralai/mistral-7b-instruct:free',
     models: [
       { id: 'a/model:free', active: true, provider: 'openrouter' },
-      { id: 'a/model:free', active: true, provider: 'openrouter' },
+      { id: 'a/model:free', active: false, provider: 'openrouter' },
     ],
   });
   assert.equal(result.valid, false);
