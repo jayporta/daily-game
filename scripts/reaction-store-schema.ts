@@ -66,9 +66,33 @@ alter table public.reactions enable row level security;
 create policy "anon may insert one reaction"
   on public.reactions for insert to anon with check (true);
 
--- That policy admits any row, so this is what bounds how fast one game can
--- collect them. The tally already tolerates junk, so the limit is abuse
--- resistance, not correctness.
+-- That policy admits any row, so the two triggers below are what bound how
+-- fast one game can collect them. The tally already tolerates junk, so the
+-- limit is abuse resistance, not correctness.
+
+-- The policy admits any column, not just the ones the page sends, so a caller
+-- can supply its own created_at. Stamping it is what makes the window in the
+-- limit mean anything: rows dated last year would otherwise never be counted
+-- and the cap would never fire. Only a before-row trigger can set it.
+create or replace function public.reactions_stamp_insert_time()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.created_at := now();
+  return new;
+end;
+$$;
+
+create trigger reactions_stamp_insert_time
+  before insert on public.reactions
+  for each row execute function public.reactions_stamp_insert_time();
+
+-- Runs once per statement, over the whole batch. A row-level check cannot do
+-- this job: one POST may carry an array of rows, and a before-row trigger
+-- sees neither the rows inserted beside it in the same statement nor how many
+-- are coming, so every row of a batch counts the same total and the batch
+-- lands whole.
 --
 -- security definer is load-bearing: the count reads public.reactions, and the
 -- inserting key has no select policy, so an invoker-rights function would
@@ -79,37 +103,45 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  offender text;
 begin
-  -- The policy above admits any column, not just the ones the page sends, so
-  -- a caller can supply its own created_at. Stamping it here is what makes
-  -- the window below mean anything: rows dated last year would otherwise
-  -- never be counted and the cap would never fire.
-  new.created_at := now();
+  -- Serialises inserts per slug. Without it each concurrent transaction counts
+  -- the same committed rows, every one of them finds room, and a burst lands
+  -- in full however low the cap. Ordered so two batches touching the same
+  -- slugs cannot take them in opposite orders. Released at transaction end.
+  perform pg_advisory_xact_lock(hashtext(slug)::bigint)
+     from (select distinct slug from new_rows order by slug) s;
 
-  -- Serialises inserts for one slug. Without it each concurrent transaction
-  -- counts the same committed rows, every one of them finds room, and a burst
-  -- lands in full however low the cap. Released when the transaction ends.
-  perform pg_advisory_xact_lock(hashtext(new.slug)::bigint);
+  -- An after-statement trigger sees the rows the statement inserted, so this
+  -- count already includes them and the cap is the size of the window rather
+  -- than what preceded it.
+  select s.slug into offender
+    from (select distinct slug from new_rows) s
+   where (
+     select count(*)
+       from public.reactions r
+      where r.slug = s.slug
+        and r.created_at > now() - interval '1 minute'
+        -- A row stamped in the future predates these triggers and would sit
+        -- in every window from now on, closing that slug permanently.
+        and r.created_at <= now()
+   ) > ${MAX_INSERTS_PER_SLUG_PER_MINUTE}
+   limit 1;
 
-  if (
-    select count(*)
-      from public.reactions
-     where slug = new.slug
-       and created_at > now() - interval '1 minute'
-       -- Rows stamped in the future predate this trigger and would otherwise
-       -- sit in every window from now on, closing the slug permanently.
-       and created_at <= now()
-  ) >= ${MAX_INSERTS_PER_SLUG_PER_MINUTE} then
-    raise exception 'too many reactions for % in one minute', new.slug
+  if offender is not null then
+    raise exception 'too many reactions for % in one minute', offender
       using errcode = 'check_violation';
   end if;
-  return new;
+
+  return null;
 end;
 $$;
 
 create trigger reactions_rate_limit
-  before insert on public.reactions
-  for each row execute function public.reactions_rate_limit();
+  after insert on public.reactions
+  referencing new table as new_rows
+  for each statement execute function public.reactions_rate_limit();
 `;
 }
 

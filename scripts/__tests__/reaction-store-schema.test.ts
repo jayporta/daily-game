@@ -52,12 +52,19 @@ test('the schema grants the public key insert and no other verb', () => {
 });
 
 // The insert policy admits any row, so nothing above this bounds how fast one
-// game can collect them. Only a before-insert trigger can refuse the row.
-test('the schema refuses inserts once a slug hits the rate limit in a minute', () => {
-  const ddl = buildReactionStoreDdl();
+// game can collect them.
+test('the schema refuses inserts once a slug passes the rate limit in a minute', () => {
+  assert.ok(buildReactionStoreDdl().includes(`> ${MAX_INSERTS_PER_SLUG_PER_MINUTE}\n`));
+});
 
-  assert.match(ddl, /create trigger \w+\s+before insert on public\.reactions/);
-  assert.ok(ddl.includes(`>= ${MAX_INSERTS_PER_SLUG_PER_MINUTE} then`));
+// One POST may carry an array of rows. A row-level check sees neither the rows
+// inserted beside it in the same statement nor how many are coming, so every
+// row of a batch counts the same total and the whole batch lands.
+test('the rate limit runs once per statement over the whole batch', () => {
+  assert.match(
+    buildReactionStoreDdl(),
+    /after insert on public\.reactions\s+referencing new table as new_rows\s+for each statement/,
+  );
 });
 
 // The limit counts existing rows for the slug, and the inserting key has no
@@ -74,13 +81,20 @@ test('the rate limit reads rows the inserting key cannot select', () => {
 // caller can supply its own created_at. Rows dated last year would sit outside
 // every window the limit counts, and the cap would never fire.
 test('the rate limit stamps the insert time rather than trusting the row', () => {
-  assert.match(buildReactionStoreDdl(), /new\.created_at := now\(\)/);
+  const ddl = buildReactionStoreDdl();
+
+  assert.match(ddl, /new\.created_at := now\(\)/);
+  // Only a before-row trigger can change the row on its way in.
+  assert.match(
+    ddl,
+    /create trigger reactions_stamp_insert_time\s+before insert on public\.reactions\s+for each row/,
+  );
 });
 
 // Without serialisation each concurrent transaction counts the same committed
 // rows, all of them find room, and a burst lands in full however low the cap.
 test('the rate limit serialises inserts for one slug', () => {
-  assert.match(buildReactionStoreDdl(), /pg_advisory_xact_lock\(hashtext\(new\.slug\)/);
+  assert.match(buildReactionStoreDdl(), /pg_advisory_xact_lock\(hashtext\(slug\)/);
 });
 
 // A row stamped in the future predates the trigger, and counting it would keep
