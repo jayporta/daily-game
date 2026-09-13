@@ -398,6 +398,7 @@ export async function moderate(
     meta,
     html,
   });
+  let quotaAffected = !ai.pass && ai.quota;
 
   // Only a moderator that never answered moves to the next candidate. A
   // verdict is final either way: asking another model after a FAIL would be
@@ -405,6 +406,7 @@ export async function moderate(
   for (const fallback of fallbackModels) {
     if (ai.pass || ai.failure === 'rejected') break;
     ai = await aiModerationCheck(client, { model: fallback, guardrailsText, meta, html });
+    if (!ai.pass && ai.quota) quotaAffected = true;
   }
 
   if (!ai.pass) {
@@ -417,7 +419,10 @@ export async function moderate(
       reasons: [
         ai.failure === 'call-failed' ? detail : `moderation model rejected the game: ${detail}`,
       ],
-      quota: ai.quota,
+      // Accumulated across the whole fallback chain: a capacity refusal
+      // earlier in the chain matters even if a later call in the same
+      // attempt fails for an unrelated reason.
+      quota: quotaAffected,
     };
   }
 

@@ -246,6 +246,31 @@ test('a FAIL verdict is never retried against a fallback', async () => {
   assert.deepEqual(asked, ['mod']);
 });
 
+test('a capacity refusal earlier in the fallback chain is still reported once a later call returns a verdict', async () => {
+  // The dedicated moderator is out of capacity; the fallback that answers
+  // in its place is not, but the quota refusal it stood in for still
+  // happened and must not be lost.
+  const asked: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ model }) {
+      asked.push(model);
+      if (model === 'mod') throw new OpenRouterHttpError(429, 'rate limited');
+      return { text: 'FAIL', stop: 'complete' };
+    },
+  };
+  const result = await moderate(client, {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+    fallbackModels: ['stand-in'],
+  });
+  assert.deepEqual(asked, ['mod', 'stand-in']);
+  assert.equal(result.pass, false);
+  assert.equal(result.failure, 'rejected');
+  assert.equal(result.quota, true);
+});
+
 test('a whole panel of unreachable moderators still fails closed', async () => {
   const asked: string[] = [];
   const result = await moderate(moderatorPanel({ mod: null, a: null, b: null }, asked), {
