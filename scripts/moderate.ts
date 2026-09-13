@@ -18,8 +18,10 @@ import { untrustedBlock } from '#scripts/lib/untrusted-block.ts';
  * on word boundaries, so `killTimer` and `manifest` do not trip `kill`
  * and `man`. Keep this list unambiguous: a term common in ordinary game
  * code (`player`, `shoot`, `hit`) belongs in the AI check, not here.
+ *
+ * ALLOW EXPORT FOR TESTING
  */
-const BANNED_TERMS: readonly string[] = [
+export const BANNED_TERMS: readonly string[] = [
   // violence / gore
   'blood',
   'bloody',
