@@ -126,3 +126,11 @@ test('the view defers to the querying role rather than its owner', () => {
 test('the view grants the public key nothing', () => {
   assert.match(buildReactionStoreDdl(), /revoke all on public\.reaction_counts from anon/);
 });
+
+// The reason columns are the only part of the select list that varies, so an
+// empty vocabulary is what would strand a separator with nothing after it.
+test('the view is valid SQL even with no reasons to count', () => {
+  const ddl = buildReactionStoreDdl([]);
+
+  assert.doesNotMatch(ddl, /,\s*\nfrom public\.reactions/);
+});
