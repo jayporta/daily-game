@@ -8,13 +8,37 @@
 import { type Browser, chromium } from 'playwright';
 import { errorMessage } from '#lib/errors.ts';
 
+/** The verdict on one bundle, plus everything observed while reaching it. */
 export interface SmokeTestResult {
+  /**
+   * Whether the bundle may be published. True only when {@link reasons} is
+   * empty; a page that never loaded fails, so an unreachable bundle is a
+   * rejection rather than an unknown.
+   */
   readonly pass: boolean;
+  /**
+   * Every disqualifying problem, phrased for the history entry and the next
+   * attempt's feedback. Empty means {@link pass} is true.
+   */
   readonly reasons: string[];
+  /** Problems worth recording that do not disqualify the bundle. */
   readonly warnings: string[];
+  /** Text of every `console.error` the page emitted. */
   readonly consoleErrors: string[];
+  /** Messages of every uncaught exception the page threw. */
   readonly pageErrors: string[];
+  /**
+   * URLs of every `http:`/`https:` request the page attempted. Each was
+   * blocked before it left the machine, and any entry disqualifies the
+   * bundle — a game must be self-contained. `data:` and `blob:` URLs are
+   * not counted.
+   */
   readonly networkAttempts: string[];
+  /**
+   * Whether any `<canvas>` held a non-transparent pixel when the settle
+   * window closed. False for a game built entirely from DOM elements, so
+   * this only ever raises a warning.
+   */
   readonly canvasDrawn: boolean;
   /**
    * Whether the bundle put anything on screen at all — canvas pixels, text,
@@ -27,8 +51,14 @@ export interface SmokeTestResult {
   readonly renderedSomething: boolean;
 }
 
+/** Knobs for one bundle's run. */
 export interface SmokeTestOptions {
-  /** How long to let the page run before judging it. */
+  /**
+   * How long to let the page run before judging it, in milliseconds. Long
+   * enough for a game's first frame and any start-up animation.
+   *
+   * @defaultValue `1500`
+   */
   settleMs?: number;
 }
 
@@ -156,8 +186,21 @@ async function runSmokeTest(
   };
 }
 
+/**
+ * A browser held open across several bundles. Obtained from
+ * {@link createSmokeTester}, which owns the browser this borrows.
+ */
 export interface SmokeTester {
+  /**
+   * Runs one bundle in a fresh browser context.
+   *
+   * @param html - The complete, self-contained bundle document.
+   * @param options - Per-run overrides; see {@link SmokeTestOptions}.
+   * @returns The verdict. Never rejects: a page that fails to load comes
+   * back as a failing result.
+   */
   test(html: string, options?: SmokeTestOptions): Promise<SmokeTestResult>;
+  /** Shuts the browser down. Every caller needs a `finally` that calls this. */
   close(): Promise<void>;
 }
 

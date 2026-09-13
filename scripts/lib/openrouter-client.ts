@@ -18,14 +18,21 @@ import {
   streamedFrames,
 } from '#lib/provider-response.ts';
 
+/** One turn of a chat completion request, in OpenRouter's wire shape. */
 export interface ChatMessage {
+  /** Who the turn is attributed to. */
   readonly role: 'system' | 'user' | 'assistant';
+  /** The turn's text. Anything model-authored belongs in a delimited untrusted block. */
   readonly content: string;
 }
 
+/** One chat completion call. */
 export interface CompletionRequest {
+  /** OpenRouter model id, such as `openai/gpt-4o-mini`. */
   readonly model: string;
+  /** The conversation to send, in order. */
   readonly messages: ChatMessage[];
+  /** Sampling temperature. Moderation uses `0`; generation wants variety. */
   readonly temperature: number;
   /**
    * Overall cap for this one call, overriding the client's default.
@@ -41,13 +48,35 @@ export interface CompletionRequest {
   readonly timeoutMs?: number;
 }
 
+/** What a completed call produced. */
 export interface CompletionResult {
+  /** Every streamed fragment, reassembled in arrival order. */
   readonly text: string;
   /** How the response ended — see {@link ProviderStopReason}. */
   readonly stop: ProviderStopReason;
 }
 
+/**
+ * The pipeline's whole view of OpenRouter.
+ *
+ * @remarks
+ * One method, so a test or a dry run substitutes an object literal rather
+ * than a mocking framework. `scripts/lib/get-client.ts` is the only place
+ * that decides between the real client and a mock, which is what lets
+ * setting `OPENROUTER_API_KEY` flip the pipeline live with no code change.
+ */
 export interface OpenRouterClient {
+  /**
+   * Sends one request and resolves once the stream ends.
+   *
+   * @param request - See {@link CompletionRequest}.
+   * @returns The assembled text and how the response ended.
+   *
+   * @throws {OpenRouterHttpError} When OpenRouter refuses the request or
+   * reports a failure mid-stream.
+   * @throws {Error} When either deadline fires, or the response is
+   * unreadable.
+   */
   complete(request: CompletionRequest): Promise<CompletionResult>;
 }
 
@@ -86,9 +115,21 @@ export const OPENROUTER_IDLE_TIMEOUT_MS = 60_000;
  */
 export const OPENROUTER_TIMEOUT_MS = 540_000;
 
+/** Construction options for {@link createOpenRouterClient}. */
 export interface CreateOpenRouterClientOptions {
+  /** OpenRouter API key. Required; an empty string throws rather than failing later. */
   apiKey: string;
+  /**
+   * API root, without a trailing slash.
+   *
+   * @defaultValue `'https://openrouter.ai/api/v1'`
+   */
   baseUrl?: string;
+  /**
+   * The seam tests inject to answer without a network.
+   *
+   * @defaultValue the global `fetch`
+   */
   fetchImpl?: typeof fetch;
   /** Overall per-request cap; defaults to {@link OPENROUTER_TIMEOUT_MS}. */
   timeoutMs?: number;
@@ -197,6 +238,23 @@ function watchBytes(response: Response, onBytes: () => void): Response {
   return new Response(body.pipeThrough(tap));
 }
 
+/**
+ * Builds a client that streams every request and reassembles the frames.
+ *
+ * @remarks
+ * `stream: true` is an HTTP transfer mode here, not a feature: the frames'
+ * arrival times are what the idle deadline measures, and dropping the flag
+ * makes the provider answer with one JSON document carrying no `data:`
+ * frames, which reads as a model that returned nothing rather than as an
+ * error.
+ *
+ * Both deadlines are cleared by one `close()`, which is final on purpose.
+ *
+ * @param options - See {@link CreateOpenRouterClientOptions}.
+ * @returns A client whose `complete` assembles the stream into one string.
+ *
+ * @throws {Error} When `apiKey` is empty.
+ */
 export function createOpenRouterClient({
   apiKey,
   baseUrl = 'https://openrouter.ai/api/v1',

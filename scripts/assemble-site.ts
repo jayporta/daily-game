@@ -14,6 +14,7 @@ import { isManifest } from '#lib/manifest.ts';
 import { readJson } from '#scripts/lib/json-file.ts';
 import { createPaths, paths as defaultPaths, type Paths, REPO_ROOT } from '#scripts/lib/paths.ts';
 
+/** Options for {@link assembleSite}. */
 export interface AssembleSiteParams {
   /** Repo root to read from — overridden in tests. */
   root?: string;
@@ -21,10 +22,15 @@ export interface AssembleSiteParams {
   outDir?: string;
 }
 
+/** What one assembly produced, for the CLI to report. */
 export interface AssembleSiteResult {
+  /** The directory now holding the deployable site. */
   outDir: string;
+  /** Whether `manifest.json` existed and was copied. */
   copiedManifest: boolean;
+  /** Whether `games/archive/` existed and was copied. */
   copiedArchive: boolean;
+  /** Whether `status.json` existed and was copied. Absent on most runs. */
   copiedStatus: boolean;
 }
 
@@ -63,6 +69,22 @@ export function missingPublishedFiles(paths: Paths): string[] {
   );
 }
 
+/**
+ * Merges the Vite build output with the published content into one
+ * deployable directory.
+ *
+ * @remarks
+ * Published bundles are copied verbatim: nothing may transform an archived
+ * `game.html` between the pipeline writing it and the browser running it.
+ * A `.nojekyll` marker is written so Pages serves the output as-is.
+ *
+ * @param params - See {@link AssembleSiteParams}.
+ * @returns Which pieces were found and copied.
+ *
+ * @throws {Error} When `outDir` does not exist — run `vite build` first.
+ * @throws {Error} When `manifest.json` names a file the repo does not
+ * contain, which would deploy a site whose only page 404s.
+ */
 export function assembleSite({
   root = REPO_ROOT,
   outDir,
