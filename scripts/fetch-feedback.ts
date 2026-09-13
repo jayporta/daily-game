@@ -112,7 +112,7 @@ export const REACTION_STORE_TIMEOUT_MS = 10_000;
 // max-rows is lower, never that the rows have run out.
 const REACTION_PAGE_SIZE = 1_000;
 
-// Pages one read may fetch before it gives up rather than tally short.
+// Pages of rows one read may fetch before it gives up rather than tally short.
 const MAX_REACTION_PAGES = 20;
 
 /**
@@ -145,12 +145,18 @@ async function readRows({
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
 
-  // Shared across every page, not one timer per request.
-  const signal = AbortSignal.timeout(timeoutMs);
   const rows: unknown[] = [];
 
   try {
-    for (let page = 0; page < MAX_REACTION_PAGES; page += 1) {
+    // Shared across every page, not one timer per request. Built inside the
+    // try because it throws on a timeoutMs that is not a whole positive
+    // number, and this function answers `null` rather than throwing.
+    const signal = AbortSignal.timeout(timeoutMs);
+
+    // One turn more than the page cap. The extra turn reads no data — it is
+    // the probe that separates a game sitting exactly on the cap from one
+    // past it.
+    for (let attempt = 0; attempt <= MAX_REACTION_PAGES; attempt += 1) {
       const from = rows.length;
       const response = await fetchImpl(url, {
         headers: { ...headers, Range: `${from}-${from + REACTION_PAGE_SIZE - 1}` },
@@ -166,11 +172,12 @@ async function readRows({
       // Annotated rather than left to `Array.isArray`, which narrows an
       // `unknown` to `any[]` and would spread untyped values into `rows`.
       const parsed: unknown = await response.json();
-      const page: unknown[] | null = Array.isArray(parsed) ? parsed : null;
-      if (page === null) return null;
-      if (page.length === 0) return rows;
+      const rowsOnPage: unknown[] | null = Array.isArray(parsed) ? parsed : null;
+      if (rowsOnPage === null) return null;
+      if (rowsOnPage.length === 0) return rows;
+      if (attempt === MAX_REACTION_PAGES) return null;
 
-      rows.push(...page);
+      rows.push(...rowsOnPage);
     }
   } catch {
     return null;

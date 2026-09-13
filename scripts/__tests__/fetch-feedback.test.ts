@@ -238,6 +238,40 @@ test('applyFeedback stops when the store reports the offset is past the last row
   assert.equal(publishedAt(entries, 0).likes, 2);
 });
 
+// applyFeedback documents that it never throws. timeoutMs is a caller-supplied
+// field, and AbortSignal.timeout rejects anything but a whole positive number.
+test('applyFeedback leaves history untouched when the timeout is unusable', async () => {
+  const { fetchImpl } = pagedStore([row('like')], 3);
+
+  const entries = await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+    timeoutMs: -1,
+  });
+
+  assert.deepEqual(entries, [PUBLISHED]);
+});
+
+// A game landing exactly on the cap is complete, not truncated: the read has
+// every row it will ever get, and one empty probe is what proves it.
+test('applyFeedback counts a game sitting exactly on the page cap', async () => {
+  const { fetchImpl } = pagedStore(
+    Array.from({ length: 60 }, () => row('like')),
+    3,
+  );
+
+  const entries = await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+  });
+
+  assert.equal(publishedAt(entries, 0).likes, 60);
+});
+
 // Anyone who loads the page holds the insert key, so one slug's row count is
 // not something this side controls. A tally cut short would undercount in
 // exactly the way the pagination exists to prevent.
