@@ -72,10 +72,12 @@ export interface OpenRouterClient {
    * @param request - See {@link CompletionRequest}.
    * @returns The assembled text and how the response ended.
    *
-   * @throws {OpenRouterHttpError} When OpenRouter refuses the request or
-   * reports a failure mid-stream.
-   * @throws {Error} When either deadline fires, or the response is
-   * unreadable.
+   * @throws {OpenRouterHttpError} When OpenRouter refuses the request, or
+   * reports a mid-stream failure carrying a status code — the only two
+   * cases a caller can classify by status.
+   * @throws {Error} For everything else: either deadline firing, an
+   * unreadable response, a mid-stream failure with no status code, and a
+   * stream that ends having carried no content.
    */
   complete(request: CompletionRequest): Promise<CompletionResult>;
 }

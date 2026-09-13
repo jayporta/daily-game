@@ -64,7 +64,9 @@ export function slugify(text: string): string {
  *
  * @param date - The day, as `YYYY-MM-DD`.
  * @param title - The game's title; reduced with {@link slugify}.
- * @returns `YYYY-MM-DD-<slug>`, unique per day.
+ * @returns The date followed by the slugified title. Two titles that
+ * slugify alike produce the same value, so this is distinct only because
+ * one game is published per day.
  */
 export function buildSlug(date: string, title: string): string {
   return `${date}-${slugify(title)}`;

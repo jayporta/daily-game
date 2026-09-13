@@ -382,7 +382,8 @@ export interface BuildPromptParams {
    */
   priorFailureFeedback?: string;
   /**
-   * How many recent entries the digest and the directives look back over.
+   * How many recent published entries the digest, the corrective directives
+   * and the recently-used genre marks each look back over.
    *
    * @defaultValue `10`
    */
@@ -393,11 +394,16 @@ export interface BuildPromptParams {
  * Assembles the full generation prompt for one attempt.
  *
  * @remarks
- * Only our own words appear as instructions. Model-authored history is
- * shown as labelled data, never as guidance, and the closed
- * `DISLIKE_REASONS` and `FAILURE_KINDS` vocabularies key the fixed wording
- * of the corrective directives — so nothing a visitor or a previous
- * generation wrote can steer the next one.
+ * Model-authored history is shown as labelled data, never as guidance, and
+ * the closed `DISLIKE_REASONS` and `FAILURE_KINDS` vocabularies key the
+ * fixed wording of the corrective directives, so no text a visitor or a
+ * previous generation wrote is quoted into the instructions.
+ *
+ * `summary.lessons` is the one exception, and a deliberate one: a model
+ * writes that note during reflection from history that embeds
+ * `failureReasons`, and it lands here as guidance. It is the single path by
+ * which model-authored text steers a later generation. Both hops are
+ * length-capped; keep them.
  *
  * @param params - See {@link BuildPromptParams}.
  *

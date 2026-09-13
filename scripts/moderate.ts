@@ -253,7 +253,7 @@ export type ModerationFailure =
  * One moderating model's answer, with the response text it was read from.
  *
  * `raw` carries the model's reply on a verdict, and the error description
- * when the call never landed.
+ * when the call failed before producing one.
  */
 export type AiModerationResult =
   { pass: true; raw: string } | { pass: false; failure: ModerationFailure; raw: string };
@@ -319,8 +319,8 @@ export async function aiModerationCheck(
 }
 
 /**
- * The moderation verdict for a bundle, after the keyword scan, the moderator
- * and any stand-ins have had their say.
+ * The moderation verdict for a bundle, after the keyword scan and — only if
+ * that passed — the moderator and any stand-ins.
  *
  * `reasons` is phrased for the history entry and is empty on a pass. On a
  * failure, {@link ModerationFailure} says whether the game was judged and
@@ -341,8 +341,9 @@ export interface ModerateParams {
   /** Model id of the dedicated moderator, asked first. */
   moderationModel: string;
   /**
-   * Stand-in moderators, tried in order and ONLY when one could not be
-   * reached at all. A verdict is never retried elsewhere.
+   * Stand-in moderators, tried in order and ONLY when the call before them
+   * failed before producing a verdict. A verdict is never retried
+   * elsewhere.
    *
    * The dedicated moderator is a single free-tier model, so a 429 there
    * would otherwise discard a game that was already generated and parsed.
@@ -356,8 +357,8 @@ export interface ModerateParams {
  * @remarks
  * Runs the cheap {@link keywordScan} first and skips the model call when it
  * already rejects. A model that answers is final: stand-ins from
- * `fallbackModels` are tried only when the previous one could not be
- * reached, never to appeal a FAIL.
+ * `fallbackModels` are tried only when the call before them failed before
+ * producing a verdict, never to appeal a FAIL.
  *
  * Every uncertain path fails closed. A false rejection costs one retry; a
  * false acceptance publishes banned content to a public site.
