@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import type { FailedEntry, HistoryGameEntry, PublishedEntry } from '#scripts/lib/history-store.ts';
-import { EMPTY_SUMMARY } from '#scripts/lib/history-store.ts';
+import { EMPTY_SUMMARY, validateHistorySummary } from '#scripts/lib/history-store.ts';
 import { createPaths } from '#scripts/lib/paths.ts';
 import { GENERATION_CONFIG } from '#scripts/lib/testFixtures.ts';
 import {
@@ -112,6 +112,16 @@ test('summariseEntries is idempotent over the same entries', () => {
 
   assert.equal(first.genreCounts['puzzle'], 2);
   assert.deepEqual(second, first);
+});
+
+// rollUpHistory validates the summary it builds and throws rather than write
+// an invalid one, so every leaderboard row must be non-empty — theme included.
+test('summariseEntries builds a leaderboard the summary validator accepts', () => {
+  const tallies = summariseEntries([
+    published(50, { theme: '', mechanics: [], popularityScore: 4 }),
+  ]);
+
+  assert.deepEqual(validateHistorySummary({ ...tallies, lessons: '' }).errors, []);
 });
 
 test('summariseEntries records the most recent date a genre was used', () => {

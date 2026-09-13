@@ -14,6 +14,18 @@ test('validateModelsConfig accepts a valid config', () => {
   assert.deepEqual(result.errors, []);
 });
 
+test('validateModelsConfig rejects duplicate ids', () => {
+  const result = validateModelsConfig({
+    moderationModel: 'mistralai/mistral-7b-instruct:free',
+    models: [
+      { id: 'a/model:free', active: true, provider: 'openrouter' },
+      { id: 'a/model:free', active: true, provider: 'openrouter' },
+    ],
+  });
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.some((e) => e.includes('duplicated')));
+});
+
 test('validateModelsConfig rejects missing moderationModel', () => {
   const result = validateModelsConfig({
     models: [{ id: 'a', active: true, provider: 'openrouter' }],

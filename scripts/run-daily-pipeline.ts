@@ -91,7 +91,7 @@ async function reconcileYesterday(
   currentPaths: Paths,
 ): Promise<HistoryGameEntry[]> {
   const previous = lastPublishedEntry(entries);
-  if (previous?.slug === undefined) return entries;
+  if (previous === undefined) return entries;
 
   const reconciled = await applyFeedback(entries, {
     slug: previous.slug,
@@ -138,7 +138,7 @@ export async function runDailyPipeline({
   // own game rather than yesterday's, since that is now the newest published
   // entry. Harmless, and it picks up the reactions earned since publishing.
   const today = publishedEntryOn(historyEntries, date);
-  if (today?.slug !== undefined) {
+  if (today !== undefined) {
     log(`${date} is already published as ${today.slug} — nothing to generate`);
     return { status: 'already_published', slug: today.slug };
   }
