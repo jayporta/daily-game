@@ -489,11 +489,11 @@ export function renderGamesMd(entries: HistoryGameEntry[]): string {
 
   for (const entry of [...entries].sort((a, b) => b.date.localeCompare(a.date))) {
     if (entry.status === 'published') {
-      lines.push(`## ${entry.date} — ${entry.title ?? entry.slug ?? 'untitled'}`);
+      lines.push(`## ${entry.date} — ${entry.title || entry.slug}`);
       lines.push('');
-      lines.push(`- genre: ${entry.genre ?? 'unknown'}`);
-      lines.push(`- theme: ${entry.theme ?? 'unknown'}`);
-      lines.push(`- mechanics: ${entry.mechanics?.join(', ') || 'unrecorded'}`);
+      lines.push(`- genre: ${entry.genre || 'unknown'}`);
+      lines.push(`- theme: ${entry.theme || 'unknown'}`);
+      lines.push(`- mechanics: ${entry.mechanics.join(', ') || 'unrecorded'}`);
       lines.push(`- model: ${entry.model}`);
       if (entry.attempts !== undefined) lines.push(`- attempts: ${entry.attempts}`);
       if (entry.popularityScore !== undefined) lines.push(`- reactions: ${entry.popularityScore}`);
@@ -509,7 +509,7 @@ export function renderGamesMd(entries: HistoryGameEntry[]): string {
       lines.push('');
       lines.push(`- model: ${entry.model}`);
       if (entry.attempts !== undefined) lines.push(`- attempts: ${entry.attempts}`);
-      for (const reason of entry.failureReasons ?? []) lines.push(`- ${reason}`);
+      for (const reason of entry.failureReasons) lines.push(`- ${reason}`);
     }
     lines.push('');
   }

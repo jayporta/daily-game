@@ -109,7 +109,7 @@ export function summariseEntries(entries: readonly HistoryGameEntry[]): SummaryT
   const leaderboard = new Map<string, PopularityEntry>();
 
   for (const entry of entries) {
-    if (entry.status !== 'published' || entry.genre === undefined) continue;
+    if (entry.status !== 'published') continue;
 
     genreCounts[entry.genre] = (genreCounts[entry.genre] ?? 0) + 1;
     const lastUsed = genreLastUsed[entry.genre];
@@ -118,11 +118,13 @@ export function summariseEntries(entries: readonly HistoryGameEntry[]): SummaryT
     }
 
     // A game nobody rated has no business on a popularity leaderboard.
-    if (entry.slug === undefined || entry.popularityScore === undefined) continue;
+    if (entry.popularityScore === undefined) continue;
     leaderboard.set(entry.slug, {
       slug: entry.slug,
-      theme: entry.theme ?? 'unknown',
-      mechanicsSummary: entry.mechanics?.join(', ') ?? 'unrecorded',
+      // Both must be non-empty: validateHistorySummary rejects a blank one,
+      // and a published game may legitimately have recorded neither.
+      theme: entry.theme || 'unknown',
+      mechanicsSummary: entry.mechanics.join(', ') || 'unrecorded',
       popularityScore: entry.popularityScore,
     });
   }

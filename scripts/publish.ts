@@ -486,8 +486,6 @@ export function restoreManifestFromArchive({
     if (entry === undefined || entry.status !== 'published') continue;
 
     const slug = entry.slug;
-    if (slug === undefined) continue;
-
     const meta = readArchivedMeta(paths, slug);
     if (meta === null) continue;
 

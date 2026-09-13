@@ -21,6 +21,7 @@ import { writeJson } from '#scripts/lib/json-file.ts';
 import {
   FAILED_ENTRY as FAILED,
   PUBLISHED_ENTRY as PUBLISHED,
+  PUBLISHED_SLUG,
   publishedAt,
 } from '#scripts/lib/testFixtures.ts';
 
@@ -149,6 +150,14 @@ test('renderGamesMd describes published and failed runs differently', () => {
   assert.match(md, /## 2026-08-28 — Beetle Maze/);
   assert.match(md, /glass beetles/);
   assert.match(md, /## 2026-08-29 — generation failed, previous game kept/);
+});
+
+// An empty title is reachable: the extractor coerces an absent one to '',
+// so the heading needs something else to name the day by.
+test('renderGamesMd falls back to the slug when a game has no title', () => {
+  const md = renderGamesMd([{ ...PUBLISHED, title: '' }]);
+
+  assert.match(md, new RegExp(`## 2026-08-28 — ${PUBLISHED_SLUG}`));
 });
 
 test('renderGamesMd lists newest first', () => {

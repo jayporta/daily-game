@@ -46,6 +46,12 @@ export interface ModelsConfig {
  *
  * The moderation model must also stay out of the active rotation, so it
  * never grades its own generation.
+ *
+ * Ids must be unique across the whole file, active or not. A duplicate
+ * active id can break the round-robin in `selectNextModel`: its `findIndex`
+ * lookup always resolves to the first copy, so depending on where the copies
+ * sit the rotation can loop between them and never reach the models past
+ * them, while `maxAttempts` still counts the full list.
  */
 export function validateModelsConfig(json: unknown): ValidationResult {
   const errors: string[] = [];
@@ -61,12 +67,19 @@ export function validateModelsConfig(json: unknown): ValidationResult {
     errors.push('models must be an array');
   } else {
     if (json.models.length === 0) errors.push('models must not be empty');
+    const seenIds = new Set<string>();
     json.models.forEach((entry: unknown, i: number) => {
       if (!isPlainObject(entry)) {
         errors.push(`models[${i}] must be an object`);
         return;
       }
-      if (!isNonEmptyString(entry.id)) errors.push(`models[${i}].id must be a non-empty string`);
+      if (!isNonEmptyString(entry.id)) {
+        errors.push(`models[${i}].id must be a non-empty string`);
+      } else if (seenIds.has(entry.id)) {
+        errors.push(`models[${i}].id "${entry.id}" is duplicated`);
+      } else {
+        seenIds.add(entry.id);
+      }
       if (typeof entry.active !== 'boolean') errors.push(`models[${i}].active must be a boolean`);
       if (!isNonEmptyString(entry.provider))
         errors.push(`models[${i}].provider must be a non-empty string`);
