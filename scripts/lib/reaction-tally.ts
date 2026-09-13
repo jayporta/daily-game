@@ -94,9 +94,10 @@ export function tallyFromCountsRow(row: unknown, slug: string): ReactionTally | 
 
   const dislikeReasons: Partial<Record<DislikeReason, number>> = {};
   for (const reason of DISLIKE_REASONS) {
+    if (!Object.hasOwn(row, reason.id)) continue;
     const count = countAt(row, reason.id);
-    // Absent and zero read the same, matching a tally built from raw rows.
-    if (count !== null && count > 0) dislikeReasons[reason.id] = count;
+    if (count === null) return null;
+    if (count > 0) dislikeReasons[reason.id] = count;
   }
 
   return { likes, dislikes, dislikeReasons };
