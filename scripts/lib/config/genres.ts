@@ -8,12 +8,20 @@ import {
   type ValidationResult,
 } from '#scripts/lib/validation.ts';
 
+/** One genre the model may choose from. */
 export interface GenreEntry {
+  /**
+   * Stable key, unique within the file. Recorded on a published entry and
+   * matched against recent history to mark a genre as recently used.
+   */
   readonly id: string;
+  /** Human-readable name, shown on the game's card as `genreLabel`. */
   readonly label: string;
+  /** Sample games that fit, offered to the model as illustration, not as a menu. */
   readonly examples: string[];
 }
 
+/** The parsed `config/genres.json`: the whole catalogue, in file order. */
 export type GenresConfig = GenreEntry[];
 
 /** Ids must be unique: they key the "recently used" marking in the prompt. */

@@ -9,14 +9,21 @@ import { readJson } from '#scripts/lib/json-file.ts';
 
 /** What every validator returns: a verdict plus every problem found, not just the first. */
 export interface ValidationResult {
+  /** Whether the value satisfies every rule. True exactly when `errors` is empty. */
   valid: boolean;
+  /**
+   * Every problem found, not just the first — this is what lets
+   * `npm run validate` name all of them in one run.
+   */
   errors: string[];
 }
 
+/** A string with at least one character. Rejects `''`, which most config fields treat as absent. */
 export function isNonEmptyString(v: unknown): v is string {
   return typeof v === 'string' && v.length > 0;
 }
 
+/** A real number. Rejects `NaN` and both infinities, which survive `typeof x === 'number'`. */
 export function isFiniteNumber(v: unknown): v is number {
   return typeof v === 'number' && Number.isFinite(v);
 }
