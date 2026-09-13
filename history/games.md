@@ -2,13 +2,11 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-09-12 — ...
+## 2026-09-12 — generation failed, previous game kept
 
-- genre: racing
-- theme: ...
-- mechanics: ..., ...
 - model: nvidia/nemotron-3.5-lightning:free
 - attempts: 1
+- attempt 1 (nvidia/nemotron-3.5-lightning:free): echoed the output format's placeholder metadata (title, theme, mechanics and controls all "...") with a script that never drew or moved anything, behind a valid catalogue genre and a static UI overlay that was enough to pass the gates that existed at the time. Recorded as published at the time; corrected once the gates that now reject it existed.
 
 ## 2026-09-11 — generation failed, previous game kept
 

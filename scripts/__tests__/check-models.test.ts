@@ -3,8 +3,15 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { checkModels, readCatalog, shouldCheckModels } from '#scripts/check-models.ts';
+import {
+  checkModels,
+  modelReliability,
+  readCatalog,
+  shouldCheckModels,
+  unreliableModelIds,
+} from '#scripts/check-models.ts';
 import type { ModelsConfig } from '#scripts/lib/config/models.ts';
+import type { FailedEntry } from '#scripts/lib/history-store.ts';
 import { createPaths } from '#scripts/lib/paths.ts';
 import { FAILED_ENTRY, PUBLISHED_ENTRY } from '#scripts/lib/testFixtures.ts';
 
@@ -22,6 +29,25 @@ function scratchRoot(t: { after(fn: () => void): void }, config: ModelsConfig): 
   writeFileSync(createPaths(dir).modelsConfig, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
   return dir;
 }
+
+/** Adds a hot window to a scratch repo already holding a rotation config. */
+function writeHistory(root: string, entries: readonly unknown[]): void {
+  mkdirSync(join(root, 'history'), { recursive: true });
+  writeFileSync(createPaths(root).historyGames, JSON.stringify(entries), 'utf8');
+}
+
+/** A failed day where every attempt used `model` and failed as `kind`. */
+function failedDay(date: string, model: string, kind: FailedEntry['failureKinds'][number]): FailedEntry {
+  return {
+    ...FAILED_ENTRY,
+    date,
+    model,
+    attempts: 1,
+    failureKinds: [kind],
+    attemptModels: [model],
+  };
+}
+
 
 function entry(id: string, maxOutputTokens = BIG, outputModalities: string[] = ['text']): unknown {
   return {
@@ -243,4 +269,100 @@ test('an unreachable catalogue fails rather than pruning everything', async (t) 
     () => checkModels({ root, fetchImpl: async () => new Response('', { status: 503 }) }),
     /could not load the OpenRouter catalogue \(503\)/,
   );
+});
+
+test('modelReliability tallies only failed_kept_previous entries with attemptModels', () => {
+  const stats = modelReliability([
+    failedDay('2026-09-07', 'a/model:free', 'generation-call'),
+    failedDay('2026-09-08', 'a/model:free', 'generation-call'),
+    { ...PUBLISHED_ENTRY, date: '2026-09-09', model: 'a/model:free' },
+    // No attemptModels recorded — an entry from before the field existed.
+    { ...FAILED_ENTRY, date: '2026-09-10', model: 'a/model:free' },
+  ]);
+
+  assert.deepEqual(stats.get('a/model:free'), { attempts: 2, generationCallFailures: 2 });
+});
+
+test('unreliableModelIds ignores a model below the minimum attempt count', () => {
+  const entries = [
+    failedDay('2026-09-07', 'a/model:free', 'generation-call'),
+    failedDay('2026-09-08', 'a/model:free', 'generation-call'),
+  ];
+
+  assert.deepEqual([...unreliableModelIds(entries)], []);
+});
+
+test('unreliableModelIds ignores a model whose failures are mostly its own writing, not the provider', () => {
+  const entries = [
+    failedDay('2026-09-06', 'a/model:free', 'smoke-js-error'),
+    failedDay('2026-09-07', 'a/model:free', 'smoke-js-error'),
+    failedDay('2026-09-08', 'a/model:free', 'generation-call'),
+  ];
+
+  assert.deepEqual([...unreliableModelIds(entries)], []);
+});
+
+test('unreliableModelIds flags a model whose attempts mostly fail on the provider', () => {
+  const entries = [
+    failedDay('2026-09-06', 'a/model:free', 'generation-call'),
+    failedDay('2026-09-07', 'a/model:free', 'generation-call'),
+    failedDay('2026-09-08', 'a/model:free', 'generation-call'),
+  ];
+
+  assert.deepEqual([...unreliableModelIds(entries)], ['a/model:free']);
+});
+
+// The rotation's whole reason to exist: a model OpenRouter still lists but
+// which never actually produces a game gets dropped just the same as one
+// that has vanished from the catalogue.
+test('a live model that keeps failing on the provider is pruned and replaced', async (t) => {
+  const root = scratchRoot(t, CONFIG);
+  writeHistory(root, [
+    failedDay('2026-09-06', 'a/model:free', 'generation-call'),
+    failedDay('2026-09-07', 'a/model:free', 'generation-call'),
+    failedDay('2026-09-08', 'a/model:free', 'generation-call'),
+  ]);
+
+  const result = await checkModels({
+    root,
+    fetchImpl: catalog([
+      entry('a/model:free'),
+      entry('b/model:free'),
+      entry('mod/model:free'),
+      entry('roomy/model:free', BIG),
+    ]),
+  });
+
+  assert.equal(result.status, 'updated');
+  assert.equal(result.status === 'updated' && result.removed.length, 0);
+  assert.deepEqual(result.status === 'updated' ? result.removedUnreliable : [], ['a/model:free']);
+  assert.deepEqual(
+    readConfig(root).models.map((m) => m.id),
+    ['b/model:free', 'roomy/model:free'],
+  );
+});
+
+test('a model already inactive is never pruned for unreliability', async (t) => {
+  const config: ModelsConfig = {
+    moderationModel: 'mod/model:free',
+    models: [
+      { id: 'a/model:free', active: false, provider: 'openrouter' },
+      { id: 'b/model:free', active: true, provider: 'openrouter' },
+    ],
+  };
+  const root = scratchRoot(t, config);
+  writeHistory(root, [
+    failedDay('2026-09-06', 'a/model:free', 'generation-call'),
+    failedDay('2026-09-07', 'a/model:free', 'generation-call'),
+    failedDay('2026-09-08', 'a/model:free', 'generation-call'),
+  ]);
+  const before = readFileSync(createPaths(root).modelsConfig, 'utf8');
+
+  const result = await checkModels({
+    root,
+    fetchImpl: catalog([entry('a/model:free'), entry('b/model:free'), entry('mod/model:free')]),
+  });
+
+  assert.equal(result.status, 'all-live');
+  assert.equal(readFileSync(createPaths(root).modelsConfig, 'utf8'), before);
 });

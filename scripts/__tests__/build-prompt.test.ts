@@ -9,6 +9,7 @@ import {
   DISPLAY_CONTRACT,
   digestHistory,
   formatGenreCatalog,
+  isPlaceholderMeta,
   OUTPUT_FORMAT_CONTRACT,
   recentlyUsedGenreIds,
   selectRemixSuggestion,
@@ -432,6 +433,61 @@ test('a recurring blank render tells the model to draw something', () => {
 
   assert.equal(directives.length, 1);
   assert.match(String(directives[0]), /showed nothing/);
+});
+
+test('recurring placeholder metadata tells the model to describe the real game', () => {
+  const placeholder: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 3,
+    failureReasons: [],
+    failureKinds: ['placeholder-meta', 'placeholder-meta'],
+  };
+
+  const directives = correctiveDirectives([placeholder]);
+
+  assert.equal(directives.length, 1);
+  assert.match(String(directives[0]), /example values/);
+});
+
+test('isPlaceholderMeta rejects a title still reading "..."', () => {
+  assert.equal(
+    isPlaceholderMeta({
+      title: '...',
+      genre: 'racing',
+      theme: 'A real theme',
+      mechanics: ['Drive fast'],
+      controls: [{ action: 'Accelerate', key: 'Up Arrow' }],
+    }),
+    true,
+  );
+});
+
+test('isPlaceholderMeta rejects a control that still reads "..."', () => {
+  assert.equal(
+    isPlaceholderMeta({
+      title: 'Real Title',
+      genre: 'racing',
+      theme: 'A real theme',
+      mechanics: ['Drive fast'],
+      controls: [{ action: '...', key: 'Up Arrow' }],
+    }),
+    true,
+  );
+});
+
+test('isPlaceholderMeta accepts metadata that describes a real game', () => {
+  assert.equal(
+    isPlaceholderMeta({
+      title: 'Lily Leap',
+      genre: 'platformer',
+      theme: 'A tiny salamander hops across lily pads',
+      mechanics: ['Jump between platforms'],
+      controls: [{ action: 'Jump', key: 'Space' }],
+    }),
+    false,
+  );
 });
 
 // Only ids from the closed vocabularies select wording, so nothing a visitor

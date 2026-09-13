@@ -34,6 +34,21 @@ export const CATALOG_URL = 'https://openrouter.ai/api/v1/models';
  */
 export const MIN_OUTPUT_TOKENS = 16_384;
 
+/**
+ * How many hot-window attempts a model needs before its reliability is
+ * judged at all. One bad day is the rotation's own noise — a provider outage
+ * can fail every model in the same run — not evidence against one model.
+ */
+export const MIN_ATTEMPTS_FOR_RELIABILITY = 3;
+
+/**
+ * The share of a model's hot-window attempts that must have failed as
+ * `generation-call` — a fault of the provider or the model, never
+ * something the pipeline's own gates rejected — before it is dropped for
+ * unreliability rather than delisting.
+ */
+export const UNRELIABLE_FAILURE_RATE = 0.75;
+
 /** A catalogue entry, reduced to the fields that decide anything here. */
 export interface CatalogModel {
   readonly id: string;
@@ -48,6 +63,8 @@ export type CheckModelsResult =
   | {
       readonly status: 'updated';
       readonly removed: readonly string[];
+      /** Removed ids for failing too often, rather than being delisted. */
+      readonly removedUnreliable: readonly string[];
       readonly added: readonly string[];
       /** The id now moderating, when the previous one had gone. */
       readonly moderationReplacedBy: string | null;
@@ -109,6 +126,56 @@ export function readCatalog(value: unknown): {
 }
 
 /**
+ * One model's hot-window record: how many attempts it got, and how many of
+ * those failed as `generation-call`.
+ */
+export interface ModelReliability {
+  readonly attempts: number;
+  readonly generationCallFailures: number;
+}
+
+/**
+ * Tallies each model's hot-window attempts and provider-fault failures.
+ *
+ * Reads `attemptModels`/`failureKinds`, a closed-vocabulary pair written by
+ * `publish.ts`, never `failureReasons` — so nothing here parses prose to
+ * decide anything. An entry from before `attemptModels` was recorded
+ * contributes nothing; it is neither evidence for a model nor against it.
+ */
+export function modelReliability(
+  entries: readonly HistoryGameEntry[],
+): ReadonlyMap<string, ModelReliability> {
+  const tally = new Map<string, { attempts: number; generationCallFailures: number }>();
+  for (const entry of entries) {
+    if (entry.status !== 'failed_kept_previous' || entry.attemptModels === undefined) continue;
+    entry.failureKinds.forEach((kind, index) => {
+      const id = entry.attemptModels?.[index];
+      if (id === undefined) return;
+      const current = tally.get(id) ?? { attempts: 0, generationCallFailures: 0 };
+      current.attempts += 1;
+      if (kind === 'generation-call') current.generationCallFailures += 1;
+      tally.set(id, current);
+    });
+  }
+  return tally;
+}
+
+/**
+ * Ids whose hot-window attempts fail on the provider's side too often to
+ * keep in rotation, regardless of whether OpenRouter still lists them.
+ *
+ * @param entries The hot window, as {@link readHotWindow} returns it.
+ */
+export function unreliableModelIds(entries: readonly HistoryGameEntry[]): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const [id, stats] of modelReliability(entries)) {
+    if (stats.attempts < MIN_ATTEMPTS_FOR_RELIABILITY) continue;
+    if (stats.generationCallFailures / stats.attempts >= UNRELIABLE_FAILURE_RATE) ids.add(id);
+  }
+  return ids;
+}
+
+/**
  * Free text-only models big enough to write a game, best first.
  *
  * Filtered on the `:free` id suffix rather than on price: some zero-priced
@@ -153,6 +220,7 @@ export async function checkModels({
 }: CheckModelsOptions = {}): Promise<CheckModelsResult> {
   const paths = root ? createPaths(root) : defaultPaths;
   const config = loadModelsConfig(paths.modelsConfig);
+  const historyEntries = readHotWindow(paths.historyGames);
 
   const response = await fetchImpl(CATALOG_URL);
   if (!response.ok) {
@@ -161,15 +229,26 @@ export async function checkModels({
   const { liveIds, usable } = readCatalog(await response.json());
 
   const deadEntries = config.models.filter((entry) => !liveIds.has(entry.id));
+  // Judged only among the models still live and still in use — a model
+  // already dropped for being delisted needs no second reason, and one
+  // already inactive is not costing the rotation any attempts.
+  const unreliable = unreliableModelIds(historyEntries);
+  const unreliableEntries = config.models.filter(
+    (entry) => entry.active && liveIds.has(entry.id) && unreliable.has(entry.id),
+  );
   const moderationDead = !liveIds.has(config.moderationModel);
-  if (deadEntries.length === 0 && !moderationDead) return { status: 'all-live' };
+  if (deadEntries.length === 0 && unreliableEntries.length === 0 && !moderationDead) {
+    return { status: 'all-live' };
+  }
 
+  const removedEntries = [...deadEntries, ...unreliableEntries];
   const configured = new Set([...config.models.map((entry) => entry.id), config.moderationModel]);
   const candidates = replacementCandidates(usable, configured);
 
-  // One replacement per active model lost, so a disappearance is made good
-  // rather than used as licence to grow the rotation.
-  const activeLost = deadEntries.filter((entry) => entry.active).length;
+  // One replacement per active model lost, so a disappearance — delisted or
+  // unreliable — is made good rather than used as licence to grow the
+  // rotation.
+  const activeLost = removedEntries.filter((entry) => entry.active).length;
   const chosen = candidates.slice(0, activeLost);
   const moderationReplacement = moderationDead ? (candidates[activeLost] ?? null) : null;
 
@@ -182,8 +261,9 @@ export async function checkModels({
     };
   }
 
+  const removedIds = new Set(removedEntries.map((entry) => entry.id));
   const models: ModelEntry[] = [
-    ...config.models.filter((entry) => liveIds.has(entry.id)),
+    ...config.models.filter((entry) => liveIds.has(entry.id) && !removedIds.has(entry.id)),
     ...chosen.map((model) => ({ id: model.id, active: true, provider: 'openrouter' })),
   ];
   const updated: ModelsConfig = {
@@ -205,6 +285,7 @@ export async function checkModels({
   return {
     status: 'updated',
     removed: deadEntries.map((entry) => entry.id),
+    removedUnreliable: unreliableEntries.map((entry) => entry.id),
     added: chosen.map((model) => model.id),
     moderationReplacedBy: moderationReplacement?.id ?? null,
   };
@@ -222,7 +303,11 @@ function describe(result: CheckModelsResult): string {
         result.moderationReplacedBy === null
           ? ''
           : `, moderation now ${result.moderationReplacedBy}`;
-      return `Removed ${result.removed.join(', ') || 'nothing'}; added ${
+      const unreliable =
+        result.removedUnreliable.length === 0
+          ? ''
+          : ` (${result.removedUnreliable.join(', ')} for unreliability)`;
+      return `Removed ${result.removed.join(', ') || 'nothing'}${unreliable}; added ${
         result.added.join(', ') || 'nothing'
       }${moderation}`;
     }

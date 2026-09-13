@@ -38,6 +38,7 @@ export const FAILURE_KINDS = [
   'generation-call',
   'extract',
   'unknown-genre',
+  'placeholder-meta',
   'moderation',
   'moderation-unreachable',
   'smoke-js-error',
@@ -115,6 +116,15 @@ export interface FailedEntry extends HistoryEntryCommon {
    * wrote.
    */
   readonly failureKinds: FailureKind[];
+  /**
+   * The model id each attempt used, parallel to `failureKinds` by index.
+   *
+   * Absent on entries written before it was recorded. Lets `check-models.ts`
+   * tell a model that is failing from one that merely rotated in once —
+   * without it, the only per-model record is embedded in `failureReasons`'
+   * prose, which this file's own writers never parse back out.
+   */
+  readonly attemptModels?: string[];
   /**
    * Whether every attempt failed because the provider had no capacity left.
    *
@@ -273,6 +283,16 @@ function historyGameEntryErrors(value: unknown): string[] {
         ),
       `failureKinds must be an array of: ${FAILURE_KINDS.join(', ')}`,
     );
+    // Read by index alongside failureKinds — modelReliability() would
+    // otherwise pair an attempt's failure with the wrong model, or with
+    // none at all.
+    if (value.attemptModels !== undefined && Array.isArray(value.failureKinds)) {
+      required(
+        !isStringArray(value.attemptModels) ||
+          value.attemptModels.length === value.failureKinds.length,
+        'attemptModels must have the same length as failureKinds',
+      );
+    }
   }
 
   optional(value.errors, isStringArray(value.errors), 'errors must be an array of strings');
@@ -293,6 +313,11 @@ function historyGameEntryErrors(value: unknown): string[] {
     value.quotaExhausted,
     typeof value.quotaExhausted === 'boolean',
     'quotaExhausted must be a boolean',
+  );
+  optional(
+    value.attemptModels,
+    isStringArray(value.attemptModels),
+    'attemptModels must be an array of strings',
   );
   optional(
     value.dislikeReasons,

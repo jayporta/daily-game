@@ -216,6 +216,32 @@ test('a genre outside the catalogue is rejected before moderation', async () => 
   assert.equal(moderated, false, 'a bundle this broken should not reach the moderator');
 });
 
+test('placeholder metadata behind a real genre is rejected before moderation', async () => {
+  // The exact metadata that published a blank-in-substance game on
+  // 2026-09-12: a valid catalogue genre, but every other field still the
+  // output format's own example, paired with a document that draws nothing.
+  const skeleton =
+    '```json\n{"title": "...", "genre": "racing", "theme": "...", "mechanics": ["...", "..."], ' +
+    '"controls": [{"action": "...", "key": "..."}]}\n```\n\n' +
+    '```html\n<!doctype html><html><body><canvas id="c"></canvas></body></html>\n```';
+  let moderated = false;
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) {
+        moderated = true;
+        return { text: 'PASS', stop: 'complete' };
+      }
+      return { text: skeleton, stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.deepEqual(result.kinds, ['placeholder-meta', 'placeholder-meta', 'placeholder-meta']);
+  assert.equal(moderated, false, 'a bundle this broken should not reach the moderator');
+});
+
 test('a stand-in moderator answers when the dedicated one cannot be reached', async () => {
   const asked: string[] = [];
   const client: OpenRouterClient = {
