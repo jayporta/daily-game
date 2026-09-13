@@ -34,6 +34,24 @@ function pagedStore(rows: unknown[], maxRows: number, pastEndStatus = 200) {
   return { fetchImpl, ranges, urls };
 }
 
+// A paged store that takes `delayMs` to answer each page and abandons a
+// request the moment its signal fires.
+function slowPagedStore(rows: unknown[], maxRows: number, delayMs: number) {
+  const fetchImpl: typeof fetch = (_input, init) =>
+    new Promise<Response>((resolve, reject) => {
+      const from = Number(new Headers(init?.headers).get('Range')?.split('-')[0]);
+      const timer = setTimeout(
+        () => resolve(new Response(JSON.stringify(rows.slice(from, from + maxRows)))),
+        delayMs,
+      );
+      init?.signal?.addEventListener('abort', () => {
+        clearTimeout(timer);
+        reject(new Error('request aborted'));
+      });
+    });
+  return { fetchImpl };
+}
+
 test('tallyReactions counts likes and dislikes separately', () => {
   const tally = tallyReactions([row('like'), row('like'), row('dislike')], SLUG);
 
@@ -249,6 +267,27 @@ test('applyFeedback leaves history untouched when the timeout is unusable', asyn
     apiKey: 'service-key',
     fetchImpl,
     timeoutMs: -1,
+  });
+
+  assert.deepEqual(entries, [PUBLISHED]);
+});
+
+// One deadline covers the whole read rather than restarting per page. Each
+// page here answers inside the timeout and only the pages together outrun it,
+// so a per-request timer would let the read run as long as there are pages.
+test('applyFeedback leaves history untouched when the pages together outlast the timeout', async () => {
+  const { fetchImpl } = slowPagedStore(
+    Array.from({ length: 6 }, () => row('like')),
+    2,
+    200,
+  );
+
+  const entries = await applyFeedback([PUBLISHED], {
+    slug: SLUG,
+    endpointUrl: ENDPOINT,
+    apiKey: 'service-key',
+    fetchImpl,
+    timeoutMs: 300,
   });
 
   assert.deepEqual(entries, [PUBLISHED]);
