@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { paths, REPO_ROOT } from '#scripts/lib/paths.ts';
+import { paths, REPO_ROOT } from '#actions_pipeline/lib/paths.ts';
 
 const INDEX_CSS = join(REPO_ROOT, 'src', 'index.css');
 

@@ -9,7 +9,7 @@
 // Every call streams. The visitor watches the output arrive, so there is no
 // second, non-streaming path to keep working.
 //
-// This never touches OPENROUTER_API_KEY or scripts/lib/get-client.ts's
+// This never touches OPENROUTER_API_KEY or actions_pipeline/lib/get-client.ts's
 // mock-vs-real decision — a visitor's pasted key is a wholly separate,
 // client-side-only path.
 

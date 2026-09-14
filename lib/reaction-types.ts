@@ -1,7 +1,7 @@
 // The vocabulary shared by the browser and the daily pipeline: what a
 // visitor can say about a game, and what a slug is allowed to look like.
 //
-// Lives in lib/ (not src/lib/ or scripts/lib/) because both sides need it —
+// Lives in lib/ (not src/lib/ or actions_pipeline/lib/) because both sides need it —
 // the browser to render the choices, the pipeline to validate what comes
 // back from the store — and lib/ is compiled by both tsconfigs, so a
 // Node-only API here fails the web build.
@@ -80,7 +80,7 @@ export interface ReactionConfig {
 /**
  * Shape check for the hand-edited config file.
  *
- * `validateReactionConfig` in `scripts/lib/config/reactionConfig.ts` calls this for the
+ * `validateReactionConfig` in `actions_pipeline/lib/config/reaction-config.ts` calls this for the
  * shape and adds its own deployment rules on top.
  */
 export function isReactionConfig(value: unknown): value is ReactionConfig {
@@ -99,11 +99,11 @@ export function isReactionConfig(value: unknown): value is ReactionConfig {
  * URL path or a directory.
  *
  * Exported because the reaction store constrains its `slug` column with
- * this same pattern — see `scripts/reaction-store-schema.ts`, which reads
+ * this same pattern — see `actions_pipeline/reaction-store-schema.ts`, which reads
  * it from here rather than repeating it.
  *
  * The leading date is the same shape `DATE_PATTERN` in
- * `scripts/lib/history-store.ts` checks. That file is Node-only and this one
+ * `actions_pipeline/lib/history-store.ts` checks. That file is Node-only and this one
  * is isomorphic, so neither can import the other's copy: change one and check
  * the other.
  */

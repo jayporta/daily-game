@@ -3,7 +3,7 @@ import { join, resolve, sep } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
-import { loadGenerationConfig } from '#scripts/lib/config/generation.ts';
+import { loadGenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
 
 const GAMES_DIR = resolve(import.meta.dirname, 'games');
 
@@ -83,8 +83,8 @@ export default defineConfig(({ mode }) => ({
     alias: {
       // Mirrors tsconfig.web.json's `paths` and package.json's `imports`.
       // Node resolves `#lib`/`#config` natively via package.json `imports`
-      // for scripts/lib/*.test.ts; this alias makes Vite and Vitest agree
-      // without depending on undocumented bundler support for that field.
+      // for actions_pipeline/lib/*.test.ts; this alias makes Vite and Vitest
+      // agree without depending on undocumented bundler support for that field.
       '@': resolve(import.meta.dirname, 'src'),
       '#lib': resolve(import.meta.dirname, 'lib'),
       '#config': resolve(import.meta.dirname, 'config'),

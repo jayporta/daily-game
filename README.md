@@ -27,7 +27,7 @@ smoke-test gates, history rollup and reflection, the front-end viewer,
 bring-your-own-key mode and Sentry error reporting are all built and live.
 
 The whole pipeline also runs locally against a mock OpenRouter client with
-no API key: `scripts/lib/get-client.ts` is the only place that decides
+no API key: `actions_pipeline/lib/get-client.ts` is the only place that decides
 mock-vs-real, so `npm run dry-run` exercises exactly the code a real run
 does.
 
@@ -82,7 +82,7 @@ npm run build:site                # build + assemble the deployable site
 `npm run dev` serves the real files the pipeline writes, so after a dry run
 you can play the generated game locally at the same URLs production uses.
 
-`npm run dry-run` needs no credentials: `scripts/lib/get-client.ts`
+`npm run dry-run` needs no credentials: `actions_pipeline/lib/get-client.ts`
 returns the real OpenRouter client when `OPENROUTER_API_KEY` is set and a
 fixture-backed mock otherwise, so the same code path runs either way. It
 writes a real archive folder, `manifest.json` and history entry, which is
@@ -92,7 +92,7 @@ the easiest way to see the pipeline's output end to end.
 
 `deploy-pages.yml` builds the app and publishes it to GitHub Pages on every
 push to `main`. Because there's a build step, the site is assembled rather
-than served from the repo: `scripts/assemble-site.ts` merges the built app
+than served from the repo: `actions_pipeline/assemble-site.ts` merges the built app
 in `dist/` with the committed `manifest.json` and `games/archive/**`.
 Pages must therefore be configured with **GitHub Actions** as its source,
 not "deploy from a branch".

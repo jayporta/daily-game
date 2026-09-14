@@ -2,7 +2,7 @@
 // error body alike.
 //
 // In lib/ because two callers need the identical reading, on opposite sides
-// of the build: `scripts/lib/openrouter-client.ts` in the daily pipeline and
+// of the build: `actions_pipeline/lib/openrouter-client.ts` in the daily pipeline and
 // `src/features/byok/state/helpers/providers.ts` in the browser. Both talk to the same
 // OpenAI-shaped API, so both read a response the same way.
 import { arrayAt, numberAt, recordAt, stringAt } from '#lib/guards.ts';
@@ -93,7 +93,7 @@ export function classifyStopReason(raw: string | null): ProviderStopReason | nul
  * mid-document rather than erroring — the exact shape of both the BYOK
  * Gemini truncation and the daily pipeline's `missing-html-block` failures.
  * One constant, so `src/features/byok/state/helpers/providers.ts` and
- * `scripts/lib/openrouter-client.ts` can never drift apart on it.
+ * `actions_pipeline/lib/openrouter-client.ts` can never drift apart on it.
  */
 export const OPENROUTER_MAX_OUTPUT_TOKENS = 16000;
 

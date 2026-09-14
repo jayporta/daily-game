@@ -3,7 +3,7 @@
 // Protocol mechanics only — nothing here knows what a provider puts inside a
 // payload. In lib/ because both transports stream: the browser's BYOK path in
 // src/features/byok/state/helpers/providers.ts and the pipeline's client in
-// scripts/lib/openrouter-client.ts.
+// actions_pipeline/lib/openrouter-client.ts.
 
 /** Frames are separated by a blank line; \r\n survives some proxies. */
 const FRAME_SEPARATOR = /\r?\n\r?\n/;
