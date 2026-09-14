@@ -55,6 +55,8 @@ export function validateModelsConfig(json: unknown, errors: string[]): json is M
     return false;
   }
 
+  const before = errors.length;
+
   if (!isNonEmptyString(json.moderationModel)) {
     errors.push('moderationModel must be a non-empty string');
   }
@@ -94,7 +96,7 @@ export function validateModelsConfig(json: unknown, errors: string[]): json is M
     }
   }
 
-  return errors.length === 0;
+  return errors.length === before;
 }
 
 /** @throws If the file is missing, unparseable, or fails {@link validateModelsConfig}. */

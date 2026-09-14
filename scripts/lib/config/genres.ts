@@ -25,6 +25,8 @@ export function validateGenresConfig(json: unknown, errors: string[]): json is G
     errors.push('root must be an array');
     return false;
   }
+  const before = errors.length;
+
   if (json.length === 0) errors.push('genres must not be empty');
 
   const seenIds = new Set<string>();
@@ -51,7 +53,7 @@ export function validateGenresConfig(json: unknown, errors: string[]): json is G
     }
   });
 
-  return errors.length === 0;
+  return errors.length === before;
 }
 
 /** @throws If the file is missing, unparseable, or fails {@link validateGenresConfig}. */

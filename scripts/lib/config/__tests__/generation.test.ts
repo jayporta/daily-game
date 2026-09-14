@@ -111,3 +111,22 @@ test('validateGenerationConfig rejects an out-of-range temperature', () => {
   assert.equal(valid, false);
   assert.ok(errors.some((e) => e.includes('temperature')));
 });
+
+test('validateGenerationConfig reports validity of its own input when errors already holds an entry', () => {
+  const errors = ['an unrelated earlier problem'];
+  const valid = validateGenerationConfig(
+    {
+      historyHotWindowDays: 45,
+      rollupTriggerEntries: 60,
+      remixProbability: 0.2,
+      remixLookbackDays: 90,
+      temperature: 0.7,
+      sentryDsn: null,
+      cronSchedule: '0 13 * * *',
+    },
+    errors,
+  );
+
+  assert.equal(valid, true);
+  assert.deepEqual(errors, ['an unrelated earlier problem']);
+});

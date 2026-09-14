@@ -53,6 +53,8 @@ export function validateReactionConfig(json: unknown, errors: string[]): json is
     return false;
   }
 
+  const before = errors.length;
+
   const { endpointUrl, anonKey } = json;
 
   if (endpointUrl !== null && !endpointUrl.startsWith('https://')) {
@@ -66,7 +68,7 @@ export function validateReactionConfig(json: unknown, errors: string[]): json is
     );
   }
 
-  return errors.length === 0;
+  return errors.length === before;
 }
 
 /**

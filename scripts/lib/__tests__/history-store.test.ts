@@ -519,3 +519,17 @@ test('validateHistorySummary rejects lessons that are not a string', () => {
 test('validateHistorySummary rejects genre counts that are not numbers', () => {
   assert.equal(validateHistorySummary({ genreCounts: { puzzle: 'three' } }, []), false);
 });
+
+test('validateHistoryGames reports validity of its own input when errors already holds an entry', () => {
+  const errors = ['an unrelated earlier problem'];
+
+  assert.equal(validateHistoryGames([PUBLISHED], errors), true);
+  assert.deepEqual(errors, ['an unrelated earlier problem']);
+});
+
+test('validateHistorySummary reports validity of its own input when errors already holds an entry', () => {
+  const errors = ['an unrelated earlier problem'];
+
+  assert.equal(validateHistorySummary({ lessons: 'only lessons' }, errors), true);
+  assert.deepEqual(errors, ['an unrelated earlier problem']);
+});

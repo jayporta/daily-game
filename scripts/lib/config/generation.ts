@@ -82,6 +82,8 @@ export function validateGenerationConfig(
     return false;
   }
 
+  const before = errors.length;
+
   if (!isFiniteNumber(json.historyHotWindowDays) || json.historyHotWindowDays <= 0) {
     errors.push('historyHotWindowDays must be a positive number');
   }
@@ -115,7 +117,7 @@ export function validateGenerationConfig(
     errors.push('cronSchedule must be a non-empty string');
   }
 
-  return errors.length === 0;
+  return errors.length === before;
 }
 
 /** @throws If the file is missing, unparseable, or fails {@link validateGenerationConfig}. */
