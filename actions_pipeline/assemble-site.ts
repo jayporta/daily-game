@@ -1,0 +1,148 @@
+#!/usr/bin/env node
+// Combines the Vite build output with the published content into one
+// deployable site directory.
+//
+// The build (`dist/`) and the published content (`manifest.json`,
+// `games/archive/**`) live in different places: the first is generated and
+// gitignored, the second is committed by the daily job. Pages needs them
+// merged. Doing that here rather than in workflow YAML means it can be run
+// and verified locally exactly as CI runs it.
+import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { readJson } from '#actions_pipeline/lib/json-file.ts';
+import {
+  createPaths,
+  paths as defaultPaths,
+  type Paths,
+  REPO_ROOT,
+} from '#actions_pipeline/lib/paths.ts';
+import { isManifest } from '#lib/manifest.ts';
+
+/** Options for {@link assembleSite}. */
+export interface AssembleSiteParams {
+  /** Repo root to read from — overridden in tests. */
+  root?: string;
+  /** Build output directory, also the assembly target. */
+  outDir?: string;
+}
+
+/** What one assembly produced, for the CLI to report. */
+export interface AssembleSiteResult {
+  /** The directory now holding the deployable site. */
+  outDir: string;
+  /** Whether `manifest.json` existed and was copied. */
+  copiedManifest: boolean;
+  /** Whether `games/archive/` existed and was copied. */
+  copiedArchive: boolean;
+  /** Whether `status.json` existed and was copied. Absent on most runs. */
+  copiedStatus: boolean;
+}
+
+/**
+ * The files `manifest.json` points at that are not actually here.
+ *
+ * The manifest and the archive are written together by `publish.ts`, but they
+ * are separate files, and a commit carrying one without the other deploys a
+ * site whose only page 404s — with the pipeline green, the build green, and
+ * nothing to notice until a visitor does.
+ *
+ * Checked here rather than in `npm run validate`: validate runs *before* the
+ * daily generation, and failing there would block the very run that would
+ * publish the missing bundle. Assembly is the moment the two must agree.
+ *
+ * A file counts as missing when it is not on disk, and equally when it
+ * resolves outside `games/archive/` — assembly copies only that directory, so
+ * a bundle anywhere else would 404 for every visitor.
+ *
+ * @returns An empty array when no manifest exists, or when it is the
+ *   seed-state `null` — nothing has been published yet.
+ */
+export function missingPublishedFiles(paths: Paths): string[] {
+  if (!existsSync(paths.manifest)) return [];
+
+  const parsed = readJson(paths.manifest);
+  if (parsed === null) return [];
+  if (!isManifest(parsed)) return ['manifest.json is neither null nor a complete manifest'];
+
+  // An absent promptPath is a game archived before prompts were, not an
+  // omission; a declared one must be on disk like any other file.
+  const declared =
+    parsed.promptPath === undefined ? [parsed.path] : [parsed.path, parsed.promptPath];
+  return declared.filter(
+    (file) => !paths.isArchivedFile(file) || !existsSync(join(paths.root, file)),
+  );
+}
+
+/**
+ * Merges the Vite build output with the published content into one
+ * deployable directory.
+ *
+ * @remarks
+ * Published bundles are copied verbatim: nothing may transform an archived
+ * `game.html` between the pipeline writing it and the browser running it.
+ * A `.nojekyll` marker is written so Pages serves the output as-is.
+ *
+ * @param params - See {@link AssembleSiteParams}.
+ * @returns Which pieces were found and copied.
+ *
+ * @throws {Error} When `outDir` does not exist — run `vite build` first.
+ * @throws {Error} When `manifest.json` names a file the repo does not
+ * contain, which would deploy a site whose only page 404s.
+ */
+export function assembleSite({
+  root = REPO_ROOT,
+  outDir,
+}: AssembleSiteParams = {}): AssembleSiteResult {
+  const paths = root === REPO_ROOT ? defaultPaths : createPaths(root);
+  const target = outDir ?? join(root, 'dist');
+
+  if (!existsSync(target)) {
+    throw new Error(`assemble-site: ${target} does not exist — run \`vite build\` first`);
+  }
+
+  // Pages would otherwise run the output through Jekyll, which strips
+  // directories beginning with an underscore and can mangle asset paths.
+  writeFileSync(join(target, '.nojekyll'), '', 'utf8');
+
+  const missing = missingPublishedFiles(paths);
+  if (missing.length > 0) {
+    throw new Error(
+      `assemble-site: manifest.json points at ${missing.join(', ')}, ` +
+        'which the repo does not contain — the deployed site would 404',
+    );
+  }
+
+  const copiedManifest = existsSync(paths.manifest);
+  if (copiedManifest) {
+    cpSync(paths.manifest, join(target, 'manifest.json'));
+  }
+
+  // Absent on any repo that has never had a run worth explaining, which is
+  // the normal case — so it is copied when present and never required.
+  const copiedStatus = existsSync(paths.status);
+  if (copiedStatus) {
+    cpSync(paths.status, join(target, 'status.json'));
+  }
+
+  const copiedArchive = existsSync(paths.archiveDir);
+  if (copiedArchive) {
+    const archiveTarget = join(target, 'games', 'archive');
+    mkdirSync(archiveTarget, { recursive: true });
+    // Published bundles must land byte-for-byte as the pipeline wrote them
+    // and the smoke test approved them — a plain copy, no transformation.
+    cpSync(paths.archiveDir, archiveTarget, { recursive: true });
+  }
+
+  return { outDir: target, copiedManifest, copiedArchive, copiedStatus };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const result = assembleSite();
+  console.log(
+    `Assembled site in ${result.outDir} ` +
+      `(manifest: ${result.copiedManifest ? 'yes' : 'missing'}, ` +
+      `archive: ${result.copiedArchive ? 'yes' : 'missing'}, ` +
+      `status: ${result.copiedStatus ? 'yes' : 'none'})`,
+  );
+}

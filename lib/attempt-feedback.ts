@@ -3,7 +3,7 @@
 // it, and the browser takes it back out.
 //
 // Isomorphic for the same reason as system-prompt.ts — BYOK re-sends an
-// archived prompt from the browser, and scripts/ is Node-only. Keeping the
+// archived prompt from the browser, and actions_pipeline/ is Node-only. Keeping the
 // heading, the rendering and the removal in one module is what stops the
 // writer and the stripper drifting into a section that can never be found.
 

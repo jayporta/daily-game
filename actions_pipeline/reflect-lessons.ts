@@ -1,0 +1,130 @@
+#!/usr/bin/env node
+// Rewrites history/summary.json's "lessons" note from the hot window, each
+// day, so the guidance in tomorrow's prompt reflects the last few weeks
+// rather than games that aged out two months ago.
+//
+// Owns the lessons field outright. The rollup owns the archive and the
+// tallies and makes no model call, so the two never write the same thing.
+import { pathToFileURL } from 'node:url';
+import { loadModelsConfig } from '#actions_pipeline/lib/config/models.ts';
+import { getOpenRouterClient } from '#actions_pipeline/lib/get-client.ts';
+import type { HistoryGameEntry, HistorySummary } from '#actions_pipeline/lib/history-store.ts';
+import { readHotWindow, readSummary } from '#actions_pipeline/lib/history-store.ts';
+import { writeJson } from '#actions_pipeline/lib/json-file.ts';
+import { buildLessonsMessages, MAX_LESSONS_LENGTH } from '#actions_pipeline/lib/lessons-prompt.ts';
+import type { OpenRouterClient } from '#actions_pipeline/lib/openrouter-client.ts';
+import { createPaths, paths as defaultPaths } from '#actions_pipeline/lib/paths.ts';
+import { errorMessage } from '#lib/errors.ts';
+
+/**
+ * How long the reflection call gets.
+ *
+ * @remarks
+ * The answer is capped at {@link MAX_LESSONS_LENGTH} characters, so this is
+ * generous. Set for the same reason as moderation's: reflection shares a
+ * client with generation and would otherwise inherit a cap sized for writing
+ * a whole game.
+ */
+const REFLECTION_TIMEOUT_MS = 120_000;
+
+/**
+ * Asks the model for a rewritten lessons note.
+ *
+ * @returns The new note, or `null` when the call fails or comes back empty.
+ *   The caller keeps the existing note in that case: stale lessons cost the
+ *   next prompt some polish, a failed rollup would cost the hot window its
+ *   bound.
+ */
+export async function rewriteLessons(
+  client: OpenRouterClient,
+  {
+    model,
+    summary,
+    aging,
+  }: { model: string; summary: HistorySummary; aging: readonly HistoryGameEntry[] },
+): Promise<string | null> {
+  let raw: string;
+  try {
+    ({ text: raw } = await client.complete({
+      model,
+      messages: buildLessonsMessages(summary, aging),
+      temperature: 0.3,
+      timeoutMs: REFLECTION_TIMEOUT_MS,
+    }));
+  } catch {
+    return null;
+  }
+
+  const lessons = raw.trim().slice(0, MAX_LESSONS_LENGTH);
+  return lessons.length > 0 ? lessons : null;
+}
+
+export interface ReflectOptions {
+  client?: OpenRouterClient;
+  /** Defaults to `moderationModel`, the project's non-generating model. */
+  model?: string;
+  /** Repo root to read and write — overridden in tests. */
+  root?: string;
+  /** Compute the new note, write nothing. */
+  dryRun?: boolean;
+}
+
+/** What one reflection did. */
+export interface ReflectResult {
+  /** False when the model could not be reached, or there was nothing to read. */
+  readonly rewritten: boolean;
+  /** The note as it now stands, whether or not this run changed it. */
+  readonly lessons: string;
+}
+
+/**
+ * Distils the hot window into the lessons note.
+ *
+ * Best-effort in both directions: an empty history writes nothing, and an
+ * unreachable model leaves the previous note in place. A stale note costs
+ * tomorrow's prompt some polish; failing here must not cost the day its game.
+ */
+export async function reflectLessons({
+  client,
+  model,
+  root,
+  dryRun = false,
+}: ReflectOptions = {}): Promise<ReflectResult> {
+  const paths = root ? createPaths(root) : defaultPaths;
+  const summary = readSummary(paths.historySummary);
+  const entries = readHotWindow(paths.historyGames);
+
+  if (entries.length === 0) return { rewritten: false, lessons: summary.lessons };
+
+  const lessons = await rewriteLessons(client ?? getOpenRouterClient(), {
+    model: model ?? loadModelsConfig(paths.modelsConfig).moderationModel,
+    summary,
+    aging: entries,
+  });
+
+  if (lessons === null || lessons === summary.lessons) {
+    return { rewritten: false, lessons: summary.lessons };
+  }
+  if (dryRun) return { rewritten: true, lessons };
+
+  const updated: HistorySummary = { ...summary, lessons };
+  writeJson(paths.historySummary, updated);
+  return { rewritten: true, lessons };
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const dryRun = process.argv.slice(2).includes('--dry-run');
+  reflectLessons({ dryRun })
+    .then((result) => {
+      const prefix = dryRun ? '[dry-run] ' : '';
+      console.log(
+        result.rewritten
+          ? `${prefix}Lessons rewritten (${result.lessons.length} chars).`
+          : 'Lessons left unchanged.',
+      );
+    })
+    .catch((error: unknown) => {
+      console.error(`Reflection failed: ${errorMessage(error)}`);
+      process.exitCode = 1;
+    });
+}
