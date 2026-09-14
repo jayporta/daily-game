@@ -297,6 +297,9 @@ export function publish({
   release = UNRELEASED,
   root,
 }: PublishParams): PublishResult {
+  if ((attemptModels === undefined) !== (kinds === undefined)) {
+    throw new Error('attemptModels and kinds must be provided together');
+  }
   if (attemptModels !== undefined && kinds !== undefined && attemptModels.length !== kinds.length) {
     throw new Error(
       `attemptModels (${attemptModels.length}) must be parallel to kinds (${kinds.length})`,
