@@ -55,7 +55,9 @@ export function isRecordOf(v: unknown, isValid: (entry: unknown) => boolean): bo
  *
  * @param validate Pushes every problem found onto `errors` — not just the
  *   first, which is what lets `npm run validate` name all of them in one
- *   run — then reports validity as its return value.
+ *   run — then reports validity as its return value. `errors` is caller-owned
+ *   and may already hold entries, so a validator reports only what that call
+ *   added, measured against the array's length on entry.
  * @throws If the file cannot be read, is not JSON, or fails `validate`.
  */
 export function loadValidatedJson<T>(

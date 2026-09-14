@@ -155,3 +155,11 @@ test('the reaction config this repo ships carries no privileged key', () => {
   const errors: string[] = [];
   assert.equal(validateReactionConfig(shipped, errors), true);
 });
+
+test('validateReactionConfig reports validity of its own input when errors already holds an entry', () => {
+  const errors = ['an unrelated earlier problem'];
+  const valid = validateReactionConfig(UNCONFIGURED, errors);
+
+  assert.equal(valid, true);
+  assert.deepEqual(errors, ['an unrelated earlier problem']);
+});

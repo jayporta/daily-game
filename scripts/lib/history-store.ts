@@ -411,6 +411,8 @@ export function validateHistorySummary(
     return false;
   }
 
+  const before = errors.length;
+
   if (json.genreCounts !== undefined && !isRecordOf(json.genreCounts, isFiniteNumber)) {
     errors.push('genreCounts must be an object whose values are numbers');
   }
@@ -444,7 +446,7 @@ export function validateHistorySummary(
     }
   }
 
-  return errors.length === 0;
+  return errors.length === before;
 }
 
 // games.md only. Every JSON file goes through writeJson, which shares this

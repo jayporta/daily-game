@@ -101,3 +101,17 @@ test('validateModelsConfig rejects wrong-typed active field', () => {
   assert.equal(valid, false);
   assert.ok(errors.some((e) => e.includes('active')));
 });
+
+test('validateModelsConfig reports validity of its own input when errors already holds an entry', () => {
+  const errors = ['an unrelated earlier problem'];
+  const valid = validateModelsConfig(
+    {
+      moderationModel: 'mistralai/mistral-7b-instruct:free',
+      models: [{ id: 'a/model:free', active: true, provider: 'openrouter' }],
+    },
+    errors,
+  );
+
+  assert.equal(valid, true);
+  assert.deepEqual(errors, ['an unrelated earlier problem']);
+});

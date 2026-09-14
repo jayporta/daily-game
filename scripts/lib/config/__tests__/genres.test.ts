@@ -29,3 +29,11 @@ test('validateGenresConfig rejects empty examples array entries', () => {
   const valid = validateGenresConfig([{ id: 'maze', label: 'Maze', examples: [] }], errors);
   assert.equal(valid, false);
 });
+
+test('validateGenresConfig reports validity of its own input when errors already holds an entry', () => {
+  const errors = ['an unrelated earlier problem'];
+  const valid = validateGenresConfig([{ id: 'maze', label: 'Maze', examples: ['ex1'] }], errors);
+
+  assert.equal(valid, true);
+  assert.deepEqual(errors, ['an unrelated earlier problem']);
+});

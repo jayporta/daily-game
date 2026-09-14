@@ -60,3 +60,11 @@ test('validateByokModelsConfig rejects a non-array root', () => {
   assert.equal(valid, false);
   assert.deepEqual(errors, ['root must be an array']);
 });
+
+test('validateByokModelsConfig reports validity of its own input when errors already holds an entry', () => {
+  const errors = ['an unrelated earlier problem'];
+  const valid = validateByokModelsConfig(VALID_BYOK_MODELS, errors);
+
+  assert.equal(valid, true);
+  assert.deepEqual(errors, ['an unrelated earlier problem']);
+});

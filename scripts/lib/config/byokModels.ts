@@ -21,6 +21,8 @@ export function validateByokModelsConfig(
     return false;
   }
 
+  const before = errors.length;
+
   const seenProviders: string[] = [];
   json.forEach((entry: unknown, i: number) => {
     if (!isPlainObject(entry)) {
@@ -55,7 +57,7 @@ export function validateByokModelsConfig(
     if (count > 1) errors.push(`byokModels lists provider "${provider}" more than once`);
   }
 
-  return errors.length === 0;
+  return errors.length === before;
 }
 
 /** @throws If the file is missing, unparseable, or fails {@link validateByokModelsConfig}. */
