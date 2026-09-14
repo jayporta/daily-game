@@ -43,12 +43,12 @@ npm run reflect      # rewrite summary.json's lessons from the hot window
 npm run schema       # print the reaction store's DDL
 npm run dry-run      # whole pipeline against mocks, writing nothing to disk
 npm run generate:local  # same, but publishes locally so `npm run dev` has a game
-npm run build:site   # vite build + assemble-site.ts → deployable dist/
+npm run build:site   # vite build + assembleSite.ts → deployable dist/
 ```
 
 First run also needs `npx playwright install chromium`.
 
-- One Node file: `node --test scripts/__tests__/moderate.test.ts`
+- One Node file: `node --test actions_pipeline/__tests__/moderate.test.ts`
 - One web file: `npx vitest run src/features/game/__tests__/GameFacts.test.tsx`
 - By name under `node --test`, **always scope it to a file**: append
   `--test-name-pattern "fails closed"`. Repo-wide it hangs — the smoke-test
@@ -74,7 +74,7 @@ First run also needs `npx playwright install chromium`.
   for a bare throw. Use `errorMessage()` from `lib/errors.ts`.
 - Data arriving from disk, the network or `localStorage` is validated and
   then used, never `JSON.parse(x) as T`. Config and history go through
-  `loadValidatedJson` from `scripts/lib/validation.ts`, paired with the
+  `loadValidatedJson` from `actions_pipeline/lib/validation.ts`, paired with the
   validator that lives beside the file it describes; anything else gets a
   guard that narrows field by field. Every reader of a given file validates,
   or the one that doesn't becomes the crash.
@@ -149,7 +149,7 @@ refactor.
   had, and exits green. Only an unexpected crash is a CI failure.
 
   `manifest.json` is untouched *while it is serving a game* — that is the
-  guarantee, and `restoreManifestFromArchive` in `scripts/publish.ts` is
+  guarantee, and `restoreManifestFromArchive` in `actions_pipeline/publish.ts` is
   written to preserve it: it returns `intact` and writes nothing whenever the
   manifest parses and the bundle it names is on disk. It only writes when the
   manifest has stopped naming a game at all — the seed-state `null`, an
@@ -166,23 +166,23 @@ refactor.
   and `GameView` hides the BYOK panel rather than offering a Generate button
   that fetches a 404.
 - **The prompt contract and the extractor must agree.**
-  `OUTPUT_FORMAT_CONTRACT` in `scripts/build-prompt.ts` describes the two
-  fenced blocks that `lib/extract-bundle-shared.ts` parses. Change them
+  `OUTPUT_FORMAT_CONTRACT` in `actions_pipeline/buildPrompt.ts` describes the two
+  fenced blocks that `lib/extractBundleShared.ts` parses. Change them
   together or every generation fails.
 - **`renderAttemptFeedback` and `stripAttemptFeedback` must agree.** Both
-  live in `lib/attempt-feedback.ts`, with the heading they share, precisely so
+  live in `lib/attemptFeedback.ts`, with the heading they share, precisely so
   they cannot drift. An archived `prompt.txt` is the exact prompt that
   produced that day's game — corrections to the attempt before it included —
   and BYOK replays it as a fresh first attempt, where an instruction to fix a
   failure that never happened describes nothing. The round-trip test in
-  `scripts/__tests__/build-prompt.test.ts` is the guard: strip what the
+  `actions_pipeline/__tests__/buildPrompt.test.ts` is the guard: strip what the
   builder added and the result must equal a first-attempt prompt byte for
   byte. Only that section goes; the history-derived `## Fix what has been
   going wrong` is guidance any generation can still act on.
 
 - **Both transports request SSE, for unrelated reasons.** `stream: true` here
   is an HTTP transfer mode, not a feature: every request asks for it, and
-  `readSseData` in `lib/sse-stream.ts` reassembles the frames. Drop the flag
+  `readSseData` in `lib/sseStream.ts` reassembles the frames. Drop the flag
   and that provider answers with one JSON document carrying no `data:` frames,
   which reads as a model that returned nothing rather than as an error. What
   each side does with the frames is where they part company, and neither
@@ -210,7 +210,7 @@ refactor.
 - **`cronSchedule` and the workflow's cron are different times on purpose.**
   Actions defers scheduled events under load — measured here at 1.5 to 2.5
   hours late, every day — so the punctual trigger is an external cron service
-  POSTing a `workflow_dispatch`, and `generate-daily-game.yml`'s
+  POSTing a `workflow_dispatch`, and `generateDailyGame.yml`'s
   `on.schedule.cron` is only the fallback for days that misses.
 
   `config/generation.json`'s `cronSchedule` is when the game is due: it drives
@@ -234,14 +234,14 @@ refactor.
   each DST boundary; a trigger set to "noon Pacific" would follow DST and drift
   away from `cronSchedule` twice a year.
 - **The daily job's push must go through `GH_PUSH_TOKEN`, and deploy must
-  stay a plain `push` trigger.** `generate-daily-game.yml` authenticates its
+  stay a plain `push` trigger.** `generateDailyGame.yml` authenticates its
   commit-and-push with an admin's PAT rather than `GITHUB_TOKEN`, because
   `main` requires a reviewed PR and only an admin is exempt. A side effect
   matters just as much as the exemption: unlike `GITHUB_TOKEN`, a
   PAT-authenticated push *does* start other workflows, so
-  `deploy-pages.yml`'s own `push` trigger fires on it with the correct,
+  `deployPages.yml`'s own `push` trigger fires on it with the correct,
   just-pushed SHA — that trigger is deploy's only path. Do not reintroduce a
-  `workflow_call` from `generate-daily-game.yml` as a second path: inside a
+  `workflow_call` from `generateDailyGame.yml` as a second path: inside a
   reusable-workflow call from within the same run, `actions/checkout`'s
   default `github.sha` resolves to the commit that triggered the *outer*
   run, i.e. the tree from before that run's own push — not the game it just
@@ -260,13 +260,13 @@ refactor.
   `publish.ts` is on the writing side of that line and makes exactly two
   additions, both ours and both keyed off `sentryDsn`: a `connect-src` meta
   in the document's `<head>`, and the error-reporting snippet at the end.
-  Both come from `scripts/lib/errorReporting.ts`. The meta has to go *inside*
+  Both come from `actions_pipeline/lib/errorReporting.ts`. The meta has to go *inside*
   `<head>` — a meta CSP is ignored anywhere else, and prepending it before
   the doctype would drop the game into quirks mode. A bundle carrying neither
   `<head>` nor `<html>` is published without it rather than failed: the
   sandbox is the control, this is defence in depth.
 - **Nothing downstream branches on mock-vs-real.**
-  `scripts/lib/get-client.ts` is the only place that decides, so setting
+  `actions_pipeline/lib/getClient.ts` is the only place that decides, so setting
   `OPENROUTER_API_KEY` flips the pipeline live with no code change.
 - **`connect-src` must list the Sentry ingest origin.** A `srcdoc` iframe
   inherits the parent's CSP, so the snippet `publish.ts` appends runs under
@@ -288,13 +288,13 @@ refactor.
   `script-src` added with a hash for that script would still break the
   games.
 - **Reaction feedback is a closed vocabulary, never freetext.**
-  `DISLIKE_REASONS` in `lib/reaction-types.ts` is the only thing that
-  crosses the network, and `fetch-feedback.ts` tallies by iterating that
+  `DISLIKE_REASONS` in `lib/reactionTypes.ts` is the only thing that
+  crosses the network, and `fetchFeedback.ts` tallies by iterating that
   vocabulary rather than the store's response. Anyone who loads the page
   holds the insert key, so no string from the store may ever reach
   `history/games.json` or the generation prompt.
 - **Only our own words reach the generation prompt as guidance.**
-  `correctiveDirectives` in `scripts/build-prompt.ts` keys fixed wording off
+  `correctiveDirectives` in `actions_pipeline/buildPrompt.ts` keys fixed wording off
   the closed `DISLIKE_REASONS` and `FAILURE_KINDS` vocabularies, so nothing a
   visitor or a previous generation authored is quoted into the next prompt.
   `digestHistory` shows model-authored `theme`/`mechanics`/`title` as labelled
@@ -303,18 +303,18 @@ refactor.
   The `lessons` note is the one indirect path, and it is worth understanding
   before changing: `failureReasons` (which embed console output from
   AI-written games) reach the *reflection* prompt in
-  `scripts/lib/lessons-prompt.ts`, the model there writes the note, and the
+  `actions_pipeline/lib/lessonsPrompt.ts`, the model there writes the note, and the
   note reaches the *generation* prompt. Two model hops, capped at 300
   characters per reason and 4,000 for the note. That is a deliberate trade —
   a note distilled from "smoke-js-error x3" alone would be useless — but it
   is the one place model-authored text can influence later instructions, so
   keep both caps and never route `failureReasons` into the generation prompt
   directly.
-- **`reflect-lessons.ts` owns `lessons`; `rollup-history.ts` owns the archive
+- **`reflectLessons.ts` owns `lessons`; `rollupHistory.ts` owns the archive
   and the tallies.** The rollup makes no model call and carries the note
   through untouched. Two writers of one field would race each other.
 - **The archive is append-only and nothing is ever dropped.**
-  `scripts/rollup-history.ts` moves entries out of `history/games.json` into
+  `actions_pipeline/rollupHistory.ts` moves entries out of `history/games.json` into
   `history/archive/YYYY-MM.jsonl`. Every entry must survive in one place or
   the other — the rollup archives before it truncates, and re-archiving a
   date it already holds is a no-op so a re-run cannot duplicate. Losing an
@@ -324,24 +324,24 @@ refactor.
   a repeated or interrupted rollup safe: accumulating instead double-counted
   every genre when a run repeated before `games.json` was truncated.
 - **`lib/` stays isomorphic.** It's compiled by both tsconfigs; a Node-only
-  API there breaks the browser build. Node-only code belongs in `scripts/`,
+  API there breaks the browser build. Node-only code belongs in `actions_pipeline/`,
   which never ships to Pages.
 
 ## Conventions
 
 - One definition per fact, in the narrowest home that reaches every caller:
-  `lib/` when both sides need it, `src/lib/` for browser-only, `scripts/lib/`
+  `lib/` when both sides need it, `src/lib/` for browser-only, `actions_pipeline/lib/`
   for Node-only. A type declared twice drifts — these already had to be
   merged back: `ReactionConfig`, the `localStorage` seam, and the shape
-  check for `config/reaction-config.json`.
-- Shared helpers live in `scripts/lib/` (history I/O, path building,
+  check for `config/reactionConfig.json`.
+- Shared helpers live in `actions_pipeline/lib/` (history I/O, path building,
   validation primitives) and `src/lib/` on the browser side. Extend them
   rather than re-reading or re-validating files in a new script.
 - **Group by subject, not by kind of fact** — the Common Closure Principle,
   and the organising rule for this whole repo, not just for config. A
   subject's type, its rules, its behaviour and its I/O live in one module,
   so answering "what is this and who reads it?" means opening one file.
-  `scripts/lib/config/models.ts` is the reference shape: it holds
+  `actions_pipeline/lib/config/models.ts` is the reference shape: it holds
   `config/models.json`'s type, validator and loader together.
 
   Never reintroduce a module that collects one *kind* of thing across many
@@ -356,8 +356,8 @@ refactor.
   Three deliberate exceptions, each because something outside the subject
   needs it: an isomorphic type and guard stay in `lib/` (`ReactionConfig`,
   `ByokModelsConfig`) because both build targets compile it; paths stay
-  centralised in `scripts/lib/paths.ts` so `createPaths(root)` can redirect
-  the whole pipeline at a scratch directory; and `scripts/lib/validation.ts`
+  centralised in `actions_pipeline/lib/paths.ts` so `createPaths(root)` can redirect
+  the whole pipeline at a scratch directory; and `actions_pipeline/lib/validation.ts`
   holds only primitives with many unrelated consumers. Anything else that
   wants to be shared needs that many consumers first — two callers in one
   area is local, not shared.
@@ -375,6 +375,6 @@ refactor.
 - Sentry is live. `config/generation.json`'s `sentryDsn` is the one copy of
   the DSN: `publish.ts` reads it for the snippet it appends to bundles, and
   `vite.config.ts` inlines it into the browser build as `__SENTRY_DSN__`.
-  Never paste the DSN into `src/` — `secret-scan.yml` treats a literal there
+  Never paste the DSN into `src/` — `secretScan.yml` treats a literal there
   as a leaked credential. A fork with `sentryDsn: null` still runs: both
   `buildErrorReportingSnippet` and `startErrorMonitoring` no-op.

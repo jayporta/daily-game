@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
-import type { ByokProvider } from '#lib/byok-config-types.ts';
+import type { ByokProvider } from '#lib/byokConfigTypes.ts';
 import { errorMessage } from '#lib/errors.ts';
-import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
-import { extractBundle } from '#lib/extract-bundle-shared.ts';
+import type { GeneratedMeta } from '#lib/extractBundleShared.ts';
+import { extractBundle } from '#lib/extractBundleShared.ts';
 import {
   type ByokFailure,
   describeByokFailure,

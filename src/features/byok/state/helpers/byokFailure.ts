@@ -5,9 +5,9 @@
 // worth testing exhaustively, and it runs under node --test as plain
 // functions rather than through a rendered hook.
 
-import type { ExtractFailureReason } from '#lib/extract-bundle-shared.ts';
-import { EXTRACTION_RETRY_FEEDBACK } from '#lib/extract-bundle-shared.ts';
-import type { ProviderStopReason } from '#lib/provider-response.ts';
+import type { ExtractFailureReason } from '#lib/extractBundleShared.ts';
+import { EXTRACTION_RETRY_FEEDBACK } from '#lib/extractBundleShared.ts';
+import type { ProviderStopReason } from '#lib/providerResponse.ts';
 import type { ByokFailureKind } from '#src/features/byok/state/helpers/providers.ts';
 import { isExpectedFailure } from '#src/features/byok/state/helpers/providers.ts';
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import type { ReactionConfig } from '#lib/reaction-types.ts';
+import type { ReactionConfig } from '#lib/reactionTypes.ts';
 import { DislikeReasons } from '@/features/reaction/DislikeReasons.tsx';
 import { reactionConfig } from '@/features/reaction/state/helpers/reactionStore.ts';
 import { useReaction } from '@/features/reaction/state/useReaction.ts';

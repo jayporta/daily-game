@@ -1,0 +1,350 @@
+import assert from 'node:assert/strict';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { after, before, test } from 'node:test';
+import { loadGenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
+import { readHotWindow, writeGamesJson } from '#actions_pipeline/lib/historyStore.ts';
+import { writeJson } from '#actions_pipeline/lib/jsonFile.ts';
+import {
+  type OpenRouterClient,
+  OpenRouterHttpError,
+} from '#actions_pipeline/lib/openRouterClient.ts';
+import { createPaths, REPO_ROOT } from '#actions_pipeline/lib/paths.ts';
+import {
+  GENERATION_CONFIG,
+  GENRES,
+  loadFixture,
+  loadFixtureBundle,
+  PUBLISHED_ENTRY,
+  PUBLISHED_SLUG,
+  scriptedClient,
+} from '#actions_pipeline/lib/testFixtures.ts';
+import { buildManifest } from '#actions_pipeline/publish.ts';
+import { runDailyPipeline } from '#actions_pipeline/runDailyPipeline.ts';
+import { createSmokeTester, type SmokeTester } from '#actions_pipeline/smokeTest.ts';
+
+// One browser for the file: every case supplies this rather than letting the
+// pipeline create (and close) its own.
+let smokeTester: SmokeTester;
+
+before(async () => {
+  smokeTester = await createSmokeTester();
+});
+
+after(async () => {
+  await smokeTester?.close();
+});
+
+// The pipeline reports what it did on stdout. These cases drive the
+// every-attempt-failed path, so without this its reasons land in the test
+// runner's output.
+const SILENT = (): void => undefined;
+
+// Deliberately not the committed endpoint: a read that reaches the real
+// config lands somewhere else and the assertion catches it.
+const SCRATCH_ENDPOINT = 'https://scratch.example/rest/v1/reactions';
+
+/**
+ * A scratch repo holding a copy of the real config, and no history at all.
+ *
+ * `readHotWindow` treats a missing games.json as an empty history, so a run
+ * against this starts from nothing and reconciles no previous day — which is
+ * what keeps the reaction-store fetch out of most of these tests.
+ */
+function scratchRoot(t: { after(fn: () => void): void }): string {
+  const dir = mkdtempSync(join(tmpdir(), 'daily-game-pipeline-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  cpSync(join(REPO_ROOT, 'config'), join(dir, 'config'), { recursive: true });
+  // The copy carries the live DSN, and a failing run reports to it. Blanked
+  // here so only a test that opts back in with `writeGenerationConfig` sends
+  // anything.
+  writeGenerationConfig(createPaths(dir).generationConfig, null);
+  return dir;
+}
+
+/** Rewrites the scratch generation config's `sentryDsn`, leaving every other knob alone. */
+function writeGenerationConfig(filePath: string, sentryDsn: string | null): void {
+  writeJson(filePath, { ...loadGenerationConfig(filePath), sentryDsn });
+}
+
+// Deliberately not the committed DSN: a report that reaches the real config
+// lands on another host and the assertion catches it.
+const SCRATCH_DSN = 'https://scratchkey@scratch.ingest.example/99';
+
+test('a day that already published generates nothing', async (t) => {
+  const root = scratchRoot(t);
+  writeGamesJson(createPaths(root).historyGames, [PUBLISHED_ENTRY]);
+
+  // A seeded published entry makes the run reconcile that day's reactions,
+  // and `scratchRoot` copies the committed config — whose endpoint is live.
+  // Answer it here rather than over the network.
+  t.mock.method(globalThis, 'fetch', async () => Response.json([]));
+
+  let generationCalls = 0;
+  const client: OpenRouterClient = {
+    async complete() {
+      generationCalls += 1;
+      return { text: '', stop: 'complete' };
+    },
+  };
+
+  const result = await runDailyPipeline({
+    log: SILENT,
+    root,
+    client,
+    smokeTester,
+    now: new Date(`${PUBLISHED_ENTRY.date}T12:00:00Z`),
+  });
+
+  assert.equal(result.status, 'already_published');
+  assert.equal(result.status === 'already_published' && result.slug, PUBLISHED_SLUG);
+  assert.equal(generationCalls, 0);
+});
+
+test('the reaction store read follows the scratch root, not the committed config', async (t) => {
+  const root = scratchRoot(t);
+  writeGamesJson(createPaths(root).historyGames, [PUBLISHED_ENTRY]);
+  writeFileSync(
+    createPaths(root).reactionConfig,
+    `${JSON.stringify({ endpointUrl: SCRATCH_ENDPOINT, anonKey: 'sb_publishable_scratch' }, null, 2)}\n`,
+  );
+
+  const requested: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    requested.push(String(input));
+    return Response.json([]);
+  });
+
+  await runDailyPipeline({
+    log: SILENT,
+    root,
+    client: scriptedClient([]),
+    smokeTester,
+    now: new Date(`${PUBLISHED_ENTRY.date}T12:00:00Z`),
+  });
+
+  assert.equal(requested.length, 1);
+  // The pipeline reads the aggregate view beside the configured table, so the
+  // relation differs; which deployment it came from is what this guards.
+  const scratchBase = SCRATCH_ENDPOINT.slice(0, SCRATCH_ENDPOINT.lastIndexOf('/') + 1);
+  assert.ok(
+    requested[0]?.startsWith(scratchBase),
+    `expected a read of the scratch deployment, got ${String(requested[0])}`,
+  );
+});
+
+test('a dry run reports its result and writes nothing to disk', async (t) => {
+  const root = scratchRoot(t);
+  const paths = createPaths(root);
+
+  const result = await runDailyPipeline({
+    log: SILENT,
+    root,
+    dryRun: true,
+    client: scriptedClient([loadFixture('goodMaze')]),
+    smokeTester,
+    now: new Date('2026-09-10T12:00:00Z'),
+  });
+
+  assert.equal(result.status, 'success');
+  assert.equal(existsSync(paths.manifest), false);
+  assert.equal(existsSync(paths.historyGames), false);
+});
+
+test('a successful run publishes the game and records it in history', async (t) => {
+  const root = scratchRoot(t);
+  const paths = createPaths(root);
+
+  const result = await runDailyPipeline({
+    log: SILENT,
+    root,
+    client: scriptedClient([loadFixture('goodMaze')]),
+    smokeTester,
+    now: new Date('2026-09-10T12:00:00Z'),
+  });
+
+  assert.equal(result.status, 'success');
+  assert.ok(existsSync(paths.manifest));
+
+  const entries = readHotWindow(paths.historyGames);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0]?.date, '2026-09-10');
+  assert.equal(entries[0]?.status, 'published');
+});
+
+test('a run that never gets a game records the failure and leaves the live manifest alone', async (t) => {
+  const root = scratchRoot(t);
+  const paths = createPaths(root);
+  const { meta } = loadFixtureBundle('goodMaze');
+
+  // The manifest names a different archived game than history's newest
+  // published entry does. That is what makes this observe the `intact`
+  // branch: were the check to fail, the restore has a candidate to repoint
+  // at, and the manifest would visibly change.
+  const LIVE_SLUG = '2026-09-01-currently-serving';
+  for (const slug of [LIVE_SLUG, PUBLISHED_SLUG]) {
+    mkdirSync(paths.archiveGameDir(slug), { recursive: true });
+    writeFileSync(join(paths.archiveGameDir(slug), 'game.html'), '<html><body></body></html>');
+    // A restore candidate needs its metadata too, or it is skipped for
+    // being unreadable rather than for the manifest being intact.
+    writeFileSync(join(paths.archiveGameDir(slug), 'meta.json'), JSON.stringify(meta));
+  }
+  writeGamesJson(paths.historyGames, [PUBLISHED_ENTRY]);
+  writeFileSync(
+    paths.manifest,
+    `${JSON.stringify(
+      buildManifest({
+        date: '2026-09-01',
+        slug: LIVE_SLUG,
+        meta,
+        model: 'a/model:free',
+        generatedAt: '2026-09-01T12:00:00.000Z',
+        cronSchedule: GENERATION_CONFIG.cronSchedule,
+        genres: GENRES,
+        paths,
+      }),
+      null,
+      2,
+    )}\n`,
+  );
+  const manifestBefore = readFileSync(paths.manifest, 'utf8');
+
+  // Reconciling the seeded published day would otherwise reach the real
+  // reaction store; see the note on the first test.
+  t.mock.method(globalThis, 'fetch', async () => Response.json([]));
+
+  const result = await runDailyPipeline({
+    log: SILENT,
+    root,
+    // No fixtures left on the very first call, so every attempt fails.
+    client: scriptedClient([]),
+    smokeTester,
+    now: new Date('2026-09-10T12:00:00Z'),
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(readFileSync(paths.manifest, 'utf8'), manifestBefore);
+
+  const entries = readHotWindow(paths.historyGames);
+  assert.equal(entries.at(-1)?.date, '2026-09-10');
+  assert.equal(entries.at(-1)?.status, 'failed_kept_previous');
+  // Nothing a visitor can act on, so the countdown stays the truthful thing
+  // to show and no status is published.
+  assert.equal(existsSync(paths.status), false);
+});
+
+// The page reads this in place of the countdown, so the run has to leave it
+// where assembly will find it.
+test('a run refused for quota publishes a status the page can read', async (t) => {
+  const root = scratchRoot(t);
+  const paths = createPaths(root);
+
+  const result = await runDailyPipeline({
+    log: SILENT,
+    root,
+    client: {
+      async complete() {
+        throw new OpenRouterHttpError(429, 'rate limited');
+      },
+    } satisfies OpenRouterClient,
+    smokeTester,
+    now: new Date('2026-09-10T20:05:00Z'),
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  const status = JSON.parse(readFileSync(paths.status, 'utf8'));
+  assert.deepEqual(status, {
+    date: '2026-09-10',
+    state: 'quota-exceeded',
+    retryAt: '2026-09-11T19:00:00.000Z',
+  });
+});
+
+// The site keeps yesterday's game and the run exits green, so without a
+// report a failed day is invisible outside the history file.
+test('a run that never gets a game reports the failure to Sentry', async (t) => {
+  const root = scratchRoot(t);
+  writeGenerationConfig(createPaths(root).generationConfig, SCRATCH_DSN);
+
+  const requested: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    requested.push(String(input));
+    return new Response('', { status: 200 });
+  });
+
+  const result = await runDailyPipeline({
+    log: SILENT,
+    root,
+    client: scriptedClient([]),
+    smokeTester,
+    now: new Date('2026-09-10T12:00:00Z'),
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  const reports = requested.filter((url) => url.startsWith('https://scratch.ingest.example/'));
+  assert.equal(reports.length, 1);
+  assert.ok(
+    reports[0]?.includes('/api/99/envelope/'),
+    `unexpected ingest URL ${String(reports[0])}`,
+  );
+});
+
+test('a run that publishes reports nothing to Sentry', async (t) => {
+  const root = scratchRoot(t);
+  writeGenerationConfig(createPaths(root).generationConfig, SCRATCH_DSN);
+
+  const requested: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    requested.push(String(input));
+    return new Response('', { status: 200 });
+  });
+
+  const result = await runDailyPipeline({
+    log: SILENT,
+    root,
+    client: scriptedClient([loadFixture('goodMaze')]),
+    smokeTester,
+    now: new Date('2026-09-10T12:00:00Z'),
+  });
+
+  assert.equal(result.status, 'success');
+  assert.deepEqual(
+    requested.filter((url) => url.startsWith('https://scratch.ingest.example/')),
+    [],
+  );
+});
+
+// A dry run writes nothing to disk, so it must not write to Sentry either.
+test('a dry run reports nothing to Sentry', async (t) => {
+  const root = scratchRoot(t);
+  writeGenerationConfig(createPaths(root).generationConfig, SCRATCH_DSN);
+
+  const requested: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    requested.push(String(input));
+    return new Response('', { status: 200 });
+  });
+
+  await runDailyPipeline({
+    log: SILENT,
+    root,
+    dryRun: true,
+    client: scriptedClient([]),
+    smokeTester,
+    now: new Date('2026-09-10T12:00:00Z'),
+  });
+
+  assert.deepEqual(
+    requested.filter((url) => url.startsWith('https://scratch.ingest.example/')),
+    [],
+  );
+});

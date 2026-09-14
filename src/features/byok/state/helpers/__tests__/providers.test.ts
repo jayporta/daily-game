@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { ByokProvider } from '#lib/byok-config-types.ts';
+import type { ByokProvider } from '#lib/byokConfigTypes.ts';
 import {
   type ByokCompletionResult,
   type ByokRequest,

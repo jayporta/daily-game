@@ -1,6 +1,6 @@
 import { useId } from 'react';
-import type { ControlHint } from '#lib/extract-bundle-shared.ts';
-import { controlIdentity } from '#lib/extract-bundle-shared.ts';
+import type { ControlHint } from '#lib/extractBundleShared.ts';
+import { controlIdentity } from '#lib/extractBundleShared.ts';
 
 export interface ControlLegendProps {
   /** What the game reported it listens for, in the order it gave. */

@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react';
 import type { RunStatus } from '#lib/status.ts';
 import { RunStatusContext } from '@/features/game/state/context/runStatusContext.ts';
-import { fetchRunStatus, isRetryTimePast } from '@/features/game/state/helpers/status-client.ts';
+import { fetchRunStatus, isRetryTimePast } from '@/features/game/state/helpers/statusClient.ts';
 import { reportError } from '@/lib/sentry.ts';
 
 export interface RunStatusProviderProps {

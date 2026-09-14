@@ -15,7 +15,7 @@
   500, the only weight anything uses.
 
   A url() that stops resolving is a build warning, not an error, so
-  src/__tests__/same-origin-assets.test.ts is what catches a package upgrade
+  src/__tests__/sameOriginAssets.test.ts is what catches a package upgrade
   moving one of these files.
 */
 

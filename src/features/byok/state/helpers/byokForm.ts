@@ -1,5 +1,5 @@
 // What the visitor has chosen in the BYOK form, as one value.
-import type { ByokModelsConfig, ByokProvider } from '#lib/byok-config-types.ts';
+import type { ByokModelsConfig, ByokProvider } from '#lib/byokConfigTypes.ts';
 
 /** Which provider and model this run will use, and the key to run it with. */
 export interface ByokFormState {

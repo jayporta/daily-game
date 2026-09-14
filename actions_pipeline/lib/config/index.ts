@@ -1,0 +1,43 @@
+// The one convenience the daily pipeline needs: every load-bearing config in
+// a single call.
+//
+// Deliberately not a barrel. Import a single config from its own module
+// (`config/models.ts`) rather than re-exporting it here — an import that
+// names the file it comes from is one less hop when you are trying to find
+// where something is defined.
+import {
+  type GenerationConfig,
+  loadGenerationConfig,
+} from '#actions_pipeline/lib/config/generation.ts';
+import { type GenresConfig, loadGenresConfig } from '#actions_pipeline/lib/config/genres.ts';
+import { loadGuardrails } from '#actions_pipeline/lib/config/guardrails.ts';
+import { loadModelsConfig, type ModelsConfig } from '#actions_pipeline/lib/config/models.ts';
+import { createPaths, paths } from '#actions_pipeline/lib/paths.ts';
+
+export interface LoadedConfig {
+  models: ModelsConfig;
+  genres: GenresConfig;
+  generation: GenerationConfig;
+  guardrails: string;
+}
+
+/**
+ * Loads everything the daily run needs, failing on the first broken file.
+ *
+ * The reaction config is deliberately absent: it is decoration, loaded
+ * separately through `loadReactionConfigOrUnconfigured` so a hand-edit that
+ * breaks it cannot cost the day its game.
+ *
+ * @param root Overrides the repo root, so tests can point every file this
+ *   reads at a scratch directory instead of the real `config/`.
+ * @throws If any config file is missing, unparseable or invalid.
+ */
+export function loadAllConfig(root?: string): LoadedConfig {
+  const p = root ? createPaths(root) : paths;
+  return {
+    models: loadModelsConfig(p.modelsConfig),
+    genres: loadGenresConfig(p.genresConfig),
+    generation: loadGenerationConfig(p.generationConfig),
+    guardrails: loadGuardrails(p.guardrails),
+  };
+}

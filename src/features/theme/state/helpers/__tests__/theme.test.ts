@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { paths } from '#scripts/lib/paths.ts';
+import { paths } from '#actions_pipeline/lib/paths.ts';
 import {
   nextTheme,
   readTheme,
@@ -10,7 +10,7 @@ import {
   THEME_ATTRIBUTE,
   THEME_STORAGE_KEY,
 } from '#src/features/theme/state/helpers/theme.ts';
-import type { WebStorage } from '#src/lib/browser-storage.ts';
+import type { WebStorage } from '#src/lib/browserStorage.ts';
 
 /** A working storage, plus the raw record so a test can inspect what landed. */
 function fakeStorage(seed: Record<string, string> = {}): WebStorage & {
