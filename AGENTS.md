@@ -48,7 +48,7 @@ npm run build:site   # vite build + assemble-site.ts → deployable dist/
 
 First run also needs `npx playwright install chromium`.
 
-- One Node file: `node --test actions_pipeline/__tests__/moderate.test.ts`
+- One Node file: `node --test scripts/__tests__/moderate.test.ts`
 - One web file: `npx vitest run src/features/game/__tests__/GameFacts.test.tsx`
 - By name under `node --test`, **always scope it to a file**: append
   `--test-name-pattern "fails closed"`. Repo-wide it hangs — the smoke-test
@@ -74,7 +74,7 @@ First run also needs `npx playwright install chromium`.
   for a bare throw. Use `errorMessage()` from `lib/errors.ts`.
 - Data arriving from disk, the network or `localStorage` is validated and
   then used, never `JSON.parse(x) as T`. Config and history go through
-  `loadValidatedJson` from `actions_pipeline/lib/validation.ts`, paired with the
+  `loadValidatedJson` from `scripts/lib/validation.ts`, paired with the
   validator that lives beside the file it describes; anything else gets a
   guard that narrows field by field. Every reader of a given file validates,
   or the one that doesn't becomes the crash.
@@ -149,7 +149,7 @@ refactor.
   had, and exits green. Only an unexpected crash is a CI failure.
 
   `manifest.json` is untouched *while it is serving a game* — that is the
-  guarantee, and `restoreManifestFromArchive` in `actions_pipeline/publish.ts` is
+  guarantee, and `restoreManifestFromArchive` in `scripts/publish.ts` is
   written to preserve it: it returns `intact` and writes nothing whenever the
   manifest parses and the bundle it names is on disk. It only writes when the
   manifest has stopped naming a game at all — the seed-state `null`, an
@@ -166,7 +166,7 @@ refactor.
   and `GameView` hides the BYOK panel rather than offering a Generate button
   that fetches a 404.
 - **The prompt contract and the extractor must agree.**
-  `OUTPUT_FORMAT_CONTRACT` in `actions_pipeline/build-prompt.ts` describes the two
+  `OUTPUT_FORMAT_CONTRACT` in `scripts/build-prompt.ts` describes the two
   fenced blocks that `lib/extract-bundle-shared.ts` parses. Change them
   together or every generation fails.
 - **`renderAttemptFeedback` and `stripAttemptFeedback` must agree.** Both
@@ -175,7 +175,7 @@ refactor.
   produced that day's game — corrections to the attempt before it included —
   and BYOK replays it as a fresh first attempt, where an instruction to fix a
   failure that never happened describes nothing. The round-trip test in
-  `actions_pipeline/__tests__/build-prompt.test.ts` is the guard: strip what the
+  `scripts/__tests__/build-prompt.test.ts` is the guard: strip what the
   builder added and the result must equal a first-attempt prompt byte for
   byte. Only that section goes; the history-derived `## Fix what has been
   going wrong` is guidance any generation can still act on.
@@ -260,13 +260,13 @@ refactor.
   `publish.ts` is on the writing side of that line and makes exactly two
   additions, both ours and both keyed off `sentryDsn`: a `connect-src` meta
   in the document's `<head>`, and the error-reporting snippet at the end.
-  Both come from `actions_pipeline/lib/error-reporting.ts`. The meta has to go *inside*
+  Both come from `scripts/lib/errorReporting.ts`. The meta has to go *inside*
   `<head>` — a meta CSP is ignored anywhere else, and prepending it before
   the doctype would drop the game into quirks mode. A bundle carrying neither
   `<head>` nor `<html>` is published without it rather than failed: the
   sandbox is the control, this is defence in depth.
 - **Nothing downstream branches on mock-vs-real.**
-  `actions_pipeline/lib/get-client.ts` is the only place that decides, so setting
+  `scripts/lib/get-client.ts` is the only place that decides, so setting
   `OPENROUTER_API_KEY` flips the pipeline live with no code change.
 - **`connect-src` must list the Sentry ingest origin.** A `srcdoc` iframe
   inherits the parent's CSP, so the snippet `publish.ts` appends runs under
@@ -294,7 +294,7 @@ refactor.
   holds the insert key, so no string from the store may ever reach
   `history/games.json` or the generation prompt.
 - **Only our own words reach the generation prompt as guidance.**
-  `correctiveDirectives` in `actions_pipeline/build-prompt.ts` keys fixed wording off
+  `correctiveDirectives` in `scripts/build-prompt.ts` keys fixed wording off
   the closed `DISLIKE_REASONS` and `FAILURE_KINDS` vocabularies, so nothing a
   visitor or a previous generation authored is quoted into the next prompt.
   `digestHistory` shows model-authored `theme`/`mechanics`/`title` as labelled
@@ -303,7 +303,7 @@ refactor.
   The `lessons` note is the one indirect path, and it is worth understanding
   before changing: `failureReasons` (which embed console output from
   AI-written games) reach the *reflection* prompt in
-  `actions_pipeline/lib/lessons-prompt.ts`, the model there writes the note, and the
+  `scripts/lib/lessons-prompt.ts`, the model there writes the note, and the
   note reaches the *generation* prompt. Two model hops, capped at 300
   characters per reason and 4,000 for the note. That is a deliberate trade —
   a note distilled from "smoke-js-error x3" alone would be useless — but it
@@ -314,7 +314,7 @@ refactor.
   and the tallies.** The rollup makes no model call and carries the note
   through untouched. Two writers of one field would race each other.
 - **The archive is append-only and nothing is ever dropped.**
-  `actions_pipeline/rollup-history.ts` moves entries out of `history/games.json` into
+  `scripts/rollup-history.ts` moves entries out of `history/games.json` into
   `history/archive/YYYY-MM.jsonl`. Every entry must survive in one place or
   the other — the rollup archives before it truncates, and re-archiving a
   date it already holds is a no-op so a re-run cannot duplicate. Losing an
@@ -324,24 +324,24 @@ refactor.
   a repeated or interrupted rollup safe: accumulating instead double-counted
   every genre when a run repeated before `games.json` was truncated.
 - **`lib/` stays isomorphic.** It's compiled by both tsconfigs; a Node-only
-  API there breaks the browser build. Node-only code belongs in
-  `actions_pipeline/`, which never ships to Pages.
+  API there breaks the browser build. Node-only code belongs in `scripts/`,
+  which never ships to Pages.
 
 ## Conventions
 
 - One definition per fact, in the narrowest home that reaches every caller:
-  `lib/` when both sides need it, `src/lib/` for browser-only,
-  `actions_pipeline/lib/` for Node-only. A type declared twice drifts — these already had to be
+  `lib/` when both sides need it, `src/lib/` for browser-only, `scripts/lib/`
+  for Node-only. A type declared twice drifts — these already had to be
   merged back: `ReactionConfig`, the `localStorage` seam, and the shape
   check for `config/reaction-config.json`.
-- Shared helpers live in `actions_pipeline/lib/` (history I/O, path building,
+- Shared helpers live in `scripts/lib/` (history I/O, path building,
   validation primitives) and `src/lib/` on the browser side. Extend them
   rather than re-reading or re-validating files in a new script.
 - **Group by subject, not by kind of fact** — the Common Closure Principle,
   and the organising rule for this whole repo, not just for config. A
   subject's type, its rules, its behaviour and its I/O live in one module,
   so answering "what is this and who reads it?" means opening one file.
-  `actions_pipeline/lib/config/models.ts` is the reference shape: it holds
+  `scripts/lib/config/models.ts` is the reference shape: it holds
   `config/models.json`'s type, validator and loader together.
 
   Never reintroduce a module that collects one *kind* of thing across many
@@ -356,8 +356,8 @@ refactor.
   Three deliberate exceptions, each because something outside the subject
   needs it: an isomorphic type and guard stay in `lib/` (`ReactionConfig`,
   `ByokModelsConfig`) because both build targets compile it; paths stay
-  centralised in `actions_pipeline/lib/paths.ts` so `createPaths(root)` can redirect
-  the whole pipeline at a scratch directory; and `actions_pipeline/lib/validation.ts`
+  centralised in `scripts/lib/paths.ts` so `createPaths(root)` can redirect
+  the whole pipeline at a scratch directory; and `scripts/lib/validation.ts`
   holds only primitives with many unrelated consumers. Anything else that
   wants to be shared needs that many consumers first — two callers in one
   area is local, not shared.

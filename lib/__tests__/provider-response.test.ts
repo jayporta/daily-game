@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { sseResponse } from '#actions_pipeline/lib/testFixtures.ts';
 import {
   classifyStopReason,
   firstChoiceDelta,
@@ -8,6 +7,7 @@ import {
   streamedError,
   streamedFrames,
 } from '#lib/provider-response.ts';
+import { sseResponse } from '#scripts/lib/testFixtures.ts';
 
 /** Every frame a stream yields, drained. */
 async function drain(response: Response): Promise<unknown[]> {

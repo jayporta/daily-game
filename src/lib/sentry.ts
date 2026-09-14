@@ -1,7 +1,7 @@
 // Everything about the page shell's own error reporting: the build-time DSN,
 // the SDK options, and the deferred start.
 //
-// Distinct from actions_pipeline/lib/error-reporting.ts, which reports errors thrown
+// Distinct from scripts/lib/errorReporting.ts, which reports errors thrown
 // *inside* a published game's sandboxed frame. That one is a hand-rolled
 // snippet because a bundle has to be a self-contained single file with no
 // external requests; this one covers the React app around the frame, where

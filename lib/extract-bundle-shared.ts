@@ -55,7 +55,7 @@ export type ExtractedBundle =
  * for the retry that follows.
  *
  * Beside the reasons it is keyed on, and in `lib/` because both build targets
- * retry: the pipeline in `actions_pipeline/generate-daily-game.ts` and a visitor's own
+ * retry: the pipeline in `scripts/generate-daily-game.ts` and a visitor's own
  * re-run in `src/features/byok/state/useByok.ts`. Held apart from the wording each
  * shows a *person*, which has a different job — this text is an instruction,
  * not an explanation.
@@ -173,7 +173,7 @@ export function toGeneratedMeta(value: unknown): GeneratedMeta {
  * `json` block of metadata and an `html` block holding the whole game.
  *
  * The contract it parses is `OUTPUT_FORMAT_CONTRACT` in
- * `actions_pipeline/build-prompt.ts` — change the two together or every generation
+ * `scripts/build-prompt.ts` — change the two together or every generation
  * fails.
  *
  * @param rawText The reply. Typed `unknown` because it comes from a provider

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { paths } from '#actions_pipeline/lib/paths.ts';
+import { paths } from '#scripts/lib/paths.ts';
 import {
   nextTheme,
   readTheme,

@@ -1,5 +1,5 @@
 // Shared fixtures for the browser-side tests, mirroring
-// actions_pipeline/lib/testFixtures.ts on the Node side.
+// scripts/lib/testFixtures.ts on the Node side.
 //
 // The `test` prefix must stay camelCase, never `test-`: node --test's
 // default glob claims the hyphenated prefix and would run this file as a

@@ -1,4 +1,4 @@
-// Node side: the daily pipeline in actions_pipeline/, plus the isomorphic lib/.
+// Node side: the daily pipeline in scripts/, plus the isomorphic lib/.
 // The browser side is checked separately by tsconfig.web.json.
 //
 // `src/**/*.test.ts` is included here, not there: those files run under
@@ -13,5 +13,5 @@
     "moduleResolution": "NodeNext",
     "types": ["node"]
   },
-  "include": ["actions_pipeline/**/*.ts", "lib/**/*.ts", "src/**/*.test.ts", "vite.config.ts"]
+  "include": ["scripts/**/*.ts", "lib/**/*.ts", "src/**/*.test.ts", "vite.config.ts"]
 }

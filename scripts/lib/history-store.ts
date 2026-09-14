@@ -1,0 +1,599 @@
+// Read/append/write for the two history files. Centralised here because
+// publish.ts, rollup-history.ts and fetch-feedback.ts all touch the same
+// files and must agree on their shape and formatting.
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import type { DislikeReason } from '#lib/reaction-types.ts';
+import { writeJson } from '#scripts/lib/json-file.ts';
+import { paths } from '#scripts/lib/paths.ts';
+import {
+  isFiniteNumber,
+  isNonEmptyString,
+  isPlainObject,
+  isRecordOf,
+  isStringArray,
+  loadValidatedJson,
+} from '#scripts/lib/validation.ts';
+
+/**
+ * What became of one day.
+ *
+ * `failed_kept_previous` is a successful run: every model in the rotation was
+ * tried, none produced a publishable game, and the live site kept the game it
+ * already had.
+ */
+export type HistoryStatus = 'published' | 'failed_kept_previous';
+
+/**
+ * The closed set of ways one generation attempt can fail.
+ *
+ * Closed for the same reason {@link DislikeReason} is: the corrective wording
+ * these select in `build-prompt.ts` is ours, so nothing model-authored — a
+ * console message from a broken bundle, say — reaches the next prompt through
+ * this path. The free-text `failureReasons` beside it stay for humans reading
+ * `history/games.md`.
+ */
+export const FAILURE_KINDS = [
+  'generation-call',
+  'extract',
+  'unknown-genre',
+  'placeholder-meta',
+  'moderation',
+  'moderation-unreachable',
+  'smoke-js-error',
+  'smoke-network',
+  'smoke-load',
+  'smoke-blank',
+] as const;
+
+/** One of {@link FAILURE_KINDS}. */
+export type FailureKind = (typeof FAILURE_KINDS)[number];
+
+/** What every history entry carries, whatever became of the run. */
+interface HistoryEntryCommon {
+  /** The UTC day this run was for, as `YYYY-MM-DD`. */
+  readonly date: string;
+  /** The model of the last attempt, successful or not. */
+  readonly model: string;
+  /** How many attempts the run made. Absent on entries written before it was recorded. */
+  readonly attempts?: number;
+  /** Runtime errors seen after publishing, if any were ever recorded. */
+  readonly errors?: string[];
+  /**
+   * The same failures as `failureReasons` (on a `failed_kept_previous`
+   * entry) would describe, as closed-vocabulary ids, for every attempt
+   * before the run's outcome was decided.
+   *
+   * On a `failed_kept_previous` entry, every attempt that day. On a
+   * `published` entry, only the attempts that failed before the one that
+   * eventually succeeded — absent, or empty, when the first attempt won.
+   * Drawn from {@link FAILURE_KINDS}, so `build-prompt.ts` can turn a
+   * recurring failure into fixed guidance without quoting anything a model
+   * wrote.
+   */
+  readonly failureKinds?: FailureKind[];
+  /**
+   * The model id each attempt used, parallel to `failureKinds` by index.
+   *
+   * Absent on entries written before it was recorded. Lets `check-models.ts`
+   * tell a model that is failing from one that merely rotated in once — on
+   * either kind of day. Without evidence from `published` days too, a model
+   * rescued every time by a later one in the rotation could fail its own
+   * attempt every single day and never accumulate any.
+   */
+  readonly attemptModels?: string[];
+  /**
+   * Whether any attempt among `attemptModels` — not necessarily every one —
+   * was refused for provider capacity.
+   *
+   * `check-models.ts`'s reliability tally skips a day this flags entirely,
+   * so a model that happened to fail its attempt on a capacity refusal is
+   * not blamed for it as a `generation-call` failure.
+   */
+  readonly quotaAffected?: boolean;
+}
+
+/**
+ * A day that produced a game.
+ *
+ * The five descriptive fields are required because `toGeneratedMeta` coerces
+ * each one before `publish.ts` ever writes it — absent becomes `''` or `[]`.
+ * They are therefore always present, and may be empty.
+ */
+export interface PublishedEntry extends HistoryEntryCommon {
+  readonly status: 'published';
+  readonly slug: string;
+  readonly genre: string;
+  readonly theme: string;
+  readonly title: string;
+  readonly mechanics: string[];
+  /**
+   * Whether the published game painted anything during the smoke test's
+   * settle window. A game that drew nothing still passes — several genres
+   * are click-driven — but it is weak evidence of a working game.
+   */
+  readonly canvasDrawn?: boolean;
+  /** Likes recorded for this game, patched in by `fetch-feedback.ts`. */
+  readonly likes?: number;
+  /** Dislikes recorded for this game, patched in by `fetch-feedback.ts`. */
+  readonly dislikes?: number;
+  /** Likes less dislikes, the ordering the popularity leaderboard uses. */
+  readonly popularityScore?: number;
+  /**
+   * How often each reason was given, keyed by {@link DislikeReason}.
+   *
+   * Only ever counts under ids from the closed vocabulary — no string from
+   * the reaction store is passed through into this file.
+   */
+  readonly dislikeReasons?: Partial<Record<DislikeReason, number>>;
+}
+
+/** A day that gave up and left the previous game serving. */
+export interface FailedEntry extends HistoryEntryCommon {
+  readonly status: 'failed_kept_previous';
+  /**
+   * Why each attempt failed, as prose.
+   *
+   * Recorded so the rollup can distil recurring failures into the lessons
+   * note. Without it the only trace of a failed day is the attempt count,
+   * and nothing downstream can learn what went wrong.
+   */
+  readonly failureReasons: string[];
+  /** Narrower than {@link HistoryEntryCommon.failureKinds}: every attempt failed, so this is never absent. */
+  readonly failureKinds: FailureKind[];
+  /**
+   * Whether every attempt failed because the provider had no capacity left.
+   *
+   * Deliberately not a {@link FAILURE_KINDS} member: that vocabulary exists so
+   * `build-prompt.ts` can turn a recurring failure into corrective guidance,
+   * and there is nothing a model can do about an account-level quota.
+   *
+   * A superset relationship runs the other way from {@link
+   * HistoryEntryCommon.quotaAffected}: this is true only when every attempt
+   * hit the cap, where `quotaAffected` is true when any attempt did.
+   */
+  readonly quotaExhausted?: boolean;
+}
+
+/**
+ * One day of the project, as `history/games.json` records it.
+ *
+ * Discriminated on `status`: narrow before reading anything but the common
+ * fields, which is what lets the descriptive fields be required rather than
+ * defaulted at every read.
+ */
+export type HistoryGameEntry = PublishedEntry | FailedEntry;
+
+/**
+ * One published game on the popularity leaderboard.
+ *
+ * Only games that were actually rated appear: an entry with no
+ * `popularityScore` is skipped rather than scored zero.
+ */
+export interface PopularityEntry {
+  /** The slug the game is served under, and the leaderboard's identity key. */
+  slug: string;
+  /**
+   * The game's theme, as its history entry recorded it. Non-empty:
+   * {@link validateHistorySummary} rejects a blank one, since it is
+   * interpolated into the generation prompt as a remix suggestion.
+   */
+  theme: string;
+  /**
+   * The game's mechanics joined with `', '`. Non-empty, for the same reason
+   * {@link theme} is.
+   */
+  mechanicsSummary: string;
+  /** Likes less dislikes. Ties break by slug, so the ordering is stable. */
+  popularityScore: number;
+}
+
+/**
+ * The rolled-up view of every day the project has run.
+ *
+ * @remarks
+ * The tallies are derived from the whole archive each time, never added to the
+ * previous summary — that is what makes a repeated or interrupted rollup safe.
+ * Ownership is split: `rollup-history.ts` writes the tallies and carries
+ * `lessons` through untouched, while `reflect-lessons.ts` writes only
+ * `lessons`. Two writers of one field would race.
+ */
+export interface HistorySummary {
+  /** How many published games used each genre id, counted over the whole archive. */
+  genreCounts: Record<string, number>;
+  /** The most recent date each genre id was published, as `YYYY-MM-DD`. */
+  genreLastUsed: Record<string, string>;
+  /** The best-rated games, highest score first, capped in length. */
+  popularityLeaderboard: PopularityEntry[];
+  /**
+   * A model-written note on what has been going wrong, which reaches the
+   * generation prompt as guidance.
+   *
+   * The one path by which model-authored text influences a later generation:
+   * `reflect-lessons.ts` distils it from `failureReasons`, which embed console
+   * output from AI-written games. Length-capped at both hops on purpose.
+   */
+  lessons: string;
+}
+
+/**
+ * The summary a project with no history starts from.
+ *
+ * Also what a reader falls back to when `summary.json` is absent or
+ * unreadable, so a missing file degrades to "nothing learned yet" rather than
+ * failing a run.
+ */
+export const EMPTY_SUMMARY: HistorySummary = {
+  genreCounts: {},
+  genreLastUsed: {},
+  popularityLeaderboard: [],
+  lessons: '',
+};
+
+const VALID_HISTORY_STATUSES = new Set(['published', 'failed_kept_previous']);
+
+// The same date shape a slug starts with. Kept separate from `SLUG_PATTERN`
+// in lib/reaction-types.ts rather than derived from it: that file is
+// isomorphic and this one is not, so the dependency could only run the wrong
+// way. Change one and check the other.
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const FAILURE_KIND_IDS: ReadonlySet<string> = new Set(FAILURE_KINDS);
+
+/**
+ * Everything wrong with one entry, each problem naming its own field.
+ *
+ * Checks *types*, and emptiness only where the pipeline guarantees it. That
+ * line matters more than it looks: this file is written by `publish.ts` and
+ * read back by the next day's run, so a rule stricter than the writer is a
+ * permanent outage — `extractBundle` coerces a missing `theme`, `title` or
+ * `genre` to `''`, publish commits that, and every later `readHotWindow`
+ * throws on a file nothing can now repair. `model` and `slug` are exempt
+ * because the pipeline fills both itself (`buildSlug` falls back to
+ * `untitled`).
+ *
+ * Optional fields are still type-checked, because downstream readers use them
+ * structurally: `renderGamesMd` and `summariseEntries` call `mechanics.join`,
+ * and `build-prompt.ts` indexes `FAILURE_DIRECTIVES` by `failureKinds`.
+ */
+function historyGameEntryErrors(value: unknown): string[] {
+  if (!isPlainObject(value)) return ['must be an object'];
+
+  const errors: string[] = [];
+  const required = (ok: boolean, message: string): void => {
+    if (!ok) errors.push(message);
+  };
+  /** Absent is always fine; present has to be the right shape. */
+  const optional = (field: unknown, ok: boolean, message: string): void => {
+    if (field !== undefined && !ok) errors.push(message);
+  };
+
+  required(
+    DATE_PATTERN.test(typeof value.date === 'string' ? value.date : ''),
+    'date must be a YYYY-MM-DD string',
+  );
+  required(
+    isNonEmptyString(value.status) && VALID_HISTORY_STATUSES.has(value.status),
+    `status must be one of: ${[...VALID_HISTORY_STATUSES].join(', ')}`,
+  );
+  required(isNonEmptyString(value.model), 'model must be a non-empty string');
+
+  const validFailureKinds = (v: unknown): boolean =>
+    Array.isArray(v) &&
+    v.every((kind: unknown) => typeof kind === 'string' && FAILURE_KIND_IDS.has(kind));
+
+  // Required per status, because the type says so and validateHistoryGames'
+  // `json is HistoryGameEntry[]` guard is only honest while these checks
+  // match it. Present, not necessarily non-empty — see the note above:
+  // publish.ts writes whatever `toGeneratedMeta` coerced, which may be '' or [].
+  if (value.status === 'published') {
+    required(isNonEmptyString(value.slug), 'slug must be a non-empty string when published');
+    required(typeof value.genre === 'string', 'genre must be a string when published');
+    required(typeof value.theme === 'string', 'theme must be a string when published');
+    required(typeof value.title === 'string', 'title must be a string when published');
+    required(
+      isStringArray(value.mechanics),
+      'mechanics must be an array of strings when published',
+    );
+  } else {
+    required(
+      isStringArray(value.failureReasons),
+      'failureReasons must be an array of strings when the run failed',
+    );
+    required(
+      validFailureKinds(value.failureKinds),
+      `failureKinds must be an array of: ${FAILURE_KINDS.join(', ')} when the run failed`,
+    );
+  }
+
+  // failureKinds/attemptModels can also record attempts that failed before a
+  // published day's eventual success — see HistoryEntryCommon. Shape-checked
+  // regardless of status; presence is only ever required above, when failed.
+  optional(
+    value.failureKinds,
+    validFailureKinds(value.failureKinds),
+    `failureKinds must be an array of: ${FAILURE_KINDS.join(', ')}`,
+  );
+  // Read by index alongside failureKinds — modelReliability() would
+  // otherwise pair an attempt's failure with the wrong model, or with
+  // none at all.
+  optional(
+    value.attemptModels,
+    isStringArray(value.attemptModels),
+    'attemptModels must be an array of strings',
+  );
+  if (value.attemptModels !== undefined && Array.isArray(value.failureKinds)) {
+    required(
+      !isStringArray(value.attemptModels) ||
+        value.attemptModels.length === value.failureKinds.length,
+      'attemptModels must have the same length as failureKinds',
+    );
+  }
+
+  optional(value.errors, isStringArray(value.errors), 'errors must be an array of strings');
+  optional(value.attempts, isFiniteNumber(value.attempts), 'attempts must be a number');
+  optional(value.likes, isFiniteNumber(value.likes), 'likes must be a number');
+  optional(value.dislikes, isFiniteNumber(value.dislikes), 'dislikes must be a number');
+  optional(
+    value.popularityScore,
+    isFiniteNumber(value.popularityScore),
+    'popularityScore must be a number',
+  );
+  optional(
+    value.canvasDrawn,
+    typeof value.canvasDrawn === 'boolean',
+    'canvasDrawn must be a boolean',
+  );
+  optional(
+    value.quotaExhausted,
+    typeof value.quotaExhausted === 'boolean',
+    'quotaExhausted must be a boolean',
+  );
+  optional(
+    value.quotaAffected,
+    typeof value.quotaAffected === 'boolean',
+    'quotaAffected must be a boolean',
+  );
+  optional(
+    value.dislikeReasons,
+    isRecordOf(value.dislikeReasons, isFiniteNumber),
+    'dislikeReasons must be an object whose values are numbers',
+  );
+
+  return errors;
+}
+
+/**
+ * Whether one value is a usable entry.
+ *
+ * Shares {@link historyGameEntryErrors} with {@link validateHistoryGames} so
+ * the hot window and the archive can never disagree about what an entry is —
+ * `rollup-history.ts` reads lines this file's writer produced, but a hand-edit
+ * or a half-written line has to be caught rather than cast.
+ */
+export function isHistoryGameEntry(value: unknown): value is HistoryGameEntry {
+  return historyGameEntryErrors(value).length === 0;
+}
+
+/** Rules for `history/games.json` — the hot window {@link readHotWindow} reads. */
+export function validateHistoryGames(json: unknown, errors: string[]): json is HistoryGameEntry[] {
+  if (!Array.isArray(json)) {
+    errors.push('root must be an array');
+    return false;
+  }
+
+  const before = errors.length;
+  json.forEach((entry: unknown, i: number) => {
+    if (!isPlainObject(entry)) {
+      errors.push(`games[${i}] must be an object`);
+      return;
+    }
+    for (const error of historyGameEntryErrors(entry)) errors.push(`games[${i}].${error}`);
+  });
+
+  return errors.length === before;
+}
+
+/**
+ * Rules for `history/summary.json`.
+ *
+ * Every field is optional: {@link readSummary} fills a missing one from
+ * {@link EMPTY_SUMMARY}. A field that is present must carry the right type,
+ * since it is spread over the defaults and reaches the prompt builder
+ * unchecked.
+ */
+export function validateHistorySummary(
+  json: unknown,
+  errors: string[],
+): json is Partial<HistorySummary> {
+  if (!isPlainObject(json)) {
+    errors.push('root must be an object');
+    return false;
+  }
+
+  const before = errors.length;
+
+  if (json.genreCounts !== undefined && !isRecordOf(json.genreCounts, isFiniteNumber)) {
+    errors.push('genreCounts must be an object whose values are numbers');
+  }
+  if (json.genreLastUsed !== undefined && !isRecordOf(json.genreLastUsed, isNonEmptyString)) {
+    errors.push('genreLastUsed must be an object whose values are date strings');
+  }
+  if (json.lessons !== undefined && typeof json.lessons !== 'string') {
+    errors.push('lessons must be a string');
+  }
+
+  if (json.popularityLeaderboard !== undefined) {
+    if (!Array.isArray(json.popularityLeaderboard)) {
+      errors.push('popularityLeaderboard must be an array');
+    } else {
+      json.popularityLeaderboard.forEach((entry: unknown, i: number) => {
+        const at = `popularityLeaderboard[${i}]`;
+        if (!isPlainObject(entry)) {
+          errors.push(`${at} must be an object`);
+          return;
+        }
+        // Each is sliced or interpolated into the prompt, so all must be strings.
+        if (!isNonEmptyString(entry.slug)) errors.push(`${at}.slug must be a non-empty string`);
+        if (!isNonEmptyString(entry.theme)) errors.push(`${at}.theme must be a non-empty string`);
+        if (!isNonEmptyString(entry.mechanicsSummary)) {
+          errors.push(`${at}.mechanicsSummary must be a non-empty string`);
+        }
+        if (!isFiniteNumber(entry.popularityScore)) {
+          errors.push(`${at}.popularityScore must be a number`);
+        }
+      });
+    }
+  }
+
+  return errors.length === before;
+}
+
+// games.md only. Every JSON file goes through writeJson, which shares this
+// directory-creating behaviour and fixes the format.
+function writeTextEnsuringDir(filePath: string, contents: string): void {
+  mkdirSync(dirname(filePath), { recursive: true });
+  writeFileSync(filePath, contents, 'utf8');
+}
+
+/** The hot window of full-detail entries the prompt builder reads. */
+export function readHotWindow(filePath: string = paths.historyGames): HistoryGameEntry[] {
+  if (!existsSync(filePath)) return [];
+  return loadValidatedJson<HistoryGameEntry[]>(filePath, validateHistoryGames);
+}
+
+/**
+ * The rolled-up summary, with any field the file omits filled from
+ * {@link EMPTY_SUMMARY}.
+ *
+ * @throws If the file exists but cannot be parsed or does not validate.
+ *   The contents reach the prompt builder, which iterates the leaderboard
+ *   and slices dates out of its slugs.
+ */
+export function readSummary(filePath: string = paths.historySummary): HistorySummary {
+  if (!existsSync(filePath)) return { ...EMPTY_SUMMARY };
+  const parsed = loadValidatedJson<Partial<HistorySummary>>(filePath, validateHistorySummary);
+  return { ...EMPTY_SUMMARY, ...parsed };
+}
+
+/**
+ * Appends an entry, keeping the list sorted oldest-first and replacing any
+ * existing entry for the same date (a same-day re-run supersedes, rather
+ * than duplicating, its earlier attempt). Pure — returns a new array.
+ */
+export function appendEntry(
+  entries: HistoryGameEntry[],
+  newEntry: HistoryGameEntry,
+): HistoryGameEntry[] {
+  const withoutSameDate = entries.filter((entry) => entry.date !== newEntry.date);
+  return [...withoutSameDate, newEntry].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * Applies reaction counts to one entry, matched by slug.
+ *
+ * Pure and non-mutating, and a no-op when the slug is not in the hot
+ * window — a game that has aged out of it must not resurrect an entry.
+ *
+ * @param patch Fields to overwrite. Counts replace rather than accumulate,
+ *   so a re-run against the same day is idempotent.
+ */
+export function patchEntry(
+  entries: HistoryGameEntry[],
+  slug: string,
+  patch: Partial<PublishedEntry>,
+): HistoryGameEntry[] {
+  return entries.map((entry) =>
+    entry.status === 'published' && entry.slug === slug ? { ...entry, ...patch } : entry,
+  );
+}
+
+/** Narrows to the days that produced a game. */
+export function isPublished(entry: HistoryGameEntry): entry is PublishedEntry {
+  return entry.status === 'published';
+}
+
+/** The most recent published entry, used to pick the next model in rotation. */
+export function lastPublishedEntry(entries: HistoryGameEntry[]): PublishedEntry | undefined {
+  return [...entries]
+    .filter(isPublished)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .at(-1);
+}
+
+/**
+ * The published entry for `date`, if that day already has one.
+ *
+ * Lets a second run of the same day stop before generating: a retried
+ * trigger, or the scheduled fallback behind a punctual external one, would
+ * otherwise publish a second game under a second slug for the same date.
+ *
+ * Only `published` counts. A day whose run failed has no game to keep, so a
+ * later run should retry it rather than skip it.
+ */
+export function publishedEntryOn(
+  entries: readonly HistoryGameEntry[],
+  date: string,
+): PublishedEntry | undefined {
+  return entries.filter(isPublished).find((entry) => entry.date === date);
+}
+
+/**
+ * Writes the hot window back to `history/games.json`.
+ *
+ * @param filePath - Destination; build it from {@link Paths} rather than joining by hand.
+ * @param entries - The full window to persist, replacing the file's contents.
+ */
+export function writeGamesJson(filePath: string, entries: HistoryGameEntry[]): void {
+  writeJson(filePath, entries);
+}
+
+/** Human-readable mirror of the hot window. Regenerated each run, never parsed back. */
+export function renderGamesMd(entries: HistoryGameEntry[]): string {
+  const lines = ['# Game history', '', 'Generated automatically — do not edit by hand.', ''];
+
+  if (entries.length === 0) {
+    lines.push('_No games yet._');
+    return `${lines.join('\n')}\n`;
+  }
+
+  for (const entry of [...entries].sort((a, b) => b.date.localeCompare(a.date))) {
+    if (entry.status === 'published') {
+      lines.push(`## ${entry.date} — ${entry.title || entry.slug}`);
+      lines.push('');
+      lines.push(`- genre: ${entry.genre || 'unknown'}`);
+      lines.push(`- theme: ${entry.theme || 'unknown'}`);
+      lines.push(`- mechanics: ${entry.mechanics.join(', ') || 'unrecorded'}`);
+      lines.push(`- model: ${entry.model}`);
+      if (entry.attempts !== undefined) lines.push(`- attempts: ${entry.attempts}`);
+      if (entry.popularityScore !== undefined) lines.push(`- reactions: ${entry.popularityScore}`);
+      if (entry.likes !== undefined) lines.push(`- likes: ${entry.likes}`);
+      if (entry.dislikes !== undefined) lines.push(`- dislikes: ${entry.dislikes}`);
+      const reasons = Object.entries(entry.dislikeReasons ?? {})
+        .filter(([, count]) => count > 0)
+        .map(([id, count]) => `${id}: ${count}`);
+      if (reasons.length) lines.push(`- disliked for: ${reasons.join(', ')}`);
+      if (entry.errors?.length) lines.push(`- runtime errors: ${entry.errors.length}`);
+    } else {
+      lines.push(`## ${entry.date} — generation failed, previous game kept`);
+      lines.push('');
+      lines.push(`- model: ${entry.model}`);
+      if (entry.attempts !== undefined) lines.push(`- attempts: ${entry.attempts}`);
+      for (const reason of entry.failureReasons) lines.push(`- ${reason}`);
+    }
+    lines.push('');
+  }
+
+  return `${lines.join('\n')}\n`;
+}
+
+/**
+ * Writes the human-readable companion to `history/games.json`.
+ *
+ * @param filePath - Destination for the rendered Markdown.
+ * @param entries - The same entries {@link writeGamesJson} is given; both
+ * files are written together so they cannot disagree.
+ */
+export function writeGamesMd(filePath: string, entries: HistoryGameEntry[]): void {
+  writeTextEnsuringDir(filePath, renderGamesMd(entries));
+}

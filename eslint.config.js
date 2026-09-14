@@ -68,7 +68,7 @@ export default tseslint.config(
   // The Node pipeline, plus the isomorphic lib/ and the tests that run under
   // `node --test`. These are what tsconfig.json includes.
   {
-    files: ['actions_pipeline/**/*.ts', 'lib/**/*.ts', 'src/**/*.test.ts', 'vite.config.ts'],
+    files: ['scripts/**/*.ts', 'lib/**/*.ts', 'src/**/*.test.ts', 'vite.config.ts'],
     languageOptions: {
       globals: globals.node,
       parserOptions: { project: './tsconfig.json', tsconfigRootDir: import.meta.dirname },

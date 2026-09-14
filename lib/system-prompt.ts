@@ -1,6 +1,6 @@
 // Isomorphic home for the generation system prompt. Lives in lib/ (not
-// actions_pipeline/lib/) because BYOK mode sends this same constant from the
-// browser, and actions_pipeline/ is Node-only per tsconfig.web.json's include list.
+// scripts/lib/) because BYOK mode sends this same constant from the
+// browser, and scripts/ is Node-only per tsconfig.web.json's include list.
 
 /** The fixed system prompt sent with every generation call, daily and BYOK alike. */
 export const SYSTEM_PROMPT = `You are a game designer and front-end engineer who invents small, complete,

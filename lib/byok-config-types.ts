@@ -1,5 +1,5 @@
 // Shape of config/byok-models.json — the hand-maintained catalogue behind
-// the BYOK provider/model pickers. Lives in lib/ (not actions_pipeline/lib/ or
+// the BYOK provider/model pickers. Lives in lib/ (not scripts/lib/ or
 // src/lib/) because both the browser (to render the pickers) and the Node
 // validator need the identical shape.
 //
