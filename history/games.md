@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-14 — Glowing Garden Match
+
+- genre: tile-matching
+- theme: A magical garden of glowing flowers and plants that must be matched to restore the garden's light.
+- mechanics: Swap adjacent tiles to form matches of three or more identical flowers, Cleared tiles disappear and new tiles fall from above, Create chains by setting up cascading matches, Reach a target score to complete the level
+- model: dots-studio/dots-3-note-preview:free
+- attempts: 3
+
 ## 2026-09-13 — Storm Island Defender
 
 - genre: tower-defense
@@ -9,6 +17,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Place defensive towers along a path to block incoming threats, Upgrade towers to increase interception range and power, Survive multiple waves of lightning bolts without letting any hit the islands, Manage limited resources (energy crystals) to afford tower upgrades
 - model: cohere/north-mini-code:free
 - attempts: 1
+- reactions: -1
+- likes: 0
+- dislikes: 1
+- disliked for: goal-unclear: 1, controls-unclear: 1
 
 ## 2026-09-12 — generation failed, previous game kept
 

@@ -284,6 +284,39 @@
     ],
     "title": "Storm Island Defender",
     "attempts": 1,
-    "canvasDrawn": true
+    "canvasDrawn": true,
+    "likes": 0,
+    "dislikes": 1,
+    "dislikeReasons": {
+      "goal-unclear": 1,
+      "controls-unclear": 1
+    },
+    "popularityScore": -1
+  },
+  {
+    "date": "2026-09-14",
+    "status": "published",
+    "model": "dots-studio/dots-3-note-preview:free",
+    "slug": "2026-09-14-glowing-garden-match",
+    "genre": "tile-matching",
+    "theme": "A magical garden of glowing flowers and plants that must be matched to restore the garden's light.",
+    "mechanics": [
+      "Swap adjacent tiles to form matches of three or more identical flowers",
+      "Cleared tiles disappear and new tiles fall from above",
+      "Create chains by setting up cascading matches",
+      "Reach a target score to complete the level"
+    ],
+    "title": "Glowing Garden Match",
+    "attempts": 3,
+    "canvasDrawn": false,
+    "failureKinds": [
+      "generation-call",
+      "moderation-unreachable"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free",
+      "nvidia/nemotron-3-super-120b-a12b:free"
+    ],
+    "quotaAffected": true
   }
 ]

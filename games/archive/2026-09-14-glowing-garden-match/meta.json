@@ -1,0 +1,17 @@
+{
+  "title": "Glowing Garden Match",
+  "genre": "tile-matching",
+  "theme": "A magical garden of glowing flowers and plants that must be matched to restore the garden's light.",
+  "mechanics": [
+    "Swap adjacent tiles to form matches of three or more identical flowers",
+    "Cleared tiles disappear and new tiles fall from above",
+    "Create chains by setting up cascading matches",
+    "Reach a target score to complete the level"
+  ],
+  "controls": [
+    {
+      "action": "Select a tile and swap it with an adjace",
+      "key": "Click a tile, then click an adjacent til"
+    }
+  ]
+}

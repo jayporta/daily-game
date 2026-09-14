@@ -1,34 +1,18 @@
 {
-  "date": "2026-09-13",
-  "slug": "2026-09-13-storm-island-defender",
-  "path": "games/archive/2026-09-13-storm-island-defender/game.html",
-  "promptPath": "games/archive/2026-09-13-storm-island-defender/prompt.txt",
-  "title": "Storm Island Defender",
-  "genre": "tower-defense",
-  "genreLabel": "Tower Defense",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-09-13T22:08:34.771Z",
-  "expiresAt": "2026-09-14T19:00:00.000Z",
+  "date": "2026-09-14",
+  "slug": "2026-09-14-glowing-garden-match",
+  "path": "games/archive/2026-09-14-glowing-garden-match/game.html",
+  "promptPath": "games/archive/2026-09-14-glowing-garden-match/prompt.txt",
+  "title": "Glowing Garden Match",
+  "genre": "tile-matching",
+  "genreLabel": "Tile Matching",
+  "model": "dots-studio/dots-3-note-preview:free",
+  "generatedAt": "2026-09-14T19:01:23.918Z",
+  "expiresAt": "2026-09-15T19:00:00.000Z",
   "controls": [
     {
-      "action": "Select wind turbine tower",
-      "key": "1"
-    },
-    {
-      "action": "Select water sprinkler tower",
-      "key": "2"
-    },
-    {
-      "action": "Select luminous balloon tower",
-      "key": "3"
-    },
-    {
-      "action": "Place selected tower",
-      "key": "Click"
-    },
-    {
-      "action": "Upgrade tower",
-      "key": "Click"
+      "action": "Select a tile and swap it with an adjace",
+      "key": "Click a tile, then click an adjacent til"
     }
   ]
 }

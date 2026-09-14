@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Glowing Garden Match</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    width: 100%;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #2c3e50, #4ca1af);
+    color: #fff;
+    overflow: hidden;
+  }
+  #game-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    padding: 10px;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 500px;
+    margin-bottom: 10px;
+    font-size: 1.2rem;
+    text-shadow: 0 0 5px rgba(0,0,0,0.5);
+  }
+  #board {
+    position: relative;
+    width: min(80vw, 80vh);
+    height: min(80vw, 80vh);
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+  .tile {
+    position: absolute;
+    width: 12.5%;
+    height: 12.5%;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.2s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  }
+  .tile.selected {
+    box-shadow: 0 0 15px #fff, 0 0 5px #fff;
+    transform: scale(1.1);
+    z-index: 10;
+  }
+  .tile.matched {
+    opacity: 0;
+    transform: scale(0);
+  }
+  #message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    text-align: center;
+    background: rgba(0,0,0,0.7);
+    padding: 20px 40px;
+    border-radius: 10px;
+    display: none;
+    z-index: 100;
+  }
+  button {
+    margin-top: 15px;
+    padding: 10px 20px;
+    font-size: 1rem;
+    background: #4ecdc4;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    color: #2c3e50;
+    font-weight: bold;
+    transition: background 0.2s;
+  }
+  button:hover { background: #45b7b0; }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <header>
+    <div id="score">Score: 0</div>
+    <div id="target">Target: 500</div>
+  </header>
+  <div id="board"></div>
+  <div id="message"></div>
+  <button id="reset">Reset Garden</button>
+</div>
+
+<script>
+(() => {
+  const COLS = 8;
+  const ROWS = 8;
+  const TILE_TYPES = 4;
+  const TARGET_SCORE = 500;
+  const COLORS = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#6a0572'];
+  const SYMBOLS = ['🌸', '🍀', '★', '✦'];
+
+  let board = [];       // 2D array of tile type (0..3) or null
+  let tiles = [];       // array of tile DOM elements with data
+  let selected = null;  // {row, col} of currently selected tile
+  let score = 0;
+  let gameOver = false;
+  let boardEl, scoreEl, messageEl, resetBtn;
+
+  function init() {
+    boardEl = document.getElementById('board');
+    scoreEl = document.getElementById('score');
+    messageEl = document.getElementById('message');
+    resetBtn = document.getElementById('reset');
+    resetBtn.addEventListener('click', resetGame);
+
+    // Set CSS variables for tile size based on board container
+    const boardSize = boardEl.clientWidth;
+    boardEl.style.setProperty('--tile-size', (boardSize / COLS) + 'px');
+
+    resetGame();
+  }
+
+  function resetGame() {
+    score = 0;
+    selected = null;
+    gameOver = false;
+    messageEl.style.display = 'none';
+    scoreEl.textContent = 'Score: 0';
+    boardEl.innerHTML = '';
+    tiles = [];
+    board = [];
+
+    generateBoard();
+    createTiles();
+    renderTiles();
+  }
+
+  function generateBoard() {
+    // Fill board randomly, then remove any initial matches
+    do {
+      board = [];
+      for (let r = 0; r < ROWS; r++) {
+        board[r] = [];
+        for (let c = 0; c < COLS; c++) {
+          board[r][c] = Math.floor(Math.random() * TILE_TYPES);
+        }
+      }
+    } while (findMatches().size > 0);
+  }
+
+  function createTiles() {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const type = board[r][c];
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.style.background = COLORS[type];
+        tile.textContent = SYMBOLS[type];
+        tile.dataset.row = r;
+        tile.dataset.col = c;
+        tile.addEventListener('click', onTileClick);
+        boardEl.appendChild(tile);
+        tiles.push({ el: tile, row: r, col: c, type });
+      }
+    }
+  }
+
+  function renderTiles() {
+    const tileWidth = boardEl.clientWidth / COLS;
+    const tileHeight = boardEl.clientHeight / ROWS;
+    for (const t of tiles) {
+      t.el.style.width = tileWidth + 'px';
+      t.el.style.height = tileHeight + 'px';
+      t.el.style.transform = `translate(${t.col * tileWidth}px, ${t.row * tileHeight}px)`;
+    }
+  }
+
+  function onTileClick(e) {
+    if (gameOver) return;
+    const tile = e.currentTarget;
+    const row = parseInt(tile.dataset.row);
+    const col = parseInt(tile.dataset.col);
+
+    if (selected && selected.row === row && selected.col === col) {
+      // Deselect
+      deselect();
+      return;
+    }
+
+    if (selected) {
+      // Try to swap with adjacent tile
+      const dr = Math.abs(selected.row - row);
+      const dc = Math.abs(selected.col - col);
+      if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+        swap(selected.row, selected.col, row, col);
+        deselect();
+        return;
+      } else {
+        // Select new tile
+        deselect();
+        selectTile(row, col);
+      }
+    } else {
+      selectTile(row, col);
+    }
+  }
+
+  function selectTile(row, col) {
+    selected = { row, col };
+    const tile = tiles.find(t => t.row === row && t.col === col);
+    if (tile) tile.el.classList.add('selected');
+  }
+
+  function deselect() {
+    if (selected) {
+      const tile = tiles.find(t => t.row === selected.row && t.col === selected.col);
+      if (tile) tile.el.classList.remove('selected');
+      selected = null;
+    }
+  }
+
+  function swap(r1, c1, r2, c2) {
+    // Swap in board matrix
+    [board[r1][c1], board[r2][c2]] = [board[r2][c2], board[r1][c1]];
+    // Swap in tiles array
+    const t1 = tiles.find(t => t.row === r1 && t.col === c1);
+    const t2 = tiles.find(t => t.row === r2 && t.col === c2);
+    if (!t1 || !t2) return;
+    [t1.row, t2.row] = [t2.row, t1.row];
+    [t1.col, t2.col] = [t2.col, t1.col];
+    [t1.el.dataset.row, t2.el.dataset.row] = [t2.el.dataset.row, t1.el.dataset.row];
+    [t1.el.dataset.col, t2.el.dataset.col] = [t2.el.dataset.col, t1.el.dataset.col];
+    renderTiles();
+
+    // Check for matches
+    const matches = findMatches();
+    if (matches.size > 0) {
+      clearMatches(matches);
+    } else {
+      // No match, swap back
+      setTimeout(() => {
+        [board[r1][c1], board[r2][c2]] = [board[r2][c2], board[r1][c1]];
+        [t1.row, t2.row] = [t2.row, t1.row];
+        [t1.col, t2.col] = [t2.col, t1.col];
+        [t1.el.dataset.row, t2.el.dataset.row] = [t2.el.dataset.row, t1.el.dataset.row];
+        [t1.el.dataset.col, t2.el.dataset.col] = [t2.el.dataset.col, t1.el.dataset.col];
+        renderTiles();
+      }, 300);
+    }
+  }
+
+  function findMatches() {
+    const matched = new Set();
+    // Horizontal matches
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c <= COLS - 3; c++) {
+        const type = board[r][c];
+        if (type === null) continue;
+        if (board[r][c+1] === type && board[r][c+2] === type) {
+          matched.add(`${r},${c}`).add(`${r},${c+1}`).add(`${r},${c+2}`);
+          // Extend
+          let cc = c + 3;
+          while (cc < COLS && board[r][cc] === type) {
+            matched.add(`${r},${cc}`);
+            cc++;
+          }
+        }
+      }
+    }
+    // Vertical matches
+    for (let c = 0; c < COLS; c++) {
+      for (let r = 0; r <= ROWS - 3; r++) {
+        const type = board[r][c];
+        if (type === null) continue;
+        if (board[r+1][c] === type && board[r+2][c] === type) {
+          matched.add(`${r},${c}`).add(`${r+1},${c}`).add(`${r+2},${c}`);
+          let rr = r + 3;
+          while (rr < ROWS && board[rr][c] === type) {
+            matched.add(`${rr},${c}`);
+            rr++;
+          }
+        }
+      }
+    }
+    return matched;
+  }
+
+  function clearMatches(matched) {
+    let points = matched.size * 10;
+    score += points;
+    scoreEl.textContent = `Score: ${score}`;
+
+    // Remove matched tiles
+    for (const key of matched) {
+      const [r, c] = key.split(',').map(Number);
+      board[r][c] = null;
+      const tile = tiles.find(t => t.row === r && t.col === c);
+      if (tile) {
+        tile.el.classList.add('matched');
+        setTimeout(() => tile.el.remove(), 300);
+      }
+    }
+    // Remove from tiles array after animation
+    setTimeout(() => {
+      tiles = tiles.filter(t => !matched.has(`${t.row},${t.col}`));
+      dropTiles();
+    }, 300);
+
+    // Check win/lose after cascade
+    setTimeout(() => {
+      if (score >= TARGET_SCORE) {
+        endGame(true);
+      } else if (!hasMoves()) {
+        endGame(false);
+      }
+    }, 600);
+  }
+
+  function dropTiles() {
+    // For each column, compact non-null tiles downward
+    for (let c = 0; c < COLS; c++) {
+      let writeRow = ROWS - 1;
+      for (let r = ROWS - 1; r >= 0; r--) {
+        if (board[r][c] !== null) {
+          board[writeRow][c] = board[r][c];
+          // Update tile object
+          const tile = tiles.find(t => t.row === r && t.col === c);
+          if (tile) {
+            tile.row = writeRow;
+            tile.el.dataset.row = writeRow;
+          }
+          if (writeRow !== r) {
+            board[r][c] = null;
+          }
+          writeRow--;
+        }
+      }
+      // Fill empty top cells with new tiles
+      for (let r = writeRow; r >= 0; r--) {
+        const type = Math.floor(Math.random() * TILE_TYPES);
+        board[r][c] = type;
+        const tileEl = document.createElement('div');
+        tileEl.className = 'tile';
+        tileEl.style.background = COLORS[type];
+        tileEl.textContent = SYMBOLS[type];
+        tileEl.dataset.row = r;
+        tileEl.dataset.col = c;
+        tileEl.addEventListener('click', onTileClick);
+        boardEl.appendChild(tileEl);
+        tiles.push({ el: tileEl, row: r, col: c, type });
+      }
+    }
+    renderTiles();
+
+    // Check for cascading matches
+    const newMatches = findMatches();
+    if (newMatches.size > 0) {
+      setTimeout(() => clearMatches(newMatches), 300);
+    }
+  }
+
+  function hasMoves() {
+    // Check all possible swaps
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const type = board[r][c];
+        // Swap with right neighbor
+        if (c < COLS - 1 && board[r][c+1] !== type) {
+          // Simulate swap
+          [board[r][c], board[r][c+1]] = [board[r][c+1], board[r][c]];
+          const match = findMatches().size > 0;
+          // Swap back
+          [board[r][c], board[r][c+1]] = [board[r][c+1], board[r][c]];
+          if (match) return true;
+        }
+        // Swap with bottom neighbor
+        if (r < ROWS - 1 && board[r+1][c] !== type) {
+          [board[r][c], board[r+1][c]] = [board[r+1][c], board[r][c]];
+          const match = findMatches().size > 0;
+          [board[r][c], board[r+1][c]] = [board[r+1][c], board[r][c]];
+          if (match) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function endGame(won) {
+    gameOver = true;
+    messageEl.style.display = 'block';
+    if (won) {
+      messageEl.innerHTML = `🎉 Garden Restored! 🌟<br>Final Score: ${score}`;
+    } else {
+      messageEl.innerHTML = `🌱 No Moves Left!<br>Score: ${score}`;
+    }
+  }
+
+  // Handle window resize
+  window.addEventListener('resize', () => {
+    if (boardEl) {
+      const boardSize = boardEl.clientWidth;
+      boardEl.style.setProperty('--tile-size', (boardSize / COLS) + 'px');
+      renderTiles();
+    }
+  });
+
+  // Start game after DOM is ready
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-14-glowing-garden-match";
+  var RELEASE = "339c5a38e201c020a7692613d5b452ab6d0f47d3";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
