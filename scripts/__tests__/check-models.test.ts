@@ -22,6 +22,11 @@ import { FAILED_ENTRY, GENERATION_CONFIG, PUBLISHED_ENTRY } from '#scripts/lib/t
 const BIG = 65_536;
 const TOO_SMALL = 8_192;
 
+// checkModels() trims history to historyHotWindowDays counted back from its
+// clock, so dated fixtures below would age out of the window and quietly
+// stop testing anything. Pinning the clock keeps them inside it.
+const NOW = new Date('2026-09-05T00:00:00Z');
+
 /**
  * A scratch repo holding the rotation config, and optionally a hot window
  * for the reliability checks to read. `config/generation.json` is always
@@ -93,13 +98,26 @@ function readConfig(root: string): ModelsConfig {
   return JSON.parse(readFileSync(createPaths(root).modelsConfig, 'utf8'));
 }
 
-test('shouldCheckModels only fires on a day that produced no game', () => {
+test('shouldCheckModels fires on a failed day and on a published day that lost an attempt', () => {
   const failed = [{ ...FAILED_ENTRY, date: '2026-09-10' }];
   const published = [{ ...PUBLISHED_ENTRY, date: '2026-09-10' }];
 
   assert.equal(shouldCheckModels(failed, '2026-09-10'), true);
   assert.equal(shouldCheckModels(published, '2026-09-10'), false);
   assert.equal(shouldCheckModels(failed, '2026-09-11'), false);
+
+  // A model rescued by a later one leaves its evidence on a day that
+  // published, and nothing reads that evidence unless the gate opens for
+  // such a day too.
+  const rescued: HistoryGameEntry[] = [
+    {
+      ...PUBLISHED_ENTRY,
+      date: '2026-09-10',
+      attemptModels: ['b/model:free'],
+      failureKinds: ['generation-call'],
+    },
+  ];
+  assert.equal(shouldCheckModels(rescued, '2026-09-10'), true);
 });
 
 test('readCatalog rejects a response that is not the documented shape', () => {
@@ -371,6 +389,31 @@ test("modelReliability counts a published day's earlier failed attempt against t
   assert.equal(modelReliability(entries).get('b/model:free'), undefined);
 });
 
+// The rotation-wide filter is for days that produced nothing. Applied to a
+// published day it discarded the evidence as fast as it was recorded: two
+// losing attempts are a 2/2 generation-call ratio, well past
+// ROTATION_WIDE_FAILURE_RATE, even though the day ended in a game.
+test('modelReliability counts a published day where several models failed before the winner', () => {
+  const entries: HistoryGameEntry[] = [
+    {
+      ...PUBLISHED_ENTRY,
+      date: '2026-09-01',
+      model: 'c/model:free',
+      failureKinds: ['generation-call', 'generation-call'],
+      attemptModels: ['a/model:free', 'b/model:free'],
+    },
+  ];
+
+  assert.deepEqual(modelReliability(entries).get('a/model:free'), {
+    days: 1,
+    generationCallDays: 1,
+  });
+  assert.deepEqual(modelReliability(entries).get('b/model:free'), {
+    days: 1,
+    generationCallDays: 1,
+  });
+});
+
 test('modelReliability ignores a published day whose earlier attempt hit a capacity refusal', () => {
   const entries: HistoryGameEntry[] = [
     {
@@ -418,6 +461,7 @@ test('checkModels drops a still-listed model for unreliability and refills its s
 
   const result = await checkModels({
     root,
+    now: NOW,
     fetchImpl: catalog([
       entry('a/model:free'),
       entry('b/model:free'),
@@ -449,6 +493,7 @@ test('checkModels ignores reliability evidence older than the configured hot win
 
   const result = await checkModels({
     root,
+    now: NOW,
     fetchImpl: catalog([entry('a/model:free'), entry('b/model:free'), entry('mod/model:free')]),
   });
 
@@ -475,6 +520,7 @@ test('checkModels never offers an already-pruned id back as a replacement', asyn
 
   const result = await checkModels({
     root,
+    now: NOW,
     // a/model:free is missing from the catalogue (dead), opening one slot.
     fetchImpl: catalog([
       entry('mod/model:free'),
@@ -502,6 +548,7 @@ test('checkModels returns all-live when nothing is delisted and nothing is unrel
 
   const result = await checkModels({
     root,
+    now: NOW,
     fetchImpl: catalog([entry('a/model:free'), entry('b/model:free'), entry('mod/model:free')]),
   });
 

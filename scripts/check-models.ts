@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 // Keeping config/models.json in step with what OpenRouter still offers.
 //
-// Runs only after a day that produced no game, since a rotation entry that
-// has quietly disappeared is one reason a run fails on every attempt. The
-// catalogue is a free, unauthenticated GET, so this needs no API key and
-// spends nothing.
+// Runs after any day that recorded a failed attempt — one that produced no
+// game at all, or one that published only after an earlier model failed. A
+// rotation entry that has quietly disappeared is one reason a run fails on
+// every attempt, and a model rescued by a later one every single day shows
+// up no other way. The catalogue is a free, unauthenticated GET, so this
+// needs no API key and spends nothing.
 //
 // Writes nothing at all unless a configured model has actually gone, and
 // refuses to write anything the config's own validator would reject.
@@ -87,13 +89,23 @@ export type CheckModelsResult =
   | { readonly status: 'refused'; readonly reason: string };
 
 /**
- * Whether the day named by `date` ended without a game.
+ * Whether the day named by `date` left a failed attempt to learn from.
  *
- * Exported so the gate can be checked without a network call: on a day that
- * published, this script does nothing and asks OpenRouter nothing.
+ * True for a day that produced no game, and for one that published only
+ * after an earlier model failed: {@link modelReliability} reads both, and a
+ * model rescued by a later one every single day produces nothing else. A day
+ * whose first attempt won records no `attemptModels`, so the common case
+ * still asks OpenRouter nothing.
+ *
+ * Exported so the gate can be checked without a network call.
  */
 export function shouldCheckModels(entries: readonly HistoryGameEntry[], date: string): boolean {
-  return entries.some((entry) => entry.date === date && entry.status === 'failed_kept_previous');
+  return entries.some(
+    (entry) =>
+      entry.date === date &&
+      (entry.status === 'failed_kept_previous' ||
+        (entry.attemptModels !== undefined && entry.attemptModels.length > 0)),
+  );
 }
 
 /** Narrows one catalogue entry, or `null` when it is too partial to judge. */
@@ -165,15 +177,20 @@ export interface ModelReliability {
  * anything, when: it predates `attemptModels` (nothing to attribute a
  * failure to); it was `quotaExhausted` or `quotaAffected` (an account-level
  * cap, never a model's fault, whether it hit every attempt that day or
- * only some); or it exercised more than one distinct model — proven ones
- * included — and more than {@link ROTATION_WIDE_FAILURE_RATE} of them
- * failed at the generation call, which reads as a provider-wide outage
- * rather than a problem with any one model — the exact shape of 2026-09-08
- * through 2026-09-10, when every active model was attempted once and most
- * were refused by the provider. Judging this by distinct models rather
- * than raw attempts is what keeps it from also discarding a forced run:
- * pinned to one id, such a run can never look "rotation-wide" no matter how
- * many times that one id failed.
+ * only some); or it produced no game while exercising more than one
+ * distinct model — proven ones included — and more than {@link
+ * ROTATION_WIDE_FAILURE_RATE} of them failed at the generation call, which
+ * reads as a provider-wide outage rather than a problem with any one model
+ * — the exact shape of 2026-09-08 through 2026-09-10, when every active
+ * model was attempted once and most were refused by the provider. That last
+ * test is confined to days that published nothing because a day that
+ * published cannot be an outage: the rotation produced a game, so every
+ * attempt that lost before it lost on its own account, and counting the
+ * winner into the ratio instead would still discard two ordinary failures
+ * before a success. Judging this by distinct models rather than raw
+ * attempts is what keeps it from also discarding a forced run: pinned to
+ * one id, such a run can never look "rotation-wide" no matter how many
+ * times that one id failed.
  *
  * A model that published inside the same window is exempt from the tally,
  * but only after the rotation-wide judgment above has already been made
@@ -228,9 +245,11 @@ export function modelReliability(
     // generation call, reads as a provider-wide outage rather than evidence
     // against any one of them — the exact shape of 2026-09-08 through
     // 2026-09-10, when every active model was attempted once and most were
-    // refused by the provider. A forced run tries exactly one model, so its
-    // failures can never be discarded this way.
-    if (dayKindByModel.size > 1) {
+    // refused by the provider. A day that published is never that shape: the
+    // rotation produced a game, so each attempt that lost before it lost on
+    // its own account. A forced run tries exactly one model, so its failures
+    // can never be discarded this way either.
+    if (!isPublished(entry) && dayKindByModel.size > 1) {
       const generationCallModels = [...dayKindByModel.values()].filter(
         (kind) => kind === 'generation-call',
       ).length;
@@ -298,6 +317,8 @@ export interface CheckModelsOptions {
   readonly root?: string;
   /** Reports what would change and writes nothing. */
   readonly dryRun?: boolean;
+  /** Overrides the clock the hot-window cutoff is measured back from. */
+  readonly now?: Date;
 }
 
 /**
@@ -310,6 +331,7 @@ export async function checkModels({
   fetchImpl = fetch,
   root,
   dryRun = false,
+  now = new Date(),
 }: CheckModelsOptions = {}): Promise<CheckModelsResult> {
   const paths = root ? createPaths(root) : defaultPaths;
   const config = loadModelsConfig(paths.modelsConfig);
@@ -319,7 +341,7 @@ export async function checkModels({
   // applies, not a bound games.json enforces on itself. Applying it here is
   // what keeps unreliableModelIds from pruning a model on evidence from
   // before a rollup last ran.
-  const historyEntries = splitAging(readHotWindow(paths.historyGames), generationConfig).keep;
+  const historyEntries = splitAging(readHotWindow(paths.historyGames), generationConfig, now).keep;
 
   const response = await fetchImpl(CATALOG_URL);
   if (!response.ok) {

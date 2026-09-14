@@ -265,11 +265,9 @@
     "failureKinds": [
       "placeholder-meta"
     ],
-    "canvasDrawn": false,
-    "likes": 0,
-    "dislikes": 0,
-    "dislikeReasons": {},
-    "popularityScore": 0
+    "attemptModels": [
+      "nvidia/nemotron-3.5-lightning:free"
+    ]
   },
   {
     "date": "2026-09-13",
