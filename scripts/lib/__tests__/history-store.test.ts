@@ -145,6 +145,67 @@ test('readHotWindow rejects a failureKinds entry outside the closed vocabulary',
   assert.throws(() => readHotWindow(file), /failureKinds must be an array of/);
 });
 
+test('readHotWindow accepts a failed entry carrying attemptModels', (t) => {
+  const dir = scratchDir(t);
+  const file = join(dir, 'games.json');
+  writeFileSync(file, JSON.stringify([{ ...FAILED, attemptModels: ['a/model:free'] }]), 'utf8');
+
+  const [entry] = readHotWindow(file);
+  assert.deepEqual(entry?.status === 'failed_kept_previous' ? entry.attemptModels : undefined, [
+    'a/model:free',
+  ]);
+});
+
+test('readHotWindow rejects an attemptModels entry that is not an array of strings', (t) => {
+  const dir = scratchDir(t);
+  const file = join(dir, 'games.json');
+  writeFileSync(file, JSON.stringify([{ ...FAILED, attemptModels: 'a/model:free' }]), 'utf8');
+
+  assert.throws(() => readHotWindow(file), /attemptModels must be an array of strings/);
+});
+
+test('readHotWindow rejects attemptModels that is not parallel to failureKinds', (t) => {
+  const dir = scratchDir(t);
+  const file = join(dir, 'games.json');
+  writeFileSync(
+    file,
+    JSON.stringify([{ ...FAILED, failureKinds: ['smoke-js-error'], attemptModels: [] }]),
+    'utf8',
+  );
+
+  assert.throws(
+    () => readHotWindow(file),
+    /attemptModels must have the same length as failureKinds/,
+  );
+});
+
+// A published day can carry evidence of attempts that failed before the
+// winning one — see the AGENTS.md invariant on `failed_kept_previous` and
+// check-models.ts's reliability tally.
+test('readHotWindow accepts a published entry carrying prior-attempt evidence', (t) => {
+  const dir = scratchDir(t);
+  const file = join(dir, 'games.json');
+  writeFileSync(
+    file,
+    JSON.stringify([
+      { ...PUBLISHED, failureKinds: ['generation-call'], attemptModels: ['a/model:free'] },
+    ]),
+    'utf8',
+  );
+
+  const [entry] = readHotWindow(file);
+  assert.deepEqual(entry?.failureKinds, ['generation-call']);
+  assert.deepEqual(entry?.attemptModels, ['a/model:free']);
+});
+
+test('readHotWindow rejects a published entry whose failureKinds is outside the closed vocabulary', (t) => {
+  const dir = scratchDir(t);
+  const file = join(dir, 'games.json');
+  writeFileSync(file, JSON.stringify([{ ...PUBLISHED, failureKinds: ['not-a-kind'] }]), 'utf8');
+
+  assert.throws(() => readHotWindow(file), /failureKinds must be an array of/);
+});
+
 test('renderGamesMd describes published and failed runs differently', () => {
   const md = renderGamesMd([PUBLISHED, FAILED]);
   assert.match(md, /## 2026-08-28 — Beetle Maze/);

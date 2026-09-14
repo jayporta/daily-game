@@ -207,6 +207,22 @@ export interface PublishParams {
   canvasDrawn?: boolean;
   /** The exact user-turn prompt that produced `html` — see BYOK. */
   prompt: string;
+  /**
+   * Failure kinds for attempts that failed before this one succeeded,
+   * parallel to `attemptModels` by index. Omitted, or empty, when the first
+   * attempt won.
+   *
+   * Recorded so `check-models.ts`'s reliability tally can see a model that
+   * fails its attempt every day but is always rescued by a later one in the
+   * rotation — without this, such a day never produces a
+   * `failed_kept_previous` entry, so that model would accumulate no
+   * evidence at all.
+   */
+  kinds?: readonly FailureKind[];
+  /** The model each of those attempts used, parallel to `kinds` by index. */
+  attemptModels?: readonly string[];
+  /** Whether any of those attempts was refused for provider capacity. */
+  quotaAffected?: boolean;
   /** The parsed `config/generation.json`; supplies the cron schedule and the Sentry DSN. */
   generationConfig: GenerationConfig;
   /** Genre catalogue, used to resolve {@link Manifest.genreLabel}. */
@@ -271,6 +287,9 @@ export function publish({
   attempts,
   canvasDrawn,
   prompt,
+  kinds,
+  attemptModels,
+  quotaAffected = false,
   generationConfig,
   genres,
   historyEntries,
@@ -278,6 +297,14 @@ export function publish({
   release = UNRELEASED,
   root,
 }: PublishParams): PublishResult {
+  if ((attemptModels === undefined) !== (kinds === undefined)) {
+    throw new Error('attemptModels and kinds must be provided together');
+  }
+  if (attemptModels !== undefined && kinds !== undefined && attemptModels.length !== kinds.length) {
+    throw new Error(
+      `attemptModels (${attemptModels.length}) must be parallel to kinds (${kinds.length})`,
+    );
+  }
   const paths = root ? createPaths(root) : defaultPaths;
   const slug = buildSlug(date, meta.title);
 
@@ -313,6 +340,11 @@ export function publish({
     title: meta.title,
     attempts,
     ...(canvasDrawn === undefined ? {} : { canvasDrawn }),
+    ...(kinds === undefined || kinds.length === 0 ? {} : { failureKinds: [...kinds] }),
+    ...(attemptModels === undefined || attemptModels.length === 0
+      ? {}
+      : { attemptModels: [...attemptModels] }),
+    ...(quotaAffected ? { quotaAffected: true } : {}),
   };
   const updatedEntries = appendEntry(historyEntries, entry);
   writeGamesJson(paths.historyGames, updatedEntries);
@@ -331,6 +363,12 @@ export function publish({
  *   parallel to it by index. These are what the next generation's prompt
  *   reads directly; `reasons` embed console output from AI-written games and
  *   reach a prompt only by way of the reflection note.
+ * @param attemptModels The model each attempt used, parallel to `kinds` by
+ *   index — what `check-models.ts` reads to tell a model that is failing
+ *   from one that merely rotated in once.
+ * @param quotaAffected Set when any attempt — not necessarily every one —
+ *   was refused for provider capacity, so `check-models.ts` can skip the
+ *   whole day rather than blame a model for the account's own cap.
  */
 export function recordFailure({
   date,
@@ -338,7 +376,9 @@ export function recordFailure({
   attempts,
   reasons,
   kinds,
+  attemptModels,
   quotaExhausted = false,
+  quotaAffected = false,
   historyEntries,
   root,
 }: {
@@ -347,12 +387,20 @@ export function recordFailure({
   attempts: number;
   reasons: readonly string[];
   kinds: readonly FailureKind[];
+  attemptModels?: readonly string[];
   /** Set when every attempt failed on provider capacity. Omitted when false. */
   quotaExhausted?: boolean;
+  /** Set when any attempt failed on provider capacity. Omitted when false. */
+  quotaAffected?: boolean;
   historyEntries: HistoryGameEntry[];
   root?: string;
 }): HistoryGameEntry[] {
   const paths = root ? createPaths(root) : defaultPaths;
+  if (attemptModels !== undefined && attemptModels.length !== kinds.length) {
+    throw new Error(
+      `attemptModels (${attemptModels.length}) must be parallel to kinds (${kinds.length})`,
+    );
+  }
   const updatedEntries = appendEntry(historyEntries, {
     date,
     status: 'failed_kept_previous',
@@ -360,7 +408,9 @@ export function recordFailure({
     attempts,
     failureReasons: reasons.map((reason) => reason.slice(0, MAX_FAILURE_REASON_LENGTH)),
     failureKinds: [...kinds],
+    ...(attemptModels === undefined ? {} : { attemptModels: [...attemptModels] }),
     ...(quotaExhausted ? { quotaExhausted: true } : {}),
+    ...(quotaAffected ? { quotaAffected: true } : {}),
   });
   writeGamesJson(paths.historyGames, updatedEntries);
   writeGamesMd(paths.historyGamesMd, updatedEntries);

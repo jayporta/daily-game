@@ -5,7 +5,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { GeneratedMeta } from '#lib/extract-bundle-shared.ts';
 import { loadGuardrails } from '#scripts/lib/config/guardrails.ts';
-import { OPENROUTER_TIMEOUT_MS, type OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
+import {
+  OPENROUTER_TIMEOUT_MS,
+  type OpenRouterClient,
+  OpenRouterHttpError,
+} from '#scripts/lib/openrouter-client.ts';
 import { loadFixtureBundle } from '#scripts/lib/testFixtures.ts';
 import { closingTag } from '#scripts/lib/untrusted-block.ts';
 import {
@@ -31,6 +35,15 @@ function throwingModerator(message: string): OpenRouterClient {
   return {
     async complete() {
       throw new Error(message);
+    },
+  };
+}
+
+/** A moderator refused for provider capacity rather than merely unreachable. */
+function quotaThrowingModerator(): OpenRouterClient {
+  return {
+    async complete() {
+      throw new OpenRouterHttpError(429, 'rate limited');
     },
   };
 }
@@ -152,6 +165,19 @@ test('a moderator that cannot be reached is tagged as a failed call', async () =
   });
   assert.ok(!result.pass);
   assert.equal(result.failure, 'call-failed');
+  assert.equal(result.quota, false);
+});
+
+test('a moderator refused for capacity is tagged as a quota failure', async () => {
+  const result = await aiModerationCheck(quotaThrowingModerator(), {
+    model: 'mod',
+    guardrailsText: GUARDRAILS,
+    meta: CLEAN_META,
+    html: '<div></div>',
+  });
+  assert.ok(!result.pass);
+  assert.equal(result.failure, 'call-failed');
+  assert.equal(result.quota, true);
 });
 
 test('a FAIL verdict is tagged as a rejection', async () => {
@@ -163,6 +189,7 @@ test('a FAIL verdict is tagged as a rejection', async () => {
   });
   assert.ok(!result.pass);
   assert.equal(result.failure, 'rejected');
+  assert.equal(result.quota, false);
 });
 
 test('moderate reports an unreachable moderator without claiming the game was rejected', async () => {
@@ -176,6 +203,19 @@ test('moderate reports an unreachable moderator without claiming the game was re
   assert.equal(result.failure, 'call-failed');
   assert.match(result.reasons.join(' '), /moderation call failed/);
   assert.doesNotMatch(result.reasons.join(' '), /rejected the game/);
+  assert.equal(result.quota, false);
+});
+
+test('moderate flags a capacity refusal so the caller can tell it apart from an ordinary outage', async () => {
+  const result = await moderate(quotaThrowingModerator(), {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+  });
+  assert.ok(!result.pass);
+  assert.equal(result.failure, 'call-failed');
+  assert.equal(result.quota, true);
 });
 
 test('an unreachable moderator falls back to the next model', async () => {
@@ -204,6 +244,70 @@ test('a FAIL verdict is never retried against a fallback', async () => {
   });
   assert.equal(result.pass, false);
   assert.deepEqual(asked, ['mod']);
+});
+
+test('a capacity refusal earlier in the fallback chain is reported broadly, but not blamed for a later verdict', async () => {
+  // The dedicated moderator is out of capacity; the fallback that answers in
+  // its place judges the game on the merits and rejects it. That rejection
+  // is not a capacity issue — `quota` must say so, so an ordinary content
+  // rejection is never mistaken for the account running out of quota — but
+  // the earlier refusal still happened, which `quotaAffected` must not lose.
+  const asked: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ model }) {
+      asked.push(model);
+      if (model === 'mod') throw new OpenRouterHttpError(429, 'rate limited');
+      return { text: 'FAIL', stop: 'complete' };
+    },
+  };
+  const result = await moderate(client, {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+    fallbackModels: ['stand-in'],
+  });
+  assert.deepEqual(asked, ['mod', 'stand-in']);
+  assert.equal(result.pass, false);
+  assert.equal(result.failure, 'rejected');
+  assert.equal(result.quota, false);
+  assert.equal(result.quotaAffected, true);
+});
+
+// The same loss, but on the PASS side: an attempt that ultimately succeeds
+// still needs to say a capacity refusal happened somewhere in its chain, so
+// generateDailyGame can mark the day quotaAffected even though it published.
+test('a capacity refusal earlier in the fallback chain is still reported once a later call passes', async () => {
+  const asked: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ model }) {
+      asked.push(model);
+      if (model === 'mod') throw new OpenRouterHttpError(429, 'rate limited');
+      return { text: 'PASS', stop: 'complete' };
+    },
+  };
+  const result = await moderate(client, {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+    fallbackModels: ['stand-in'],
+  });
+  assert.deepEqual(asked, ['mod', 'stand-in']);
+  assert.equal(result.pass, true);
+  assert.equal(result.quotaAffected, true);
+});
+
+test('an unreachable moderator falling back to a plain outage reports no quota refusal', async () => {
+  const result = await moderate(moderatorPanel({ mod: null, 'stand-in': 'PASS' }, []), {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+    fallbackModels: ['stand-in'],
+  });
+  assert.equal(result.pass, true);
+  assert.equal(result.quotaAffected, false);
 });
 
 test('a whole panel of unreachable moderators still fails closed', async () => {

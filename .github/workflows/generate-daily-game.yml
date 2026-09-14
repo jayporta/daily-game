@@ -119,7 +119,7 @@ jobs:
 
       # A rotation entry that has quietly disappeared is one reason a run
       # fails on every attempt. The catalogue is free and unauthenticated,
-      # and the script asks for nothing on a day that produced a game.
+      # and the script asks for nothing on a day whose first attempt won.
       - name: Check the model rotation
         continue-on-error: true
         env:

@@ -90,6 +90,27 @@ test('retries after a JS-error bundle and succeeds on the second attempt', async
 
   assert.equal(result.status, 'success');
   assert.equal(result.attempts, 2);
+  // The failed first attempt is not lost just because the day succeeded —
+  // check-models.ts's reliability tally reads this from a published day too.
+  if (result.status === 'success') {
+    assert.deepEqual(result.kinds, ['smoke-js-error']);
+    assert.deepEqual(result.attemptModels, ['a/model:free']);
+    assert.equal(result.quotaAffected, false);
+  }
+});
+
+test('a successful run reports no prior failures when the first attempt wins', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: scriptedClient([loadFixture('good-maze')]),
+  });
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.deepEqual(result.kinds, []);
+    assert.deepEqual(result.attemptModels, []);
+    assert.equal(result.quotaAffected, false);
+  }
 });
 
 test('retries after an unparseable response', async () => {
@@ -216,6 +237,40 @@ test('a genre outside the catalogue is rejected before moderation', async () => 
   assert.equal(moderated, false, 'a bundle this broken should not reach the moderator');
 });
 
+// The exact metadata that published a black-screen game on 2026-09-12: a
+// valid genre (so the genre check cannot catch it) with every other field
+// left as the output format's own placeholder, and an HTML block that shows
+// static text but whose script never runs (so the smoke test's
+// renderedSomething check cannot catch it either).
+test('placeholder metadata is rejected even when the genre is valid and the page renders text', async () => {
+  let moderated = false;
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) {
+        moderated = true;
+        return { text: 'PASS', stop: 'complete' };
+      }
+      return { text: loadFixture('bad-placeholder-meta'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.deepEqual(result.kinds, ['placeholder-meta', 'placeholder-meta', 'placeholder-meta']);
+  assert.equal(moderated, false, 'a bundle this broken should not reach the moderator');
+});
+
+test('retries after placeholder metadata and succeeds on the second attempt', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: scriptedClient([loadFixture('bad-placeholder-meta'), loadFixture('good-maze')]),
+  });
+
+  assert.equal(result.status, 'success');
+  assert.equal(result.attempts, 2);
+});
+
 test('a stand-in moderator answers when the dedicated one cannot be reached', async () => {
   const asked: string[] = [];
   const client: OpenRouterClient = {
@@ -289,7 +344,7 @@ test('a run whose every attempt is refused for capacity is marked quota exhauste
   assert.equal(result.quotaExhausted, true);
 });
 
-test('a run that fails for mixed reasons is not marked quota exhausted', async () => {
+test('a run that fails for mixed reasons is not marked quota exhausted, but is quota affected', async () => {
   let calls = 0;
   const client: OpenRouterClient = {
     async complete({ messages }) {
@@ -304,6 +359,104 @@ test('a run that fails for mixed reasons is not marked quota exhausted', async (
 
   assert.equal(result.status, 'failed_kept_previous');
   assert.equal(result.quotaExhausted, false);
+  assert.equal(result.quotaAffected, true);
+});
+
+test('a successful run is quota affected when an earlier attempt was refused for capacity', async () => {
+  let calls = 0;
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+      calls += 1;
+      if (calls === 1) throw new OpenRouterHttpError(429, 'rate limited');
+      return { text: loadFixture('good-maze'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.deepEqual(result.kinds, ['generation-call']);
+    assert.deepEqual(result.attemptModels, ['a/model:free']);
+    assert.equal(result.quotaAffected, true);
+  }
+});
+
+// The winning attempt's own moderation call can be the one that hit
+// capacity — the dedicated moderator refuses, a fallback passes it, and the
+// game still publishes. That is not the same as a prior attempt failing, so
+// kinds/attemptModels stay empty, but quotaAffected must still be true.
+test('a successful run is quota affected when its own moderation call needed a fallback for capacity', async () => {
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) {
+        if (model === 'mod/model:free') throw new OpenRouterHttpError(429, 'rate limited');
+        return { text: 'PASS', stop: 'complete' };
+      }
+      return { text: loadFixture('good-maze'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.equal(result.attempts, 1);
+    assert.deepEqual(result.kinds, []);
+    assert.deepEqual(result.attemptModels, []);
+    assert.equal(result.quotaAffected, true);
+  }
+});
+
+test('a moderator refused for capacity marks the attempt quota affected, without exhausting the quota', async () => {
+  let attempt = 0;
+  const client: OpenRouterClient = {
+    async complete({ messages }) {
+      if (isModerationRequest(messages)) {
+        // Only the middle attempt's moderator (and its fallbacks) is out of capacity.
+        if (attempt === 2) throw new OpenRouterHttpError(429, 'rate limited');
+        return { text: 'PASS', stop: 'complete' };
+      }
+      attempt += 1;
+      // Passes moderation but fails the smoke test — a non-quota failure for
+      // the attempts that are not the middle one.
+      return { text: loadFixture('bad-js-error'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(result.quotaExhausted, false);
+  assert.equal(result.quotaAffected, true);
+});
+
+// The bug this guards: quota used to be the same chain-accumulated flag as
+// quotaAffected, so every attempt here — dedicated moderator refused for
+// capacity, fallback rejects on content — would have counted as a quota
+// failure and wrongly reported the run as quota exhausted. `quota` must stay
+// precise to the decisive call so an ordinary content rejection is never
+// mistaken for the account running out of capacity.
+test('every attempt hitting capacity mid-chain but rejected on content is not quota exhausted', async () => {
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) {
+        if (model === 'mod/model:free') throw new OpenRouterHttpError(429, 'rate limited');
+        return { text: 'FAIL: depicts a banned character', stop: 'complete' };
+      }
+      return { text: loadFixture('good-maze'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(result.quotaExhausted, false);
+  assert.equal(result.quotaAffected, true);
+  if (result.status === 'failed_kept_previous') {
+    assert.ok(result.kinds.every((kind) => kind === 'moderation'));
+  }
 });
 
 test('a server fault is not mistaken for an exhausted quota', async () => {
@@ -363,6 +516,33 @@ test('tries every active model once before giving up', async () => {
     'd/model:free',
     'e/model:free',
   ]);
+});
+
+// The load-bearing detail: attemptModels[i] must be the model that MADE
+// attempt i, not the one rotated in for the next attempt. Comparing against
+// an independent record of which model answered each call is what would
+// catch attemptModels.push(model) landing on the wrong side of the
+// model-rotation line — a mismatch neither the parallel-length check in
+// recordFailure nor the validator can see, since both leave the length
+// alone.
+test('attemptModels records which model made each attempt, not the one rotated in next', async () => {
+  const modelsSeen: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+      modelsSeen.push(model);
+      return { text: loadFixture('bad-js-error'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({
+    ...baseParams(),
+    modelsConfig: WIDE_MODELS,
+    client,
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.deepEqual(result.attemptModels, modelsSeen);
 });
 
 test('a forced model still gives up after FORCED_MODEL_ATTEMPTS, however many models are active', async () => {

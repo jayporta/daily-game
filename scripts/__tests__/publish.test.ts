@@ -397,6 +397,62 @@ test('recordFailure stores the closed-vocabulary kinds beside the prose', (t) =>
   assert.deepEqual(failedAt(entries, 0).failureKinds, ['smoke-network', 'moderation']);
 });
 
+test('recordFailure stores attemptModels beside the kinds it is parallel to', (t) => {
+  const root = scratchRoot(t);
+
+  const entries = recordFailure({
+    date: '2026-08-29',
+    model: 'b/model:free',
+    attempts: 2,
+    reasons: ['attempt 1 (a/model:free): smoke', 'attempt 2 (b/model:free): moderation'],
+    kinds: ['smoke-network', 'moderation'],
+    attemptModels: ['a/model:free', 'b/model:free'],
+    historyEntries: [],
+    root,
+  });
+
+  assert.deepEqual(failedAt(entries, 0).attemptModels, ['a/model:free', 'b/model:free']);
+});
+
+// modelReliability() reads failureKinds and attemptModels as one pair by
+// index; a mismatch would attribute a failure to the wrong model or to none.
+test('recordFailure refuses attemptModels that is not parallel to kinds', (t) => {
+  const root = scratchRoot(t);
+
+  assert.throws(
+    () =>
+      recordFailure({
+        date: '2026-08-29',
+        model: 'a/model:free',
+        attempts: 2,
+        reasons: ['attempt 1: smoke', 'attempt 2: moderation'],
+        kinds: ['smoke-network', 'moderation'],
+        attemptModels: ['a/model:free'],
+        historyEntries: [],
+        root,
+      }),
+    /attemptModels \(1\) must be parallel to kinds \(2\)/,
+  );
+});
+
+// Absent rather than an empty array, so an entry from before this field
+// existed does not read as a run where nothing was attempted.
+test('recordFailure omits attemptModels when the caller does not pass any', (t) => {
+  const root = scratchRoot(t);
+
+  const entries = recordFailure({
+    date: '2026-08-29',
+    model: 'a/model:free',
+    attempts: 1,
+    reasons: ['attempt 1: smoke test failed'],
+    kinds: ['smoke-js-error'],
+    historyEntries: [],
+    root,
+  });
+
+  assert.equal('attemptModels' in failedAt(entries, 0), false);
+});
+
 test('recordFailure marks a quota-exhausted run on disk', (t) => {
   const root = scratchRoot(t);
 
@@ -473,6 +529,56 @@ test('publish records whether the game drew anything', (t) => {
 
   const history = JSON.parse(readFileSync(join(root, 'history', 'games.json'), 'utf8'));
   assert.equal(history[0].canvasDrawn, false);
+});
+
+// So check-models.ts's reliability tally can see a model that fails its own
+// attempt on a day that still ends in a game, not just one that fails
+// outright — see the AGENTS.md invariant on `failed_kept_previous`.
+test('publish records attempts that failed before the winning one', (t) => {
+  const root = scratchRoot(t);
+  const { meta, html } = loadFixtureBundle('good-maze');
+
+  publish({
+    ...baseParams(root, meta, html),
+    kinds: ['generation-call'],
+    attemptModels: ['x/model:free'],
+    quotaAffected: true,
+  });
+
+  const history = JSON.parse(readFileSync(join(root, 'history', 'games.json'), 'utf8'));
+  assert.deepEqual(history[0].failureKinds, ['generation-call']);
+  assert.deepEqual(history[0].attemptModels, ['x/model:free']);
+  assert.equal(history[0].quotaAffected, true);
+});
+
+// Absent rather than an empty array, matching recordFailure's own omission —
+// an entry from before this field existed should not read as a run with a
+// recorded, empty prior-attempt history.
+test('publish omits the prior-attempt fields when the first attempt won', (t) => {
+  const root = scratchRoot(t);
+  const { meta, html } = loadFixtureBundle('good-maze');
+
+  publish(baseParams(root, meta, html));
+
+  const history = JSON.parse(readFileSync(join(root, 'history', 'games.json'), 'utf8'));
+  assert.equal('failureKinds' in history[0], false);
+  assert.equal('attemptModels' in history[0], false);
+  assert.equal('quotaAffected' in history[0], false);
+});
+
+test('publish refuses attemptModels that is not parallel to kinds', (t) => {
+  const root = scratchRoot(t);
+  const { meta, html } = loadFixtureBundle('good-maze');
+
+  assert.throws(
+    () =>
+      publish({
+        ...baseParams(root, meta, html),
+        kinds: ['generation-call', 'extract'],
+        attemptModels: ['x/model:free'],
+      }),
+    /attemptModels \(1\) must be parallel to kinds \(2\)/,
+  );
 });
 
 test('buildManifest shows the genre by its readable label', () => {

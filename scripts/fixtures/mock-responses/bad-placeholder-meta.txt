@@ -1,0 +1,30 @@
+Here is your game:
+
+```json
+{"title": "...", "genre": "racing", "theme": "...", "mechanics": ["...", "..."], "controls": [{"action": "...", "key": "..."}]}
+```
+
+```html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; overflow: hidden; }
+  canvas { display: block; }
+  #ui { position: fixed; top: 10px; left: 10px; color: #fff; font-family: sans-serif; }
+</style>
+</head>
+<body>
+<div id="ui">
+  <div>Lap: <span id="lap">1</span>/5</div>
+  <div>Progress: <span id="progress">0%</span></div>
+</div>
+<canvas id="game"></canvas>
+<script>
+// game logic
+</script>
+</body>
+</html>
+```

@@ -10,16 +10,11 @@ Generated automatically — do not edit by hand.
 - model: cohere/north-mini-code:free
 - attempts: 1
 
-## 2026-09-12 — ...
+## 2026-09-12 — generation failed, previous game kept
 
-- genre: racing
-- theme: ...
-- mechanics: ..., ...
 - model: nvidia/nemotron-3.5-lightning:free
 - attempts: 1
-- reactions: 0
-- likes: 0
-- dislikes: 0
+- attempt 1 (nvidia/nemotron-3.5-lightning:free): echoed the output format's placeholder metadata instead of describing the game. Recorded as published at the time; corrected once the gates that now reject it existed.
 
 ## 2026-09-11 — generation failed, previous game kept
 
