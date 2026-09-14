@@ -112,7 +112,7 @@ type AttemptOutcome =
        * Whether a moderation call along the way was refused for provider
        * capacity, even though the attempt went on to succeed.
        */
-      quota: boolean;
+      quotaAffected: boolean;
     }
   | {
       ok: false;
@@ -121,8 +121,24 @@ type AttemptOutcome =
       reason: string;
       /** What to tell the next attempt, or `undefined` to tell it nothing. */
       feedback: string | undefined;
-      /** Whether this was the provider having no capacity left. */
+      /**
+       * Whether the failure named by `kind` was itself a capacity refusal —
+       * the precise signal `quotaFailures` counts. Never true when `kind`
+       * has some other cause, even if a call earlier in this attempt (a
+       * moderation fallback chain, say) did hit capacity; see
+       * `quotaAffected` for that broader question.
+       */
       quota: boolean;
+      /**
+       * Whether any provider call this attempt made — not necessarily the
+       * one `kind` names — was refused for capacity. Broader than `quota`
+       * on purpose: this is what `check-models.ts`'s day-level reliability
+       * gate reads, so an attempt whose moderation chain hit a 429 before a
+       * fallback rejected the game on content grounds still excludes the
+       * day, without inflating `quotaFailures` for a failure that was not
+       * actually about capacity.
+       */
+      quotaAffected: boolean;
     };
 
 interface AttemptParams {
@@ -174,13 +190,15 @@ async function runAttempt({
     }));
     log(`Generation finished (Stop reason: ${stop})`);
   } catch (error) {
+    const quota = isQuotaFailure(error);
     return {
       ok: false,
       kind: 'generation-call',
       reason: `generation call failed — ${errorMessage(error)}`,
       feedback:
         'The previous request failed before returning a game. Return the two fenced blocks exactly as specified.',
-      quota: isQuotaFailure(error),
+      quota,
+      quotaAffected: quota,
     };
   }
 
@@ -198,6 +216,7 @@ async function runAttempt({
       reason: `could not extract bundle — ${extracted.reason}${truncatedNote}`,
       feedback: EXTRACTION_RETRY_FEEDBACK[extracted.reason],
       quota: false,
+      quotaAffected: false,
     };
   }
 
@@ -213,6 +232,7 @@ async function runAttempt({
         'Your previous game named a genre that is not in the catalogue. Use one of the listed ' +
         'genre ids exactly, copied from the list above.',
       quota: false,
+      quotaAffected: false,
     };
   }
 
@@ -231,6 +251,7 @@ async function runAttempt({
         'block. Every field — title, theme, mechanics, controls — must describe the real ' +
         'game you built, not the example.',
       quota: false,
+      quotaAffected: false,
     };
   }
 
@@ -258,6 +279,7 @@ async function runAttempt({
         ? undefined
         : `Your previous game violated the content rules: ${detail}. Re-read the content rules and avoid this entirely.`,
       quota: moderation.quota,
+      quotaAffected: moderation.quotaAffected,
     };
   }
 
@@ -270,9 +292,11 @@ async function runAttempt({
       kind: smokeFailureKind(smoke),
       reason: `smoke test failed — ${smoke.reasons.join('; ')}`,
       feedback: `Your previous game did not run correctly: ${smoke.reasons.join('; ')}. Be more defensive — guard every element lookup, and make no network requests of any kind.`,
-      // The smoke test itself is never a capacity issue, but moderation
-      // (already passed, above) may have hit one on its way to a verdict.
-      quota: moderation.quota,
+      // The smoke test itself is never a capacity issue — this attempt's
+      // actual failure was not about capacity, even if moderation (already
+      // passed, above) hit one on its way to a verdict.
+      quota: false,
+      quotaAffected: moderation.quotaAffected,
     };
   }
 
@@ -281,7 +305,7 @@ async function runAttempt({
     meta: extracted.meta,
     html: extracted.html,
     canvasDrawn: smoke.canvasDrawn,
-    quota: moderation.quota,
+    quotaAffected: moderation.quotaAffected,
   };
 }
 
@@ -327,6 +351,12 @@ export async function generateDailyGame({
   // Compared against the attempt total below: a run counts as quota-exhausted
   // only when no attempt failed for any other reason.
   let quotaFailures = 0;
+  // Broader than quotaFailures: true once any attempt's moderation chain has
+  // hit capacity anywhere along it, even an attempt whose actual failure (or
+  // eventual success) had nothing to do with capacity. This is what feeds
+  // the day's own quotaAffected — quotaFailures alone would miss a fallback
+  // that judged past an earlier 429.
+  let quotaAffected = false;
   let priorFailureFeedback: string | undefined;
   let model = forceModel ?? selectNextModel(modelsConfig, lastUsedModelId).id;
   const maxAttempts = forceModel ? FORCED_MODEL_ATTEMPTS : activeModels(modelsConfig).length;
@@ -384,7 +414,7 @@ export async function generateDailyGame({
         // Prior failed attempts aside, the winning attempt's own moderation
         // call can itself have been refused for capacity before a fallback
         // passed it — that still counts.
-        quotaAffected: quotaFailures > 0 || outcome.quota,
+        quotaAffected: quotaAffected || outcome.quotaAffected,
       };
     }
 
@@ -394,6 +424,7 @@ export async function generateDailyGame({
     kinds.push(outcome.kind);
     attemptModels.push(model);
     if (outcome.quota) quotaFailures += 1;
+    if (outcome.quotaAffected) quotaAffected = true;
     priorFailureFeedback = outcome.feedback;
     model = nextModelAfterFailure(modelsConfig, model, forceModel);
   }
@@ -406,7 +437,7 @@ export async function generateDailyGame({
     attemptModels,
     model,
     quotaExhausted: quotaFailures === maxAttempts,
-    quotaAffected: quotaFailures > 0,
+    quotaAffected,
   };
 }
 

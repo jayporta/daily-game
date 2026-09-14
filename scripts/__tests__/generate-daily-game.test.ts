@@ -432,6 +432,33 @@ test('a moderator refused for capacity marks the attempt quota affected, without
   assert.equal(result.quotaAffected, true);
 });
 
+// The bug this guards: quota used to be the same chain-accumulated flag as
+// quotaAffected, so every attempt here — dedicated moderator refused for
+// capacity, fallback rejects on content — would have counted as a quota
+// failure and wrongly reported the run as quota exhausted. `quota` must stay
+// precise to the decisive call so an ordinary content rejection is never
+// mistaken for the account running out of capacity.
+test('every attempt hitting capacity mid-chain but rejected on content is not quota exhausted', async () => {
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) {
+        if (model === 'mod/model:free') throw new OpenRouterHttpError(429, 'rate limited');
+        return { text: 'FAIL: depicts a banned character', stop: 'complete' };
+      }
+      return { text: loadFixture('good-maze'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(result.quotaExhausted, false);
+  assert.equal(result.quotaAffected, true);
+  if (result.status === 'failed_kept_previous') {
+    assert.ok(result.kinds.every((kind) => kind === 'moderation'));
+  }
+});
+
 test('a server fault is not mistaken for an exhausted quota', async () => {
   const client: OpenRouterClient = {
     async complete() {

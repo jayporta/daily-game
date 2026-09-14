@@ -331,16 +331,27 @@ export async function aiModerationCheck(
  * that passed — the moderator and any stand-ins.
  *
  * `reasons` is phrased for the history entry and is empty on a pass.
- * `quota` says whether any call in the chain — not necessarily the one that
- * decided the verdict — was refused for provider capacity: a PASS can still
- * follow a dedicated moderator's 429 once a fallback answers, and that is
- * worth knowing even though the attempt succeeded. On a failure,
- * {@link ModerationFailure} also says whether the game was judged and
- * rejected or never judged at all.
+ * `quotaAffected` says whether any call in the chain — not necessarily the
+ * one that decided the verdict — was refused for provider capacity: a PASS
+ * can still follow a dedicated moderator's 429 once a fallback answers, and
+ * that is worth knowing for `check-models.ts`'s day-level reliability gate
+ * even though the attempt succeeded. On a failure, {@link ModerationFailure}
+ * also says whether the game was judged and rejected or never judged at
+ * all, and `quota` narrows to just the decisive call: whether the failure
+ * being reported here was itself a capacity refusal, as opposed to a
+ * capacity refusal earlier in the chain that a fallback then judged past.
+ * That distinction is what keeps a fallback's ordinary `FAIL` from being
+ * misread as the account running out of quota.
  */
 export type ModerationResult =
-  | { pass: true; reasons: string[]; quota: boolean }
-  | { pass: false; failure: ModerationFailure; reasons: string[]; quota: boolean };
+  | { pass: true; reasons: string[]; quotaAffected: boolean }
+  | {
+      pass: false;
+      failure: ModerationFailure;
+      reasons: string[];
+      quota: boolean;
+      quotaAffected: boolean;
+    };
 
 /** Everything {@link moderate} needs to judge one generated bundle. */
 export interface ModerateParams {
@@ -392,6 +403,7 @@ export async function moderate(
       failure: 'rejected',
       reasons: [`banned terms present: ${scan.hits.join(', ')}`],
       quota: false,
+      quotaAffected: false,
     };
   }
 
@@ -422,12 +434,17 @@ export async function moderate(
       reasons: [
         ai.failure === 'call-failed' ? detail : `moderation model rejected the game: ${detail}`,
       ],
+      // The decisive call only — whether the failure reported here was
+      // itself a capacity refusal, not merely somewhere earlier in the
+      // chain. A fallback's ordinary FAIL after an earlier 429 belongs to
+      // `quotaAffected`, not this.
+      quota: ai.quota,
       // Accumulated across the whole fallback chain: a capacity refusal
       // earlier in the chain matters even if a later call in the same
-      // attempt fails for an unrelated reason.
-      quota: quotaAffected,
+      // attempt fails, or passes, for an unrelated reason.
+      quotaAffected,
     };
   }
 
-  return { pass: true, reasons: [], quota: quotaAffected };
+  return { pass: true, reasons: [], quotaAffected };
 }

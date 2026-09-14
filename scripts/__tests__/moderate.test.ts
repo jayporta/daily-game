@@ -246,10 +246,12 @@ test('a FAIL verdict is never retried against a fallback', async () => {
   assert.deepEqual(asked, ['mod']);
 });
 
-test('a capacity refusal earlier in the fallback chain is still reported once a later call returns a verdict', async () => {
-  // The dedicated moderator is out of capacity; the fallback that answers
-  // in its place is not, but the quota refusal it stood in for still
-  // happened and must not be lost.
+test('a capacity refusal earlier in the fallback chain is reported broadly, but not blamed for a later verdict', async () => {
+  // The dedicated moderator is out of capacity; the fallback that answers in
+  // its place judges the game on the merits and rejects it. That rejection
+  // is not a capacity issue — `quota` must say so, so an ordinary content
+  // rejection is never mistaken for the account running out of quota — but
+  // the earlier refusal still happened, which `quotaAffected` must not lose.
   const asked: string[] = [];
   const client: OpenRouterClient = {
     async complete({ model }) {
@@ -268,7 +270,8 @@ test('a capacity refusal earlier in the fallback chain is still reported once a 
   assert.deepEqual(asked, ['mod', 'stand-in']);
   assert.equal(result.pass, false);
   assert.equal(result.failure, 'rejected');
-  assert.equal(result.quota, true);
+  assert.equal(result.quota, false);
+  assert.equal(result.quotaAffected, true);
 });
 
 // The same loss, but on the PASS side: an attempt that ultimately succeeds
@@ -292,7 +295,7 @@ test('a capacity refusal earlier in the fallback chain is still reported once a 
   });
   assert.deepEqual(asked, ['mod', 'stand-in']);
   assert.equal(result.pass, true);
-  assert.equal(result.quota, true);
+  assert.equal(result.quotaAffected, true);
 });
 
 test('an unreachable moderator falling back to a plain outage reports no quota refusal', async () => {
@@ -304,7 +307,7 @@ test('an unreachable moderator falling back to a plain outage reports no quota r
     fallbackModels: ['stand-in'],
   });
   assert.equal(result.pass, true);
-  assert.equal(result.quota, false);
+  assert.equal(result.quotaAffected, false);
 });
 
 test('a whole panel of unreachable moderators still fails closed', async () => {
