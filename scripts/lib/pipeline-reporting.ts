@@ -11,8 +11,10 @@
 // repo already builds, in a dependency that never ships to Pages.
 import { randomUUID } from 'node:crypto';
 import { errorMessage } from '#lib/errors.ts';
-import { loadGenerationConfig } from '#scripts/lib/config/generation.ts';
+import { isRecord } from '#lib/guards.ts';
 import { envelopeUrl, parseSentryDsn } from '#scripts/lib/errorReporting.ts';
+import { readJson } from '#scripts/lib/json-file.ts';
+import { paths } from '#scripts/lib/paths.ts';
 
 /**
  * How long a report may take before it is abandoned.
@@ -23,7 +25,14 @@ import { envelopeUrl, parseSentryDsn } from '#scripts/lib/errorReporting.ts';
  */
 const REPORT_TIMEOUT_MS = 5_000;
 
-/** Cap on one free-text reason, matching the published snippet's own. */
+/**
+ * Cap on one free-text reason.
+ *
+ * Its own limit, not `publish.ts`'s `MAX_FAILURE_REASON_LENGTH`: that one
+ * bounds what `history/games.json` carries, and the history file's size is
+ * paid for on every prompt. A Sentry event is read once by a person
+ * debugging, so it can afford the fuller message.
+ */
 const REASON_MAX_CHARS = 500;
 
 /** Sentry's event id: 32 hex characters, no dashes. */
@@ -175,18 +184,26 @@ export async function reportPipelineCrash(report: PipelineCrashReport): Promise<
 }
 
 /**
- * The configured DSN, or `null` if the config cannot be read.
+ * The configured DSN, read without validating anything else in the file.
  *
- * Separate from {@link loadGenerationConfig}'s own loud failure because the
- * crash path calls it: an unreadable `config/generation.json` is itself one
- * of the things that crashes a run, and the report must not die reading the
- * file that caused it.
+ * Deliberately not {@link loadGenerationConfig}: the crash this feeds is
+ * often that loader throwing, and a generation config can be unloadable —
+ * an empty `cronSchedule`, a negative window — while its DSN is perfectly
+ * readable. Going through the loader would discard a usable DSN in exactly
+ * the case the report is most wanted.
+ *
+ * The DSN is returned unchecked because {@link reportPipelineCrash} parses
+ * it and sends nothing when it does not parse.
  *
  * @param filePath Defaults to the repo's own `config/generation.json`.
+ * @returns `null` when the file is missing, is not JSON, or declares no
+ *   string `sentryDsn`.
  */
-export function dsnFromConfigOrNull(filePath?: string): string | null {
+export function dsnFromConfigOrNull(filePath: string = paths.generationConfig): string | null {
   try {
-    return loadGenerationConfig(filePath).sentryDsn;
+    const parsed = readJson(filePath);
+    if (!isRecord(parsed)) return null;
+    return typeof parsed['sentryDsn'] === 'string' ? parsed['sentryDsn'] : null;
   } catch {
     return null;
   }

@@ -62,7 +62,8 @@ function scratchRoot(t: { after(fn: () => void): void }): string {
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   cpSync(join(REPO_ROOT, 'config'), join(dir, 'config'), { recursive: true });
   // The copy carries the live DSN, and a failing run reports to it. Blanked
-  // here so only a test that opts in with `withSentryDsn` sends anything.
+  // here so only a test that opts back in with `writeGenerationConfig` sends
+  // anything.
   writeGenerationConfig(createPaths(dir).generationConfig, null);
   return dir;
 }

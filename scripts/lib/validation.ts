@@ -1,5 +1,5 @@
-// The shared vocabulary every validator is written in, and the one function
-// that applies one to a file.
+// The primitives validators are built from, and the one function that applies
+// one to a file.
 //
 // Deliberately not a generic JSON-Schema engine — the rules themselves live
 // beside the thing they describe (see config/ and history-store.ts), and only
@@ -7,7 +7,15 @@
 import { isRecord } from '#lib/guards.ts';
 import { readJson } from '#scripts/lib/json-file.ts';
 
-/** What every validator returns: a verdict plus every problem found, not just the first. */
+/**
+ * A verdict plus every problem behind it, for a check that narrows nothing.
+ *
+ * The file validators do not return this: each is a type predicate that
+ * pushes onto a caller-owned array and narrows its input, which is what lets
+ * {@link loadValidatedJson} return a typed value with no cast. This shape is
+ * for a check with no value to narrow — `validate-config.ts`'s cross-file CSP
+ * rule is the only one.
+ */
 export interface ValidationResult {
   /** Whether the value satisfies every rule. True exactly when `errors` is empty. */
   valid: boolean;

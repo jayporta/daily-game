@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { isRecord } from '#lib/guards.ts';
 import {
   dsnFromConfigOrNull,
   type GenerationFailureReport,
@@ -14,6 +15,47 @@ import {
 const DSN = 'https://abc123@o1.ingest.us.sentry.io/42';
 const ENVELOPE_URL =
   'https://o1.ingest.us.sentry.io/api/42/envelope/?sentry_key=abc123&sentry_version=7';
+
+/**
+ * The first exception on a captured event, narrowed field by field.
+ *
+ * The envelope is re-parsed from JSON, so its shape has to be proved rather
+ * than asserted with `as`.
+ */
+function firstException(captured: Captured | undefined): { type: string; value: string } {
+  const exception = captured?.event['exception'];
+  assert.ok(isRecord(exception), 'event carries no exception');
+  const values = exception['values'];
+  assert.ok(Array.isArray(values), 'exception carries no values');
+  const first: unknown = values[0];
+  assert.ok(isRecord(first), 'exception carries no first value');
+  const { type, value } = first;
+  assert.ok(
+    typeof type === 'string' && typeof value === 'string',
+    'exception is not a string pair',
+  );
+  return { type, value };
+}
+
+/** The committed generation config's shape, with knobs these tests never read. */
+const VALID_GENERATION_CONFIG = {
+  historyHotWindowDays: 45,
+  rollupTriggerEntries: 60,
+  remixProbability: 0.2,
+  remixLookbackDays: 90,
+  temperature: 0.7,
+  sentryDsn: null,
+  cronSchedule: '0 19 * * *',
+};
+
+/** Writes one generation config to a scratch file and returns its path. */
+function scratchConfig(t: { after(fn: () => void): void }, config: unknown): string {
+  const dir = mkdtempSync(join(tmpdir(), 'daily-game-reporting-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, 'generation.json');
+  writeFileSync(file, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+  return file;
+}
 
 /** One captured request, with the envelope's three lines already parsed. */
 interface Captured {
@@ -100,7 +142,8 @@ test('reportGenerationFailure carries the run outcome as tags and its detail as 
     quota_exhausted: 'false',
     manifest: 'intact',
   });
-  const extra = event['extra'] as Record<string, unknown>;
+  const extra = event['extra'];
+  assert.ok(isRecord(extra), 'event carries no extra');
   assert.deepEqual(extra['kinds'], ['smoke-js-error']);
   assert.deepEqual(extra['attemptModels'], ['a/model:free']);
   assert.equal(extra['attempts'], 7);
@@ -117,9 +160,9 @@ test('reportGenerationFailure groups every failed day under one message', async 
     fetchImpl: capturing(sent),
   });
 
-  const values = sent.map((c) => (c.event['exception'] as { values: { value: string }[] }).values);
-  assert.equal(values[0]?.[0]?.value, values[1]?.[0]?.value);
-  assert.ok(!String(values[0]?.[0]?.value).includes('2026-09-13'));
+  const [first, second] = [firstException(sent[0]), firstException(sent[1])];
+  assert.equal(first.value, second.value);
+  assert.ok(!first.value.includes('2026-09-13'));
 });
 
 // A reporter that threw would turn a `failed_kept_previous` run — a green
@@ -142,11 +185,10 @@ test('reportPipelineCrash names the error that killed the run', async () => {
     fetchImpl: capturing(sent),
   });
 
-  const event = sent[0]?.event ?? {};
-  const [thrown] = (event['exception'] as { values: { type: string; value: string }[] }).values;
-  assert.equal(thrown?.type, 'TypeError');
-  assert.equal(thrown?.value, 'cannot read properties of undefined');
-  assert.deepEqual(event['tags'], { outcome: 'crash' });
+  const thrown = firstException(sent[0]);
+  assert.equal(thrown.type, 'TypeError');
+  assert.equal(thrown.value, 'cannot read properties of undefined');
+  assert.deepEqual(sent[0]?.event['tags'], { outcome: 'crash' });
 });
 
 // A bare `throw 'text'` carries no name or message; errorMessage() is what
@@ -162,9 +204,7 @@ test('reportPipelineCrash describes a thrown non-Error', async () => {
     fetchImpl: capturing(sent),
   });
 
-  const event = sent[0]?.event ?? {};
-  const [thrown] = (event['exception'] as { values: { type: string; value: string }[] }).values;
-  assert.equal(thrown?.value, 'everything broke');
+  assert.equal(firstException(sent[0]).value, 'everything broke');
 });
 
 test('reportPipelineCrash resolves when the ingest request fails', async () => {
@@ -197,4 +237,31 @@ test('pipelineEnvironment separates a CI run from a local one', () => {
     if (original === undefined) delete process.env['GITHUB_ACTIONS'];
     else process.env['GITHUB_ACTIONS'] = original;
   }
+});
+
+// The crash this reports is often the config loader itself throwing, and a
+// generation config can be unloadable while its DSN is perfectly readable.
+test('dsnFromConfigOrNull reads the DSN out of a config that fails validation', (t) => {
+  const file = scratchConfig(t, {
+    ...VALID_GENERATION_CONFIG,
+    sentryDsn: DSN,
+    cronSchedule: '',
+  });
+
+  assert.equal(dsnFromConfigOrNull(file), DSN);
+});
+
+test('dsnFromConfigOrNull returns null when the file is not JSON', (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'daily-game-reporting-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const file = join(dir, 'generation.json');
+  writeFileSync(file, '{ not json', 'utf8');
+
+  assert.equal(dsnFromConfigOrNull(file), null);
+});
+
+test('dsnFromConfigOrNull returns null when the config declares no DSN', (t) => {
+  const file = scratchConfig(t, { ...VALID_GENERATION_CONFIG, sentryDsn: null });
+
+  assert.equal(dsnFromConfigOrNull(file), null);
 });
