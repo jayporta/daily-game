@@ -402,9 +402,9 @@ export async function checkModels({
   // The file's own validator, rather than a second copy of its rules here:
   // `npm run validate` runs before any API call, so a config this leaves
   // broken would take out the next day's run before it started.
-  const validation = validateModelsConfig(updated);
-  if (!validation.valid) {
-    return { status: 'refused', reason: validation.errors.join('; ') };
+  const errors: string[] = [];
+  if (!validateModelsConfig(updated, errors)) {
+    return { status: 'refused', reason: errors.join('; ') };
   }
 
   if (!dryRun) {

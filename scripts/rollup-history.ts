@@ -280,9 +280,9 @@ export function rollUpHistory({
   // from the hot window. Carried through untouched here.
   const updated: HistorySummary = { ...tallies, lessons: summary.lessons };
 
-  const validation = validateHistorySummary(updated);
-  if (!validation.valid) {
-    throw new Error(`rollup produced an invalid summary — ${validation.errors.join('; ')}`);
+  const errors: string[] = [];
+  if (!validateHistorySummary(updated, errors)) {
+    throw new Error(`rollup produced an invalid summary — ${errors.join('; ')}`);
   }
 
   if (dryRun) {

@@ -48,24 +48,25 @@ export function isRecordOf(v: unknown, isValid: (entry: unknown) => boolean): bo
 /**
  * Reads, parses and validates a JSON file, returning it typed.
  *
- * Nothing in the types ties `T` to `validate`. Pair them in a named loader
- * beside the file's own rules, so each file has one place where both are
- * stated — see `config/models.ts` for the shape.
+ * `validate` is a type guard over `T`, not just a pass/fail check, so a
+ * successful call narrows `parsed` for the compiler — no cast needed. Pair
+ * one with a named loader beside the file's own rules, so each file has one
+ * place where both are stated — see `config/models.ts` for the shape.
  *
+ * @param validate Pushes every problem found onto `errors` — not just the
+ *   first, which is what lets `npm run validate` name all of them in one
+ *   run — then reports validity as its return value.
  * @throws If the file cannot be read, is not JSON, or fails `validate`.
  */
 export function loadValidatedJson<T>(
   filePath: string,
-  validate: (json: unknown) => ValidationResult,
+  validate: (json: unknown, errors: string[]) => json is T,
 ): T {
   const parsed = readJson(filePath);
 
-  const result = validate(parsed);
-  if (!result.valid) {
-    throw new Error(`${filePath}: invalid — ${result.errors.join('; ')}`);
+  const errors: string[] = [];
+  if (!validate(parsed, errors)) {
+    throw new Error(`${filePath}: invalid — ${errors.join('; ')}`);
   }
-  // Validators collect every error rather than returning at the first, which
-  // is what makes `npm run validate` name all of them — but it narrows
-  // nothing, so `parsed` is still `unknown` to the compiler here.
-  return parsed as T;
+  return parsed;
 }
