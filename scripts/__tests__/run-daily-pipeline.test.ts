@@ -11,7 +11,9 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
+import { loadGenerationConfig } from '#scripts/lib/config/generation.ts';
 import { readHotWindow, writeGamesJson } from '#scripts/lib/history-store.ts';
+import { writeJson } from '#scripts/lib/json-file.ts';
 import { type OpenRouterClient, OpenRouterHttpError } from '#scripts/lib/openrouter-client.ts';
 import { createPaths, REPO_ROOT } from '#scripts/lib/paths.ts';
 import {
@@ -59,8 +61,20 @@ function scratchRoot(t: { after(fn: () => void): void }): string {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-pipeline-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   cpSync(join(REPO_ROOT, 'config'), join(dir, 'config'), { recursive: true });
+  // The copy carries the live DSN, and a failing run reports to it. Blanked
+  // here so only a test that opts in with `withSentryDsn` sends anything.
+  writeGenerationConfig(createPaths(dir).generationConfig, null);
   return dir;
 }
+
+/** Rewrites the scratch generation config's `sentryDsn`, leaving every other knob alone. */
+function writeGenerationConfig(filePath: string, sentryDsn: string | null): void {
+  writeJson(filePath, { ...loadGenerationConfig(filePath), sentryDsn });
+}
+
+// Deliberately not the committed DSN: a report that reaches the real config
+// lands on another host and the assertion catches it.
+const SCRATCH_DSN = 'https://scratchkey@scratch.ingest.example/99';
 
 test('a day that already published generates nothing', async (t) => {
   const root = scratchRoot(t);
@@ -249,4 +263,84 @@ test('a run refused for quota publishes a status the page can read', async (t) =
     state: 'quota-exceeded',
     retryAt: '2026-09-11T19:00:00.000Z',
   });
+});
+
+// The site keeps yesterday's game and the run exits green, so without a
+// report a failed day is invisible outside the history file.
+test('a run that never gets a game reports the failure to Sentry', async (t) => {
+  const root = scratchRoot(t);
+  writeGenerationConfig(createPaths(root).generationConfig, SCRATCH_DSN);
+
+  const requested: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    requested.push(String(input));
+    return new Response('', { status: 200 });
+  });
+
+  const result = await runDailyPipeline({
+    log: SILENT,
+    root,
+    client: scriptedClient([]),
+    smokeTester,
+    now: new Date('2026-09-10T12:00:00Z'),
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  const reports = requested.filter((url) => url.startsWith('https://scratch.ingest.example/'));
+  assert.equal(reports.length, 1);
+  assert.ok(
+    reports[0]?.includes('/api/99/envelope/'),
+    `unexpected ingest URL ${String(reports[0])}`,
+  );
+});
+
+test('a run that publishes reports nothing to Sentry', async (t) => {
+  const root = scratchRoot(t);
+  writeGenerationConfig(createPaths(root).generationConfig, SCRATCH_DSN);
+
+  const requested: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    requested.push(String(input));
+    return new Response('', { status: 200 });
+  });
+
+  const result = await runDailyPipeline({
+    log: SILENT,
+    root,
+    client: scriptedClient([loadFixture('good-maze')]),
+    smokeTester,
+    now: new Date('2026-09-10T12:00:00Z'),
+  });
+
+  assert.equal(result.status, 'success');
+  assert.deepEqual(
+    requested.filter((url) => url.startsWith('https://scratch.ingest.example/')),
+    [],
+  );
+});
+
+// A dry run writes nothing to disk, so it must not write to Sentry either.
+test('a dry run reports nothing to Sentry', async (t) => {
+  const root = scratchRoot(t);
+  writeGenerationConfig(createPaths(root).generationConfig, SCRATCH_DSN);
+
+  const requested: string[] = [];
+  t.mock.method(globalThis, 'fetch', async (input: string | URL | Request) => {
+    requested.push(String(input));
+    return new Response('', { status: 200 });
+  });
+
+  await runDailyPipeline({
+    log: SILENT,
+    root,
+    dryRun: true,
+    client: scriptedClient([]),
+    smokeTester,
+    now: new Date('2026-09-10T12:00:00Z'),
+  });
+
+  assert.deepEqual(
+    requested.filter((url) => url.startsWith('https://scratch.ingest.example/')),
+    [],
+  );
 });

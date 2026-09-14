@@ -26,6 +26,7 @@ import {
 } from '#scripts/lib/history-store.ts';
 import type { OpenRouterClient } from '#scripts/lib/openrouter-client.ts';
 import { createPaths, type Paths, paths } from '#scripts/lib/paths.ts';
+import { pipelineEnvironment, reportGenerationFailure } from '#scripts/lib/pipeline-reporting.ts';
 import type { ManifestRestoreResult } from '#scripts/publish.ts';
 import {
   publish,
@@ -230,6 +231,20 @@ export async function runDailyPipeline({
     }
     log(`All ${result.attempts} attempts failed — ${describeRestore(restored)}. Reasons:`);
     for (const reason of result.reasons) log(`  - ${reason}`);
+    // The run exits green and the site keeps the game it had, so nothing
+    // outside this repo would otherwise show that a day went missing.
+    await reportGenerationFailure({
+      dsn: generation.sentryDsn,
+      date,
+      attempts: result.attempts,
+      reasons: result.reasons,
+      kinds: result.kinds,
+      attemptModels: result.attemptModels,
+      quotaExhausted: result.quotaExhausted,
+      manifestOutcome: restored.status,
+      release: process.env['GITHUB_SHA'],
+      environment: pipelineEnvironment(),
+    });
   }
 
   return result;

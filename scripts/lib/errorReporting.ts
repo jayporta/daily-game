@@ -52,8 +52,11 @@ export function parseSentryDsn(dsn: string): SentryDsn | null {
  *
  * The DSN itself is not an endpoint — a request to it 404s. Sentry ingests
  * at `/api/<projectId>/envelope/`, authenticated by query string.
+ *
+ * Exported so `pipeline-reporting.ts` addresses the same endpoint from Node
+ * without a second copy of this path.
  */
-function envelopeUrl(dsn: SentryDsn): string {
+export function envelopeUrl(dsn: SentryDsn): string {
   return `${dsn.protocol}//${dsn.host}/api/${dsn.projectId}/envelope/?sentry_key=${dsn.publicKey}&sentry_version=7`;
 }
 
