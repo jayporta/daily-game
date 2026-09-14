@@ -67,18 +67,22 @@ test('loadReactionConfigOrUnconfigured still returns a valid config unchanged', 
 });
 
 test('validateReactionConfig accepts the unconfigured store this site ships with', () => {
-  assert.deepEqual(validateReactionConfig({ endpointUrl: null, anonKey: null }), {
-    valid: true,
-    errors: [],
-  });
+  const errors: string[] = [];
+  const valid = validateReactionConfig({ endpointUrl: null, anonKey: null }, errors);
+  assert.equal(valid, true);
+  assert.deepEqual(errors, []);
 });
 
 test('validateReactionConfig accepts a store with a publishable key', () => {
+  const errors: string[] = [];
   assert.equal(
-    validateReactionConfig({
-      endpointUrl: 'https://proj.supabase.co/rest/v1/reactions',
-      anonKey: 'sb_publishable_AbC123',
-    }).valid,
+    validateReactionConfig(
+      {
+        endpointUrl: 'https://proj.supabase.co/rest/v1/reactions',
+        anonKey: 'sb_publishable_AbC123',
+      },
+      errors,
+    ),
     true,
   );
 });
@@ -86,8 +90,12 @@ test('validateReactionConfig accepts a store with a publishable key', () => {
 test('validateReactionConfig accepts a legacy anon JWT', () => {
   const anonJwt = `header.${Buffer.from('{"role":"anon"}').toString('base64url')}.sig`;
 
+  const errors: string[] = [];
   assert.equal(
-    validateReactionConfig({ endpointUrl: 'https://proj.test/rest/v1/x', anonKey: anonJwt }).valid,
+    validateReactionConfig(
+      { endpointUrl: 'https://proj.test/rest/v1/x', anonKey: anonJwt },
+      errors,
+    ),
     true,
   );
 });
@@ -95,30 +103,37 @@ test('validateReactionConfig accepts a legacy anon JWT', () => {
 // Supabase's newer secret keys are not JWTs, so a check that only decoded
 // JWTs would wave one straight through into the page.
 test('validateReactionConfig rejects a secret key', () => {
-  const result = validateReactionConfig({
-    endpointUrl: 'https://proj.test/rest/v1/x',
-    anonKey: 'sb_secret_AbC123',
-  });
+  const errors: string[] = [];
+  const valid = validateReactionConfig(
+    {
+      endpointUrl: 'https://proj.test/rest/v1/x',
+      anonKey: 'sb_secret_AbC123',
+    },
+    errors,
+  );
 
-  assert.equal(result.valid, false);
-  assert.match(result.errors.join(' '), /ships to every visitor/);
+  assert.equal(valid, false);
+  assert.match(errors.join(' '), /ships to every visitor/);
 });
 
 // An allowlist: an unfamiliar shape is refused rather than assumed harmless.
 test('validateReactionConfig rejects a key of no recognised shape', () => {
+  const errors: string[] = [];
   assert.equal(
-    validateReactionConfig({ endpointUrl: 'https://proj.test/rest/v1/x', anonKey: 'k' }).valid,
+    validateReactionConfig({ endpointUrl: 'https://proj.test/rest/v1/x', anonKey: 'k' }, errors),
     false,
   );
 });
 
 test('validateReactionConfig rejects a missing field', () => {
-  assert.equal(validateReactionConfig({ endpointUrl: null }).valid, false);
+  const errors: string[] = [];
+  assert.equal(validateReactionConfig({ endpointUrl: null }, errors), false);
 });
 
 test('validateReactionConfig rejects a non-https endpoint', () => {
+  const errors: string[] = [];
   assert.equal(
-    validateReactionConfig({ endpointUrl: 'http://proj.test', anonKey: null }).valid,
+    validateReactionConfig({ endpointUrl: 'http://proj.test', anonKey: null }, errors),
     false,
   );
 });
@@ -128,13 +143,15 @@ test('validateReactionConfig rejects a non-https endpoint', () => {
 test('validateReactionConfig rejects a service_role key', () => {
   const serviceRoleJwt = `header.${Buffer.from('{"role":"service_role"}').toString('base64url')}.sig`;
 
-  const result = validateReactionConfig({ endpointUrl: null, anonKey: serviceRoleJwt });
+  const errors: string[] = [];
+  const valid = validateReactionConfig({ endpointUrl: null, anonKey: serviceRoleJwt }, errors);
 
-  assert.equal(result.valid, false);
+  assert.equal(valid, false);
 });
 
 test('the reaction config this repo ships carries no privileged key', () => {
   const shipped: unknown = JSON.parse(readFileSync(paths.reactionConfig, 'utf8'));
 
-  assert.equal(validateReactionConfig(shipped).valid, true);
+  const errors: string[] = [];
+  assert.equal(validateReactionConfig(shipped, errors), true);
 });

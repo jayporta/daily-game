@@ -1,12 +1,7 @@
 // Everything about `config/genres.json`: its shape, its rules, and how it is
 // read. The prompt hands the model this catalogue and lets it choose.
 import { paths } from '#scripts/lib/paths.ts';
-import {
-  isNonEmptyString,
-  isPlainObject,
-  loadValidatedJson,
-  type ValidationResult,
-} from '#scripts/lib/validation.ts';
+import { isNonEmptyString, isPlainObject, loadValidatedJson } from '#scripts/lib/validation.ts';
 
 /** One genre the model may choose from. */
 export interface GenreEntry {
@@ -25,10 +20,10 @@ export interface GenreEntry {
 export type GenresConfig = GenreEntry[];
 
 /** Ids must be unique: they key the "recently used" marking in the prompt. */
-export function validateGenresConfig(json: unknown): ValidationResult {
-  const errors: string[] = [];
+export function validateGenresConfig(json: unknown, errors: string[]): json is GenresConfig {
   if (!Array.isArray(json)) {
-    return { valid: false, errors: ['root must be an array'] };
+    errors.push('root must be an array');
+    return false;
   }
   if (json.length === 0) errors.push('genres must not be empty');
 
@@ -56,7 +51,7 @@ export function validateGenresConfig(json: unknown): ValidationResult {
     }
   });
 
-  return { valid: errors.length === 0, errors };
+  return errors.length === 0;
 }
 
 /** @throws If the file is missing, unparseable, or fails {@link validateGenresConfig}. */

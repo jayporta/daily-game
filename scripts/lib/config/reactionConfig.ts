@@ -7,7 +7,7 @@
 import { isRecord } from '#lib/guards.ts';
 import { isReactionConfig, type ReactionConfig } from '#lib/reaction-types.ts';
 import { paths } from '#scripts/lib/paths.ts';
-import { loadValidatedJson, type ValidationResult } from '#scripts/lib/validation.ts';
+import { loadValidatedJson } from '#scripts/lib/validation.ts';
 
 /**
  * The `role` a legacy Supabase JWT claims, or `null` if it is not one.
@@ -46,16 +46,13 @@ function isPublicKey(value: string): boolean {
  * the shapes Supabase publishes for browser use. The privileged key belongs
  * in an Actions secret and is used only by `fetch-feedback.ts`.
  */
-export function validateReactionConfig(json: unknown): ValidationResult {
+export function validateReactionConfig(json: unknown, errors: string[]): json is ReactionConfig {
   // Shape from the shared guard; the checks below are deployment policy.
   if (!isReactionConfig(json)) {
-    return {
-      valid: false,
-      errors: ['must be an object with endpointUrl and anonKey, each a string or null'],
-    };
+    errors.push('must be an object with endpointUrl and anonKey, each a string or null');
+    return false;
   }
 
-  const errors: string[] = [];
   const { endpointUrl, anonKey } = json;
 
   if (endpointUrl !== null && !endpointUrl.startsWith('https://')) {
@@ -69,7 +66,7 @@ export function validateReactionConfig(json: unknown): ValidationResult {
     );
   }
 
-  return { valid: errors.length === 0, errors };
+  return errors.length === 0;
 }
 
 /**
