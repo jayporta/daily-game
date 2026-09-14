@@ -14,7 +14,7 @@ import {
 import type { ModelsConfig } from '#scripts/lib/config/models.ts';
 import type { FailedEntry, HistoryGameEntry } from '#scripts/lib/history-store.ts';
 import { createPaths } from '#scripts/lib/paths.ts';
-import { FAILED_ENTRY, PUBLISHED_ENTRY } from '#scripts/lib/testFixtures.ts';
+import { FAILED_ENTRY, GENERATION_CONFIG, PUBLISHED_ENTRY } from '#scripts/lib/testFixtures.ts';
 
 // Literal caps rather than ones derived from MIN_OUTPUT_TOKENS: a test whose
 // inputs move with the constant it guards can never fail when that constant
@@ -24,7 +24,9 @@ const TOO_SMALL = 8_192;
 
 /**
  * A scratch repo holding the rotation config, and optionally a hot window
- * for the reliability checks to read.
+ * for the reliability checks to read. `config/generation.json` is always
+ * written from the fixture — checkModels() now trims history to its
+ * `historyHotWindowDays` before judging reliability.
  */
 function scratchRoot(
   t: { after(fn: () => void): void },
@@ -36,6 +38,7 @@ function scratchRoot(
   const paths = createPaths(dir);
   mkdirSync(join(dir, 'config'), { recursive: true });
   writeFileSync(paths.modelsConfig, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+  writeFileSync(paths.generationConfig, `${JSON.stringify(GENERATION_CONFIG, null, 2)}\n`, 'utf8');
   if (historyEntries.length > 0) {
     mkdirSync(join(dir, 'history'), { recursive: true });
     writeFileSync(paths.historyGames, `${JSON.stringify(historyEntries, null, 2)}\n`, 'utf8');
@@ -430,6 +433,26 @@ test('checkModels drops a still-listed model for unreliability and refills its s
     written.models.map((m) => m.id),
     ['a/model:free', 'fresh/model:free'],
   );
+});
+
+// readHotWindow reads the entire file; historyHotWindowDays is the cutoff a
+// rollup applies to it, not a bound games.json enforces on itself (see that
+// field's own doc comment). checkModels() has to apply the cutoff itself, or
+// a rollup that has not run in a while lets ancient evidence prune a model.
+test('checkModels ignores reliability evidence older than the configured hot window', async (t) => {
+  const history = [
+    failedDay('2020-01-01', ['b/model:free']),
+    failedDay('2020-01-02', ['b/model:free']),
+    failedDay('2020-01-03', ['b/model:free']),
+  ];
+  const root = scratchRoot(t, CONFIG, history);
+
+  const result = await checkModels({
+    root,
+    fetchImpl: catalog([entry('a/model:free'), entry('b/model:free'), entry('mod/model:free')]),
+  });
+
+  assert.equal(result.status, 'all-live');
 });
 
 // b/model:free was already pruned out of config.models by an earlier run —

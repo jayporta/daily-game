@@ -10,6 +10,7 @@
 // refuses to write anything the config's own validator would reject.
 import { pathToFileURL } from 'node:url';
 import { isRecord } from '#lib/guards.ts';
+import { loadGenerationConfig } from '#scripts/lib/config/generation.ts';
 import {
   loadModelsConfig,
   type ModelEntry,
@@ -26,6 +27,7 @@ import {
 import { writeJson } from '#scripts/lib/json-file.ts';
 import { createPaths, paths as defaultPaths } from '#scripts/lib/paths.ts';
 import { isStringArray } from '#scripts/lib/validation.ts';
+import { splitAging } from '#scripts/rollup-history.ts';
 
 export const CATALOG_URL = 'https://openrouter.ai/api/v1/models';
 
@@ -311,7 +313,13 @@ export async function checkModels({
 }: CheckModelsOptions = {}): Promise<CheckModelsResult> {
   const paths = root ? createPaths(root) : defaultPaths;
   const config = loadModelsConfig(paths.modelsConfig);
-  const historyEntries = readHotWindow(paths.historyGames);
+  const generationConfig = loadGenerationConfig(paths.generationConfig);
+  // readHotWindow reads the whole file, not a bounded window — see its own
+  // doc comment on historyHotWindowDays: that cutoff is what a rollup
+  // applies, not a bound games.json enforces on itself. Applying it here is
+  // what keeps unreliableModelIds from pruning a model on evidence from
+  // before a rollup last ran.
+  const historyEntries = splitAging(readHotWindow(paths.historyGames), generationConfig).keep;
 
   const response = await fetchImpl(CATALOG_URL);
   if (!response.ok) {
