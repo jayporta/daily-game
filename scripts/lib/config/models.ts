@@ -1,12 +1,7 @@
 // Everything about `config/models.json`: its shape, its rules, and how it
 // is read. The daily pipeline picks each attempt's model from this rotation.
 import { paths } from '#scripts/lib/paths.ts';
-import {
-  isNonEmptyString,
-  isPlainObject,
-  loadValidatedJson,
-  type ValidationResult,
-} from '#scripts/lib/validation.ts';
+import { isNonEmptyString, isPlainObject, loadValidatedJson } from '#scripts/lib/validation.ts';
 
 /** One model in the daily rotation. */
 export interface ModelEntry {
@@ -54,11 +49,13 @@ export interface ModelsConfig {
  * sit the rotation can loop between them and never reach the models past
  * them, while `maxAttempts` still counts the full list.
  */
-export function validateModelsConfig(json: unknown): ValidationResult {
-  const errors: string[] = [];
+export function validateModelsConfig(json: unknown, errors: string[]): json is ModelsConfig {
   if (!isPlainObject(json)) {
-    return { valid: false, errors: ['root must be an object'] };
+    errors.push('root must be an object');
+    return false;
   }
+
+  const before = errors.length;
 
   if (!isNonEmptyString(json.moderationModel)) {
     errors.push('moderationModel must be a non-empty string');
@@ -99,7 +96,7 @@ export function validateModelsConfig(json: unknown): ValidationResult {
     }
   }
 
-  return { valid: errors.length === 0, errors };
+  return errors.length === before;
 }
 
 /** @throws If the file is missing, unparseable, or fails {@link validateModelsConfig}. */

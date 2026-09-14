@@ -121,7 +121,9 @@ test('summariseEntries builds a leaderboard the summary validator accepts', () =
     published(50, { theme: '', mechanics: [], popularityScore: 4 }),
   ]);
 
-  assert.deepEqual(validateHistorySummary({ ...tallies, lessons: '' }).errors, []);
+  const errors: string[] = [];
+  validateHistorySummary({ ...tallies, lessons: '' }, errors);
+  assert.deepEqual(errors, []);
 });
 
 test('summariseEntries records the most recent date a genre was used', () => {

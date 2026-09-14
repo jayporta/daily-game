@@ -6,22 +6,22 @@
 // is the only directory both tsconfigs compile.
 import { BYOK_PROVIDERS, type ByokModelsConfig, isByokProvider } from '#lib/byok-config-types.ts';
 import { paths } from '#scripts/lib/paths.ts';
-import {
-  isNonEmptyString,
-  isPlainObject,
-  loadValidatedJson,
-  type ValidationResult,
-} from '#scripts/lib/validation.ts';
+import { isNonEmptyString, isPlainObject, loadValidatedJson } from '#scripts/lib/validation.ts';
 
 /**
  * Every provider in {@link BYOK_PROVIDERS} must appear exactly once, since
  * the picker has one fixed slot per provider.
  */
-export function validateByokModelsConfig(json: unknown): ValidationResult {
-  const errors: string[] = [];
+export function validateByokModelsConfig(
+  json: unknown,
+  errors: string[],
+): json is ByokModelsConfig {
   if (!Array.isArray(json)) {
-    return { valid: false, errors: ['root must be an array'] };
+    errors.push('root must be an array');
+    return false;
   }
+
+  const before = errors.length;
 
   const seenProviders: string[] = [];
   json.forEach((entry: unknown, i: number) => {
@@ -57,7 +57,7 @@ export function validateByokModelsConfig(json: unknown): ValidationResult {
     if (count > 1) errors.push(`byokModels lists provider "${provider}" more than once`);
   }
 
-  return { valid: errors.length === 0, errors };
+  return errors.length === before;
 }
 
 /** @throws If the file is missing, unparseable, or fails {@link validateByokModelsConfig}. */

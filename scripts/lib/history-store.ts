@@ -13,7 +13,6 @@ import {
   isRecordOf,
   isStringArray,
   loadValidatedJson,
-  type ValidationResult,
 } from '#scripts/lib/validation.ts';
 
 /**
@@ -283,10 +282,10 @@ function historyGameEntryErrors(value: unknown): string[] {
     Array.isArray(v) &&
     v.every((kind: unknown) => typeof kind === 'string' && FAILURE_KIND_IDS.has(kind));
 
-  // Required per status, because the type says so and the cast in
-  // loadValidatedJson is only honest while these checks match it. Present,
-  // not necessarily non-empty — see the note above: publish.ts writes
-  // whatever `toGeneratedMeta` coerced, which may be '' or [].
+  // Required per status, because the type says so and validateHistoryGames'
+  // `json is HistoryGameEntry[]` guard is only honest while these checks
+  // match it. Present, not necessarily non-empty — see the note above:
+  // publish.ts writes whatever `toGeneratedMeta` coerced, which may be '' or [].
   if (value.status === 'published') {
     required(isNonEmptyString(value.slug), 'slug must be a non-empty string when published');
     required(typeof value.genre === 'string', 'genre must be a string when published');
@@ -377,17 +376,22 @@ export function isHistoryGameEntry(value: unknown): value is HistoryGameEntry {
 }
 
 /** Rules for `history/games.json` — the hot window {@link readHotWindow} reads. */
-export function validateHistoryGames(json: unknown): ValidationResult {
+export function validateHistoryGames(json: unknown, errors: string[]): json is HistoryGameEntry[] {
   if (!Array.isArray(json)) {
-    return { valid: false, errors: ['root must be an array'] };
+    errors.push('root must be an array');
+    return false;
   }
 
-  const errors = json.flatMap((entry: unknown, i: number) => {
-    if (!isPlainObject(entry)) return [`games[${i}] must be an object`];
-    return historyGameEntryErrors(entry).map((error) => `games[${i}].${error}`);
+  const before = errors.length;
+  json.forEach((entry: unknown, i: number) => {
+    if (!isPlainObject(entry)) {
+      errors.push(`games[${i}] must be an object`);
+      return;
+    }
+    for (const error of historyGameEntryErrors(entry)) errors.push(`games[${i}].${error}`);
   });
 
-  return { valid: errors.length === 0, errors };
+  return errors.length === before;
 }
 
 /**
@@ -398,11 +402,16 @@ export function validateHistoryGames(json: unknown): ValidationResult {
  * since it is spread over the defaults and reaches the prompt builder
  * unchecked.
  */
-export function validateHistorySummary(json: unknown): ValidationResult {
-  const errors: string[] = [];
+export function validateHistorySummary(
+  json: unknown,
+  errors: string[],
+): json is Partial<HistorySummary> {
   if (!isPlainObject(json)) {
-    return { valid: false, errors: ['root must be an object'] };
+    errors.push('root must be an object');
+    return false;
   }
+
+  const before = errors.length;
 
   if (json.genreCounts !== undefined && !isRecordOf(json.genreCounts, isFiniteNumber)) {
     errors.push('genreCounts must be an object whose values are numbers');
@@ -437,7 +446,7 @@ export function validateHistorySummary(json: unknown): ValidationResult {
     }
   }
 
-  return { valid: errors.length === 0, errors };
+  return errors.length === before;
 }
 
 // games.md only. Every JSON file goes through writeJson, which shares this

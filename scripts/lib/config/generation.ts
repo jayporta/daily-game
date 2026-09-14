@@ -8,7 +8,6 @@ import {
   isNonEmptyString,
   isPlainObject,
   loadValidatedJson,
-  type ValidationResult,
 } from '#scripts/lib/validation.ts';
 
 export interface GenerationConfig {
@@ -74,11 +73,16 @@ export interface GenerationConfig {
   cronSchedule: string;
 }
 
-export function validateGenerationConfig(json: unknown): ValidationResult {
-  const errors: string[] = [];
+export function validateGenerationConfig(
+  json: unknown,
+  errors: string[],
+): json is GenerationConfig {
   if (!isPlainObject(json)) {
-    return { valid: false, errors: ['root must be an object'] };
+    errors.push('root must be an object');
+    return false;
   }
+
+  const before = errors.length;
 
   if (!isFiniteNumber(json.historyHotWindowDays) || json.historyHotWindowDays <= 0) {
     errors.push('historyHotWindowDays must be a positive number');
@@ -113,7 +117,7 @@ export function validateGenerationConfig(json: unknown): ValidationResult {
     errors.push('cronSchedule must be a non-empty string');
   }
 
-  return { valid: errors.length === 0, errors };
+  return errors.length === before;
 }
 
 /** @throws If the file is missing, unparseable, or fails {@link validateGenerationConfig}. */

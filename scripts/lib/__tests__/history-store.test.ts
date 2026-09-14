@@ -309,23 +309,27 @@ test('renderGamesMd omits reaction lines for a game nobody rated', () => {
 });
 
 test('validateHistoryGames accepts an empty array', () => {
-  assert.equal(validateHistoryGames([]).valid, true);
+  assert.equal(validateHistoryGames([], []), true);
 });
 
 test('validateHistoryGames accepts a valid published entry', () => {
-  const result = validateHistoryGames([
-    {
-      date: '2026-08-29',
-      status: 'published',
-      model: 'a/model:free',
-      slug: '2026-08-29-thing',
-      genre: 'maze-adventure',
-      theme: 'glass beetles',
-      title: 'Beetle Maze',
-      mechanics: ['move'],
-    },
-  ]);
-  assert.equal(result.valid, true);
+  const errors: string[] = [];
+  const valid = validateHistoryGames(
+    [
+      {
+        date: '2026-08-29',
+        status: 'published',
+        model: 'a/model:free',
+        slug: '2026-08-29-thing',
+        genre: 'maze-adventure',
+        theme: 'glass beetles',
+        title: 'Beetle Maze',
+        mechanics: ['move'],
+      },
+    ],
+    errors,
+  );
+  assert.equal(valid, true);
 });
 
 // The descriptive fields are empty rather than absent when a model omitted
@@ -333,24 +337,29 @@ test('validateHistoryGames accepts a valid published entry', () => {
 // must accept what the writer produces or a published day cannot be read
 // back at all.
 test('validateHistoryGames accepts a published entry whose metadata came back empty', () => {
-  const result = validateHistoryGames([
-    {
-      date: '2026-08-29',
-      status: 'published',
-      model: 'a/model:free',
-      slug: '2026-08-29-thing',
-      genre: '',
-      theme: '',
-      title: '',
-      mechanics: [],
-    },
-  ]);
-  assert.equal(result.valid, true);
+  const errors: string[] = [];
+  const valid = validateHistoryGames(
+    [
+      {
+        date: '2026-08-29',
+        status: 'published',
+        model: 'a/model:free',
+        slug: '2026-08-29-thing',
+        genre: '',
+        theme: '',
+        title: '',
+        mechanics: [],
+      },
+    ],
+    errors,
+  );
+  assert.equal(valid, true);
 });
 
-// PublishedEntry declares these required and loadValidatedJson casts to it,
-// so a validator that let one through would hand every reader a `string`
-// that is undefined at runtime.
+// PublishedEntry declares these required and validateHistoryGames' `json is
+// HistoryGameEntry[]` guard is trusted without further checking, so a
+// validator that let one through would hand every reader a `string` that is
+// undefined at runtime.
 test('validateHistoryGames rejects a published entry missing its metadata', () => {
   for (const field of ['genre', 'theme', 'title', 'mechanics']) {
     const entry: Record<string, unknown> = {
@@ -365,45 +374,56 @@ test('validateHistoryGames rejects a published entry missing its metadata', () =
     };
     delete entry[field];
 
-    const result = validateHistoryGames([entry]);
-    assert.equal(result.valid, false, `a published entry without ${field} was accepted`);
-    assert.ok(result.errors.some((error) => error.includes(field)));
+    const errors: string[] = [];
+    const valid = validateHistoryGames([entry], errors);
+    assert.equal(valid, false, `a published entry without ${field} was accepted`);
+    assert.ok(errors.some((error) => error.includes(field)));
   }
 });
 
 test('validateHistoryGames rejects a malformed date', () => {
-  const result = validateHistoryGames([
-    {
-      date: '08/29/2026',
-      status: 'published',
-      model: 'a/model:free',
-      slug: 'x',
-      genre: 'maze-adventure',
-    },
-  ]);
-  assert.equal(result.valid, false);
-  assert.ok(result.errors.some((e) => e.includes('date')));
+  const errors: string[] = [];
+  const valid = validateHistoryGames(
+    [
+      {
+        date: '08/29/2026',
+        status: 'published',
+        model: 'a/model:free',
+        slug: 'x',
+        genre: 'maze-adventure',
+      },
+    ],
+    errors,
+  );
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.includes('date')));
 });
 
 test('validateHistoryGames rejects an invalid status', () => {
-  const result = validateHistoryGames([
-    { date: '2026-08-29', status: 'pending', model: 'a/model:free' },
-  ]);
-  assert.equal(result.valid, false);
-  assert.ok(result.errors.some((e) => e.includes('status')));
+  const errors: string[] = [];
+  const valid = validateHistoryGames(
+    [{ date: '2026-08-29', status: 'pending', model: 'a/model:free' }],
+    errors,
+  );
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.includes('status')));
 });
 
 test('validateHistoryGames asks a failed day for its failures, not a slug', () => {
-  const result = validateHistoryGames([
-    {
-      date: '2026-08-29',
-      status: 'failed_kept_previous',
-      model: 'a/model:free',
-      failureReasons: ['attempt 1: smoke test failed'],
-      failureKinds: ['smoke-js-error'],
-    },
-  ]);
-  assert.equal(result.valid, true);
+  const errors: string[] = [];
+  const valid = validateHistoryGames(
+    [
+      {
+        date: '2026-08-29',
+        status: 'failed_kept_previous',
+        model: 'a/model:free',
+        failureReasons: ['attempt 1: smoke test failed'],
+        failureKinds: ['smoke-js-error'],
+      },
+    ],
+    errors,
+  );
+  assert.equal(valid, true);
 });
 
 // FailedEntry declares both required, for the same reason PublishedEntry
@@ -419,68 +439,97 @@ test('validateHistoryGames rejects a failed entry with no record of what failed'
     };
     delete entry[field];
 
-    const result = validateHistoryGames([entry]);
-    assert.equal(result.valid, false, `a failed entry without ${field} was accepted`);
-    assert.ok(result.errors.some((error) => error.includes(field)));
+    const errors: string[] = [];
+    const valid = validateHistoryGames([entry], errors);
+    assert.equal(valid, false, `a failed entry without ${field} was accepted`);
+    assert.ok(errors.some((error) => error.includes(field)));
   }
 });
 
 test('validateHistorySummary accepts a summary with every field present', () => {
-  const result = validateHistorySummary({
-    genreCounts: { puzzle: 3 },
-    genreLastUsed: { puzzle: '2026-08-27' },
-    popularityLeaderboard: [
-      {
-        slug: '2026-08-01-tide-garden',
-        theme: 'tide clocks',
-        mechanicsSummary: 'grow',
-        popularityScore: 41,
-      },
-    ],
-    lessons: 'Canvas resize handlers often forget to rescale entities.',
-  });
+  const errors: string[] = [];
+  const valid = validateHistorySummary(
+    {
+      genreCounts: { puzzle: 3 },
+      genreLastUsed: { puzzle: '2026-08-27' },
+      popularityLeaderboard: [
+        {
+          slug: '2026-08-01-tide-garden',
+          theme: 'tide clocks',
+          mechanicsSummary: 'grow',
+          popularityScore: 41,
+        },
+      ],
+      lessons: 'Canvas resize handlers often forget to rescale entities.',
+    },
+    errors,
+  );
 
-  assert.deepEqual(result, { valid: true, errors: [] });
+  assert.equal(valid, true);
+  assert.deepEqual(errors, []);
 });
 
 // An early run writes only what it knows; readSummary fills the rest in.
 test('validateHistorySummary accepts a partial summary', () => {
-  assert.equal(validateHistorySummary({ lessons: 'only lessons' }).valid, true);
-  assert.equal(validateHistorySummary({}).valid, true);
+  assert.equal(validateHistorySummary({ lessons: 'only lessons' }, []), true);
+  assert.equal(validateHistorySummary({}, []), true);
 });
 
 // selectRemixSuggestion calls .filter on this, so a non-array crashes the run.
 test('validateHistorySummary rejects a leaderboard that is not an array', () => {
-  const result = validateHistorySummary({ popularityLeaderboard: 'oops' });
+  const errors: string[] = [];
+  const valid = validateHistorySummary({ popularityLeaderboard: 'oops' }, errors);
 
-  assert.equal(result.valid, false);
-  assert.ok(result.errors.some((e) => e.includes('popularityLeaderboard')));
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.includes('popularityLeaderboard')));
 });
 
 test('validateHistorySummary rejects a leaderboard entry missing its slug', () => {
-  const result = validateHistorySummary({
-    popularityLeaderboard: [{ theme: 't', mechanicsSummary: 'm', popularityScore: 1 }],
-  });
+  const errors: string[] = [];
+  const valid = validateHistorySummary(
+    {
+      popularityLeaderboard: [{ theme: 't', mechanicsSummary: 'm', popularityScore: 1 }],
+    },
+    errors,
+  );
 
-  assert.equal(result.valid, false);
-  assert.ok(result.errors.some((e) => e.includes('[0].slug')));
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.includes('[0].slug')));
 });
 
 test('validateHistorySummary rejects a non-numeric popularity score', () => {
-  const result = validateHistorySummary({
-    popularityLeaderboard: [
-      { slug: '2026-08-01-x', theme: 't', mechanicsSummary: 'm', popularityScore: 'high' },
-    ],
-  });
+  const errors: string[] = [];
+  const valid = validateHistorySummary(
+    {
+      popularityLeaderboard: [
+        { slug: '2026-08-01-x', theme: 't', mechanicsSummary: 'm', popularityScore: 'high' },
+      ],
+    },
+    errors,
+  );
 
-  assert.equal(result.valid, false);
-  assert.ok(result.errors.some((e) => e.includes('popularityScore')));
+  assert.equal(valid, false);
+  assert.ok(errors.some((e) => e.includes('popularityScore')));
 });
 
 test('validateHistorySummary rejects lessons that are not a string', () => {
-  assert.equal(validateHistorySummary({ lessons: ['a', 'b'] }).valid, false);
+  assert.equal(validateHistorySummary({ lessons: ['a', 'b'] }, []), false);
 });
 
 test('validateHistorySummary rejects genre counts that are not numbers', () => {
-  assert.equal(validateHistorySummary({ genreCounts: { puzzle: 'three' } }).valid, false);
+  assert.equal(validateHistorySummary({ genreCounts: { puzzle: 'three' } }, []), false);
+});
+
+test('validateHistoryGames reports validity of its own input when errors already holds an entry', () => {
+  const errors = ['an unrelated earlier problem'];
+
+  assert.equal(validateHistoryGames([PUBLISHED], errors), true);
+  assert.deepEqual(errors, ['an unrelated earlier problem']);
+});
+
+test('validateHistorySummary reports validity of its own input when errors already holds an entry', () => {
+  const errors = ['an unrelated earlier problem'];
+
+  assert.equal(validateHistorySummary({ lessons: 'only lessons' }, errors), true);
+  assert.deepEqual(errors, ['an unrelated earlier problem']);
 });
