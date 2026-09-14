@@ -14,7 +14,10 @@ import { after, before, test } from 'node:test';
 import { loadGenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
 import { readHotWindow, writeGamesJson } from '#actions_pipeline/lib/historyStore.ts';
 import { writeJson } from '#actions_pipeline/lib/jsonFile.ts';
-import { type OpenRouterClient, OpenRouterHttpError } from '#actions_pipeline/lib/openRouterClient.ts';
+import {
+  type OpenRouterClient,
+  OpenRouterHttpError,
+} from '#actions_pipeline/lib/openRouterClient.ts';
 import { createPaths, REPO_ROOT } from '#actions_pipeline/lib/paths.ts';
 import {
   GENERATION_CONFIG,

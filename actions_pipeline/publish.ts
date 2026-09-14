@@ -13,7 +13,10 @@ import { join } from 'node:path';
 import type { GenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
 import type { GenresConfig } from '#actions_pipeline/lib/config/genres.ts';
 import { MS_PER_DAY } from '#actions_pipeline/lib/dates.ts';
-import { buildBundleCspMeta, buildErrorReportingSnippet } from '#actions_pipeline/lib/errorReporting.ts';
+import {
+  buildBundleCspMeta,
+  buildErrorReportingSnippet,
+} from '#actions_pipeline/lib/errorReporting.ts';
 import type { FailureKind, HistoryGameEntry } from '#actions_pipeline/lib/historyStore.ts';
 import { appendEntry, writeGamesJson, writeGamesMd } from '#actions_pipeline/lib/historyStore.ts';
 import { readJsonOrNull, writeJson } from '#actions_pipeline/lib/jsonFile.ts';

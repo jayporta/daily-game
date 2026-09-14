@@ -1,7 +1,11 @@
 // Everything about `config/genres.json`: its shape, its rules, and how it is
 // read. The prompt hands the model this catalogue and lets it choose.
 import { paths } from '#actions_pipeline/lib/paths.ts';
-import { isNonEmptyString, isPlainObject, loadValidatedJson } from '#actions_pipeline/lib/validation.ts';
+import {
+  isNonEmptyString,
+  isPlainObject,
+  loadValidatedJson,
+} from '#actions_pipeline/lib/validation.ts';
 
 /** One genre the model may choose from. */
 export interface GenreEntry {

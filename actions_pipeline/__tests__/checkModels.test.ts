@@ -14,7 +14,11 @@ import {
 import type { ModelsConfig } from '#actions_pipeline/lib/config/models.ts';
 import type { FailedEntry, HistoryGameEntry } from '#actions_pipeline/lib/historyStore.ts';
 import { createPaths } from '#actions_pipeline/lib/paths.ts';
-import { FAILED_ENTRY, GENERATION_CONFIG, PUBLISHED_ENTRY } from '#actions_pipeline/lib/testFixtures.ts';
+import {
+  FAILED_ENTRY,
+  GENERATION_CONFIG,
+  PUBLISHED_ENTRY,
+} from '#actions_pipeline/lib/testFixtures.ts';
 
 // Literal caps rather than ones derived from MIN_OUTPUT_TOKENS: a test whose
 // inputs move with the constant it guards can never fail when that constant

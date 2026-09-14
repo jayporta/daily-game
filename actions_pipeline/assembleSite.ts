@@ -11,7 +11,12 @@ import { cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readJson } from '#actions_pipeline/lib/jsonFile.ts';
-import { createPaths, paths as defaultPaths, type Paths, REPO_ROOT } from '#actions_pipeline/lib/paths.ts';
+import {
+  createPaths,
+  paths as defaultPaths,
+  type Paths,
+  REPO_ROOT,
+} from '#actions_pipeline/lib/paths.ts';
 import { isManifest } from '#lib/manifest.ts';
 
 /** Options for {@link assembleSite}. */

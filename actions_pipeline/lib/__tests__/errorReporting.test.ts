@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildErrorReportingSnippet, parseSentryDsn } from '#actions_pipeline/lib/errorReporting.ts';
+import {
+  buildErrorReportingSnippet,
+  parseSentryDsn,
+} from '#actions_pipeline/lib/errorReporting.ts';
 
 const DSN = 'https://pub1ickey@o42.ingest.example/4567';
 const SLUG = '2026-08-29-beetle';

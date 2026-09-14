@@ -1,7 +1,11 @@
 // Everything about `config/models.json`: its shape, its rules, and how it
 // is read. The daily pipeline picks each attempt's model from this rotation.
 import { paths } from '#actions_pipeline/lib/paths.ts';
-import { isNonEmptyString, isPlainObject, loadValidatedJson } from '#actions_pipeline/lib/validation.ts';
+import {
+  isNonEmptyString,
+  isPlainObject,
+  loadValidatedJson,
+} from '#actions_pipeline/lib/validation.ts';
 
 /** One model in the daily rotation. */
 export interface ModelEntry {

@@ -12,7 +12,10 @@ import type {
 import { EMPTY_SUMMARY } from '#actions_pipeline/lib/historyStore.ts';
 import { buildLessonsMessages, isLessonsRequest } from '#actions_pipeline/lib/lessonsPrompt.ts';
 import { createMockOpenRouterClient } from '#actions_pipeline/lib/openRouterClient.mock.ts';
-import { OPENROUTER_TIMEOUT_MS, type OpenRouterClient } from '#actions_pipeline/lib/openRouterClient.ts';
+import {
+  OPENROUTER_TIMEOUT_MS,
+  type OpenRouterClient,
+} from '#actions_pipeline/lib/openRouterClient.ts';
 import { loadFixture } from '#actions_pipeline/lib/testFixtures.ts';
 import { closingTag } from '#actions_pipeline/lib/untrustedBlock.ts';
 import { reflectLessons, rewriteLessons } from '#actions_pipeline/reflectLessons.ts';

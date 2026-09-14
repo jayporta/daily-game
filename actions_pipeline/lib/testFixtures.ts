@@ -5,7 +5,11 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { GenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
 import type { GenresConfig } from '#actions_pipeline/lib/config/genres.ts';
-import type { FailedEntry, HistoryGameEntry, PublishedEntry } from '#actions_pipeline/lib/historyStore.ts';
+import type {
+  FailedEntry,
+  HistoryGameEntry,
+  PublishedEntry,
+} from '#actions_pipeline/lib/historyStore.ts';
 import type { OpenRouterClient } from '#actions_pipeline/lib/openRouterClient.ts';
 import { isModerationRequest } from '#actions_pipeline/moderate.ts';
 import type { GeneratedMeta } from '#lib/extractBundleShared.ts';

@@ -26,7 +26,10 @@ import {
 } from '#actions_pipeline/lib/historyStore.ts';
 import type { OpenRouterClient } from '#actions_pipeline/lib/openRouterClient.ts';
 import { createPaths, type Paths, paths } from '#actions_pipeline/lib/paths.ts';
-import { pipelineEnvironment, reportGenerationFailure } from '#actions_pipeline/lib/pipelineReporting.ts';
+import {
+  pipelineEnvironment,
+  reportGenerationFailure,
+} from '#actions_pipeline/lib/pipelineReporting.ts';
 import type { ManifestRestoreResult } from '#actions_pipeline/publish.ts';
 import {
   publish,

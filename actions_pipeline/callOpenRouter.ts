@@ -9,7 +9,10 @@ import {
   pipelineEnvironment,
   reportPipelineCrash,
 } from '#actions_pipeline/lib/pipelineReporting.ts';
-import { type RunDailyPipelineOptions, runDailyPipeline } from '#actions_pipeline/runDailyPipeline.ts';
+import {
+  type RunDailyPipelineOptions,
+  runDailyPipeline,
+} from '#actions_pipeline/runDailyPipeline.ts';
 
 const FORCE_MODEL_FLAG = '--force-model=';
 

@@ -6,7 +6,10 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createMockOpenRouterClient } from '#actions_pipeline/lib/openRouterClient.mock.ts';
-import { createOpenRouterClient, type OpenRouterClient } from '#actions_pipeline/lib/openRouterClient.ts';
+import {
+  createOpenRouterClient,
+  type OpenRouterClient,
+} from '#actions_pipeline/lib/openRouterClient.ts';
 
 const FIXTURES_DIR = fileURLToPath(new URL('../fixtures/mock-responses/', import.meta.url));
 

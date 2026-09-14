@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { closingTag, defangDelimiters, untrustedBlock } from '#actions_pipeline/lib/untrustedBlock.ts';
+import {
+  closingTag,
+  defangDelimiters,
+  untrustedBlock,
+} from '#actions_pipeline/lib/untrustedBlock.ts';
 
 test('untrustedBlock wraps content in the named tags', () => {
   const block = untrustedBlock('game-source', 'hello');

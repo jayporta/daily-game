@@ -3,7 +3,11 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import type { FailedEntry, HistoryGameEntry, PublishedEntry } from '#actions_pipeline/lib/historyStore.ts';
+import type {
+  FailedEntry,
+  HistoryGameEntry,
+  PublishedEntry,
+} from '#actions_pipeline/lib/historyStore.ts';
 import { EMPTY_SUMMARY, validateHistorySummary } from '#actions_pipeline/lib/historyStore.ts';
 import { createPaths } from '#actions_pipeline/lib/paths.ts';
 import { GENERATION_CONFIG } from '#actions_pipeline/lib/testFixtures.ts';
