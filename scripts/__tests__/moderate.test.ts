@@ -271,6 +271,42 @@ test('a capacity refusal earlier in the fallback chain is still reported once a 
   assert.equal(result.quota, true);
 });
 
+// The same loss, but on the PASS side: an attempt that ultimately succeeds
+// still needs to say a capacity refusal happened somewhere in its chain, so
+// generateDailyGame can mark the day quotaAffected even though it published.
+test('a capacity refusal earlier in the fallback chain is still reported once a later call passes', async () => {
+  const asked: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ model }) {
+      asked.push(model);
+      if (model === 'mod') throw new OpenRouterHttpError(429, 'rate limited');
+      return { text: 'PASS', stop: 'complete' };
+    },
+  };
+  const result = await moderate(client, {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+    fallbackModels: ['stand-in'],
+  });
+  assert.deepEqual(asked, ['mod', 'stand-in']);
+  assert.equal(result.pass, true);
+  assert.equal(result.quota, true);
+});
+
+test('an unreachable moderator falling back to a plain outage reports no quota refusal', async () => {
+  const result = await moderate(moderatorPanel({ mod: null, 'stand-in': 'PASS' }, []), {
+    meta: CLEAN_META,
+    html: '<div></div>',
+    guardrailsText: GUARDRAILS,
+    moderationModel: 'mod',
+    fallbackModels: ['stand-in'],
+  });
+  assert.equal(result.pass, true);
+  assert.equal(result.quota, false);
+});
+
 test('a whole panel of unreachable moderators still fails closed', async () => {
   const asked: string[] = [];
   const result = await moderate(moderatorPanel({ mod: null, a: null, b: null }, asked), {

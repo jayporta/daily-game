@@ -330,13 +330,16 @@ export async function aiModerationCheck(
  * The moderation verdict for a bundle, after the keyword scan and — only if
  * that passed — the moderator and any stand-ins.
  *
- * `reasons` is phrased for the history entry and is empty on a pass. On a
- * failure, {@link ModerationFailure} says whether the game was judged and
- * rejected or never judged at all, and `quota` says whether that failure was
- * the provider having no capacity left.
+ * `reasons` is phrased for the history entry and is empty on a pass.
+ * `quota` says whether any call in the chain — not necessarily the one that
+ * decided the verdict — was refused for provider capacity: a PASS can still
+ * follow a dedicated moderator's 429 once a fallback answers, and that is
+ * worth knowing even though the attempt succeeded. On a failure,
+ * {@link ModerationFailure} also says whether the game was judged and
+ * rejected or never judged at all.
  */
 export type ModerationResult =
-  | { pass: true; reasons: string[] }
+  | { pass: true; reasons: string[]; quota: boolean }
   | { pass: false; failure: ModerationFailure; reasons: string[]; quota: boolean };
 
 /** Everything {@link moderate} needs to judge one generated bundle. */
@@ -426,5 +429,5 @@ export async function moderate(
     };
   }
 
-  return { pass: true, reasons: [] };
+  return { pass: true, reasons: [], quota: quotaAffected };
 }

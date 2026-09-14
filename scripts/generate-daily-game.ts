@@ -108,6 +108,11 @@ type AttemptOutcome =
       html: string;
       /** Whether the game painted anything during the smoke test. */
       canvasDrawn: boolean;
+      /**
+       * Whether a moderation call along the way was refused for provider
+       * capacity, even though the attempt went on to succeed.
+       */
+      quota: boolean;
     }
   | {
       ok: false;
@@ -265,11 +270,19 @@ async function runAttempt({
       kind: smokeFailureKind(smoke),
       reason: `smoke test failed — ${smoke.reasons.join('; ')}`,
       feedback: `Your previous game did not run correctly: ${smoke.reasons.join('; ')}. Be more defensive — guard every element lookup, and make no network requests of any kind.`,
-      quota: false,
+      // The smoke test itself is never a capacity issue, but moderation
+      // (already passed, above) may have hit one on its way to a verdict.
+      quota: moderation.quota,
     };
   }
 
-  return { ok: true, meta: extracted.meta, html: extracted.html, canvasDrawn: smoke.canvasDrawn };
+  return {
+    ok: true,
+    meta: extracted.meta,
+    html: extracted.html,
+    canvasDrawn: smoke.canvasDrawn,
+    quota: moderation.quota,
+  };
 }
 
 export interface GenerateDailyGameParams {
@@ -368,7 +381,10 @@ export async function generateDailyGame({
         prompt,
         kinds: [...kinds],
         attemptModels: [...attemptModels],
-        quotaAffected: quotaFailures > 0,
+        // Prior failed attempts aside, the winning attempt's own moderation
+        // call can itself have been refused for capacity before a fallback
+        // passed it — that still counts.
+        quotaAffected: quotaFailures > 0 || outcome.quota,
       };
     }
 

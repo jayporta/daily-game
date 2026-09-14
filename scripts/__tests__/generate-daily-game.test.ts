@@ -383,6 +383,32 @@ test('a successful run is quota affected when an earlier attempt was refused for
   }
 });
 
+// The winning attempt's own moderation call can be the one that hit
+// capacity — the dedicated moderator refuses, a fallback passes it, and the
+// game still publishes. That is not the same as a prior attempt failing, so
+// kinds/attemptModels stay empty, but quotaAffected must still be true.
+test('a successful run is quota affected when its own moderation call needed a fallback for capacity', async () => {
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) {
+        if (model === 'mod/model:free') throw new OpenRouterHttpError(429, 'rate limited');
+        return { text: 'PASS', stop: 'complete' };
+      }
+      return { text: loadFixture('good-maze'), stop: 'complete' };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.equal(result.attempts, 1);
+    assert.deepEqual(result.kinds, []);
+    assert.deepEqual(result.attemptModels, []);
+    assert.equal(result.quotaAffected, true);
+  }
+});
+
 test('a moderator refused for capacity marks the attempt quota affected, without exhausting the quota', async () => {
   let attempt = 0;
   const client: OpenRouterClient = {
