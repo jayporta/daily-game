@@ -5,7 +5,7 @@
 import { useManifestContext } from '@/features/game/state/context/useManifestContext.ts';
 import { useRunStatusContext } from '@/features/game/state/context/useRunStatusContext.ts';
 import { formatGeneratedDate } from '@/features/game/state/helpers/countdown.ts';
-import { isNewerThanGame } from '@/features/game/state/helpers/status-client.ts';
+import { isNewerThanGame } from '@/features/game/state/helpers/statusClient.ts';
 import { useCountdown } from '@/features/game/state/useCountdown.ts';
 import { CodeChip } from '@/shared_components/CodeChip.tsx';
 import { ErrorText } from '@/shared_components/ErrorText.tsx';

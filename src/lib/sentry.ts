@@ -1,7 +1,7 @@
 // Everything about the page shell's own error reporting: the build-time DSN,
 // the SDK options, and the deferred start.
 //
-// Distinct from scripts/lib/errorReporting.ts, which reports errors thrown
+// Distinct from actions_pipeline/lib/errorReporting.ts, which reports errors thrown
 // *inside* a published game's sandboxed frame. That one is a hand-rolled
 // snippet because a bundle has to be a self-contained single file with no
 // external requests; this one covers the React app around the frame, where
@@ -18,7 +18,7 @@ import type { BrowserOptions } from '@sentry/react';
  * `config/generation.json`'s `sentryDsn`, inlined by `vite.config.ts`.
  *
  * Reached through a build-time define rather than written here because
- * `.github/workflows/secret-scan.yml` treats a DSN literal anywhere under
+ * `.github/workflows/secretScan.yml` treats a DSN literal anywhere under
  * `src/` as a leaked credential, and because `publish.ts` already reads the
  * same field — a second copy in the source would drift from it.
  */

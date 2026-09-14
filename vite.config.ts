@@ -3,7 +3,7 @@ import { join, resolve, sep } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
-import { loadGenerationConfig } from '#scripts/lib/config/generation.ts';
+import { loadGenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
 
 const GAMES_DIR = resolve(import.meta.dirname, 'games');
 
@@ -83,7 +83,7 @@ export default defineConfig(({ mode }) => ({
     alias: {
       // Mirrors tsconfig.web.json's `paths` and package.json's `imports`.
       // Node resolves `#lib`/`#config` natively via package.json `imports`
-      // for scripts/lib/*.test.ts; this alias makes Vite and Vitest agree
+      // for actions_pipeline/lib/*.test.ts; this alias makes Vite and Vitest agree
       // without depending on undocumented bundler support for that field.
       '@': resolve(import.meta.dirname, 'src'),
       '#lib': resolve(import.meta.dirname, 'lib'),
@@ -94,7 +94,7 @@ export default defineConfig(({ mode }) => ({
     // config/generation.json is the DSN's single source of truth — publish.ts
     // reads the same field for the snippet it appends to game bundles.
     // Inlined at build time rather than written into src/, where
-    // .github/workflows/secret-scan.yml treats a DSN literal as a leaked
+    // .github/workflows/secretScan.yml treats a DSN literal as a leaked
     // credential. Read through the validating loader, so a malformed DSN
     // fails the build instead of shipping a client that posts nowhere.
     __SENTRY_DSN__: JSON.stringify(loadGenerationConfig().sentryDsn),

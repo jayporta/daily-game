@@ -6,7 +6,7 @@ import {
   THEME_ATTRIBUTE,
   type Theme,
 } from '#src/features/theme/state/helpers/theme.ts';
-import { localStorageOrNull } from '#src/lib/browser-storage.ts';
+import { localStorageOrNull } from '#src/lib/browserStorage.ts';
 
 /** The active theme, and the one thing a visitor can do to it. */
 export interface UseThemeResult {

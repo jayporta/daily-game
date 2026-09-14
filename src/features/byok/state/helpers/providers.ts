@@ -3,20 +3,20 @@
 // Each provider shapes its request differently, so there is one builder per
 // provider, and each streams its output back in its own frame shape, so
 // there is one delta reader per provider too. OpenRouter and OpenAI share
-// both, through lib/provider-response.ts — the same module the daily
+// both, through lib/providerResponse.ts — the same module the daily
 // pipeline's OpenRouter client reads its own stream with.
 //
 // Every call streams. The visitor watches the output arrive, so there is no
 // second, non-streaming path to keep working.
 //
-// This never touches OPENROUTER_API_KEY or scripts/lib/get-client.ts's
+// This never touches OPENROUTER_API_KEY or actions_pipeline/lib/getClient.ts's
 // mock-vs-real decision — a visitor's pasted key is a wholly separate,
 // client-side-only path.
 
-import type { ByokProvider } from '#lib/byok-config-types.ts';
+import type { ByokProvider } from '#lib/byokConfigTypes.ts';
 import { errorMessage } from '#lib/errors.ts';
 import { arrayAt, recordAt, stringAt } from '#lib/guards.ts';
-import type { ProviderStopReason } from '#lib/provider-response.ts';
+import type { ProviderStopReason } from '#lib/providerResponse.ts';
 import {
   classifyStopReason,
   errorDetail,
@@ -27,7 +27,7 @@ import {
   responseErrorDetail,
   streamedError,
   streamedFrames,
-} from '#lib/provider-response.ts';
+} from '#lib/providerResponse.ts';
 
 /** One generation, in the form every provider's request is built from. */
 export interface ByokRequest {

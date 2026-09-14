@@ -3,7 +3,7 @@
 // Flatter than `ByokGeneration`, which is what `useByok` hands back: the
 // frame and the metadata card read a title and a control list, not a whole
 // `GeneratedMeta`.
-import type { ControlHint } from '#lib/extract-bundle-shared.ts';
+import type { ControlHint } from '#lib/extractBundleShared.ts';
 
 /** A visitor's own generation, shown in place of the day's game. */
 export interface ByokResult {

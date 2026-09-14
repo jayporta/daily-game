@@ -1,6 +1,6 @@
 import { useReducer } from 'react';
-import type { ByokModelsConfig } from '#lib/byok-config-types.ts';
-import { type ByokProvider, isByokProvider } from '#lib/byok-config-types.ts';
+import type { ByokModelsConfig } from '#lib/byokConfigTypes.ts';
+import { type ByokProvider, isByokProvider } from '#lib/byokConfigTypes.ts';
 import { useByokActions } from '@/features/byok/state/context/useByokActions.ts';
 import { useByokStatus } from '@/features/byok/state/context/useByokStatus.ts';
 import { initialByokForm, reduceByokForm } from '@/features/byok/state/helpers/byokForm.ts';

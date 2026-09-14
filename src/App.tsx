@@ -5,7 +5,7 @@ import { ByokProvider } from '@/features/byok/state/context/ByokProvider.tsx';
 import { GameView } from '@/features/game/GameView.tsx';
 import { ManifestProvider } from '@/features/game/state/context/ManifestProvider.tsx';
 import { RunStatusProvider } from '@/features/game/state/context/RunStatusProvider.tsx';
-import { fetchManifest, fetchText } from '@/features/game/state/helpers/manifest-client.ts';
+import { fetchManifest, fetchText } from '@/features/game/state/helpers/manifestClient.ts';
 import { ThemeToggle } from '@/features/theme/ThemeToggle.tsx';
 import { reportError } from '@/lib/sentry.ts';
 import { Centered } from '@/shared_components/Centered.tsx';

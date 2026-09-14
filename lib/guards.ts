@@ -3,7 +3,7 @@
 //
 // In lib/ because both build targets ask them: the browser of a provider's
 // JSON response, of `manifest.json` and of `localStorage`; the pipeline of a
-// config file and of an archive line. `scripts/lib/validation.ts` re-exports
+// config file and of an archive line. `actions_pipeline/lib/validation.ts` re-exports
 // `isRecord` as `isPlainObject` so the Node validators keep their own
 // vocabulary without holding a second definition.
 

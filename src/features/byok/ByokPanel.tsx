@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { ByokModelsConfig } from '#lib/byok-config-types.ts';
+import type { ByokModelsConfig } from '#lib/byokConfigTypes.ts';
 import { ByokForm } from '@/features/byok/ByokForm.tsx';
 import { useByokActions } from '@/features/byok/state/context/useByokActions.ts';
 import { useByokStatus } from '@/features/byok/state/context/useByokStatus.ts';
@@ -93,7 +93,7 @@ export function ByokPanel({
     return basePrompt === null ? null : composeByokPrompt({ basePrompt, ...additions });
   };
 
-  // A malformed config/byok-models.json degrades the catalogue to empty. There
+  // A malformed config/byokModels.json degrades the catalogue to empty. There
   // is nothing to pick from then, so the panel says nothing rather than
   // offering a pair of empty menus.
   if (catalogue.length === 0) return null;

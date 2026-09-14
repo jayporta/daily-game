@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { DISLIKE_REASONS, type DislikeReason } from '#lib/reaction-types.ts';
+import { DISLIKE_REASONS, type DislikeReason } from '#lib/reactionTypes.ts';
 import { CheckboxRow } from '@/shared_components/CheckboxRow.tsx';
 import { PillButton } from '@/shared_components/PillButton.tsx';
 

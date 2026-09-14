@@ -1,0 +1,120 @@
+// The vocabulary shared by the browser and the daily pipeline: what a
+// visitor can say about a game, and what a slug is allowed to look like.
+//
+// Lives in lib/ (not src/lib/ or actions_pipeline/lib/) because both sides need it —
+// the browser to render the choices, the pipeline to validate what comes
+// back from the store — and lib/ is compiled by both tsconfigs, so a
+// Node-only API here fails the web build.
+import { isRecord } from '#lib/guards.ts';
+
+/**
+ * The closed set of reasons a visitor may give for disliking a game.
+ *
+ * Closed by design: the ids are the only thing that crosses the network, so
+ * nothing a visitor invents can reach `history/games.json` or, later, the
+ * generation prompt. That is what makes freetext feedback unnecessary here,
+ * and with it a whole prompt-injection path.
+ *
+ */
+export const DISLIKE_REASONS = [
+  { id: 'no-load', label: "Doesn't load" },
+  { id: 'gameplay-broken', label: 'Gameplay is broken' },
+  { id: 'missing-art', label: 'Works but missing background or sprites' },
+  { id: 'goal-unclear', label: 'Goal unclear' },
+  { id: 'controls-unclear', label: "Controls don't work as displayed" },
+  { id: 'gametype-mismatch', label: "Game type doesn't match output" },
+] as const satisfies readonly { readonly id: string; readonly label: string }[];
+
+/** One of {@link DISLIKE_REASONS}' ids. */
+export type DislikeReason = (typeof DISLIKE_REASONS)[number]['id'];
+
+/** Every way a visitor can react. The single source for the union below. */
+export const REACTION_KINDS = ['like', 'dislike'] as const;
+
+/** Which way a visitor reacted. */
+export type ReactionKind = (typeof REACTION_KINDS)[number];
+
+/** The row the browser inserts, and the pipeline reads back. */
+export interface ReactionPayload {
+  readonly slug: string;
+  readonly reaction: ReactionKind;
+  /** Always empty for a like; possibly empty for a dislike. */
+  readonly reasons: readonly DislikeReason[];
+}
+
+const REASON_IDS: ReadonlySet<string> = new Set(DISLIKE_REASONS.map((reason) => reason.id));
+
+/**
+ * Narrows an untrusted value to a known reason id.
+ *
+ * Backed by a `Set`, so inherited object keys like `__proto__` and
+ * `constructor` are rejected along with everything else outside the
+ * vocabulary — an `in` or property lookup would not be.
+ */
+export function isDislikeReason(value: unknown): value is DislikeReason {
+  return typeof value === 'string' && REASON_IDS.has(value);
+}
+
+/**
+ * Contents of `config/reactionConfig.json`, read by both sides: the
+ * browser to POST a row, the pipeline to read them back.
+ *
+ * Vendor-agnostic — `endpointUrl` plus a public key describes Supabase's
+ * REST insert and equally a Cloudflare Worker, so changing services is a
+ * config edit.
+ */
+export interface ReactionConfig {
+  /**
+   * Where to POST one reaction row, or `null` when no store is configured —
+   * today's state, in which the page makes no request at all.
+   */
+  readonly endpointUrl: string | null;
+  /**
+   * Public, insert-only key. Safe to ship in client JS *only* because the
+   * store restricts it to inserts; it is never the privileged key, which
+   * lives in an Actions secret and is used solely by the daily pipeline.
+   */
+  readonly anonKey: string | null;
+}
+
+/**
+ * Shape check for the hand-edited config file.
+ *
+ * `validateReactionConfig` in `actions_pipeline/lib/config/reactionConfig.ts` calls this for the
+ * shape and adds its own deployment rules on top.
+ */
+export function isReactionConfig(value: unknown): value is ReactionConfig {
+  if (!isRecord(value)) return false;
+  if (!('endpointUrl' in value) || !('anonKey' in value)) return false;
+  const { endpointUrl, anonKey } = value;
+  return (
+    (endpointUrl === null || typeof endpointUrl === 'string') &&
+    (anonKey === null || typeof anonKey === 'string')
+  );
+}
+
+/**
+ * Slugs as `publish.ts` builds them: an ISO date followed by a kebab-case
+ * title. Anchored, and with no `.` or `/`, so a slug can never traverse a
+ * URL path or a directory.
+ *
+ * Exported because the reaction store constrains its `slug` column with
+ * this same pattern — see `actions_pipeline/reactionStoreSchema.ts`, which reads
+ * it from here rather than repeating it.
+ *
+ * The leading date is the same shape `DATE_PATTERN` in
+ * `actions_pipeline/lib/historyStore.ts` checks. That file is Node-only and this one
+ * is isomorphic, so neither can import the other's copy: change one and check
+ * the other.
+ */
+export const SLUG_PATTERN = /^\d{4}-\d{2}-\d{2}-[a-z0-9-]+$/;
+
+/**
+ * Whether a value is a slug this project could have published.
+ *
+ * Slugs derive from AI-generated titles, and come back from a store any
+ * visitor can write to, so both directions validate rather than trust.
+ */
+export function isPublishableSlug(value: unknown): value is string {
+  return typeof value === 'string' && SLUG_PATTERN.test(value);
+}

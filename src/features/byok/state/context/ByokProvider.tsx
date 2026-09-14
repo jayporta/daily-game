@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react';
-import { SYSTEM_PROMPT } from '#lib/system-prompt.ts';
+import { SYSTEM_PROMPT } from '#lib/systemPrompt.ts';
 import {
   type ByokActions,
   ByokActionsContext,

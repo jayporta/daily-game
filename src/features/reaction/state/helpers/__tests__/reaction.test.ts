@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { ReactionConfig } from '#lib/reaction-types.ts';
+import type { ReactionConfig } from '#lib/reactionTypes.ts';
 import {
   buildInsertRequest,
   readReaction,
   rememberReaction,
   sendReaction,
 } from '#src/features/reaction/state/helpers/reaction.ts';
-import type { WebStorage } from '#src/lib/browser-storage.ts';
+import type { WebStorage } from '#src/lib/browserStorage.ts';
 
 const SLUG = '2026-08-29-beetle';
 const CONFIGURED: ReactionConfig = {

@@ -19,8 +19,8 @@ import {
   type ReactionConfig,
   type ReactionKind,
   type ReactionPayload,
-} from '#lib/reaction-types.ts';
-import type { WebStorage } from '#src/lib/browser-storage.ts';
+} from '#lib/reactionTypes.ts';
+import type { WebStorage } from '#src/lib/browserStorage.ts';
 
 /** A visitor's own recorded choice for one game. */
 export interface StoredReaction {

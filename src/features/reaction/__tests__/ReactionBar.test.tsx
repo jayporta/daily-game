@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ReactionConfig } from '#lib/reaction-types.ts';
-import { DISLIKE_REASONS } from '#lib/reaction-types.ts';
+import type { ReactionConfig } from '#lib/reactionTypes.ts';
+import { DISLIKE_REASONS } from '#lib/reactionTypes.ts';
 import { ReactionBar } from '@/features/reaction/ReactionBar.tsx';
 
 const SLUG = '2026-08-29-beetle';

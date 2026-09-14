@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useEffect } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import type { ByokModelsConfig } from '#lib/byok-config-types.ts';
+import type { ByokModelsConfig } from '#lib/byokConfigTypes.ts';
 import { ByokPanel, type ByokPanelProps } from '@/features/byok/ByokPanel.tsx';
 import { ByokProvider } from '@/features/byok/state/context/ByokProvider.tsx';
 import type { ByokResult } from '@/features/byok/state/context/byokResult.ts';
