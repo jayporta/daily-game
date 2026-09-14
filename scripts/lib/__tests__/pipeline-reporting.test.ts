@@ -11,6 +11,7 @@ import {
   reportGenerationFailure,
   reportPipelineCrash,
 } from '#scripts/lib/pipeline-reporting.ts';
+import { GENERATION_CONFIG } from '#scripts/lib/testFixtures.ts';
 
 const DSN = 'https://abc123@o1.ingest.us.sentry.io/42';
 const ENVELOPE_URL =
@@ -37,17 +38,6 @@ function firstException(captured: Captured | undefined): { type: string; value: 
   return { type, value };
 }
 
-/** The committed generation config's shape, with knobs these tests never read. */
-const VALID_GENERATION_CONFIG = {
-  historyHotWindowDays: 45,
-  rollupTriggerEntries: 60,
-  remixProbability: 0.2,
-  remixLookbackDays: 90,
-  temperature: 0.7,
-  sentryDsn: null,
-  cronSchedule: '0 19 * * *',
-};
-
 /** Writes one generation config to a scratch file and returns its path. */
 function scratchConfig(t: { after(fn: () => void): void }, config: unknown): string {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-reporting-'));
@@ -60,6 +50,7 @@ function scratchConfig(t: { after(fn: () => void): void }, config: unknown): str
 /** One captured request, with the envelope's three lines already parsed. */
 interface Captured {
   readonly url: string;
+  readonly contentType: string | null;
   readonly header: Record<string, unknown>;
   readonly itemHeader: Record<string, unknown>;
   readonly event: Record<string, unknown>;
@@ -71,6 +62,7 @@ function capturing(into: Captured[]): typeof fetch {
     const lines = String(init?.body).split('\n');
     into.push({
       url: String(input),
+      contentType: new Headers(init?.headers).get('content-type'),
       header: JSON.parse(lines[0] ?? '{}'),
       itemHeader: JSON.parse(lines[1] ?? '{}'),
       event: JSON.parse(lines[2] ?? '{}'),
@@ -243,7 +235,7 @@ test('pipelineEnvironment separates a CI run from a local one', () => {
 // generation config can be unloadable while its DSN is perfectly readable.
 test('dsnFromConfigOrNull reads the DSN out of a config that fails validation', (t) => {
   const file = scratchConfig(t, {
-    ...VALID_GENERATION_CONFIG,
+    ...GENERATION_CONFIG,
     sentryDsn: DSN,
     cronSchedule: '',
   });
@@ -261,7 +253,18 @@ test('dsnFromConfigOrNull returns null when the file is not JSON', (t) => {
 });
 
 test('dsnFromConfigOrNull returns null when the config declares no DSN', (t) => {
-  const file = scratchConfig(t, { ...VALID_GENERATION_CONFIG, sentryDsn: null });
+  const file = scratchConfig(t, { ...GENERATION_CONFIG, sentryDsn: null });
 
   assert.equal(dsnFromConfigOrNull(file), null);
+});
+
+// Sentry's ingest is told what an envelope is. The published snippet omits
+// this header to keep its request CORS-simple on a dying page; Node has no
+// such constraint, and a rejected report would vanish into the swallow.
+test('reportGenerationFailure declares the envelope content type', async () => {
+  const sent: Captured[] = [];
+
+  await reportGenerationFailure({ ...failureReport(), fetchImpl: capturing(sent) });
+
+  assert.equal(sent[0]?.contentType, 'application/x-sentry-envelope');
 });

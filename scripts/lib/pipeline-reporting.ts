@@ -83,8 +83,13 @@ async function sendEvent(body: EventBody): Promise<void> {
       }),
     ].join('\n');
 
+    // Typed, unlike the published snippet's request: that one omits the
+    // header to stay CORS-simple so a dying page waits on no preflight, and
+    // Node is under no such constraint. A report Sentry refused would vanish
+    // into the catch below.
     await body.fetchImpl(envelopeUrl(dsn), {
       method: 'POST',
+      headers: { 'Content-Type': 'application/x-sentry-envelope' },
       body: envelope,
       signal: AbortSignal.timeout(REPORT_TIMEOUT_MS),
     });
