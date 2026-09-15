@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-15 — Crystal Runner
+
+- genre: endless-runner
+- theme: A floating crystal runner zips through a magical skyward canyon, collecting luminous orbs while dodging drifting obstacles.
+- mechanics: Automatically scrolls forward, player jumps to avoid obstacles, Collect luminous orbs for points, Restart after collision
+- model: cohere/north-mini-code:free
+- attempts: 4
+
 ## 2026-09-14 — Glowing Garden Match
 
 - genre: tile-matching
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Swap adjacent tiles to form matches of three or more identical flowers, Cleared tiles disappear and new tiles fall from above, Create chains by setting up cascading matches, Reach a target score to complete the level
 - model: dots-studio/dots-3-note-preview:free
 - attempts: 3
+- reactions: 1
+- likes: 1
+- dislikes: 0
 
 ## 2026-09-13 — Storm Island Defender
 

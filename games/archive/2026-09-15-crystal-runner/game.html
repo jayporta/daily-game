@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Crystal Runner</title>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000510;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    color: #fff;
+}
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+#ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 18px;
+    pointer-events: none;
+}
+#message {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 45%;
+    text-align: center;
+    font-size: 24px;
+    pointer-events: none;
+}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui"></div>
+<div id="message">Press Space to Start</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const uiEl = document.getElementById('ui');
+const msgEl = document.getElementById('message');
+
+let w, h;
+function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', () => {
+    resize();
+    reset();
+});
+resize();
+
+const player = {
+    x: 50,
+    y: h / 2,
+    radius: 12,
+    vy: 0,
+    gravity: 0.6,
+    jumpStrength: -14,
+    onGround: false
+};
+
+const obstacles = [];
+const collectibles = [];
+let score = 0;
+let distance = 0;
+let frame = 0;
+let gameState = 'start'; // start, playing, gameover
+let lastObstacleFrame = 0;
+let lastCollectibleFrame = 0;
+const obstacleInterval = 60;
+const collectibleInterval = 90;
+const speed = 5;
+
+const keys = {};
+
+function reset() {
+    player.x = 50;
+    player.y = h / 2;
+    player.vy = 0;
+    player.onGround = false;
+    obstacles.length = 0;
+    collectibles.length = 0;
+    score = 0;
+    distance = 0;
+    frame = 0;
+    gameState = 'start';
+    msgEl.textContent = 'Press Space to Start';
+    uiEl.textContent = 'Score: 0';
+}
+
+function jump() {
+    if (gameState !== 'playing') return;
+    if (player.onGround) {
+        player.vy = player.jumpStrength;
+        player.onGround = false;
+    }
+}
+
+document.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (e.code === 'Space') {
+        e.preventDefault();
+        jump();
+    }
+});
+document.addEventListener('keyup', e => {
+    delete keys[e.code];
+});
+
+function spawnObstacle() {
+    const gap = 120;
+    const topY = Math.random() * (h - gap - 40) + 20;
+    const bottomY = topY + gap;
+    const width = 20 + Math.random() * 30;
+    const height = 30 + Math.random() * 40;
+    obstacles.push({
+        x: w,
+        y: 0,
+        width,
+        height: height / 2,
+        bottomY: bottomY - height / 2
+    });
+    obstacles.push({
+        x: w,
+        y: bottomY - height / 2,
+        width,
+        height: height / 2,
+        bottomY: bottomY
+    });
+}
+
+function spawnCollectible() {
+    const y = Math.random() * (h - 40) + 20;
+    collectibles.push({
+        x: w,
+        y,
+        radius: 8,
+        dy: 0
+    });
+}
+
+function update() {
+    if (gameState !== 'playing') {
+        if (gameState === 'gameover') {
+            msgEl.textContent = `Game Over. Score: ${score}. Press Space to Restart`;
+        }
+        return;
+    }
+
+    // Player physics
+    player.vy += player.gravity;
+    player.y += player.vy;
+
+    // Simple ground at bottom (just visual floor)
+    const floorY = h - 20;
+    if (player.y + player.radius > floorY) {
+        player.y = floorY - player.radius;
+        player.vy = 0;
+        player.onGround = true;
+    } else {
+        player.onGround = false;
+    }
+
+    // Move obstacles and collectibles
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        const o = obstacles[i];
+        o.x -= speed;
+        if (o.x + o.width < 0) {
+            obstacles.splice(i, 1);
+        }
+    }
+    for (let i = collectibles.length - 1; i >= 0; i--) {
+        const c = collectibles[i];
+        c.x -= speed;
+        if (c.x - c.radius < 0) {
+            collectibles.splice(i, 1);
+        }
+    }
+
+    distance += speed;
+    score = Math.floor(distance / 10);
+
+    // Spawn logic
+    frame++;
+    if (frame - lastObstacleFrame > obstacleInterval) {
+        spawnObstacle();
+        lastObstacleFrame = frame;
+    }
+    if (frame - lastCollectibleFrame > collectibleInterval) {
+        spawnCollectible();
+        lastCollectibleFrame = frame;
+    }
+
+    // Collision with obstacles
+    for (const o of obstacles) {
+        const left = o.x;
+        const right = o.x + o.width;
+        const top = o.y;
+        const bottom = o.bottomY;
+        if (player.x + player.radius > left && player.x - player.radius < right) {
+            if (player.y - player.radius < bottom && player.y + player.radius > top) {
+                gameState = 'gameover';
+            }
+        }
+    }
+
+    // Collectibles
+    for (let i = collectibles.length - 1; i >= 0; i--) {
+        const c = collectibles[i];
+        const dx = player.x - c.x;
+        const dy = player.y - c.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < player.radius + c.radius) {
+            collectibles.splice(i, 1);
+            score += 10;
+        }
+    }
+
+    uiEl.textContent = `Score: ${score}`;
+}
+
+function draw() {
+    ctx.fillStyle = '#000510';
+    ctx.fillRect(0, 0, w, h);
+
+    // Draw ground line
+    ctx.strokeStyle = '#1e3a5f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, h - 20);
+    ctx.lineTo(w, h - 20);
+    ctx.stroke();
+
+    // Player
+    ctx.fillStyle = '#0ff';
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#0ff';
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Obstacles
+    ctx.fillStyle = '#f00';
+    for (const o of obstacles) {
+        ctx.fillRect(o.x, o.y, o.width, o.height);
+    }
+
+    // Collectibles
+    ctx.fillStyle = '#ff0';
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = '#ff0';
+    for (const c of collectibles) {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    // UI
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px Arial';
+    ctx.fillText(`Score: ${score}`, 10, 30);
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+// Start game on first space
+function startOnKey(e) {
+    if (e.code === 'Space') {
+        if (gameState === 'start') {
+            gameState = 'playing';
+            msgEl.textContent = '';
+            keys['Space'] = false;
+        } else if (gameState === 'gameover') {
+            reset();
+            gameState = 'playing';
+            msgEl.textContent = '';
+        }
+        e.preventDefault();
+    }
+}
+document.addEventListener('keydown', startOnKey);
+
+reset();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-15-crystal-runner";
+  var RELEASE = "c29ed1502297128693d514613fe471607f0cd599";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

@@ -317,6 +317,37 @@
       "poolside/laguna-s-2.1:free",
       "nvidia/nemotron-3-super-120b-a12b:free"
     ],
+    "quotaAffected": true,
+    "likes": 1,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 1
+  },
+  {
+    "date": "2026-09-15",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-09-15-crystal-runner",
+    "genre": "endless-runner",
+    "theme": "A floating crystal runner zips through a magical skyward canyon, collecting luminous orbs while dodging drifting obstacles.",
+    "mechanics": [
+      "Automatically scrolls forward, player jumps to avoid obstacles",
+      "Collect luminous orbs for points",
+      "Restart after collision"
+    ],
+    "title": "Crystal Runner",
+    "attempts": 4,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call",
+      "extract",
+      "unknown-genre"
+    ],
+    "attemptModels": [
+      "inclusionai/ling-3.0-flash-fin:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
     "quotaAffected": true
   }
 ]

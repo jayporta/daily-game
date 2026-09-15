@@ -1,0 +1,11 @@
+{
+  "title": "Crystal Runner",
+  "genre": "endless-runner",
+  "theme": "A floating crystal runner zips through a magical skyward canyon, collecting luminous orbs while dodging drifting obstacles.",
+  "mechanics": [
+    "Automatically scrolls forward, player jumps to avoid obstacles",
+    "Collect luminous orbs for points",
+    "Restart after collision"
+  ],
+  "controls": []
+}
