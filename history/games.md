@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-16 — Starlight Drifter
+
+- genre: rhythm
+- theme: A constellation of glowing celestial fragments drifts through a velvet void, pulsing in time with a cosmic heartbeat. The player guides a drifting starseed to catch fragments as they appear.
+- mechanics: Follow a repeating beat that sets the rhythm for fragment appearances, Catch glowing fragments by moving the starseed into their pulse zones, Missed fragments dim the starseed and reduce the score, Survive as long as possible, with increasing tempo and density
+- model: poolside/laguna-s-2.1:free
+- attempts: 1
+
 ## 2026-09-15 — Crystal Runner
 
 - genre: endless-runner
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Automatically scrolls forward, player jumps to avoid obstacles, Collect luminous orbs for points, Restart after collision
 - model: cohere/north-mini-code:free
 - attempts: 4
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-09-14 — Glowing Garden Match
 

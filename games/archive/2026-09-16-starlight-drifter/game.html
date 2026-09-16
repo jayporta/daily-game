@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Starlight Drifter</title>
+<style>
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#000;color:#fff;font-family:sans-serif}
+#game{width:100%;height:100%;display:block;background:#000}
+.overlay{position:absolute;top:0;left:0;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(() => {
+const canvas = document.getElementById('game');
+let W = canvas.width = window.innerWidth;
+let H = canvas.height = window.innerHeight;
+window.addEventListener('resize', () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; });
+const ctx = canvas.getContext('2d');
+
+// Audio
+const audio = new (window.AudioContext || window.webkitAudioContext)();
+let gain = audio.createGain();
+gain.connect(audio.destination);
+gain.gain.value = 0.3;
+
+function beep(freq, dur, type='sine', vol=0.3) {
+  const o = audio.createOscillator();
+  const g = audio.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = vol;
+  o.connect(g); g.connect(gain);
+  o.start();
+  o.stop(audio.currentTime + dur);
+}
+
+// Game state
+let starseed = { x: W/2, y: H/2 };
+const SPEED = 4;
+let keys = {};
+let fragments = [];
+let beat = 0;
+let beatInterval = 500; // ms per beat
+let lastBeat = performance.now();
+let score = 0;
+let combo = 0;
+let gameTime = 0;
+let gameOver = false;
+let paused = false;
+const fragmentTypes = [
+  {hue: 180, size: 18, reward: 10, freq: 1},
+  {hue: 240, size: 24, reward: 30, freq: 3},
+  {hue: 300, size: 30, reward: 60, freq: 6}
+];
+
+function spawnFragment() {
+  const t = fragmentTypes[Math.floor(Math.random()*fragmentTypes.length)];
+  const margin = 60;
+  const side = Math.floor(Math.random()*4);
+  let x, y;
+  if (side === 0) { x = -margin; y = Math.random()*(H-2*margin)+margin; }
+  else if (side === 1) { x = W+margin; y = Math.random()*(H-2*margin)+margin; }
+  else if (side === 2) { x = Math.random()*(W-2*margin)+margin; y = -margin; }
+  else { x = Math.random()*(W-2*margin)+margin; y = H+margin; }
+  fragments.push({
+    x, y, tx: Math.random()*(W-2*margin)+margin, ty: Math.random()*(H-2*margin)+margin,
+    hue: t.hue, size: t.size, reward: t.reward, life: 0, maxLife: 3000 + Math.random()*500
+  });
+}
+
+function update(dt) {
+  if (paused) return;
+  gameTime += dt;
+  // Movement
+  let dx = 0, dy = 0;
+  if (keys['ArrowUp'] || keys['w']) dy -= SPEED;
+  if (keys['ArrowDown'] || keys['s']) dy += SPEED;
+  if (keys['ArrowLeft'] || keys['a']) dx -= SPEED;
+  if (keys['ArrowRight'] || keys['d']) dx += SPEED;
+  if (dx !== 0 && dy !== 0) { dx *= 0.7; dy *= 0.7; }
+  starseed.x = Math.max(20, Math.min(W-20, starseed.x + dx));
+  starseed.y = Math.max(20, Math.min(H-20, starseed.y + dy));
+
+  // Beat timing
+  beat += dt;
+  if (beat >= beatInterval) {
+    beat -= beatInterval;
+    lastBeat = performance.now();
+    // Spawn fragment on beat
+    if (Math.random() < 0.7 + gameTime/60000) spawnFragment();
+    // Play beat
+    beep(120, 0.05, 'sine', 0.15);
+    // Gradually increase tempo
+    if (beatInterval > 250) beatInterval -= 2;
+  }
+
+  // Update fragments
+  for (let i = fragments.length - 1; i >= 0; i--) {
+    const f = fragments[i];
+    f.life += dt;
+    // Pulse effect
+    const pulse = 1 + 0.2 * Math.sin(f.life/200);
+    // Move toward target
+    const t = Math.min(f.life/f.maxLife, 1);
+    const ease = 1 - Math.pow(1-t, 3);
+    // Actually, let's make them drift in place with slight motion
+    f.x += (f.tx - f.x) * 0.002;
+    f.y += (f.ty - f.y) * 0.002;
+
+    // Check collision
+    const dist = Math.hypot(starseed.x - f.x, starseed.y - f.y);
+    if (dist < f.size/2 + 15) {
+      score += f.reward;
+      combo++;
+      beep(f.hue * 4, 0.1, 'triangle', 0.25);
+      fragments.splice(i, 1);
+      continue;
+    }
+
+    // Fade out
+    if (f.life > f.maxLife) {
+      fragments.splice(i, 1);
+    }
+  }
+
+  if (score > 0 && score % 500 === 0 && combo >= 1) {
+    // milestone
+  }
+}
+
+function draw() {
+  // Clear with fade
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw stars in background
+  ctx.fillStyle = '#fff';
+  for (let i = 0; i < 200; i++) {
+    const x = (i * 37 % W);
+    const y = (i * 53 % H);
+    const s = (i % 3) + 1;
+    ctx.globalAlpha = 0.3 + 0.2 * Math.sin(beat * 0.01 + i);
+    ctx.fillRect(x, y, s, s);
+  }
+  ctx.globalAlpha = 1;
+
+  // Draw fragments
+  for (const f of fragments) {
+    const pulse = 1 + 0.2 * Math.sin(f.life/200);
+    const size = f.size * pulse;
+    ctx.save();
+    ctx.translate(f.x, f.y);
+    ctx.fillStyle = `hsl(${f.hue}, 80%, 70%)`;
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = `hsl(${f.hue}, 80%, 70%)`;
+    ctx.beginPath();
+    ctx.arc(0, 0, size/2, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // Draw starseed
+  ctx.save();
+  ctx.translate(starseed.x, starseed.y);
+  const pulse = 1 + 0.1 * Math.sin(beat * 0.02);
+  ctx.scale(pulse, pulse);
+  ctx.fillStyle = '#fff';
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = '#fff';
+  ctx.beginPath();
+  ctx.arc(0, 0, 18, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.restore();
+
+  // Draw UI
+  ctx.fillStyle = '#fff';
+  ctx.font = '24px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Score: ${score}`, 20, 40);
+  ctx.fillText(`Combo: ${combo}`, 20, 70);
+  ctx.font = '16px sans-serif';
+  ctx.fillText(`Tempo: ${(1000/beatInterval).toFixed(1)} BPM`, 20, H - 20);
+
+  if (paused) {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.font = '48px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('PAUSED', W/2, H/2);
+  }
+}
+
+let last = performance.now();
+function loop() {
+  const now = performance.now();
+  const dt = now - last;
+  last = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Controls
+window.addEventListener('keydown', (e) => {
+  keys[e.key] = true;
+  if (e.code === 'Space') {
+    e.preventDefault();
+    paused = !paused;
+  }
+});
+window.addEventListener('keyup', (e) => {
+  keys[e.key] = false;
+});
+
+// Touch support
+let touchStart = null;
+canvas.addEventListener('touchstart', (e) => {
+  touchStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  e.preventDefault();
+}, {passive: false});
+canvas.addEventListener('touchmove', (e) => {
+  if (!touchStart) return;
+  const dx = e.touches[0].clientX - touchStart.x;
+  const dy = e.touches[0].clientY - touchStart.y;
+  touchStart.x = e.touches[0].clientX;
+  touchStart.y = e.touches[0].clientY;
+  starseed.x = Math.max(20, Math.min(W-20, starseed.x + dx));
+  starseed.y = Math.max(20, Math.min(H-20, starseed.y + dy));
+  e.preventDefault();
+}, {passive: false});
+canvas.addEventListener('touchend', () => { touchStart = null; });
+
+// Init
+for (let i = 0; i < 3; i++) spawnFragment();
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-16-starlight-drifter";
+  var RELEASE = "2be73e59161bdf38c207eac5d2291ea1007694cd";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

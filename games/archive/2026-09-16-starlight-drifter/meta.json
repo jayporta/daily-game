@@ -1,0 +1,33 @@
+{
+  "title": "Starlight Drifter",
+  "genre": "rhythm",
+  "theme": "A constellation of glowing celestial fragments drifts through a velvet void, pulsing in time with a cosmic heartbeat. The player guides a drifting starseed to catch fragments as they appear.",
+  "mechanics": [
+    "Follow a repeating beat that sets the rhythm for fragment appearances",
+    "Catch glowing fragments by moving the starseed into their pulse zones",
+    "Missed fragments dim the starseed and reduce the score",
+    "Survive as long as possible, with increasing tempo and density"
+  ],
+  "controls": [
+    {
+      "action": "Move starseed up",
+      "key": "Arrow Up / W"
+    },
+    {
+      "action": "Move starseed down",
+      "key": "Arrow Down / S"
+    },
+    {
+      "action": "Move starseed left",
+      "key": "Arrow Left / A"
+    },
+    {
+      "action": "Move starseed right",
+      "key": "Arrow Right / D"
+    },
+    {
+      "action": "Pause / resume",
+      "key": "Space"
+    }
+  ]
+}

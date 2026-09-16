@@ -348,6 +348,28 @@
       "nvidia/nemotron-3-ultra-550b-a55b:free",
       "nvidia/nemotron-3.5-lightning:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-09-16",
+    "status": "published",
+    "model": "poolside/laguna-s-2.1:free",
+    "slug": "2026-09-16-starlight-drifter",
+    "genre": "rhythm",
+    "theme": "A constellation of glowing celestial fragments drifts through a velvet void, pulsing in time with a cosmic heartbeat. The player guides a drifting starseed to catch fragments as they appear.",
+    "mechanics": [
+      "Follow a repeating beat that sets the rhythm for fragment appearances",
+      "Catch glowing fragments by moving the starseed into their pulse zones",
+      "Missed fragments dim the starseed and reduce the score",
+      "Survive as long as possible, with increasing tempo and density"
+    ],
+    "title": "Starlight Drifter",
+    "attempts": 1,
+    "canvasDrawn": true,
     "quotaAffected": true
   }
 ]

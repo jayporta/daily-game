@@ -1,13 +1,34 @@
 {
-  "date": "2026-09-15",
-  "slug": "2026-09-15-crystal-runner",
-  "path": "games/archive/2026-09-15-crystal-runner/game.html",
-  "promptPath": "games/archive/2026-09-15-crystal-runner/prompt.txt",
-  "title": "Crystal Runner",
-  "genre": "endless-runner",
-  "genreLabel": "Endless Runner",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-09-15T22:41:42.888Z",
-  "expiresAt": "2026-09-16T19:00:00.000Z",
-  "controls": []
+  "date": "2026-09-16",
+  "slug": "2026-09-16-starlight-drifter",
+  "path": "games/archive/2026-09-16-starlight-drifter/game.html",
+  "promptPath": "games/archive/2026-09-16-starlight-drifter/prompt.txt",
+  "title": "Starlight Drifter",
+  "genre": "rhythm",
+  "genreLabel": "Rhythm",
+  "model": "poolside/laguna-s-2.1:free",
+  "generatedAt": "2026-09-16T22:37:26.193Z",
+  "expiresAt": "2026-09-17T19:00:00.000Z",
+  "controls": [
+    {
+      "action": "Move starseed up",
+      "key": "Arrow Up / W"
+    },
+    {
+      "action": "Move starseed down",
+      "key": "Arrow Down / S"
+    },
+    {
+      "action": "Move starseed left",
+      "key": "Arrow Left / A"
+    },
+    {
+      "action": "Move starseed right",
+      "key": "Arrow Right / D"
+    },
+    {
+      "action": "Pause / resume",
+      "key": "Space"
+    }
+  ]
 }
