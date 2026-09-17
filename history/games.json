@@ -370,6 +370,28 @@
     "title": "Starlight Drifter",
     "attempts": 1,
     "canvasDrawn": true,
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-09-17",
+    "status": "published",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "slug": "2026-09-17-aurora-racer",
+    "genre": "racing",
+    "theme": "A luminous hovercraft speeds through a neon-lit canyon of floating crystal arches, navigating a twisting energy trail while avoiding drifting debris.",
+    "mechanics": [
+      "Automatic forward motion",
+      "Steer left/right to stay on the energy trail",
+      "Collect energy orbs for speed boosts",
+      "Avoid obstacles and stay within the track boundaries"
+    ],
+    "title": "Aurora Racer",
+    "attempts": 1,
+    "canvasDrawn": true,
     "quotaAffected": true
   }
 ]

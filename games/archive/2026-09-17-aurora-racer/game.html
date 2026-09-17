@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Aurora Racer</title>
+<style>
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000;}
+  canvas{display:block;width:100%;height:100%;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Game constants
+  const laneWidth = 300;
+  const laneLeft = (canvas.width - laneWidth) / 2;
+  const laneRight = laneLeft + laneWidth;
+  const playerRadius = 20;
+  let playerX = canvas.width / 2;
+  const playerY = canvas.height - 50;
+  let playerSpeed = 0; // lateral speed
+  const playerAccel = 0.5;
+  const playerFriction = 0.07;
+  const maxPlayerSpeed = 4;
+
+  // Obstacles
+  const obstacleSize = 40;
+  const obstacles = [];
+  const obstacleSpawnChance = 0.02; // per frame
+  const obstacleBaseSpeed = 2;
+  let obstacleSpeed = obstacleBaseSpeed;
+
+  // Boost
+  let boostActive = false;
+  let boostTimer = 0;
+  const boostDuration = 300; // frames ~5 seconds at 60fps
+  const boostCooldown = 900; // frames ~15 seconds
+  let boostCooldownTimer = 0;
+
+  // Score / distance
+  let distance = 0;
+  let speedMultiplier = 1;
+  const speedIncrease = 0.00005; // per frame
+
+  // Input
+  const keys = { ArrowLeft: false, ArrowRight: false, Space: false };
+  window.addEventListener('keydown', e => { if (e.key in keys) keys[e.key] = true; });
+  window.addEventListener('keyup', e => { if (e.key in keys) keys[e.key] = false; });
+
+  // Game state
+  let gameOver = false;
+
+  function spawnObstacle() {
+    if (Math.random() > obstacleSpawnChance) return;
+    const margin = 20;
+    const minX = laneLeft + margin;
+    const maxX = laneRight - margin - obstacleSize;
+    if (maxX <= minX) return;
+    const x = Math.floor(Math.random() * (maxX - minX + 1)) + minX;
+    obstacles.push({ x, y: -obstacleSize });
+  }
+
+  function update() {
+    if (gameOver) return;
+
+    // Update speed and distance
+    speedMultiplier += speedIncrease;
+    distance += obstacleSpeed * speedMultiplier * 0.1;
+
+    // Update obstacle speed slightly over time
+    obstacleSpeed = obstacleBaseSpeed + speedMultiplier * 0.5;
+
+    // Player lateral movement
+    if (keys.ArrowLeft) playerSpeed -= playerAccel;
+    if (keys.ArrowRight) playerSpeed += playerAccel;
+    playerSpeed *= (1 - playerFriction);
+    if (playerSpeed > maxPlayerSpeed) playerSpeed = maxPlayerSpeed;
+    if (playerSpeed < -maxPlayerSpeed) playerSpeed = -maxPlayerSpeed;
+    playerX += playerSpeed;
+    // Clamp to lane
+    if (playerX < laneLeft + playerRadius) playerX = laneLeft + playerRadius;
+    if (playerX > laneRight - playerRadius) playerX = laneRight - playerRadius;
+
+    // Boost
+    if (boostCooldownTimer > 0) boostCooldownTimer--;
+    if (keys.Space && boostCooldownTimer === 0 && !boostActive) {
+      boostActive = true;
+      boostTimer = boostDuration;
+      boostCooldownTimer = boostCooldown;
+    }
+    if (boostActive) {
+      boostTimer--;
+      if (boostTimer <= 0) boostActive = false;
+    }
+
+    // Spawn and update obstacles
+    spawnObstacle();
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const o = obstacles[i];
+      o.y += obstacleSpeed * speedMultiplier;
+      // Remove if passed
+      if (o.y > canvas.height + obstacleSize) {
+        obstacles.splice(i, 1);
+        continue;
+      }
+      // Collision check (circle-rect)
+      const closestX = Math.max(o.x, Math.min(playerX, o.x + obstacleSize));
+      const closestY = Math.max(o.y, Math.min(playerY, o.y + obstacleSize));
+      const dx = playerX - closestX;
+      const dy = playerY - closestY;
+      const distSq = dx * dx + dy * dy;
+      if (distSq < playerRadius * playerRadius) {
+        if (!boostActive) {
+          gameOver = true;
+        } else {
+          // boost destroys obstacle
+          obstacles.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Background gradient
+    const grad = ctx.createLinearGradient(0,0,0,canvas.height);
+    grad.addColorShift?null:null; // placeholder
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // Lane
+    ctx.fillStyle = '#111';
+    ctx.fillRect(laneLeft, 0, laneWidth, canvas.height);
+    // Lane markings (dashed lines)
+    ctx.strokeStyle = '#555';
+    ctx.setLineDash([20,20]);
+    ctx.beginPath();
+    ctx.moveTo(laneLeft + laneWidth/2, 0);
+    ctx.lineTo(laneLeft + laneWidth/2, canvas.height);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Draw obstacles
+    ctx.fillStyle = '#ff5555';
+    for (const o of obstacles) {
+      ctx.fillRect(o.x, o.y, obstacleSize, obstacleSize);
+    }
+
+    // Draw player (simple hovercraft shape)
+    ctx.save();
+    ctx.translate(playerX, playerY);
+    ctx.rotate(Math.PI/2); // point upward
+    ctx.fillStyle = boostActive ? '#00ffff' : '#00bfff';
+    // body
+    ctx.beginPath();
+    ctx.moveTo(0, -playerRadius);
+    ctx.lineTo(-playerRadius*0.6, playerRadius*0.6);
+    ctx.lineTo(0, playerRadius*0.2);
+    ctx.lineTo(playerRadius*0.6, playerRadius*0.6);
+    ctx.closePath();
+    ctx.fill();
+    // thrust
+    if (boostActive) {
+      ctx.fillStyle = '#ff0';
+      ctx.beginPath();
+      ctx.moveTo(-playerRadius*0.3, playerRadius*0.6);
+      ctx.lineTo(0, playerRadius*1.2);
+      ctx.lineTo(playerRadius*0.3, playerRadius*0.6);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // UI: distance and boost indicator
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px sans-serif';
+    ctx.fillText(`Distance: ${Math.floor(distance)} m`, 20, 30);
+    if (boostActive) {
+      ctx.fillText(`Boost: ${Math.ceil(boostTimer/60)}s`, 20, 50);
+    } else if (boostCooldownTimer > 0) {
+      ctx.fillText(`Boost ready in: ${Math.ceil(boostCooldownTimer/60)}s`, 20, 50);
+    }
+
+    if (gameOver) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#fff';
+      ctx.font = '48px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('CRASH', canvas.width/2, canvas.height/2 - 20);
+      ctx.font = '24px sans-serif';
+      ctx.fillText(`Final Distance: ${Math.floor(distance)} m`, canvas.width/2, canvas.height/2 + 30);
+      ctx.font = '18px sans-serif';
+      ctx.fillText('Press R to Restart', canvas.width/2, canvas.height/2 + 70);
+    }
+  }
+
+  function reset() {
+    playerX = canvas.width/2;
+    playerSpeed = 0;
+    obstacles.length = 0;
+    distance = 0;
+    speedMultiplier = 1;
+    obstacleSpeed = obstacleBaseSpeed;
+    boostActive = false;
+    boostTimer = 0;
+    boostCooldownTimer = 0;
+    gameOver = false;
+  }
+
+  window.addEventListener('keydown', e => {
+    if (e.key === 'r' || e.key === 'R') {
+      if (gameOver) reset();
+    }
+  });
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-17-aurora-racer";
+  var RELEASE = "9537727413e447171f48d5e563d107ca890934f4";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

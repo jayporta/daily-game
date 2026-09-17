@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-17 — Aurora Racer
+
+- genre: racing
+- theme: A luminous hovercraft speeds through a neon-lit canyon of floating crystal arches, navigating a twisting energy trail while avoiding drifting debris.
+- mechanics: Automatic forward motion, Steer left/right to stay on the energy trail, Collect energy orbs for speed boosts, Avoid obstacles and stay within the track boundaries
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 1
+
 ## 2026-09-16 — Starlight Drifter
 
 - genre: rhythm
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Follow a repeating beat that sets the rhythm for fragment appearances, Catch glowing fragments by moving the starseed into their pulse zones, Missed fragments dim the starseed and reduce the score, Survive as long as possible, with increasing tempo and density
 - model: poolside/laguna-s-2.1:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-09-15 — Crystal Runner
 

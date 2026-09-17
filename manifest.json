@@ -1,33 +1,25 @@
 {
-  "date": "2026-09-16",
-  "slug": "2026-09-16-starlight-drifter",
-  "path": "games/archive/2026-09-16-starlight-drifter/game.html",
-  "promptPath": "games/archive/2026-09-16-starlight-drifter/prompt.txt",
-  "title": "Starlight Drifter",
-  "genre": "rhythm",
-  "genreLabel": "Rhythm",
-  "model": "poolside/laguna-s-2.1:free",
-  "generatedAt": "2026-09-16T22:37:26.193Z",
-  "expiresAt": "2026-09-17T19:00:00.000Z",
+  "date": "2026-09-17",
+  "slug": "2026-09-17-aurora-racer",
+  "path": "games/archive/2026-09-17-aurora-racer/game.html",
+  "promptPath": "games/archive/2026-09-17-aurora-racer/prompt.txt",
+  "title": "Aurora Racer",
+  "genre": "racing",
+  "genreLabel": "Racing",
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
+  "generatedAt": "2026-09-17T22:37:51.228Z",
+  "expiresAt": "2026-09-18T19:00:00.000Z",
   "controls": [
     {
-      "action": "Move starseed up",
-      "key": "Arrow Up / W"
+      "action": "Move left",
+      "key": "ArrowLeft"
     },
     {
-      "action": "Move starseed down",
-      "key": "Arrow Down / S"
+      "action": "Move right",
+      "key": "ArrowRight"
     },
     {
-      "action": "Move starseed left",
-      "key": "Arrow Left / A"
-    },
-    {
-      "action": "Move starseed right",
-      "key": "Arrow Right / D"
-    },
-    {
-      "action": "Pause / resume",
+      "action": "Activate boost",
       "key": "Space"
     }
   ]

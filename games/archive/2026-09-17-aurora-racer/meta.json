@@ -1,0 +1,25 @@
+{
+  "title": "Aurora Racer",
+  "genre": "racing",
+  "theme": "A luminous hovercraft speeds through a neon-lit canyon of floating crystal arches, navigating a twisting energy trail while avoiding drifting debris.",
+  "mechanics": [
+    "Automatic forward motion",
+    "Steer left/right to stay on the energy trail",
+    "Collect energy orbs for speed boosts",
+    "Avoid obstacles and stay within the track boundaries"
+  ],
+  "controls": [
+    {
+      "action": "Move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "Move right",
+      "key": "ArrowRight"
+    },
+    {
+      "action": "Activate boost",
+      "key": "Space"
+    }
+  ]
+}
