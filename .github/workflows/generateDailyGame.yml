@@ -74,12 +74,11 @@ jobs:
         with:
           # Full history, so the push step below can rebase.
           fetch-depth: 0
-          # main requires a reviewed PR; GITHUB_TOKEN authenticates as the
-          # github-actions bot, which isn't exempt, so the commit-and-push
-          # step below would be rejected. This PAT belongs to a repo admin,
-          # who is exempt (enforce_admins is off), while non-admins still
-          # can't push directly. Scope: Contents read/write on this repo only.
-          token: ${{ secrets.GH_PUSH_TOKEN }}
+          # Keeps any credential out of .git/config, where every later step
+          # could read it: npm's install scripts, and the pipeline scripts
+          # that drive a browser over model-authored HTML. The push step
+          # holds the token it needs and sets it on the remote there.
+          persist-credentials: false
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -186,6 +185,12 @@ jobs:
         if: steps.publish-check.outputs.changed == 'true'
         env:
           PUBLISHED: ${{ steps.publish-check.outputs.published }}
+          # main requires a reviewed PR; GITHUB_TOKEN authenticates as the
+          # github-actions bot, which isn't exempt, so this push would be
+          # rejected. This PAT belongs to a repo admin, who is exempt
+          # (enforce_admins is off), while non-admins still can't push
+          # directly. Scope: Contents read/write on this repo only.
+          GH_PUSH_TOKEN: ${{ secrets.GH_PUSH_TOKEN }}
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -204,6 +209,12 @@ jobs:
             message="Record failed generation for $(date -u +%Y-%m-%d), previous game kept"
           fi
           git commit -m "$message"
+
+          # Authenticates the push and the rebase below. Set here rather than
+          # persisted at checkout so the token exists only for this step;
+          # Actions masks it in the log.
+          git remote set-url origin \
+            "https://x-access-token:${GH_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
 
           # A push to main while this run was generating makes the push a
           # non-fast-forward. The day's game is already generated, moderated
