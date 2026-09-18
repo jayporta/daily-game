@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Crystal Constellation Puzzle</title>
+<style>
+html,body{margin:0;height:100%;width:100%;overflow:hidden;background:#0d1a2a;}
+#game{display:flex;flex-direction:column;width:100%;height:100%;box-sizing:border-box;}
+#info{padding:10px;background:rgba(255,255,255,0.05);color:#aaccff;font-family:sans-serif;font-size:1.2rem;text-align:center;}
+#timer{margin-bottom:5px;}
+#message{min-height:1.5rem;}
+#grid{display:grid;gap:4px;padding:10px;flex:1;}
+.tile{width:100%;height:100%;border-radius:8px;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.2s;}
+.tile.selected{outline:3px solid #ffdf5d;}
+.tile svg{width:60%;height:60%;pointer-events:none;}
+#restart{display:none;margin:10px auto;padding:8px 20px;background:#4a90e2;color:#fff;border:none;border-radius:4px;cursor:pointer;}
+</style>
+</head>
+<body>
+<div id="game">
+  <div id="info">
+    <div id="timer">Time: 60</div>
+    <div id="message"></div>
+  </div>
+  <div id="grid"></div>
+  <button id="restart">Restart</button>
+</div>
+
+<script>
+const tileSprites = {
+  star: '<svg viewBox="0 0 24 24" fill="#ffdf5d"><path d="M12 2l3 7h7l-5.5 4.5L19 21l-7-5-7 5 2.5-7.5L2 9h7z"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="#c0e0ff"><path d="M21.64 13a1 1 0 0 0-1.05-.14 8.05 8.05 0 0 1-3.37.73 8.15 8.15 0 0 1-6.93-4.11 1 1 0 0 0-.61-.67 8.35 8.35 0 0 0-3.44 1.1 1 1 0 0 0 .55 1.84 6.16 6.16 0 0 1 3.14-1.7 1 1 0 0 0 .71-.74 6.16 6.16 0 0 1-1.88 7.18 1 1 0 0 0-.33 1.06 8.15 8.15 0 0 0 6.08 5.84 1 1 0 0 0 .75-.27 1 1 0 0 0 .07-1.28z"/></svg>',
+  comet: '<svg viewBox="0 0 24 24" fill="#ff9933"><path d="M23 15v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2h2v2h14v-2h2zm-9-5L5 8l2-2 6 6-2 2-6-6z"/></svg>',
+  galaxy: '<svg viewBox="0 0 24 24" fill="#e0a0ff"><path d="M12 2a9 9 0 0 0-9 9 9 9 0 0 0 9 9 9 9 0 0 0 9-9 9 9 0 0 0-9-9zm0 16a7 7 0 0 1-7-7 7 7 0 0 1 7-7 7 7 0 0 1 7 7 7 7 0 0 1-7 7zm3-8h-6v2h6z"/></svg>'
+};
+
+const targetBoard = [
+  ["star","star","moon","comet"],
+  ["star","moon","comet","galaxy"],
+  ["comet","galaxy","star","moon"],
+  ["galaxy","star","moon","comet"]
+];
+
+const gridSize = targetBoard.length;
+
+function cloneBoard(b) {
+  return b.map(row => [...row]);
+}
+
+function shuffleBoard(board) {
+  const newBoard = cloneBoard(board);
+  const getRandomInt = (max) => Math.floor(Math.random() * max);
+  for (let s = 0; s < 20; s++) {
+    const r1 = getRandomInt(gridSize);
+    const c1 = getRandomInt(gridSize);
+    const adj = [];
+    if (r1 > 0) adj.push([r1-1, c1]);
+    if (r1 < gridSize-1) adj.push([r1+1, c1]);
+    if (c1 > 0) adj.push([r1, c1-1]);
+    if (c1 < gridSize-1) adj.push([r1, c1+1]);
+    if (adj.length === 0) continue;
+    const [r2, c2] = adj[getRandomInt(adj.length)];
+    [newBoard[r1][c1], newBoard[r2][c2]] = [newBoard[r2][c2], newBoard[r1][c1]];
+  }
+  return newBoard;
+}
+
+function isSolved(board) {
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      if (board[r][c] !== targetBoard[r][c]) return false;
+    }
+  }
+  return true;
+}
+
+function renderBoard(board) {
+  const gridEl = document.getElementById('grid');
+  gridEl.innerHTML = '';
+  gridEl.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+  for (let r = 0; r < gridSize; r++) {
+    for (let c = 0; c < gridSize; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'tile';
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      cell.dataset.type = board[r][c];
+      cell.innerHTML = tileSprites[board[r][c]];
+      gridEl.appendChild(cell);
+    }
+  }
+}
+
+let currentBoard = shuffleBoard(targetBoard);
+let selectedTile = null;
+let timerId = null;
+let timeLeft = 60;
+
+function startTimer() {
+  const timerEl = document.getElementById('timer');
+  const messageEl = document.getElementById('message');
+  const restartBtn = document.getElementById('restart');
+  timerId = setInterval(() => {
+    timeLeft--;
+    timerEl.textContent = `Time: ${timeLeft}`;
+    if (timeLeft <= 0) {
+      clearInterval(timerId);
+      messageEl.textContent = 'Time’s up!';
+      restartBtn.style.display = 'inline';
+    }
+  }, 1000);
+}
+
+function resetGame() {
+  currentBoard = shuffleBoard(targetBoard);
+  timeLeft = 60;
+  document.getElementById('timer').textContent = `Time: ${timeLeft}`;
+  document.getElementById('message').textContent = '';
+  document.getElementById('restart').style.display = 'none';
+  renderBoard(currentBoard);
+  clearInterval(timerId);
+  startTimer();
+}
+
+document.getElementById('grid').addEventListener('click', (e) => {
+  const tile = e.target.closest('.tile');
+  if (!tile) return;
+  if (!selectedTile) {
+    selectedTile = tile;
+    selectedTile.classList.add('selected');
+  } else if (selectedTile === tile) {
+    selectedTile.classList.remove('selected');
+    selectedTile = null;
+  } else {
+    const r1 = parseInt(selectedTile.dataset.row);
+    const c1 = parseInt(selectedTile.dataset.col);
+    const r2 = parseInt(tile.dataset.row);
+    const c2 = parseInt(tile.dataset.col);
+    const dr = Math.abs(r1 - r2);
+    const dc = Math.abs(c1 - c2);
+    if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+      const newBoard = cloneBoard(currentBoard);
+      [newBoard[r1][c1], newBoard[r2][c2]] = [newBoard[r2][c2], newBoard[r1][c1]];
+      currentBoard = newBoard;
+      renderBoard(currentBoard);
+      if (isSolved(currentBoard)) {
+        clearInterval(timerId);
+        document.getElementById('message').textContent = 'You formed the constellation!';
+        document.getElementById('restart').style.display = 'inline';
+      }
+    }
+    selectedTile.classList.remove('selected');
+    selectedTile = null;
+  }
+});
+
+document.getElementById('restart').addEventListener('click', resetGame);
+
+renderBoard(currentBoard);
+startTimer();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-18-crystal-constellation-puzzle";
+  var RELEASE = "7369d012d5fccefbbf10510082f4ee08f7f3dea4";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

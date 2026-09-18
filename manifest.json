@@ -1,26 +1,18 @@
 {
-  "date": "2026-09-17",
-  "slug": "2026-09-17-aurora-racer",
-  "path": "games/archive/2026-09-17-aurora-racer/game.html",
-  "promptPath": "games/archive/2026-09-17-aurora-racer/prompt.txt",
-  "title": "Aurora Racer",
-  "genre": "racing",
-  "genreLabel": "Racing",
-  "model": "nvidia/nemotron-3-super-120b-a12b:free",
-  "generatedAt": "2026-09-17T22:37:51.228Z",
-  "expiresAt": "2026-09-18T19:00:00.000Z",
+  "date": "2026-09-18",
+  "slug": "2026-09-18-crystal-constellation-puzzle",
+  "path": "games/archive/2026-09-18-crystal-constellation-puzzle/game.html",
+  "promptPath": "games/archive/2026-09-18-crystal-constellation-puzzle/prompt.txt",
+  "title": "Crystal Constellation Puzzle",
+  "genre": "puzzle",
+  "genreLabel": "Puzzle",
+  "model": "cohere/north-mini-code:free",
+  "generatedAt": "2026-09-18T22:14:18.344Z",
+  "expiresAt": "2026-09-19T19:00:00.000Z",
   "controls": [
     {
-      "action": "Move left",
-      "key": "ArrowLeft"
-    },
-    {
-      "action": "Move right",
-      "key": "ArrowRight"
-    },
-    {
-      "action": "Activate boost",
-      "key": "Space"
+      "action": "Swap adjacent tiles",
+      "key": "Click"
     }
   ]
 }

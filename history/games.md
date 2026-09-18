@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-18 — Crystal Constellation Puzzle
+
+- genre: puzzle
+- theme: A whimsical forest of glowing mushrooms and magical crystals that must be aligned to form constellations
+- mechanics: Swap adjacent tiles to match a target pattern, Solve the constellation puzzle before the timer expires, Clear the board to win
+- model: cohere/north-mini-code:free
+- attempts: 5
+
 ## 2026-09-17 — Aurora Racer
 
 - genre: racing
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Automatic forward motion, Steer left/right to stay on the energy trail, Collect energy orbs for speed boosts, Avoid obstacles and stay within the track boundaries
 - model: nvidia/nemotron-3-super-120b-a12b:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-09-16 — Starlight Drifter
 

@@ -1,0 +1,16 @@
+{
+  "title": "Crystal Constellation Puzzle",
+  "genre": "puzzle",
+  "theme": "A whimsical forest of glowing mushrooms and magical crystals that must be aligned to form constellations",
+  "mechanics": [
+    "Swap adjacent tiles to match a target pattern",
+    "Solve the constellation puzzle before the timer expires",
+    "Clear the board to win"
+  ],
+  "controls": [
+    {
+      "action": "Swap adjacent tiles",
+      "key": "Click"
+    }
+  ]
+}
