@@ -1,0 +1,28 @@
+{
+  "title": "Labyrinth Shift",
+  "genre": "maze-adventure",
+  "theme": "A glowing robotic explorer navigates a shifting maze of crystalline walls, collecting light keys to unlock the exit portal.",
+  "mechanics": [
+    "Move through a maze with arrow keys",
+    "Collect keys to open the exit",
+    "Walls slowly shift, altering passages over time"
+  ],
+  "controls": [
+    {
+      "action": "Move up",
+      "key": "ArrowUp"
+    },
+    {
+      "action": "Move down",
+      "key": "ArrowDown"
+    },
+    {
+      "action": "Move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "Move right",
+      "key": "ArrowRight"
+    }
+  ]
+}

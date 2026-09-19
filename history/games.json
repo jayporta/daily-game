@@ -425,6 +425,33 @@
       "nvidia/nemotron-3-ultra-550b-a55b:free",
       "nvidia/nemotron-3.5-lightning:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-09-19",
+    "status": "published",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "slug": "2026-09-19-labyrinth-shift",
+    "genre": "maze-adventure",
+    "theme": "A glowing robotic explorer navigates a shifting maze of crystalline walls, collecting light keys to unlock the exit portal.",
+    "mechanics": [
+      "Move through a maze with arrow keys",
+      "Collect keys to open the exit",
+      "Walls slowly shift, altering passages over time"
+    ],
+    "title": "Labyrinth Shift",
+    "attempts": 2,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free"
+    ],
     "quotaAffected": true
   }
 ]

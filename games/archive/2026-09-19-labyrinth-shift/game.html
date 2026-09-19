@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Labyrinth Shift</title>
+<style>
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0b0d20;}
+  canvas{display:block;}
+  #msg{position:absolute;top:50%;left:50%;transform:-50% -50%;color:#fff;font-family:sans-serif;font-size:2rem;pointer-events:none;text-align:center;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="msg"></div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const msg = document.getElementById('msg');
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Maze parameters
+const cols = 15;
+const rows = 10;
+const cellSize = Math.min(canvas.width / cols, canvas.height / rows);
+const maze = [
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+  [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1],
+  [1,0,1,0,0,0,0,0,0,0,1,0,1,0,1],
+  [1,0,1,1,1,1,1,1,1,0,1,0,1,0,1],
+  [1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],
+  [1,1,1,0,1,1,0,1,1,1,1,0,1,0,1],
+  [1,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+  [1,0,1,1,0,1,1,1,1,1,1,1,1,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+];
+// Ensure start and exit are open
+maze[1][1] = 0;
+maze[rows-2][cols-2] = 0;
+
+// Keys positions (cell coordinates)
+const keys = [
+  {c:3, r:2},
+  {c:8, r:4},
+  {c:12, r:7}
+];
+let collected = 0;
+
+// Player state
+let player = {c:1, r:1};
+
+let lastTime = 0;
+let won = false;
+
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const time = performance.now()*0.001;
+
+  // Draw walls with shifting offset
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      if(maze[r][c]===1){
+        const offset = Math.sin(time*0.5 + c*0.3 + r*0.3)*3;
+        const x = c*cellSize + offset;
+        const y = r*cellSize;
+        ctx.fillStyle = '#60a5fa';
+        ctx.fillRect(x, y, cellSize, cellSize);
+        // subtle inner glow
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(x+2, y+2, cellSize-4, cellSize-4);
+      }
+    }
+  }
+
+  // Draw keys
+  ctx.fillStyle = '#fbbf24';
+  keys.forEach(k=>{
+    if(!k.collected){
+      const cx = k.c*cellSize + cellSize/2;
+      const cy = k.r*cellSize + cellSize/2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, cellSize*0.25, 0, Math.PI*2);
+      ctx.fill();
+    }
+  });
+
+  // Draw exit
+  const ex = (cols-2)*cellSize + cellSize/2;
+  const ey = (rows-2)*cellSize + cellSize/2;
+  ctx.strokeStyle = '#34d399';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(ex, ey, cellSize*0.35, 0, Math.PI*2);
+  ctx.stroke();
+
+  // Draw player (glowing triangle)
+  const px = player.c*cellSize + cellSize/2;
+  const py = player.r*cellSize + cellSize/2;
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(time*0.5);
+  ctx.fillStyle = '#facc15';
+  ctx.beginPath();
+  ctx.moveTo(0, -cellSize*0.3);
+  ctx.lineTo(-cellSize*0.25, cellSize*0.2);
+  ctx.lineTo(cellSize*0.25, cellSize*0.2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  // Check key collection
+  keys.forEach(k=>{
+    if(!k.collected && Math.abs(k.c-player.c)<0.5 && Math.abs(k.r-player.r)<0.5){
+      k.collected = true;
+      collected++;
+    }
+  });
+
+  // Win condition
+  if(!won && player.c===cols-2 && player.r===rows-2 && collected===keys.length){
+    won = true;
+    msg.textContent = 'You escaped the shifting labyrinth!';
+  }
+}
+
+function update(dt){
+  // No game logic needed besides input handled elsewhere
+}
+
+function loop(timestamp){
+  const dt = timestamp - lastTime;
+  lastTime = timestamp;
+  update(dt);
+  draw();
+  if(!won) requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// Input handling
+const speed = 0.15; // cells per second
+let dx=0, dy=0;
+function handleKey(e){
+  const cellMove = speed * (1/60); // approximate per frame
+  switch(e.key){
+    case 'ArrowUp': dy = -1; break;
+    case 'ArrowDown': dy = 1; break;
+    case 'ArrowLeft': dx = -1; break;
+    case 'ArrowRight': dx = 1; break;
+  }
+}
+function stopKey(e){
+  switch(e.key){
+    case 'ArrowUp':
+    case 'ArrowDown': dy = 0; break;
+    case 'ArrowLeft':
+    case 'ArrowRight': dx = 0; break;
+  }
+}
+window.addEventListener('keydown', handleKey);
+window.addEventListener('keyup', stopKey);
+
+// Main loop for movement (fixed timestep)
+let lastMove = 0;
+function moveLoop(timestamp){
+  if(!lastMove) lastMove = timestamp;
+  const elapsed = timestamp - lastMove;
+  if(elapsed > 1000/60){
+    const moveAmount = speed * (elapsed/1000);
+    const newC = player.c + dx * moveAmount;
+    const newR = player.r + dy * moveAmount;
+    // Check collision with static maze (using floored cell)
+    const nc = Math.floor(newC);
+    const nr = Math.floor(newR);
+    if(nc>=0 && nc<cols && nr>=0 && nr<rows && maze[nr][nc]===0){
+      player.c = newC;
+      player.r = newR;
+    }
+    lastMove = timestamp;
+  }
+  requestAnimationFrame(moveLoop);
+}
+requestAnimationFrame(moveLoop);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-19-labyrinth-shift";
+  var RELEASE = "6e3df818c847733bdc1651274a7c47597eb6fc66";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
