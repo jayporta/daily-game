@@ -1,0 +1,19 @@
+{
+  "title": "Crystal Launcher",
+  "genre": "physics-sandbox",
+  "theme": "A whimsical crystal garden where glowing crystals float and must be struck by a launched orb",
+  "mechanics": [
+    "Launch projectile with angle and power",
+    "Hit target crystals to score"
+  ],
+  "controls": [
+    {
+      "action": "Aim projectile",
+      "key": "Drag"
+    },
+    {
+      "action": "Launch projectile",
+      "key": "Click"
+    }
+  ]
+}

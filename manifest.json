@@ -1,30 +1,22 @@
 {
-  "date": "2026-09-19",
-  "slug": "2026-09-19-labyrinth-shift",
-  "path": "games/archive/2026-09-19-labyrinth-shift/game.html",
-  "promptPath": "games/archive/2026-09-19-labyrinth-shift/prompt.txt",
-  "title": "Labyrinth Shift",
-  "genre": "maze-adventure",
-  "genreLabel": "Maze Adventure",
-  "model": "nvidia/nemotron-3-super-120b-a12b:free",
-  "generatedAt": "2026-09-19T22:05:11.044Z",
-  "expiresAt": "2026-09-20T19:00:00.000Z",
+  "date": "2026-09-20",
+  "slug": "2026-09-20-crystal-launcher",
+  "path": "games/archive/2026-09-20-crystal-launcher/game.html",
+  "promptPath": "games/archive/2026-09-20-crystal-launcher/prompt.txt",
+  "title": "Crystal Launcher",
+  "genre": "physics-sandbox",
+  "genreLabel": "Physics Sandbox",
+  "model": "cohere/north-mini-code:free",
+  "generatedAt": "2026-09-20T22:09:37.508Z",
+  "expiresAt": "2026-09-21T19:00:00.000Z",
   "controls": [
     {
-      "action": "Move up",
-      "key": "ArrowUp"
+      "action": "Aim projectile",
+      "key": "Drag"
     },
     {
-      "action": "Move down",
-      "key": "ArrowDown"
-    },
-    {
-      "action": "Move left",
-      "key": "ArrowLeft"
-    },
-    {
-      "action": "Move right",
-      "key": "ArrowRight"
+      "action": "Launch projectile",
+      "key": "Click"
     }
   ]
 }

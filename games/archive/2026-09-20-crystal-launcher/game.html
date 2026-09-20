@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Crystal Launcher</title>
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0d0e14; color:#fff; font-family: Arial, sans-serif; user-select:none; }
+#gameCanvas { display:block; width:100%; height:100%; }
+#uiOverlay { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+#uiText { position:absolute; left:10px; top:10px; font-size:18px; background:rgba(0,0,0,0.5); padding:5px 10px; border-radius:5px; }
+#messageBox { position:absolute; left:50%; top:50%; transform:translate(-50%, -50%); background:rgba(0,0,0,0.8); padding:20px 30px; border-radius:10px; text-align:center; font-size:24px; display:none; pointer-events:auto; }
+#restartBtn { margin-top:15px; padding:10px 20px; font-size:20px; cursor:pointer; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="uiOverlay">
+  <div id="uiText"></div>
+</div>
+<div id="messageBox">
+  <div id="messageContent"></div>
+  <button id="restartBtn">Restart</button>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const uiText = document.getElementById('uiText');
+const messageBox = document.getElementById('messageBox');
+const messageContent = document.getElementById('messageContent');
+const restartBtn = document.getElementById('restartBtn');
+
+let width, height;
+let ctx;
+
+const GRAVITY = 0.5;
+const FRICTION = 0.99;
+const PROJECTILE_RADIUS = 8;
+const TARGET_RADIUS = 12;
+const LAUNCH_X = 100;
+const LAUNCH_Y = height => height - 80;
+const GROUND_Y = height => height - 30;
+
+let gameState = 'menu'; // menu, playing, win, lose
+let animationId = null;
+
+let attemptsLeft = 5;
+let score = 0;
+let targets = [];
+let projectile = null;
+let trajectory = [];
+let dragging = false;
+let launchPower = 0;
+let launchAngle = 0; // radians, 0 = right, -PI/2 = up
+let lastMouseX, lastMouseY;
+
+const initGame = () => {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+  ctx = canvas.getContext('2d');
+
+  // Reset game stats
+  attemptsLeft = 5;
+  score = 0;
+  targets = [];
+  projectile = null;
+  trajectory = [];
+  dragging = false;
+
+  // Create some target crystals randomly across the top half
+  const numTargets = 6;
+  for (let i = 0; i < numTargets; i++) {
+    const x = Math.random() * (width - 100) + 50;
+    const y = Math.random() * (height * 0.5) + 50;
+    targets.push({ x, y, active: true });
+  }
+
+  uiText.textContent = `Attempts: ${attemptsLeft} | Score: ${score}`;
+  messageBox.style.display = 'none';
+  gameState = 'playing';
+  loop();
+};
+
+const drawBackground = () => {
+  // Simple gradient sky
+  const grad = ctx.createLinearGradient(0, 0, 0, height);
+  grad.addColorStop(0, '#1a1f2c');
+  grad.addColorStop(1, '#0d0e14');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, width, height);
+
+  // Ground line
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y(height));
+  ctx.lineTo(width, GROUND_Y(height));
+  ctx.stroke();
+
+  // Launch area (slingshot outline)
+  ctx.strokeStyle = '#4caf50';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.arc(LAUNCH_X, LAUNCH_Y(height), 20, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(LAUNCH_X - 15, LAUNCH_Y(height));
+  ctx.lineTo(LAUNCH_X + 15, LAUNCH_Y(height));
+  ctx.stroke();
+};
+
+const drawProjectile = (p) => {
+  ctx.fillStyle = '#81c784';
+  ctx.shadowColor = '#81c784';
+  ctx.shadowBlur = 10;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, PROJECTILE_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+const drawTarget = (t) => {
+  if (!t.active) return;
+  ctx.fillStyle = '#ffeb3b';
+  ctx.shadowColor = '#ffeb3b';
+  ctx.shadowBlur = 8;
+  ctx.beginPath();
+  ctx.arc(t.x, t.y, TARGET_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+};
+
+const drawTrajectory = (points) => {
+  if (points.length < 2) return;
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(points[0].x, points[0].y);
+  for (let i = 1; i < points.length; i++) {
+    ctx.lineTo(points[i].x, points[i].y);
+  }
+  ctx.stroke();
+};
+
+const updateTrajectory = () => {
+  if (!dragging || !projectile) return;
+  const dx = lastMouseX - LAUNCH_X;
+  const dy = lastMouseY - LAUNCH_Y(height);
+  launchAngle = Math.atan2(-dy, dx); // negative dy because y down
+  const dist = Math.hypot(dx, dy);
+  launchPower = Math.min(dist / 5, 30); // max power
+  // Generate trajectory points
+  trajectory = [];
+  const steps = 20;
+  const vx = Math.cos(launchAngle) * launchPower;
+  const vy = Math.sin(launchAngle) * launchPower;
+  for (let i = 1; i <= steps; i++) {
+    const t = i * 0.05;
+    const px = LAUNCH_X + vx * t;
+    const py = LAUNCH_Y(height) + vy * t + 0.5 * GRAVITY * t * t;
+    trajectory.push({ x: px, y: py });
+    if (py > GROUND_Y(height) + 20) break;
+  }
+};
+
+const launchProjectile = () => {
+  if (dragging) {
+    dragging = false;
+    projectile = {
+      x: LAUNCH_X,
+      y: LAUNCH_Y(height),
+      vx: Math.cos(launchAngle) * launchPower,
+      vy: Math.sin(launchAngle) * launchPower,
+      active: true
+    };
+    trajectory = [];
+  }
+};
+
+const checkTargetHit = (proj) => {
+  for (const t of targets) {
+    if (!t.active) continue;
+    const d = Math.hypot(proj.x - t.x, proj.y - t.y);
+    if (d < PROJECTILE_RADIUS + TARGET_RADIUS) {
+      t.active = false;
+      return t;
+    }
+  }
+  return null;
+};
+
+const updateGame = () => {
+  if (!projectile) return;
+
+  // physics
+  projectile.vy += GRAVITY;
+  projectile.vx *= FRICTION;
+  projectile.vy *= FRICTION;
+  projectile.x += projectile.vx;
+  projectile.y += projectile.vy;
+
+  // ground collision
+  if (projectile.y + PROJECTILE_RADIUS > GROUND_Y(height)) {
+    projectile.y = GROUND_Y(height) - PROJECTILE_RADIUS;
+    projectile.vy = -projectile.vy * 0.5;
+    if (Math.abs(projectile.vx) < 0.1) projectile.vx = 0;
+  }
+
+  // off-screen left/right
+  if (projectile.x < -50 || projectile.x > width + 50) {
+    // missed
+    attemptsLeft--;
+    uiText.textContent = `Attempts: ${attemptsLeft} | Score: ${score}`;
+    resetProjectile();
+    if (attemptsLeft <= 0) {
+      gameState = 'lose';
+      showMessage('Game Over! You ran out of attempts.');
+      return;
+    }
+  }
+
+  // target hit
+  const hit = checkTargetHit(projectile);
+  if (hit) {
+    score++;
+    uiText.textContent = `Attempts: ${attemptsLeft} | Score: ${score}`;
+    const remaining = targets.filter(t => t.active).length;
+    if (remaining === 0) {
+      gameState = 'win';
+      showMessage('You hit all crystals! Victory!');
+      return;
+    }
+    resetProjectile();
+  }
+};
+
+const resetProjectile = () => {
+  projectile = null;
+};
+
+const drawGame = () => {
+  drawBackground();
+
+  // draw targets
+  for (const t of targets) drawTarget(t);
+
+  // draw trajectory
+  drawTrajectory(trajectory);
+
+  // draw projectile
+  if (projectile) drawProjectile(projectile);
+
+  // draw launch point
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(LAUNCH_X, LAUNCH_Y(height), 4, 0, Math.PI * 2);
+  ctx.fill();
+};
+
+const showMessage = (msg) => {
+  messageContent.textContent = msg;
+  messageBox.style.display = 'block';
+};
+
+const loop = () => {
+  if (gameState !== 'playing') return;
+  updateGame();
+  drawGame();
+  updateTrajectory(); // recompute trajectory while dragging
+  animationId = requestAnimationFrame(loop);
+};
+
+const onMouseDown = (e) => {
+  const rect = canvas.getBoundingClientRect();
+  lastMouseX = e.clientX - rect.left;
+  lastMouseY = e.clientY - rect.top;
+  if (gameState === 'playing' && !projectile) {
+    dragging = true;
+  }
+};
+
+const onMouseMove = (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  if (dragging && gameState === 'playing') {
+    lastMouseX = mx;
+    lastMouseY = my;
+  }
+};
+
+const onMouseUp = (e) => {
+  if (dragging && gameState === 'playing') {
+    launchProjectile();
+  }
+};
+
+canvas.addEventListener('mousedown', onMouseDown);
+canvas.addEventListener('mousemove', onMouseMove);
+canvas.addEventListener('mouseup', onMouseUp);
+restartBtn.addEventListener('click', () => {
+  messageBox.style.display = 'none';
+  initGame();
+});
+
+window.addEventListener('resize', () => {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+});
+
+// start
+initGame();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-20-crystal-launcher";
+  var RELEASE = "9cfbf9a7db0403aaff90249ea869efebb7374acf";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

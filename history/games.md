@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-20 — Crystal Launcher
+
+- genre: physics-sandbox
+- theme: A whimsical crystal garden where glowing crystals float and must be struck by a launched orb
+- mechanics: Launch projectile with angle and power, Hit target crystals to score
+- model: cohere/north-mini-code:free
+- attempts: 5
+
 ## 2026-09-19 — Labyrinth Shift
 
 - genre: maze-adventure
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Move through a maze with arrow keys, Collect keys to open the exit, Walls slowly shift, altering passages over time
 - model: nvidia/nemotron-3-super-120b-a12b:free
 - attempts: 2
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-09-18 — Crystal Constellation Puzzle
 

@@ -452,6 +452,38 @@
     "attemptModels": [
       "poolside/laguna-s-2.1:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-09-20",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-09-20-crystal-launcher",
+    "genre": "physics-sandbox",
+    "theme": "A whimsical crystal garden where glowing crystals float and must be struck by a launched orb",
+    "mechanics": [
+      "Launch projectile with angle and power",
+      "Hit target crystals to score"
+    ],
+    "title": "Crystal Launcher",
+    "attempts": 5,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call",
+      "extract",
+      "extract",
+      "extract"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "inclusionai/ling-3.0-flash-fin:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
     "quotaAffected": true
   }
 ]
