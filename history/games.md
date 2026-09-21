@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-21 — Petal Pilot
+
+- genre: growth-sim
+- theme: A tiny seed pod drifts on gentle breezes through a quiet sky garden, blooming into paper flowers that catch the light and invite friendly sky-moths to rest
+- mechanics: Drift with mouse/tap to guide the seed pod, Bloom into a flower by collecting light petals, Attract friendly sky-moths that pollinate new seeds, Manage a small bounded garden with discrete pickups and one terminal goal
+- model: poolside/laguna-s-2.1:free
+- attempts: 1
+
 ## 2026-09-20 — Crystal Launcher
 
 - genre: physics-sandbox
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Launch projectile with angle and power, Hit target crystals to score
 - model: cohere/north-mini-code:free
 - attempts: 5
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-09-19 — Labyrinth Shift
 

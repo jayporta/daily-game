@@ -1,0 +1,17 @@
+{
+  "title": "Petal Pilot",
+  "genre": "growth-sim",
+  "theme": "A tiny seed pod drifts on gentle breezes through a quiet sky garden, blooming into paper flowers that catch the light and invite friendly sky-moths to rest",
+  "mechanics": [
+    "Drift with mouse/tap to guide the seed pod",
+    "Bloom into a flower by collecting light petals",
+    "Attract friendly sky-moths that pollinate new seeds",
+    "Manage a small bounded garden with discrete pickups and one terminal goal"
+  ],
+  "controls": [
+    {
+      "action": "Move the seed pod toward the cursor",
+      "key": "Mouse / Touch drag"
+    }
+  ]
+}

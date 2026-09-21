@@ -484,6 +484,28 @@
       "nvidia/nemotron-3-ultra-550b-a55b:free",
       "nvidia/nemotron-3.5-lightning:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-09-21",
+    "status": "published",
+    "model": "poolside/laguna-s-2.1:free",
+    "slug": "2026-09-21-petal-pilot",
+    "genre": "growth-sim",
+    "theme": "A tiny seed pod drifts on gentle breezes through a quiet sky garden, blooming into paper flowers that catch the light and invite friendly sky-moths to rest",
+    "mechanics": [
+      "Drift with mouse/tap to guide the seed pod",
+      "Bloom into a flower by collecting light petals",
+      "Attract friendly sky-moths that pollinate new seeds",
+      "Manage a small bounded garden with discrete pickups and one terminal goal"
+    ],
+    "title": "Petal Pilot",
+    "attempts": 1,
+    "canvasDrawn": true,
     "quotaAffected": true
   }
 ]

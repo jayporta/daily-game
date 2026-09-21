@@ -1,0 +1,463 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Petal Pilot</title>
+<style>
+html,body{margin:0;padding:0;height:100%;overflow:hidden;font-family:sans-serif;background:#1a1a2e;color:#eee}
+#wrap{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center}
+#gameWrap{position:relative;width:100%;height:100%;max-width:800px;max-height:800px}
+canvas{background:#0f0f1a;display:block;width:100%;height:100%}
+#ui{position:absolute;top:10px;left:10px;z-index:2;font-size:14px}
+button{margin-top:10px;padding:8px 16px;font-size:14px;border:none;border-radius:4px;background:#2a9d8f;color:#fff;cursor:pointer}
+button:hover{background:#21867a}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="gameWrap">
+    <div id="ui">Petals: <span id="petalCount">0</span> / 5</div>
+    <canvas id="c"></canvas>
+  </div>
+  <button id="resetBtn" style="display:none">Restart Bloom</button>
+</div>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const petalCountEl = document.getElementById('petalCount');
+  const resetBtn = document.getElementById('resetBtn');
+
+  let W, H, dpr;
+  const state = {
+    seed: { x: 0, y: 0, vx: 0, vy: 0 },
+    petals: [],
+    moths: [],
+    flowers: [],
+    target: { x: 0, y: 0 },
+    collected: 0,
+    gameOver: false,
+    mothsAttracted: 0
+  };
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    dpr = window.devicePixelRatio || 1;
+    W = rect.width;
+    H = rect.height;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.scale(dpr, dpr);
+    // place target in center area
+    state.target.x = W / 2;
+    state.target.y = H / 2;
+    if (!state.seed.x && !state.seed.y) {
+      state.seed.x = W * 0.15;
+      state.seed.y = H * 0.5;
+    }
+  }
+
+  function init() {
+    resize();
+    // reset game state
+    state.seed = { x: W * 0.15, y: H * 0.5, vx: 0, vy: 0 };
+    state.petals = [];
+    state.moths = [];
+    state.flowers = [];
+    state.collected = 0;
+    state.gameOver = false;
+    state.mothsAttracted = 0;
+    petalCountEl.textContent = state.collected;
+    resetBtn.style.display = 'none';
+
+    // spawn petals
+    for (let i = 0; i < 5; i++) {
+      state.petals.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        size: 6 + Math.random() * 4,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+
+    window.addEventListener('resize', resize);
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+    resetBtn.addEventListener('click', init);
+
+    requestAnimationFrame(loop);
+  }
+
+  function onMouseMove(e) {
+    if (state.gameOver) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    // gentle acceleration toward cursor
+    const dx = mx - state.seed.x;
+    const dy = my - state.seed.y;
+    state.seed.vx += dx * 0.0005;
+    state.seed.vy += dy * 0.0005;
+    // cap speed
+    const speed = Math.sqrt(state.seed.vx * state.seed.vx + state.seed.vy * state.seed.vy);
+    const maxSpeed = 1.2;
+    if (speed > maxSpeed) {
+      state.seed.vx = (state.seed.vx / speed) * maxSpeed;
+      state.seed.vy = (state.seed.vy / speed) * maxSpeed;
+    }
+  }
+
+  function onTouchMove(e) {
+    e.preventDefault();
+    if (state.gameOver) return;
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const mx = touch.clientX - rect.left;
+    const my = touch.clientY - rect.top;
+    const dx = mx - state.seed.x;
+    const dy = my - state.seed.y;
+    state.seed.vx += dx * 0.0005;
+    state.seed.vy += dy * 0.0005;
+    const speed = Math.sqrt(state.seed.vx * state.vx + state.seed.vy * state.vy);
+    const maxSpeed = 1.2;
+    if (speed > maxSpeed) {
+      state.seed.vx = (state.seed.vx / speed) * maxSpeed;
+      state.seed.vy = (state.seed.vy / speed) * maxSpeed;
+    }
+  }
+
+  function update() {
+    if (state.gameOver) return;
+
+    // move seed
+    state.seed.x += state.seed.vx;
+    state.seed.y += state.seed.vy;
+    // damping
+    state.seed.vx *= 0.96;
+    state.seed.vy *= 0.96;
+
+    // keep within bounds
+    const margin = 10;
+    if (state.seed.x < margin) { state.seed.x = margin; state.seed.vx *= -0.5; }
+    if (state.seed.x > W - margin) { state.seed.x = W - margin; state.seed.vx *= -0.5; }
+    if (state.seed.y < margin) { state.seed.y = margin; state.seed.vy *= -0.5; }
+    if (state.seed.y > H - margin) { state.seed.y = H - margin; state.seed.vy *= -0.5; }
+
+    // update petals
+    for (const p of state.petals) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.phase += 0.02;
+      // gentle bounce off walls
+      if (p.x < 0 || p.x > W) p.vx *= -1;
+      if (p.y < 0 || p.y > H) p.vy *= -1;
+    }
+
+    // check petal collection
+    for (let i = state.petals.length - 1; i >= 0; i--) {
+      const p = state.petals[i];
+      const dist = Math.hypot(p.x - state.seed.x, p.y - state.seed.y);
+      if (dist < 20) {
+        state.petals.splice(i, 1);
+        state.collected++;
+        petalCountEl.textContent = state.collected;
+        // small particle burst
+        for (let j = 0; j < 5; j++) {
+          state.flowers.push({
+            x: p.x, y: p.y,
+            vx: (Math.random() - 0.5) * 0.5,
+            vy: (Math.random() - 0.5) * 0.5,
+            life: 20,
+            type: 'spark'
+          });
+        }
+        if (state.collected >= 5) {
+          bloom();
+        }
+      }
+    }
+
+    // update moths
+    for (const m of state.moths) {
+      if (m.targetFlower) {
+        const dx = m.targetFlower.x - m.x;
+        const dy = m.targetFlower.y - m.y;
+        m.vx += dx * 0.001;
+        m.vy += dy * 0.001;
+        const spd = Math.sqrt(m.vx * m.vx + m.vy * m.vy);
+        const max = 1.5;
+        if (spd > max) { m.vx = m.vx / spd * max; m.vy = m.vy / spd * max; }
+        m.x += m.vx; m.y += m.vy;
+        m.life--;
+        if (m.life <= 0) {
+          // reached flower, pollinate
+          m.targetFlower.pollinated = true;
+          const idx = state.moths.indexOf(m);
+          if (idx >= 0) state.moths.splice(idx, 1);
+          // spawn new seed near flower
+          if (state.flowers.indexOf(m.targetFlower) >= 0) {
+            const fi = state.flowers.indexOf(m.targetFlower);
+            if (fi >= 0) {
+              state.flowers.splice(fi, 1);
+              spawnNewSeed(m.targetFlower.x, m.targetFlower.y);
+            }
+          }
+        }
+      } else {
+        // idle flutter
+        m.x += m.vx;
+        m.y += m.vy;
+        m.phase += 0.05;
+        const spd = Math.sqrt(m.vx * m.vx + m.vy * m.vy);
+        if (spd < 0.3) {
+          m.vx = (Math.random() - 0.5) * 0.4;
+          m.vy = (Math.random() - 0.5) * 0.4;
+        }
+      }
+    }
+
+    // update flowers (sparkles fade)
+    for (let i = state.flowers.length - 1; i >= 0; i--) {
+      const f = state.flowers[i];
+      if (f.type === 'spark') {
+        f.life--;
+        if (f.life <= 0) state.flowers.splice(i, 1);
+      }
+    }
+
+    // attract moths to bloomed flowers
+    for (const fl of state.flowers) {
+      if (fl.bloomed && !fl.hasMoth) {
+        fl.hasMoth = true;
+        state.moths.push({
+          x: fl.x,
+          y: fl.y - 30,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: (Math.random() - 0.5) * 0.3,
+          phase: Math.random() * Math.PI * 2,
+          life: 120,
+          targetFlower: fl
+        });
+        state.mothsAttracted++;
+      }
+    }
+
+    // win condition
+    if (state.collected >= 5 && state.mothsAttracted >= 3) {
+      state.gameOver = true;
+      resetBtn.style.display = 'inline-block';
+    }
+  }
+
+  function bloom() {
+    // create a flower at the seed's position
+    state.flowers.push({
+      x: state.seed.x,
+      y: state.seed.y,
+      bloomed: true,
+      hasMoth: false,
+      pollinated: false,
+      type: 'flower'
+    });
+    // reset seed to a new position
+    state.seed.x = W * 0.8;
+    state.seed.y = H * 0.3;
+    state.seed.vx = 0;
+    state.seed.vy = 0;
+  }
+
+  function spawnNewSeed(x, y) {
+    // after pollination, a new seed pod forms
+    state.seed.x = x;
+    state.seed.y = y;
+    state.seed.vx = 0;
+    state.seed.vy = 0;
+    state.collected = 0;
+    petalCountEl.textContent = state.collected;
+    // respawn petals
+    for (let i = 0; i < 5; i++) {
+      state.petals.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        size: 6 + Math.random() * 4,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
+  function draw() {
+    // clear
+    ctx.fillStyle = '#0f0f1a';
+    ctx.fillRect(0, 0, W, H);
+
+    // draw target (soft glow)
+    const grad = ctx.createRadialGradient(state.target.x, state.target.y, 0, state.target.x, state.target.y, 40);
+    grad.addColorStop(0, '#4cc9f0');
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(state.target.x, state.target.y, 30, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#4cc9f0';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // draw petals
+    for (const p of state.petals) {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.phase);
+      ctx.scale(1 + Math.sin(p.phase) * 0.1, 1 + Math.cos(p.phase) * 0.1);
+      ctx.fillStyle = '#f72585';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, p.size, p.size * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // draw flowers
+    for (const f of state.flowers) {
+      if (f.type === 'flower') {
+        // flower body
+        ctx.fillStyle = '#2a9d8f';
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, 12, 0, Math.PI * 2);
+        ctx.fill();
+        // petals
+        ctx.fillStyle = '#f72585';
+        for (let i = 0; i < 5; i++) {
+          const angle = (i / 5) * Math.PI * 2;
+          ctx.save();
+          ctx.translate(f.x, f.y);
+          ctx.rotate(angle);
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 8, 4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        if (f.pollinated) {
+          ctx.strokeStyle = '#4cc9f0';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(f.x, f.y, 16, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      } else if (f.type === 'spark') {
+        ctx.fillStyle = '#4cc9f0';
+        ctx.globalAlpha = f.life / 20;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // draw moths
+    for (const m of state.moths) {
+      ctx.save();
+      ctx.translate(m.x, m.y);
+      ctx.rotate(Math.sin(m.phase) * 0.3);
+      ctx.fillStyle = '#9d4edd';
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-6, -10);
+      ctx.lineTo(6, -8);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-6, 8);
+      ctx.lineTo(6, 10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      m.phase += 0.1;
+    }
+
+    // draw seed pod
+    ctx.fillStyle = '#e9c46a';
+    ctx.beginPath();
+    ctx.arc(state.seed.x, state.seed.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#d4a373';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    // seed details
+    ctx.fillStyle = '#d4a373';
+    ctx.beginPath();
+    ctx.arc(state.seed.x + 2, state.seed.y - 1, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // game over text
+    if (state.gameOver) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Sky Garden Complete!', W / 2, H / 2 - 40);
+      ctx.font = '16px sans-serif';
+      ctx.fillText('Moths attracted: ' + state.mothsAttracted, W / 2, H / 2);
+      ctx.fillText('Click Restart to Bloom Again', W / 2, H / 2 + 30);
+    }
+  }
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-21-petal-pilot";
+  var RELEASE = "636bcdfcaac26f84b96c388a34bc09a2bae12197";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
