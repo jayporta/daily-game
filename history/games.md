@@ -2,6 +2,18 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-22 — generation failed, previous game kept
+
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 7
+- attempt 1 (nvidia/nemotron-3-super-120b-a12b:free): moderation call failed: OpenRouter stream carried no content
+- attempt 2 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
+- attempt 3 (inclusionai/ling-3.0-flash-fin:free): could not extract bundle — missing-meta-block (response truncated at the output cap)
+- attempt 4 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+- attempt 5 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream ended early: gave up after 540s
+- attempt 6 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block (response truncated at the output cap)
+- attempt 7 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error
+
 ## 2026-09-21 — Petal Pilot
 
 - genre: growth-sim
@@ -9,6 +21,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Drift with mouse/tap to guide the seed pod, Bloom into a flower by collecting light petals, Attract friendly sky-moths that pollinate new seeds, Manage a small bounded garden with discrete pickups and one terminal goal
 - model: poolside/laguna-s-2.1:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-09-20 — Crystal Launcher
 
