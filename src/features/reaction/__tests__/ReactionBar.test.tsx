@@ -211,9 +211,10 @@ describe('ReactionBar', () => {
 
     await userEvent.click(like());
 
+    // Let the unawaited send settle before asserting that nothing was reported.
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.getByText(/feedback sent/i)).toBeVisible();
-    await waitFor(() => expect(reported).toHaveLength(1));
-    expect(reported[0]?.tags).toEqual({ area: 'reaction', kind: 'unreachable' });
+    expect(reported).toEqual([]);
   });
 
   it('still confirms the feedback, and reports the constraint, when the store refuses the row', async () => {

@@ -181,23 +181,18 @@ test('sendReaction resolves when the store is unreachable', async () => {
   );
 });
 
-test('sendReaction reports an unreachable store once, with the original error as its cause', async () => {
+// A visitor's own network or blocker says nothing about the store.
+test('sendReaction does not report when the store is unreachable', async () => {
   const { report, calls } = recordingReport();
-  const networkFailure = new TypeError('Failed to fetch');
 
   await sendReaction(likeRequest(), {
     fetchImpl: async () => {
-      throw networkFailure;
+      throw new TypeError('Failed to fetch');
     },
     report,
   });
 
-  assert.equal(calls.length, 1);
-  const { error, tags } = calls[0] ?? {};
-  assert.ok(error instanceof Error);
-  assert.equal(error.message, 'Reaction insert failed: store unreachable');
-  assert.equal(error.cause, networkFailure);
-  assert.deepEqual(tags, { area: 'reaction', kind: 'unreachable' });
+  assert.equal(calls.length, 0);
 });
 
 test('sendReaction resolves when the store rejects the row', async () => {

@@ -7,7 +7,7 @@
 //
 //   * A failure never breaks the page. The store is a free hobby-tier
 //     service and `localStorage` throws outright in Safari's private mode;
-//     neither may ever throw into the caller or the game. A failed insert is
+//     neither may ever throw into the caller or the game. A refused insert is
 //     reported to Sentry, never shown to the visitor.
 //   * Nothing from the store enters the page, so there is no inbound path to
 //     escape or sanitise.
@@ -99,7 +99,7 @@ export interface SendReactionOptions {
   /** Replaces global `fetch`. */
   fetchImpl?: typeof fetch;
   /**
-   * Receives each failed insert: an `Error` plus `area` and `kind` tags. The
+   * Receives each refused insert: an `Error` plus `area` and `kind` tags. The
    * app passes {@link reportError}.
    */
   report: typeof reportError;
@@ -108,21 +108,20 @@ export interface SendReactionOptions {
 /**
  * Sends one reaction, fire and forget.
  *
- * Both kinds of failure are reported through `report`, tagged `area:
- * 'reaction'` and a `kind` that tells them apart, but never thrown: it
- * always resolves, so a dead counter never breaks the page or the game.
+ * A reply the store sent and refused (`!response.ok`) is reported through
+ * `report`, tagged `area: 'reaction'` and `kind: 'refused'`. Only then is the
+ * body read, and only to pull a whitelisted error code and constraint name
+ * out of it — see {@link insertRefusalTags}. A successful response never has
+ * its body read. Nothing the store says can reach the page, which is what
+ * keeps the whole inbound-XSS class out of this design rather than merely
+ * escaped.
  *
- * - The store could not be reached at all (`fetch` itself rejected): tagged
- *   `kind: 'unreachable'`, with the original error attached as the Error's
- *   `cause`.
- * - The store replied and refused the row (`!response.ok`): tagged `kind:
- *   'refused'`. Only then is the body read, and only to pull a whitelisted
- *   error code and constraint name out of it — see {@link insertRefusalTags}.
- *   A successful response never has its body read. Nothing the store says
- *   can reach the page, which is what keeps the whole inbound-XSS class out
- *   of this design rather than merely escaped.
+ * A `fetch` that rejects is not reported: from the browser, a dead or
+ * misconfigured store looks the same as a visitor who is offline or blocking
+ * the request. The daily pipeline's store read reports that case instead.
  *
- * Resolves whatever happens, including when `request` is `null`.
+ * Resolves whatever happens, including when `request` is `null` or `report`
+ * throws, so a dead counter never breaks the page or the game.
  */
 export async function sendReaction(
   request: InsertRequest | null,
@@ -139,7 +138,7 @@ export async function sendReaction(
   }
 }
 
-/** What went wrong with one insert, or `null` when the store accepted it. Never throws. */
+/** What the store refused about one insert, or `null` when it accepted or was never reached. Never throws. */
 async function insertFailure(
   request: InsertRequest,
   fetchImpl: typeof fetch,
@@ -147,11 +146,9 @@ async function insertFailure(
   let response: Response;
   try {
     response = await fetchImpl(request.url, request.init);
-  } catch (error) {
-    return {
-      error: new Error('Reaction insert failed: store unreachable', { cause: error }),
-      tags: { area: 'reaction', kind: 'unreachable' },
-    };
+  } catch {
+    // A visitor's own network or blocker is outside our control: not reported.
+    return null;
   }
 
   if (response.ok) return null;
