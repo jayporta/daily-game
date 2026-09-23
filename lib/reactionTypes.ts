@@ -15,6 +15,8 @@ import { isRecord } from '#lib/guards.ts';
  * generation prompt. That is what makes freetext feedback unnecessary here,
  * and with it a whole prompt-injection path.
  *
+ * Changing these ids requires re-applying the reasons check constraints on
+ * the live table — `npm run schema` prints them.
  */
 export const DISLIKE_REASONS = [
   { id: 'no-load', label: "Doesn't load" },
