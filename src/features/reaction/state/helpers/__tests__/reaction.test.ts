@@ -8,6 +8,7 @@ import {
   sendReaction,
 } from '#src/features/reaction/state/helpers/reaction.ts';
 import type { WebStorage } from '#src/lib/browserStorage.ts';
+import type { ErrorTags, reportError } from '#src/lib/sentry.ts';
 
 const SLUG = '2026-08-29-beetle';
 const CONFIGURED: ReactionConfig = {
@@ -36,6 +37,20 @@ const throwingStorage: WebStorage = {
 /** The request the browser would send for a plain like. */
 function likeRequest() {
   return buildInsertRequest(CONFIGURED, { slug: SLUG, reaction: 'like', reasons: [] });
+}
+
+/** A `report` stub for {@link sendReaction} that records each call instead of reporting it. */
+function recordingReport(): {
+  readonly report: typeof reportError;
+  readonly calls: ReadonlyArray<{ readonly error: unknown; readonly tags: ErrorTags | undefined }>;
+} {
+  const calls: Array<{ error: unknown; tags: ErrorTags | undefined }> = [];
+  return {
+    report: (error, tags) => {
+      calls.push({ error, tags });
+    },
+    calls,
+  };
 }
 
 test('buildInsertRequest posts the reaction as JSON', () => {
@@ -162,8 +177,74 @@ test('sendReaction resolves when the store is unreachable', async () => {
 
 test('sendReaction resolves when the store rejects the row', async () => {
   await assert.doesNotReject(() =>
-    sendReaction(likeRequest(), { fetchImpl: async () => new Response('no', { status: 401 }) }),
+    sendReaction(likeRequest(), {
+      fetchImpl: async () => new Response('no', { status: 401 }),
+      report: recordingReport().report,
+    }),
   );
+});
+
+/** A real Supabase/PostgREST body for the reasons check constraint. */
+const CHECK_VIOLATION_BODY = JSON.stringify({
+  code: '23514',
+  details: null,
+  hint: null,
+  message: 'new row for relation "reactions" violates check constraint "reactions_reasons_check"',
+});
+
+test('sendReaction reports a refused insert once, with the code and constraint', async () => {
+  const { report, calls } = recordingReport();
+
+  await sendReaction(likeRequest(), {
+    fetchImpl: async () => new Response(CHECK_VIOLATION_BODY, { status: 400 }),
+    report,
+  });
+
+  assert.equal(calls.length, 1);
+  const { error, tags } = calls[0] ?? {};
+  assert.ok(error instanceof Error);
+  assert.equal(error.message, 'Reaction insert refused: HTTP 400');
+  assert.deepEqual(tags, {
+    area: 'reaction',
+    code: '23514',
+    constraint: 'reactions_reasons_check',
+  });
+});
+
+test('sendReaction reports a refused insert with only the status when the body is not JSON', async () => {
+  const { report, calls } = recordingReport();
+
+  await sendReaction(likeRequest(), {
+    fetchImpl: async () => new Response('not json', { status: 400 }),
+    report,
+  });
+
+  assert.equal(calls.length, 1);
+  assert.deepEqual(calls[0]?.tags, { area: 'reaction' });
+});
+
+test('sendReaction does not report an accepted insert', async () => {
+  const { report, calls } = recordingReport();
+
+  await sendReaction(likeRequest(), {
+    fetchImpl: async () => new Response('', { status: 201 }),
+    report,
+  });
+
+  assert.equal(calls.length, 0);
+});
+
+test('sendReaction does not report when the store is unreachable', async () => {
+  const { report, calls } = recordingReport();
+
+  await sendReaction(likeRequest(), {
+    fetchImpl: async () => {
+      throw new TypeError('Failed to fetch');
+    },
+    report,
+  });
+
+  assert.equal(calls.length, 0);
 });
 
 test('readReaction is null for a game the visitor has not reacted to', () => {

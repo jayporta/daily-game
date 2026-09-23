@@ -20,7 +20,12 @@ import {
   type ReactionKind,
   type ReactionPayload,
 } from '#lib/reactionTypes.ts';
+import {
+  type InsertRefusalTags,
+  insertRefusalTags,
+} from '#src/features/reaction/state/helpers/insertRefusal.ts';
 import type { WebStorage } from '#src/lib/browserStorage.ts';
+import { reportError } from '#src/lib/sentry.ts';
 
 /** A visitor's own recorded choice for one game. */
 export interface StoredReaction {
@@ -92,24 +97,43 @@ export function buildInsertRequest(
 export interface SendReactionOptions {
   /** Replaces global `fetch`. */
   fetchImpl?: typeof fetch;
+  /** Replaces {@link reportError}, for tests that record calls instead of reporting. */
+  report?: typeof reportError;
 }
 
 /**
  * Sends one reaction, fire and forget.
  *
- * The response is deliberately never read — not its body, not its status.
- * Nothing the store says can reach the page, which is what keeps the whole
- * inbound-XSS class out of this design rather than merely escaped.
+ * The response's status is always read, to detect a refusal. The body is
+ * read only then, and only to pull a whitelisted error code and constraint
+ * name out of it for the report — see {@link insertRefusalTags}. A
+ * successful response never has its body read. Nothing the store says can
+ * reach the page, which is what keeps the whole inbound-XSS class out of
+ * this design rather than merely escaped.
  *
- * Resolves whatever happens, including when `request` is `null`.
+ * Resolves whatever happens, including when `request` is `null`. A network
+ * failure (an unreachable store) stays swallowed rather than reported — only
+ * a reply the store actually sent, and refused, is worth surfacing.
  */
 export async function sendReaction(
   request: InsertRequest | null,
-  { fetchImpl = fetch }: SendReactionOptions = {},
+  { fetchImpl = fetch, report = reportError }: SendReactionOptions = {},
 ): Promise<void> {
   if (request === null) return;
   try {
-    await fetchImpl(request.url, request.init);
+    const response = await fetchImpl(request.url, request.init);
+    if (!response.ok) {
+      let tags: InsertRefusalTags = {};
+      try {
+        tags = insertRefusalTags(await response.json());
+      } catch {
+        // Not JSON, or no body: report with no extra tags.
+      }
+      report(new Error(`Reaction insert refused: HTTP ${response.status}`), {
+        area: 'reaction',
+        ...tags,
+      });
+    }
   } catch {
     // Unreachable store. Silently swallowed — a dead counter must never
     // surface to the viewer.
