@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Move left/right and jump to navigate floating platforms, Collect glowing pollen to increase score, Avoid obstacles such as spikes and gusts that push the firefly, Reach the radiant portal to win
 - model: cohere/north-mini-code:free
 - attempts: 6
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-09-22 — generation failed, previous game kept
 
