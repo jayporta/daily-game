@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-23 — Luminous Firefly Journey
+
+- genre: platformer
+- theme: A curious firefly glides through a luminous cavern, navigating floating platforms to collect glowing pollen while avoiding swirling gusts and spiky obstacles.
+- mechanics: Move left/right and jump to navigate floating platforms, Collect glowing pollen to increase score, Avoid obstacles such as spikes and gusts that push the firefly, Reach the radiant portal to win
+- model: cohere/north-mini-code:free
+- attempts: 6
+
 ## 2026-09-22 — generation failed, previous game kept
 
 - model: nvidia/nemotron-3-super-120b-a12b:free
@@ -21,9 +29,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Drift with mouse/tap to guide the seed pod, Bloom into a flower by collecting light petals, Attract friendly sky-moths that pollinate new seeds, Manage a small bounded garden with discrete pickups and one terminal goal
 - model: poolside/laguna-s-2.1:free
 - attempts: 1
-- reactions: 0
+- reactions: -1
 - likes: 0
-- dislikes: 0
+- dislikes: 1
+- disliked for: gameplay-broken: 1
 
 ## 2026-09-20 — Crystal Launcher
 

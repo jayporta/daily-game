@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Luminous Firefly Journey</title>
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; }
+#gameCanvas { display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let width, height;
+const GRAVITY = 0.5;
+const JUMP_POWER = -12;
+const MOVE_SPEED = 5;
+
+let keys = {};
+
+let player = {
+  x: 0, y: 0, w: 20, h: 20,
+  vx: 0, vy: 0,
+  onGround: false
+};
+
+const platforms = [];
+const pollen = [];
+const obstacles = [];
+let portal;
+let score = 0;
+let gameState = 'play'; // play, gameover, win
+
+function resize() {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+window.addEventListener('keydown', e => keys[e.code] = true);
+window.addEventListener('keyup', e => keys[e.code] = false);
+
+function initGame() {
+  resize();
+  score = 0;
+  player.x = 50;
+  player.y = height - 100;
+  player.vx = 0;
+  player.vy = 0;
+  player.onGround = false;
+
+  platforms.length = 0;
+  platforms.push({x: 100, y: height - 80, w: 150, h: 20});
+  platforms.push({x: 300, y: height - 120, w: 120, h: 20});
+  platforms.push({x: 500, y: height - 150, w: 100, h: 20});
+  platforms.push({x: 700, y: height - 180, w: 80, h: 20});
+
+  pollen.length = 0;
+  pollen.push({x: 175, y: height - 90, collected: false});
+  pollen.push({x: 360, y: height - 130, collected: false});
+  pollen.push({x: 550, y: height - 160, collected: false});
+  pollen.push({x: 740, y: height - 190, collected: false});
+
+  obstacles.length = 0;
+  obstacles.push({x: 260, y: height - 110, w: 30, h: 15});
+  obstacles.push({x: 460, y: height - 140, w: 30, h: 15});
+
+  portal = {x: 900, y: height - 200, w: 60, h: 100};
+
+  gameState = 'play';
+}
+
+function update() {
+  if (gameState !== 'play') return;
+
+  // Horizontal movement
+  if (keys['ArrowLeft']) {
+    player.vx = -MOVE_SPEED;
+  } else if (keys['ArrowRight']) {
+    player.vx = MOVE_SPEED;
+  } else {
+    player.vx = 0;
+  }
+
+  // Jump
+  if (keys['Space'] && player.onGround) {
+    player.vy = JUMP_POWER;
+    player.onGround = false;
+  }
+
+  // Apply gravity
+  player.vy += GRAVITY;
+  player.x += player.vx;
+  player.y += player.vy;
+
+  // Keep player inside horizontal bounds
+  if (player.x < 0) player.x = 0;
+  if (player.x > width) player.x = width;
+
+  // Collision and resolution with platforms
+  player.onGround = false;
+  for (let p of platforms) {
+    if (player.x < p.x + p.w && player.x + player.w > p.x &&
+        player.y < p.y + p.h && player.y + player.h > p.y) {
+      // Overlap detected
+      // Resolve vertical
+      if (player.vy > 0) {
+        // Land on top of platform
+        player.y = p.y - player.h;
+        player.vy = 0;
+        player.onGround = true;
+      } else if (player.vy < 0) {
+        // Hit top of platform
+        player.y = p.y + p.h;
+        player.vy = 0;
+      } else {
+        // Horizontal only
+        if (player.vx > 0) {
+          player.x = p.x - player.w;
+        } else if (player.vx < 0) {
+          player.x = p.x + p.w;
+        }
+      }
+    }
+  }
+
+  // Obstacle collision (game over)
+  for (let o of obstacles) {
+    if (player.x < o.x + o.w && player.x + player.w > o.x &&
+        player.y < o.y + o.h && player.y + player.h > o.y) {
+      gameState = 'gameover';
+    }
+  }
+
+  // Pollen collection
+  for (let p of pollen) {
+    if (!p.collected && Math.hypot(player.x - p.x, player.y - p.y) < 10) {
+      p.collected = true;
+      score += 10;
+    }
+  }
+
+  // Portal win condition
+  if (player.x + player.w > portal.x && player.x < portal.x + portal.w &&
+      player.y < portal.y + portal.h && player.y + player.h > portal.y) {
+    gameState = 'win';
+  }
+
+  // Fall off screen
+  if (player.y > height) {
+    gameState = 'gameover';
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, width, height);
+
+  // Draw platforms
+  ctx.fillStyle = '#2a5';
+  for (let p of platforms) {
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+  }
+
+  // Draw obstacles (spikes)
+  ctx.fillStyle = '#c00';
+  for (let o of obstacles) {
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.beginPath();
+    ctx.moveTo(o.x, o.y);
+    ctx.lineTo(o.x + o.w/2, o.y - 10);
+    ctx.lineTo(o.x + o.w, o.y);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Draw pollen
+  ctx.fillStyle = '#fff';
+  for (let p of pollen) {
+    if (!p.collected) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // Draw player (firefly)
+  ctx.shadowColor = '#ff0';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = '#ff0';
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.w/2, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Draw portal
+  ctx.fillStyle = '#f80';
+  ctx.fillRect(portal.x, portal.y, portal.w, portal.h);
+
+  // Draw score
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px sans-serif';
+  ctx.fillText(`Score: ${score}`, 20, 40);
+
+  // Game state messages
+  if (gameState === 'gameover') {
+    ctx.fillStyle = '#f00';
+    ctx.font = '36px sans-serif';
+    ctx.fillText('Game Over', width/2 - 120, height/2);
+  } else if (gameState === 'win') {
+    ctx.fillStyle = '#0f0';
+    ctx.font = '36px sans-serif';
+    ctx.fillText('You Win!', width/2 - 80, height/2);
+  }
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// Start the game
+initGame();
+gameLoop();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-23-luminous-firefly-journey";
+  var RELEASE = "2da93b049ebfbd08952ce743cac0d31f4785c99d";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

@@ -1,0 +1,25 @@
+{
+  "title": "Luminous Firefly Journey",
+  "genre": "platformer",
+  "theme": "A curious firefly glides through a luminous cavern, navigating floating platforms to collect glowing pollen while avoiding swirling gusts and spiky obstacles.",
+  "mechanics": [
+    "Move left/right and jump to navigate floating platforms",
+    "Collect glowing pollen to increase score",
+    "Avoid obstacles such as spikes and gusts that push the firefly",
+    "Reach the radiant portal to win"
+  ],
+  "controls": [
+    {
+      "action": "move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "move right",
+      "key": "ArrowRight"
+    },
+    {
+      "action": "jump",
+      "key": "Space"
+    }
+  ]
+}
