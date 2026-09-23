@@ -5,7 +5,7 @@
   "type": "module",
   "description": "A free GitHub Pages site that shows a brand-new AI-generated browser game every day.",
   "engines": {
-    "node": ">=24"
+    "node": "^24.15.0 || >=26.0.0"
   },
   "imports": {
     "#lib/*": "./lib/*",
