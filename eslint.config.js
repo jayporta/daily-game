@@ -29,6 +29,8 @@ export default tseslint.config(
       'coverage/**',
       '.remember/**',
       '.playwright-mcp/**',
+      // Agent worktrees: full repo copies checked out inside this one.
+      '.claude/worktrees/**',
     ],
   },
 
