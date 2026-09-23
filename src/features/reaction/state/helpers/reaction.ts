@@ -5,11 +5,12 @@
 //
 // Two properties hold this together and are asserted by tests:
 //
-//   * Every failure is swallowed. The store is a free hobby-tier service and
-//     `localStorage` throws outright in Safari's private mode; neither may
-//     ever break the page or the game.
-//   * The browser writes and never reads. Nothing from the store enters the
-//     page, so there is no inbound path to escape or sanitise.
+//   * A failure never breaks the page. The store is a free hobby-tier
+//     service and `localStorage` throws outright in Safari's private mode;
+//     neither may ever throw into the caller or the game. A failed insert is
+//     reported to Sentry, never shown to the visitor.
+//   * Nothing from the store enters the page, so there is no inbound path to
+//     escape or sanitise.
 
 import { isRecord } from '#lib/guards.ts';
 import {
@@ -25,7 +26,7 @@ import {
   insertRefusalTags,
 } from '#src/features/reaction/state/helpers/insertRefusal.ts';
 import type { WebStorage } from '#src/lib/browserStorage.ts';
-import { reportError } from '#src/lib/sentry.ts';
+import type { ErrorTags, reportError } from '#src/lib/sentry.ts';
 
 /** A visitor's own recorded choice for one game. */
 export interface StoredReaction {
@@ -97,47 +98,74 @@ export function buildInsertRequest(
 export interface SendReactionOptions {
   /** Replaces global `fetch`. */
   fetchImpl?: typeof fetch;
-  /** Replaces {@link reportError}, for tests that record calls instead of reporting. */
-  report?: typeof reportError;
+  /**
+   * Receives each failed insert: an `Error` plus `area` and `kind` tags. The
+   * app passes {@link reportError}.
+   */
+  report: typeof reportError;
 }
 
 /**
  * Sends one reaction, fire and forget.
  *
- * The response's status is always read, to detect a refusal. The body is
- * read only then, and only to pull a whitelisted error code and constraint
- * name out of it for the report — see {@link insertRefusalTags}. A
- * successful response never has its body read. Nothing the store says can
- * reach the page, which is what keeps the whole inbound-XSS class out of
- * this design rather than merely escaped.
+ * Both kinds of failure are reported through `report`, tagged `area:
+ * 'reaction'` and a `kind` that tells them apart, but never thrown: it
+ * always resolves, so a dead counter never breaks the page or the game.
  *
- * Resolves whatever happens, including when `request` is `null`. A network
- * failure (an unreachable store) stays swallowed rather than reported — only
- * a reply the store actually sent, and refused, is worth surfacing.
+ * - The store could not be reached at all (`fetch` itself rejected): tagged
+ *   `kind: 'unreachable'`, with the original error attached as the Error's
+ *   `cause`.
+ * - The store replied and refused the row (`!response.ok`): tagged `kind:
+ *   'refused'`. Only then is the body read, and only to pull a whitelisted
+ *   error code and constraint name out of it — see {@link insertRefusalTags}.
+ *   A successful response never has its body read. Nothing the store says
+ *   can reach the page, which is what keeps the whole inbound-XSS class out
+ *   of this design rather than merely escaped.
+ *
+ * Resolves whatever happens, including when `request` is `null`.
  */
 export async function sendReaction(
   request: InsertRequest | null,
-  { fetchImpl = fetch, report = reportError }: SendReactionOptions = {},
+  { fetchImpl = fetch, report }: SendReactionOptions,
 ): Promise<void> {
   if (request === null) return;
+
+  const failure = await insertFailure(request, fetchImpl);
+  if (failure === null) return;
   try {
-    const response = await fetchImpl(request.url, request.init);
-    if (!response.ok) {
-      let tags: InsertRefusalTags = {};
-      try {
-        tags = insertRefusalTags(await response.json());
-      } catch {
-        // Not JSON, or no body: report with no extra tags.
-      }
-      report(new Error(`Reaction insert refused: HTTP ${response.status}`), {
-        area: 'reaction',
-        ...tags,
-      });
-    }
+    report(failure.error, failure.tags);
   } catch {
-    // Unreachable store. Silently swallowed — a dead counter must never
-    // surface to the viewer.
+    // A broken reporter still leaves the send resolved.
   }
+}
+
+/** What went wrong with one insert, or `null` when the store accepted it. Never throws. */
+async function insertFailure(
+  request: InsertRequest,
+  fetchImpl: typeof fetch,
+): Promise<{ readonly error: Error; readonly tags: ErrorTags } | null> {
+  let response: Response;
+  try {
+    response = await fetchImpl(request.url, request.init);
+  } catch (error) {
+    return {
+      error: new Error('Reaction insert failed: store unreachable', { cause: error }),
+      tags: { area: 'reaction', kind: 'unreachable' },
+    };
+  }
+
+  if (response.ok) return null;
+
+  let details: InsertRefusalTags = {};
+  try {
+    details = insertRefusalTags(await response.json());
+  } catch {
+    // Not JSON, or no body: report with no extra tags.
+  }
+  return {
+    error: new Error(`Reaction insert refused: HTTP ${response.status}`),
+    tags: { area: 'reaction', kind: 'refused', ...details },
+  };
 }
 
 function storageKey(slug: string): string {

@@ -7,6 +7,7 @@ import {
   sendReaction,
 } from '#src/features/reaction/state/helpers/reaction.ts';
 import { localStorageOrNull } from '#src/lib/browserStorage.ts';
+import { reportError } from '#src/lib/sentry.ts';
 
 /**
  * Where the viewer is in rating today's game.
@@ -92,7 +93,10 @@ export function useReaction({ slug, config, fetchImpl }: UseReactionParams): Use
     rememberReaction({ storage: localStorageOrNull(), slug, reaction: { kind, reasons } });
     // Deliberately not awaited: the store is decoration, nothing on screen
     // waits for it, and `sendReaction` never rejects.
-    void sendReaction(buildInsertRequest(config, { slug, reaction: kind, reasons }), { fetchImpl });
+    void sendReaction(buildInsertRequest(config, { slug, reaction: kind, reasons }), {
+      fetchImpl,
+      report: reportError,
+    });
   };
 
   return {

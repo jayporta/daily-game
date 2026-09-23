@@ -134,7 +134,10 @@ test('buildInsertRequest yields nothing for a slug the pipeline could not have p
 test('sendReaction never reads the response body', async () => {
   const response = new Response('{"id": 1}', { status: 200 });
 
-  await sendReaction(likeRequest(), { fetchImpl: async () => response });
+  await sendReaction(likeRequest(), {
+    fetchImpl: async () => response,
+    report: recordingReport().report,
+  });
 
   assert.equal(response.bodyUsed, false);
 });
@@ -147,6 +150,7 @@ test('sendReaction requests the configured endpoint once', async () => {
       seen.push(String(input));
       return new Response('', { status: 201 });
     },
+    report: recordingReport().report,
   });
 
   assert.deepEqual(seen, [CONFIGURED.endpointUrl]);
@@ -160,6 +164,7 @@ test('sendReaction sends nothing when there is no request to make', async () => 
       called = true;
       return new Response('', { status: 200 });
     },
+    report: recordingReport().report,
   });
 
   assert.equal(called, false);
@@ -171,8 +176,28 @@ test('sendReaction resolves when the store is unreachable', async () => {
       fetchImpl: async () => {
         throw new TypeError('Failed to fetch');
       },
+      report: recordingReport().report,
     }),
   );
+});
+
+test('sendReaction reports an unreachable store once, with the original error as its cause', async () => {
+  const { report, calls } = recordingReport();
+  const networkFailure = new TypeError('Failed to fetch');
+
+  await sendReaction(likeRequest(), {
+    fetchImpl: async () => {
+      throw networkFailure;
+    },
+    report,
+  });
+
+  assert.equal(calls.length, 1);
+  const { error, tags } = calls[0] ?? {};
+  assert.ok(error instanceof Error);
+  assert.equal(error.message, 'Reaction insert failed: store unreachable');
+  assert.equal(error.cause, networkFailure);
+  assert.deepEqual(tags, { area: 'reaction', kind: 'unreachable' });
 });
 
 test('sendReaction resolves when the store rejects the row', async () => {
@@ -180,6 +205,17 @@ test('sendReaction resolves when the store rejects the row', async () => {
     sendReaction(likeRequest(), {
       fetchImpl: async () => new Response('no', { status: 401 }),
       report: recordingReport().report,
+    }),
+  );
+});
+
+test('sendReaction resolves even when the reporter throws', async () => {
+  await assert.doesNotReject(() =>
+    sendReaction(likeRequest(), {
+      fetchImpl: async () => new Response('no', { status: 401 }),
+      report: () => {
+        throw new Error('reporter down');
+      },
     }),
   );
 });
@@ -206,6 +242,7 @@ test('sendReaction reports a refused insert once, with the code and constraint',
   assert.equal(error.message, 'Reaction insert refused: HTTP 400');
   assert.deepEqual(tags, {
     area: 'reaction',
+    kind: 'refused',
     code: '23514',
     constraint: 'reactions_reasons_check',
   });
@@ -220,7 +257,7 @@ test('sendReaction reports a refused insert with only the status when the body i
   });
 
   assert.equal(calls.length, 1);
-  assert.deepEqual(calls[0]?.tags, { area: 'reaction' });
+  assert.deepEqual(calls[0]?.tags, { area: 'reaction', kind: 'refused' });
 });
 
 test('sendReaction does not report an accepted insert', async () => {
@@ -228,19 +265,6 @@ test('sendReaction does not report an accepted insert', async () => {
 
   await sendReaction(likeRequest(), {
     fetchImpl: async () => new Response('', { status: 201 }),
-    report,
-  });
-
-  assert.equal(calls.length, 0);
-});
-
-test('sendReaction does not report when the store is unreachable', async () => {
-  const { report, calls } = recordingReport();
-
-  await sendReaction(likeRequest(), {
-    fetchImpl: async () => {
-      throw new TypeError('Failed to fetch');
-    },
     report,
   });
 

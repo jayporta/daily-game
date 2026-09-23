@@ -1,9 +1,23 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactionConfig } from '#lib/reactionTypes.ts';
 import { DISLIKE_REASONS } from '#lib/reactionTypes.ts';
 import { ReactionBar } from '@/features/reaction/ReactionBar.tsx';
+import type { ErrorTags } from '@/lib/sentry.ts';
+
+/** What `useReaction` asked to have reported, via the real `sendReaction`. */
+const { reported } = vi.hoisted(() => {
+  const calls: { error: unknown; tags: ErrorTags | undefined }[] = [];
+  return { reported: calls };
+});
+
+vi.mock('@/lib/sentry.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/sentry.ts')>()),
+  reportError: (error: unknown, tags?: ErrorTags) => {
+    reported.push({ error, tags });
+  },
+}));
 
 const SLUG = '2026-08-29-beetle';
 const UNCONFIGURED: ReactionConfig = { endpointUrl: null, anonKey: null };
@@ -28,6 +42,7 @@ const dislike = (): HTMLElement => screen.getByRole('button', { name: /^dislike$
 describe('ReactionBar', () => {
   beforeEach(() => {
     localStorage.clear();
+    reported.length = 0;
   });
 
   it('offers the viewer both a like and a dislike', () => {
@@ -197,6 +212,39 @@ describe('ReactionBar', () => {
     await userEvent.click(like());
 
     expect(screen.getByText(/feedback sent/i)).toBeVisible();
+    await waitFor(() => expect(reported).toHaveLength(1));
+    expect(reported[0]?.tags).toEqual({ area: 'reaction', kind: 'unreachable' });
+  });
+
+  it('still confirms the feedback, and reports the constraint, when the store refuses the row', async () => {
+    const body = JSON.stringify({
+      code: '23514',
+      message:
+        'new row for relation "reactions" violates check constraint "reactions_reasons_check"',
+    });
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(body, { status: 400 }));
+    render(<ReactionBar slug={SLUG} config={CONFIGURED} fetchImpl={fetchImpl} />);
+
+    await userEvent.click(like());
+
+    expect(screen.getByText(/feedback sent/i)).toBeVisible();
+    await waitFor(() => expect(reported).toHaveLength(1));
+    expect(reported[0]?.tags).toEqual({
+      area: 'reaction',
+      kind: 'refused',
+      code: '23514',
+      constraint: 'reactions_reasons_check',
+    });
+  });
+
+  it('reports a refused row with only the status when its body is not JSON', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response('not json', { status: 400 }));
+    render(<ReactionBar slug={SLUG} config={CONFIGURED} fetchImpl={fetchImpl} />);
+
+    await userEvent.click(like());
+
+    await waitFor(() => expect(reported).toHaveLength(1));
+    expect(reported[0]?.tags).toEqual({ area: 'reaction', kind: 'refused' });
   });
 
   it('still shows the game as rated after the viewer returns', async () => {
