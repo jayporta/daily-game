@@ -580,8 +580,34 @@
     ],
     "quotaAffected": true,
     "likes": 0,
-    "dislikes": 0,
-    "dislikeReasons": {},
-    "popularityScore": 0
+    "dislikes": 1,
+    "dislikeReasons": {
+      "gameplay-broken": 1,
+      "missing-art": 1
+    },
+    "popularityScore": -1
+  },
+  {
+    "date": "2026-09-24",
+    "status": "published",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "slug": "2026-09-24-crystal-defense",
+    "genre": "tower-defense",
+    "theme": "A glowing crystal core defends its garden from invading shadow sprites by placing luminous turret crystals along a winding path.",
+    "mechanics": [
+      "Place towers on empty grid cells to shoot at incoming enemies",
+      "Enemies travel along a set path and lose health when hit",
+      "Survive all waves to protect the core"
+    ],
+    "title": "Crystal Defense",
+    "attempts": 2,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free"
+    ],
+    "quotaAffected": true
   }
 ]

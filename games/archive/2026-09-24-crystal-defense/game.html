@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Crystal Defense</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#111;color:#fff;font-family:sans-serif}
+  canvas{display:block;width:100%;height:100%;background:#0a0a0a}
+  #ui{position:absolute;top:10px;left:10px;z-index:2}
+  #msg{position:absolute;top:50%;left:50%;transform:-50% -50%;text-align:center;color:#fff;font-size:2rem;pointer-events:none}
+  button{margin:5px;padding:8px 12px;font-size:1rem;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="ui">
+  Score: <span id="score">0</span><br>
+  Wave: <span id="wave">0</span>/<span id="totalWaves">5</span><br>
+  Core HP: <span id="coreHP">10</span><br>
+  <button id="startBtn">Start</button>
+</div>
+<canvas id="game"></canvas>
+<div id="msg" hidden></div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const waveEl = document.getElementById('wave');
+const totalWavesEl = document.getElementById('totalWaves');
+const coreHPEl = document.getElementById('coreHP');
+const startBtn = document.getElementById('startBtn');
+const msgEl = document.getElementById('msg');
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const cellSize = 40;
+const path = []; // list of points (x,y) defining the path
+function generatePath() {
+  const w = canvas.width, h = canvas.height;
+  // simple winding path: start left, go to right with a couple of bends
+  path.push({x:0, y:h*0.3});
+  path.push({x:w*0.25, y:h*0.3});
+  path.push({x:w*0.25, y:h*0.7});
+  path.push({x:w*0.75, y:h*0.7});
+  path.push({x:w*0.75, y:h*0.3});
+  path.push({x:w, y:h*0.3});
+}
+generatePath();
+
+// helpers
+function distance(a,b){return Math.hypot(a.x-b.x, a.y-b.y);}
+function pointOnPath(p){ // check if point is close enough to path to be considered blocked
+  for(let i=0;i<path.length-1;i++){
+    const a=path[i], b=path[i+1];
+    const ax=b.x-a.x, ay=b.y-a.y;
+    const apx=p.x-a.x, apy=p.y-a.y;
+    const ab2=ax*ax+ay*ay;
+    if(ab2===0) continue;
+    const t=Math.max(0,Math.min(1,(apx*ax+apy*ay)/ab2));
+    const closest={x:a.x+t*ax, y:a.y+t*ay};
+    if(distance(p,closest)<cellSize/2) return true;
+  }
+  return false;
+}
+
+// game state
+let enemies=[], towers=[], projectiles=[];
+let wave=0, enemiesPerWave=5, spawnTimer=0, spawnInterval=120; // frames
+let coreHP=10, score=0, gameOver=false, won=false, animFrame=null;
+const totalWaves=5;
+
+// tower class
+class Tower{
+  constructor(x,y){
+    this.x=x; this.y=y; this.range=120; this.cooldown=0; this.cooldownTime=30;
+  }
+  update(){
+    if(this.cooldown>0) this.cooldown--;
+    let target=null; let minDist=Infinity;
+    for(const e of enemies){
+      const d=distance(this,e);
+      if(d<this.range && d<minDist){ minDist=d; target=e;}
+    }
+    if(target && this.cooldown===0){
+      projectiles.push({x:this.x, y:this.y, tx:target.x, ty:target.y, speed:5, dmg:1});
+      this.cooldown=this.cooldownTime;
+    }
+  }
+  draw(){
+    ctx.fillStyle='#0f0';
+    ctx.beginPath(); ctx.arc(this.x,this.y,12,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#0a0'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(this.x,this.y,this.range,0,Math.PI*2); ctx.stroke();
+  }
+}
+
+// enemy class
+class Enemy{
+  constructor(){
+    // start at first path point
+    const p=path[0];
+    this.x=p.x; this.y=p.y;
+    this.seg=0; // index of segment we are on
+    this.progress=0; // distance along current segment
+    this.speed=1.2;
+    this.maxHP=3; this.hp=this.maxHP;
+  }
+  update(){
+    if(this.seg>=path.length-1){ // reached end
+      coreHP--; return true; // removed, damage core
+    }
+    const a=path[this.seg], b=path[this.seg+1];
+    const dx=b.x-a.x, dy=b.y-a.y;
+    const segLen=Math.hypot(dx,dy);
+    const nx=dx/segLen, ny=dy/segLen;
+    this.progress+=this.speed;
+    if(this.progress>=segLen){
+      this.progress=0; this.seg++;
+    }
+    this.x=a.x+nx*this.progress;
+    this.y=a.y+ny*this.progress;
+    return false;
+  }
+  draw(){
+    ctx.fillStyle=`hsl(${120-this.hp/this.maxHP*120},80%,50%)`;
+    ctx.beginPath(); ctx.arc(this.x,this.y,10,0,Math.PI*2); ctx.fill();
+    // health bar
+    ctx.fillStyle='#555';
+    ctx.fillRect(this.x-12,this.y-18,24,4);
+    ctx.fillStyle='#0f0';
+    ctx.fillRect(this.x-12,this.y-18,24*(this.hp/this.maxHP),4);
+  }
+  hit(dmg){
+    this.hp-=dmg;
+    if(this.hp<=0) return true; // dead
+    return false;
+  }
+}
+
+// projectile
+function updateProjectiles(){
+  for(let i=projectiles.length-1;i>=0;i--){
+    const p=projectiles[i];
+    const dx=p.tx-p.x, dy=p.ty-p.y;
+    const dist=Math.hypot(dx,dy);
+    if(dist<2){ // hit
+      const enemy=enemies.find(e=>Math.hypot(e.x-p.x,e.y-p.y)<12);
+      if(enemy && enemy.hit(p.dmg)){
+        const idx=enemies.indexOf(enemy);
+        if(idx>-1){ enemies.splice(idx,1); score+=10; scoreEl.textContent=score;}
+      }
+      projectiles.splice(i,1);
+      continue;
+    }
+    const step=p.speed/Math.max(0.1,dist);
+    p.x+=dx*step; p.y+=dy*step;
+    // offscreen?
+    if(p.x<-20||p.x>canvas.width+20||p.y<-20||p.y>canvas.height+20) projectiles.splice(i,1);
+  }
+}
+function drawProjectiles(){
+  ctx.fillStyle='#ff0';
+  for(const p of projectiles){
+    ctx.beginPath(); ctx.arc(p.x,p.y,4,0,Math.PI*2); ctx.fill();
+  }
+}
+
+// spawning
+function spawnEnemy(){
+  if(enemies.length<enemiesPerWave* (wave+1)) enemies.push(new Enemy);
+}
+
+// wave control
+function updateWave(){
+  if(wave>=totalWaves && enemies.length===0){ won=true; endGame(); return; }
+  if(spawnTimer<=0){
+    spawnEnemy();
+    spawnTimer=spawnInterval/(1+wave*0.2); // increase spawn rate slightly
+  }else{
+    spawnTimer--;
+  }
+}
+
+// game loop
+function loop(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // draw path
+  ctx.strokeStyle='#555';
+  ctx.lineWidth=6;
+  ctx.beginPath();
+  ctx.moveTo(path[0].x,path[0].y);
+  for(let i=1;i<path.length;i++) ctx.lineTo(path[i].x,path[i].y);
+  ctx.stroke();
+  // update entities
+  for(const t of towers) t.update();
+  for(let i=enemies.length-1;i>=0;i--){
+    const removed=enemies[i].update();
+    if(removed){ enemies.splice(i,1); coreHPEl.textContent=coreHP; if(coreHP<=0){ endGame(); return; }}
+  }
+  updateProjectiles();
+  updateWave();
+  // draw
+  for(const t of towers) t.draw();
+  for(const e of enemies) e.draw();
+  drawProjectiles();
+  // UI
+  scoreEl.textContent=score;
+  waveEl.textContent=wave+1;
+  totalWavesEl.textContent=totalWaves;
+  if(!gameOver) animFrame=requestAnimationFrame(loop);
+}
+function endGame(){
+  gameOver=true;
+  cancelAnimationFrame(animFrame);
+  msgEl.hidden=false;
+  if(won){
+    msgEl.textContent=`You defended the core!\\nScore: ${score}`;
+    msgEl.style.color='#0f0';
+  }else{
+    msgEl.textContent=`The core was overwhelmed.\\nScore: ${score}`;
+    msgEl.style.color='#f00';
+  }
+}
+function startGame(){
+  // reset
+  enemies=[]; towers=[]; projectiles=[]; wave=0; score=0; coreHP=10; spawnTimer=0;
+  scoreEl.textContent=score; waveEl.textContent=wave+1; coreHPEl.textContent=coreHP;
+  msgEl.hidden=true;
+  gameOver=false; won=false;
+  loop();
+}
+// handle clicks for tower placement
+canvas.addEventListener('click',e=>{
+  if(gameOver) return;
+  const rect=canvas.getBoundingClientRect();
+  const x=e.clientX-rect.left;
+  const y=e.clientY-rect.top;
+  // cannot place on path
+  if(pointOnPath({x,y})) return;
+  // snap to grid
+  const gx=Math.round(x/cellSize)*cellSize;
+  const gy=Math.round(y/cellSize)*cellSize;
+  // ensure not overlapping another tower
+  let ok=true;
+  for(const t of towers){
+    if(Math.hypot(t.x-gx,t.y-gy)<cellSize*0.8){ ok=false; break;}
+  }
+  if(!ok) return;
+  towers.push(new Tower(gx,gy));
+});
+// start button
+startBtn.onclick=()=>{ startBtn.disabled=true; startGame(); };
+// initial draw (static)
+resize();
+ctx.fillStyle='#222';
+ctx.fillRect(0,0,canvas.width,canvas.height);
+ctx.fillStyle='#fff';
+ctx.font='20px sans-serif';
+ctx.textAlign='center';
+ctx.fillText('Click Start to begin',canvas.width/2,canvas.height/2);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-24-crystal-defense";
+  var RELEASE = "3eeab9ef958441f8f841719ad4c9846041a9704b";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

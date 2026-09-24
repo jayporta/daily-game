@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-24 — Crystal Defense
+
+- genre: tower-defense
+- theme: A glowing crystal core defends its garden from invading shadow sprites by placing luminous turret crystals along a winding path.
+- mechanics: Place towers on empty grid cells to shoot at incoming enemies, Enemies travel along a set path and lose health when hit, Survive all waves to protect the core
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 2
+
 ## 2026-09-23 — Luminous Firefly Journey
 
 - genre: platformer
@@ -9,9 +17,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Move left/right and jump to navigate floating platforms, Collect glowing pollen to increase score, Avoid obstacles such as spikes and gusts that push the firefly, Reach the radiant portal to win
 - model: cohere/north-mini-code:free
 - attempts: 6
-- reactions: 0
+- reactions: -1
 - likes: 0
-- dislikes: 0
+- dislikes: 1
+- disliked for: gameplay-broken: 1, missing-art: 1
 
 ## 2026-09-22 — generation failed, previous game kept
 

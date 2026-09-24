@@ -1,0 +1,16 @@
+{
+  "title": "Crystal Defense",
+  "genre": "tower-defense",
+  "theme": "A glowing crystal core defends its garden from invading shadow sprites by placing luminous turret crystals along a winding path.",
+  "mechanics": [
+    "Place towers on empty grid cells to shoot at incoming enemies",
+    "Enemies travel along a set path and lose health when hit",
+    "Survive all waves to protect the core"
+  ],
+  "controls": [
+    {
+      "action": "Place tower",
+      "key": "Click"
+    }
+  ]
+}
