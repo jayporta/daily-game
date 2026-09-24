@@ -608,6 +608,10 @@
     "attemptModels": [
       "poolside/laguna-s-2.1:free"
     ],
-    "quotaAffected": true
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
   }
 ]
