@@ -2,6 +2,19 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-25 — generation failed, previous game kept
+
+- model: dots-studio/dots-3-note-preview:free
+- attempts: 7
+- attempt 1 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
+- attempt 2 (inclusionai/ling-3.0-flash-fin:free): could not extract bundle — missing-meta-block (response truncated at the output cap)
+- attempt 3 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+- attempt 4 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter request failed: 504 Upstream idle timeout exceeded
+- attempt 5 (cohere/north-mini-code:free): moderation rejected — moderation model rejected the game: The number of ways to select 5 cards from a standard 52-card deck such that no two cards have the same suit or the same rank is 
+\boxed{100}.
+- attempt 6 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error
+- attempt 7 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: Failed to execute 'write' on 'Document': Unexpected token '+'
+
 ## 2026-09-24 — Crystal Defense
 
 - genre: tower-defense
