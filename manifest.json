@@ -1,18 +1,30 @@
 {
-  "date": "2026-09-24",
-  "slug": "2026-09-24-crystal-defense",
-  "path": "games/archive/2026-09-24-crystal-defense/game.html",
-  "promptPath": "games/archive/2026-09-24-crystal-defense/prompt.txt",
-  "title": "Crystal Defense",
-  "genre": "tower-defense",
-  "genreLabel": "Tower Defense",
-  "model": "nvidia/nemotron-3-super-120b-a12b:free",
-  "generatedAt": "2026-09-24T19:00:49.630Z",
-  "expiresAt": "2026-09-25T19:00:00.000Z",
+  "date": "2026-09-25",
+  "slug": "2026-09-25-moss-path",
+  "path": "games/archive/2026-09-25-moss-path/game.html",
+  "promptPath": "games/archive/2026-09-25-moss-path/prompt.txt",
+  "title": "Moss Path",
+  "genre": "maze-adventure",
+  "genreLabel": "Maze Adventure",
+  "model": "nvidia/nemotron-3.5-lightning:free",
+  "generatedAt": "2026-09-25T23:03:16.397Z",
+  "expiresAt": "2026-09-26T19:00:00.000Z",
   "controls": [
     {
-      "action": "Place tower",
-      "key": "Click"
+      "action": "move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "move right",
+      "key": "ArrowRight"
+    },
+    {
+      "action": "move up",
+      "key": "ArrowUp"
+    },
+    {
+      "action": "move down",
+      "key": "ArrowDown"
     }
   ]
 }

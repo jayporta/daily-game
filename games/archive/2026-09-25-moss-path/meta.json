@@ -1,0 +1,29 @@
+{
+  "title": "Moss Path",
+  "genre": "maze-adventure",
+  "theme": "A small moss creature navigates a cave maze to collect dewdrops and reach the exit",
+  "mechanics": [
+    "Move through a static maze with arrow keys",
+    "Collect dewdrops to score points",
+    "Reach the exit portal to complete the level",
+    "Avoid falling stalactites and shifting shadow patches"
+  ],
+  "controls": [
+    {
+      "action": "move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "move right",
+      "key": "ArrowRight"
+    },
+    {
+      "action": "move up",
+      "key": "ArrowUp"
+    },
+    {
+      "action": "move down",
+      "key": "ArrowDown"
+    }
+  ]
+}
