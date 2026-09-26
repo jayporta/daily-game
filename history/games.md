@@ -2,17 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-09-26 — generation failed, previous game kept
+## 2026-09-26 — Gem Gleam
 
-- model: cohere/north-mini-code:free
-- attempts: 7
-- attempt 1 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content
-- attempt 2 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error
-- attempt 3 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter request failed: 503 Upstream error from Nvidia: Service temporarily overloaded
-- attempt 4 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
-- attempt 5 (inclusionai/ling-3.0-flash-fin:free): could not extract bundle — missing-meta-block (response truncated at the output cap)
-- attempt 6 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 7 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream ended early: gave up after 540s
+- genre: tile-matching
+- theme: A magical forest of glowing gems that must be aligned to restore light
+- mechanics: Swap adjacent gems to create lines of three or more matching colors, Matched gems disappear and new gems fall, creating chain reactions, Reach the target score before time runs out
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 3
 
 ## 2026-09-25 — Moss Path
 

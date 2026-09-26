@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Gem Gleam</title>
+<style>
+  html,body{margin:0;height:100%;background:#111;display:flex;justify-content:center;align-items:center;}
+  canvas{background:#222;display:block;}
+  #ui{position:absolute;top:10px;left:50%;transform:translateX(-50%);color:#fff;font-family:sans-serif;text-align:center;}
+  #msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:2rem;font-family:sans-serif;pointer-events:none;}
+</style>
+</head>
+<body>
+<div id="ui">Score: <span id="score">0</span> &nbsp; Time: <span id="time">60</span></div>
+<canvas id="game"></canvas>
+<div id="msg"></div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const timeEl = document.getElementById('time');
+const msgEl = document.getElementById('msg');
+
+const COLS = 8, ROWS = 8;
+let board = [];
+let selected = null;
+let score = 0;
+let timeLeft = 60;
+let gameOver = false;
+const TARGET_SCORE = 1000;
+const COLORS = ['#ff6b6b','#4ecdc4','#ffd166','#06d6a0','#118ab2','#ef476f'];
+const TILE_SIZE = 60; // will be scaled later
+
+function init() {
+  resize();
+  newBoard();
+  loop();
+  startTimer();
+  window.addEventListener('resize', resize);
+  canvas.addEventListener('click', handleClick);
+}
+
+function resize() {
+  const size = Math.min(window.innerWidth, window.innerHeight) * 0.8;
+  canvas.width = canvas.height = size;
+}
+
+function newBoard() {
+  board = [];
+  for (let r = 0; r < ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < COLS; c++) {
+      row.push(Math.floor(Math.random() * COLORS.length));
+    }
+    board.push(row);
+  }
+  // ensure no initial matches
+  while (findMatches().length > 0) {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        board[r][c] = Math.floor(Math.random() * COLORS.length);
+      }
+    }
+  }
+}
+
+function drawBoard() {
+  const w = canvas.width / COLS;
+  const h = canvas.height / ROWS;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const val = board[r][c];
+      if (val === null) continue;
+      ctx.fillStyle = COLORS[val];
+      ctx.beginPath();
+      ctx.arc(c*w + w/2, r*h + h/2, Math.min(w,h)*0.4, 0, Math.PI*2);
+      ctx.fill();
+      // optional outline
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+  // highlight selected
+  if (selected) {
+    const [r,c] = selected;
+    ctx.strokeStyle = '#ffff00';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(c*w + w/2, r*h + h/2, Math.min(w,h)*0.45, 0, Math.PI*2);
+    ctx.stroke();
+  }
+}
+
+function handleClick(e) {
+  if (gameOver) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const w = canvas.width / COLS;
+  const h = canvas.height / ROWS;
+  const col = Math.floor(x / w);
+  const row = Math.floor(y / h);
+  if (row < 0 || row >= ROWS || col < 0 || col >= COLS) return;
+  if (!selected) {
+    selected = [row,col];
+    drawBoard();
+    return;
+  }
+  const [sr,sc] = selected;
+  // check adjacency
+  if (Math.abs(sr-row) + Math.abs(sc-col) === 1) {
+    // swap
+    [board[sr][sc], board[row][col]] = [board[row][col], board[sr][sc]];
+    selected = null;
+    if (!processSwap()) {
+      // swap back if no match
+      [board[sr][sc], board[row][col]] = [board[row][col], board[sr][sc]];
+    }
+  } else {
+    selected = [row,col];
+  }
+  drawBoard();
+}
+
+function processSwap() {
+  const matches = findMatches();
+  if (matches.length === 0) return false;
+  removeMatches(matches);
+  return true;
+}
+
+function findMatches() {
+  const matches = [];
+  // horizontal
+  for (let r = 0; r < ROWS; r++) {
+    let c = 0;
+    while (c < COLS) {
+      const val = board[r][c];
+      if (val === null) { c++; continue; }
+      let len = 1;
+      while (c+len < COLS && board[r][c+len] === val) len++;
+      if (len >= 3) {
+        for (let k = 0; k < len; k++) matches.push([r, c+k]);
+      }
+      c += len;
+    }
+  }
+  // vertical
+  for (let c = 0; c < COLS; c++) {
+    let r = 0;
+    while (r < ROWS) {
+      const val = board[r][c];
+      if (val === null) { r++; continue; }
+      let len = 1;
+      while (r+len < ROWS && board[r+len][c] === val) len++;
+      if (len >= 3) {
+        for (let k = 0; k < len; k++) matches.push([r+k, c]);
+      }
+      r += len;
+    }
+  }
+  // deduplicate
+  const set = new Set();
+  const uniq = [];
+  for (const [r,c] of matches) {
+    const key = r+','+c;
+    if (!set.has(key)) {
+      set.add(key);
+      uniq.push([r,c]);
+    }
+  }
+  return uniq;
+}
+
+function removeMatches(matches) {
+  for (const [r,c] of matches) {
+    board[r][c] = null;
+  }
+  score += matches.length * 10;
+  scoreEl.textContent = score;
+  settleBoard();
+}
+
+function settleBoard() {
+  // gravity per column
+  for (let c = 0; c < COLS; c++) {
+    let writeRow = ROWS-1;
+    for (let r = ROWS-1; r >= 0; r--) {
+      if (board[r][c] !== null) {
+        if (r !== writeRow) board[writeRow][c] = board[r][c];
+        writeRow--;
+      }
+    }
+    for (let r = writeRow; r >= 0; r--) board[r][c] = null;
+  }
+  // fill top
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS; r++) {
+      if (board[r][c] === null) board[r][c] = Math.floor(Math.random() * COLORS.length);
+    }
+  }
+  // check for cascades
+  const newMatches = findMatches();
+  if (newMatches.length > 0) {
+    removeMatches(newMatches);
+  } else {
+    drawBoard();
+    checkEndConditions();
+  }
+}
+
+function checkEndConditions() {
+  if (score >= TARGET_SCORE) endGame(true);
+}
+
+function startTimer() {
+  const tick = () => {
+    if (gameOver) return;
+    timeLeft--;
+    timeEl.textContent = timeLeft;
+    if (timeLeft <= 0) endGame(false);
+    else setTimeout(tick, 1000);
+  };
+  tick();
+}
+
+function endGame(win) {
+  gameOver = true;
+  msgEl.textContent = win ? 'YOU WIN! 🎉' : 'TIME\'S UP!';
+  msgEl.style.display = 'block';
+}
+
+function loop() {
+  if (!gameOver) {
+    drawBoard();
+    requestAnimationFrame(loop);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-26-gem-gleam";
+  var RELEASE = "ca22f14450e5732f310160dd9a8ea239cec910db";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

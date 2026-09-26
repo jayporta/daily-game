@@ -1,0 +1,20 @@
+{
+  "title": "Gem Gleam",
+  "genre": "tile-matching",
+  "theme": "A magical forest of glowing gems that must be aligned to restore light",
+  "mechanics": [
+    "Swap adjacent gems to create lines of three or more matching colors",
+    "Matched gems disappear and new gems fall, creating chain reactions",
+    "Reach the target score before time runs out"
+  ],
+  "controls": [
+    {
+      "action": "Select a gem",
+      "key": "click/tap"
+    },
+    {
+      "action": "Swap with adjacent gem",
+      "key": "click/tap a neighboring gem"
+    }
+  ]
+}
