@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-27 — Glow Jellies
+
+- genre: endless-runner
+- theme: A luminous jellyfish drifts through a glowing underwater cavern, collecting floating bioluminescent plankton while dodging shifting rock walls
+- mechanics: Automatic forward motion, Steer left/right to avoid walls, Collect glowing plankton to increase score, Survive as long as possible
+- model: cohere/north-mini-code:free
+- attempts: 5
+
 ## 2026-09-26 — Gem Gleam
 
 - genre: tile-matching
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Swap adjacent gems to create lines of three or more matching colors, Matched gems disappear and new gems fall, creating chain reactions, Reach the target score before time runs out
 - model: nvidia/nemotron-3-super-120b-a12b:free
 - attempts: 3
+- reactions: 1
+- likes: 1
+- dislikes: 0
 
 ## 2026-09-25 — Moss Path
 

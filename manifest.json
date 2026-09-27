@@ -1,22 +1,26 @@
 {
-  "date": "2026-09-26",
-  "slug": "2026-09-26-gem-gleam",
-  "path": "games/archive/2026-09-26-gem-gleam/game.html",
-  "promptPath": "games/archive/2026-09-26-gem-gleam/prompt.txt",
-  "title": "Gem Gleam",
-  "genre": "tile-matching",
-  "genreLabel": "Tile Matching",
-  "model": "nvidia/nemotron-3-super-120b-a12b:free",
-  "generatedAt": "2026-09-26T22:20:43.863Z",
-  "expiresAt": "2026-09-27T19:00:00.000Z",
+  "date": "2026-09-27",
+  "slug": "2026-09-27-glow-jellies",
+  "path": "games/archive/2026-09-27-glow-jellies/game.html",
+  "promptPath": "games/archive/2026-09-27-glow-jellies/prompt.txt",
+  "title": "Glow Jellies",
+  "genre": "endless-runner",
+  "genreLabel": "Endless Runner",
+  "model": "cohere/north-mini-code:free",
+  "generatedAt": "2026-09-27T19:00:48.190Z",
+  "expiresAt": "2026-09-28T19:00:00.000Z",
   "controls": [
     {
-      "action": "Select a gem",
-      "key": "click/tap"
+      "action": "move left",
+      "key": "ArrowLeft"
     },
     {
-      "action": "Swap with adjacent gem",
-      "key": "click/tap a neighboring gem"
+      "action": "move right",
+      "key": "ArrowRight"
+    },
+    {
+      "action": "restart game",
+      "key": "Space"
     }
   ]
 }

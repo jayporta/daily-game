@@ -671,6 +671,40 @@
       "cohere/north-mini-code:free",
       "poolside/laguna-s-2.1:free"
     ],
+    "quotaAffected": true,
+    "likes": 1,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 1
+  },
+  {
+    "date": "2026-09-27",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-09-27-glow-jellies",
+    "genre": "endless-runner",
+    "theme": "A luminous jellyfish drifts through a glowing underwater cavern, collecting floating bioluminescent plankton while dodging shifting rock walls",
+    "mechanics": [
+      "Automatic forward motion",
+      "Steer left/right to avoid walls",
+      "Collect glowing plankton to increase score",
+      "Survive as long as possible"
+    ],
+    "title": "Glow Jellies",
+    "attempts": 5,
+    "canvasDrawn": false,
+    "failureKinds": [
+      "moderation-unreachable",
+      "extract",
+      "extract",
+      "generation-call"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "inclusionai/ling-3.0-flash-fin:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
     "quotaAffected": true
   }
 ]

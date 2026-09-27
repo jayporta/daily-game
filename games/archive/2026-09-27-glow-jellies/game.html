@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Glow Jellies</title>
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; }
+  #gameCanvas { display:block; width:100%; height:100%; }
+  .ui { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; font-family:sans-serif; color:#fff; text-align:center; }
+  .ui > div { margin-top:20px; font-size:24px; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui" class="ui">
+  <div id="score" class="hidden">Score: <span>0</span></div>
+  <div id="gameOver" class="hidden">Game Over<br>Press Space to Restart</div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let w, h;
+
+// Game objects
+const player = { x: 0, y: 0, radius: 20 };
+const obstacles = [];
+const collectibles = [];
+let score = 0;
+let gameState = 'ready'; // ready, playing, over
+let lastObstacleTime = 0;
+let lastCollectibleTime = 0;
+const spawnInterval = 60; // frames
+const spawnCollectibleInterval = 40;
+const playerSpeed = 5;
+const obstacleSpeed = 5;
+const collectibleSpeed = 5;
+
+let left = false;
+let right = false;
+
+// Resize handling
+function resize() {
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+  // Position player in the middle initially
+  player.x = w / 2;
+  player.y = h / 2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Input listeners
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'ArrowLeft') left = true;
+  if (e.code === 'ArrowRight') right = true;
+  if (e.code === 'Space') {
+    if (gameState === 'over') {
+      startGame();
+    } else if (gameState === 'ready') {
+      startGame();
+    }
+  }
+});
+document.addEventListener('keyup', (e) => {
+  if (e.code === 'ArrowLeft') left = false;
+  if (e.code === 'ArrowRight') right = false;
+});
+
+// Start a new game
+function startGame() {
+  score = 0;
+  obstacles.length = 0;
+  collectibles.length = 0;
+  player.x = w / 2;
+  player.y = h / 2;
+  gameState = 'playing';
+  lastObstacleTime = 0;
+  lastCollectibleTime = 0;
+  document.getElementById('score').classList.remove('hidden');
+  document.getElementById('gameOver').classList.add('hidden');
+}
+
+// Game over
+function gameOver() {
+  gameState = 'over';
+  document.getElementById('score').classList.add('hidden');
+  const span = document.querySelector('#score span');
+  span.textContent = score;
+  document.getElementById('gameOver').classList.remove('hidden');
+}
+
+// Update game logic
+function update() {
+  if (gameState !== 'playing') return;
+
+  // Move player
+  if (left && player.x > player.radius) player.x -= playerSpeed;
+  if (right && player.x < w - player.radius) player.x += playerSpeed;
+}
+
+// Spawn obstacles
+function spawnObstacles(timestamp) {
+  if (!lastObstacleTime) lastObstacleTime = timestamp;
+  const elapsed = timestamp - lastObstacleTime;
+  if (elapsed > spawnInterval) {
+    const gap = Math.random() * 150 + 100; // gap size between top and bottom walls
+    const topHeight = Math.random() * (h - gap - 100) + 50;
+    const leftX = w;
+    obstacles.push({ x: leftX, y: 0, w: 60, h: topHeight }); // top wall
+    obstacles.push({ x: leftX, y: topHeight + gap, w: 60, h: h - (topHeight + gap) }); // bottom wall
+    lastObstacleTime = timestamp;
+  }
+}
+
+// Spawn collectibles
+function spawnCollectibles(timestamp) {
+  if (!lastCollectibleTime) lastCollectibleTime = timestamp;
+  const elapsed = timestamp - lastCollectibleTime;
+  if (elapsed > spawnCollectibleInterval) {
+    const y = Math.random() * (h - 40) + 20;
+    collectibles.push({ x: w, y, radius: 8, color: '#ffff00' });
+    lastCollectibleTime = timestamp;
+  }
+}
+
+// Move obstacles and collectibles
+function updateObstacles() {
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const o = obstacles[i];
+    o.x -= obstacleSpeed;
+    if (o.x + o.w < 0) obstacles.splice(i, 1);
+  }
+}
+function updateCollectibles() {
+  for (let i = collectibles.length - 1; i >= 0; i--) {
+    const c = collectibles[i];
+    c.x -= collectibleSpeed;
+    if (c.x - c.radius < 0) collectibles.splice(i, 1);
+  }
+}
+
+// Collision detection
+function checkCollisions() {
+  // Player vs obstacles
+  for (const o of obstacles) {
+    if (player.x + player.radius > o.x && player.x - player.radius < o.x + o.w) {
+      if (player.y + player.radius > o.y && player.y - player.radius < o.y + o.h) {
+        gameOver();
+        return;
+      }
+    }
+  }
+
+  // Player vs collectibles
+  for (let i = collectibles.length - 1; i >= 0; i--) {
+    const c = collectibles[i];
+    const dx = player.x - c.x;
+    const dy = player.y - c.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < player.radius + c.radius) {
+      score++;
+      collectibles.splice(i, 1);
+    }
+  }
+}
+
+// Drawing utilities
+function drawBackground() {
+  const grad = ctx.createLinearGradient(0, 0, w, h);
+  grad.addColorStop(0, '#000428');
+  grad.addColorStop(1, '#004e92');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function drawStars() {
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let i = 0; i < 80; i++) {
+    const sx = Math.random() * w;
+    const sy = Math.random() * h;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawObstacles() {
+  ctx.fillStyle = '#1a1a1a';
+  for (const o of obstacles) {
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+  }
+}
+
+function drawCollectibles() {
+  for (const c of collectibles) {
+    ctx.save();
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = c.color;
+    ctx.fillStyle = c.color;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawPlayer() {
+  // Glowing body
+  ctx.save();
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = '#0ff';
+  ctx.fillStyle = 'rgba(0,255,255,0.8)';
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Tentacles
+  ctx.strokeStyle = 'rgba(0,255,255,0.5)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 8; i++) {
+    const angle = (Math.PI * 2 / 8) * i;
+    const endX = player.x + Math.cos(angle) * (player.radius + 10);
+    const endY = player.y + Math.sin(angle) * (player.radius + 10);
+    ctx.beginPath();
+    ctx.moveTo(player.x, player.y);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Main draw function
+function draw() {
+  ctx.clearRect(0, 0, w, h);
+  drawBackground();
+  drawStars();
+  drawObstacles();
+  drawCollectibles();
+  drawPlayer();
+
+  // Update score display
+  const scoreSpan = document.querySelector('#score span');
+  if (scoreSpan) scoreSpan.textContent = score;
+}
+
+// Animation loop
+let lastTime = 0;
+function loop(timestamp) {
+  const delta = timestamp - lastTime;
+  lastTime = timestamp;
+
+  update();
+  spawnObstacles(timestamp);
+  spawnCollectibles(timestamp);
+  updateObstacles();
+  updateCollectibles();
+  checkCollisions();
+  draw();
+
+  requestAnimationFrame(loop);
+}
+
+// Kick off the game when first resized
+window.addEventListener('resize', () => {
+  if (gameState === 'ready') startGame();
+  requestAnimationFrame(loop);
+});
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-27-glow-jellies";
+  var RELEASE = "0dd2378ee96c12cbc09b2b640ad9565a265d9d65";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
