@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Automatic forward motion, Steer left/right to avoid walls, Collect glowing plankton to increase score, Survive as long as possible
 - model: cohere/north-mini-code:free
 - attempts: 5
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-09-26 — Gem Gleam
 
