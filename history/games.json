@@ -707,8 +707,44 @@
     ],
     "quotaAffected": true,
     "likes": 0,
-    "dislikes": 0,
-    "dislikeReasons": {},
-    "popularityScore": 0
+    "dislikes": 1,
+    "dislikeReasons": {
+      "no-load": 1
+    },
+    "popularityScore": -1
+  },
+  {
+    "date": "2026-09-28",
+    "status": "failed_kept_previous",
+    "model": "poolside/laguna-s-2.1:free",
+    "attempts": 7,
+    "failureReasons": [
+      "attempt 1 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error",
+      "attempt 2 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter request failed: 503 Upstream error from Nvidia: Service temporarily overloaded",
+      "attempt 3 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content",
+      "attempt 4 (inclusionai/ling-3.0-flash-fin:free): generation call failed — OpenRouter request failed: 404 This model is unavailable for free. The paid version is available now - use this slug instead: inclusionai/ling-3.0-flash-fin",
+      "attempt 5 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block",
+      "attempt 6 (nvidia/nemotron-3.5-lightning:free): smoke test failed — the page rendered nothing visible — no canvas pixels, no text and no painted elements",
+      "attempt 7 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content"
+    ],
+    "failureKinds": [
+      "generation-call",
+      "generation-call",
+      "generation-call",
+      "generation-call",
+      "extract",
+      "smoke-blank",
+      "generation-call"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "dots-studio/dots-3-note-preview:free",
+      "inclusionai/ling-3.0-flash-fin:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free"
+    ],
+    "quotaAffected": true
   }
 ]

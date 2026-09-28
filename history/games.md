@@ -2,6 +2,18 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-28 — generation failed, previous game kept
+
+- model: poolside/laguna-s-2.1:free
+- attempts: 7
+- attempt 1 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error
+- attempt 2 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter request failed: 503 Upstream error from Nvidia: Service temporarily overloaded
+- attempt 3 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
+- attempt 4 (inclusionai/ling-3.0-flash-fin:free): generation call failed — OpenRouter request failed: 404 This model is unavailable for free. The paid version is available now - use this slug instead: inclusionai/ling-3.0-flash-fin
+- attempt 5 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+- attempt 6 (nvidia/nemotron-3.5-lightning:free): smoke test failed — the page rendered nothing visible — no canvas pixels, no text and no painted elements
+- attempt 7 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content
+
 ## 2026-09-27 — Glow Jellies
 
 - genre: endless-runner
@@ -9,9 +21,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Automatic forward motion, Steer left/right to avoid walls, Collect glowing plankton to increase score, Survive as long as possible
 - model: cohere/north-mini-code:free
 - attempts: 5
-- reactions: 0
+- reactions: -1
 - likes: 0
-- dislikes: 0
+- dislikes: 1
+- disliked for: no-load: 1
 
 ## 2026-09-26 — Gem Gleam
 
