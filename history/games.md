@@ -2,17 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-09-29 — generation failed, previous game kept
+## 2026-09-29 — Beat Bounce
 
-- model: poolside/laguna-s-2.1:free
-- attempts: 7
-- attempt 1 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error
-- attempt 2 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter request failed: 503 Upstream error from Nvidia: Service temporarily overloaded
-- attempt 3 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
-- attempt 4 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 5 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter request failed: 403 thinkingmachines/inkling-small:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/apps
-- attempt 6 (nvidia/nemotron-3.5-lightning:free): moderation rejected — moderation model rejected the game: FAIL
-- attempt 7 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content
+- genre: rhythm
+- theme: A friendly robot taps to the rhythm as glowing notes travel across a neon grid, matching the beat to keep the energy flowing.
+- mechanics: Notes move from left to right in time with the music, Press the action key when a note reaches the hit zone to score points, Accurate timing yields higher scores; missed notes reduce energy, Survive as long as possible before energy depletes
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 2
 
 ## 2026-09-28 — generation failed, previous game kept
 

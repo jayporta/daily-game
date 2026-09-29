@@ -1,0 +1,17 @@
+{
+  "title": "Beat Bounce",
+  "genre": "rhythm",
+  "theme": "A friendly robot taps to the rhythm as glowing notes travel across a neon grid, matching the beat to keep the energy flowing.",
+  "mechanics": [
+    "Notes move from left to right in time with the music",
+    "Press the action key when a note reaches the hit zone to score points",
+    "Accurate timing yields higher scores; missed notes reduce energy",
+    "Survive as long as possible before energy depletes"
+  ],
+  "controls": [
+    {
+      "action": "Hit note",
+      "key": "Space"
+    }
+  ]
+}

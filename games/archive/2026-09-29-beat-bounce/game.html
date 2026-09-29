@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Beat Bounce</title>
+<style>
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#000;}
+  canvas{display:block;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(function() {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const BPM = 120;
+  const beatInterval = 60000 / BPM; // ms per beat
+  const targetX = canvas.width * 0.8;
+  const hitZoneWidth = 20; // pixels around targetX considered "hit zone"
+
+  let notes = [];
+  let lastBeat = 0;
+  let startTime = null;
+  let score = 0;
+  let energy = 100;
+  let gameOver = false;
+  let audioContext = null;
+
+  function spawnNote() {
+    notes.push({
+      x: 0,
+      y: canvas.height / 2,
+      spawn: performance.now(),
+      hit: false,
+      missed: false
+    });
+  }
+
+  function playBeep() {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, audioContext.currentTime);
+    gain.gain.setValueAtTime(0, audioContext.currentTime);
+    gain.gain.linearRampToValueAtTime(0.2, audioContext.currentTime + 0.01);
+    gain.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.2);
+    osc.connect(gain).connect(audioContext.destination);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.2);
+  }
+
+  function update(timestamp) {
+    if (!startTime) startTime = timestamp;
+    const elapsed = timestamp - startTime;
+    const beatNumber = Math.floor(elapsed / beatInterval);
+    if (beatNumber > lastBeat) {
+      lastBeat = beatNumber;
+      spawnNote();
+      playBeep();
+    }
+
+    // update notes
+    for (let n of notes) {
+      if (n.hit || n.missed) continue;
+      const progress = Math.min((timestamp - n.spawn) / beatInterval, 1);
+      n.x = progress * targetX;
+      if (n.x >= targetX && !n.hit && !n.missed) {
+        n.missed = true;
+        energy = Math.max(0, energy - 20);
+      }
+    }
+    // remove notes far off screen
+    notes = notes.filter(n => n.x < targetX + 100 && !(n.hit || n.missed));
+  }
+
+  function handleKeyDown(e) {
+    if (e.code !== 'Space') return;
+    if (gameOver) {
+      // restart
+      notes = [];
+      lastBeat = 0;
+      startTime = null;
+      score = 0;
+      energy = 100;
+      gameOver = false;
+      return;
+    }
+    const now = performance.now();
+    let bestNote = null;
+    let bestDist = 1e9;
+    for (let n of notes) {
+      if (n.hit || n.missed) continue;
+      const dist = Math.abs(n.x - targetX);
+      if (dist < hitZoneWidth && dist < bestDist) {
+        bestDist = dist;
+        bestNote = n;
+      }
+    }
+    if (bestNote) {
+      const ideal = bestNote.spawn + beatInterval;
+      const error = Math.abs(now - ideal);
+      const accuracy = Math.max(0, 1 - error / (beatInterval * 0.3)); // 30% tolerance window
+      const points = Math.floor(10 * accuracy);
+      score += points;
+      energy = Math.min(100, energy + 5);
+      bestNote.hit = true;
+    } else {
+      // missed hit opportunity
+      energy = Math.max(0, energy - 10);
+    }
+  }
+
+  window.addEventListener('keydown', handleKeyDown);
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // background gradient
+    const grad = ctx.createLinearGradient(0,0,0,canvas.height);
+    grad.addColorStop(0,'#001');
+    grad.addColorStop(1,'#000');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // hit zone
+    ctx.fillStyle = 'rgba(0,255,255,0.2)';
+    ctx.fillRect(targetX - hitZoneWidth, 0, hitZoneWidth*2, canvas.height);
+    ctx.strokeStyle = 'cyan';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(targetX - hitZoneWidth, 0, hitZoneWidth*2, canvas.height);
+
+    // notes
+    for (let n of notes) {
+      const radius = 12;
+      const alpha = n.hit ? 0.2 : n.missed ? 0.4 : 1;
+      ctx.fillStyle = `rgba(0,255,255,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, radius, 0, Math.PI*2);
+      ctx.fill();
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // robot avatar (simple)
+    const robotSize = 40;
+    ctx.fillStyle = '#888';
+    ctx.fillRect(20, canvas.height/2 - robotSize/2, robotSize, robotSize);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(30, canvas.height/2 - robotSize/2 + 10, 10, 10); // eye
+    ctx.fillRect(canvas.width/2 - robotSize/2 + 20, canvas.height/2 - robotSize/2 + 10, 10, 10); // eye
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(30, canvas.height/2 + robotSize/2 - 10, robotSize-20, 5); // mouth
+
+    // HUD
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Score: ${score}`, 20, 30);
+    ctx.fillText(`Energy: ${energy}`, 20, 60);
+    if (gameOver) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#fff';
+      ctx.font = '40px sans-serif';
+      ctx.fillText('Game Over', canvas.width/2, canvas.height/2 - 20);
+      ctx.font = '20px sans-serif';
+      ctx.fillText(`Final Score: ${score}`, canvas.width/2, canvas.height/2 + 20);
+      ctx.fillText('Press Space to Restart', canvas.width/2, canvas.height/2 + 50);
+    }
+  }
+
+  function loop(timestamp) {
+    update(timestamp);
+    draw();
+    if (!gameOver && energy > 0) {
+      requestAnimationFrame(loop);
+    } else {
+      gameOver = true;
+      draw();
+    }
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-29-beat-bounce";
+  var RELEASE = "f85026b9a940521cfc2a3babc98d2454581a93f7";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
