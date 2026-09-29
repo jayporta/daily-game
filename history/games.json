@@ -746,5 +746,39 @@
       "cohere/north-mini-code:free"
     ],
     "quotaAffected": true
+  },
+  {
+    "date": "2026-09-29",
+    "status": "failed_kept_previous",
+    "model": "poolside/laguna-s-2.1:free",
+    "attempts": 7,
+    "failureReasons": [
+      "attempt 1 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error",
+      "attempt 2 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter request failed: 503 Upstream error from Nvidia: Service temporarily overloaded",
+      "attempt 3 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content",
+      "attempt 4 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block",
+      "attempt 5 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter request failed: 403 thinkingmachines/inkling-small:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/apps",
+      "attempt 6 (nvidia/nemotron-3.5-lightning:free): moderation rejected — moderation model rejected the game: FAIL",
+      "attempt 7 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content"
+    ],
+    "failureKinds": [
+      "generation-call",
+      "generation-call",
+      "generation-call",
+      "extract",
+      "generation-call",
+      "moderation",
+      "generation-call"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free"
+    ],
+    "quotaAffected": true
   }
 ]
