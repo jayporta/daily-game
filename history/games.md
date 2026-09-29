@@ -9,6 +9,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Notes move from left to right in time with the music, Press the action key when a note reaches the hit zone to score points, Accurate timing yields higher scores; missed notes reduce energy, Survive as long as possible before energy depletes
 - model: nvidia/nemotron-3-super-120b-a12b:free
 - attempts: 2
+- reactions: -1
+- likes: 0
+- dislikes: 1
+- disliked for: gameplay-broken: 1
 
 ## 2026-09-28 — generation failed, previous game kept
 

@@ -769,6 +769,12 @@
     "attemptModels": [
       "poolside/laguna-s-2.1:free"
     ],
-    "quotaAffected": true
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 1,
+    "dislikeReasons": {
+      "gameplay-broken": 1
+    },
+    "popularityScore": -1
   }
 ]
