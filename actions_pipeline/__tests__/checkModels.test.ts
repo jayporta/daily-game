@@ -432,6 +432,41 @@ test('modelReliability ignores a published day whose earlier attempt hit a capac
   assert.deepEqual([...modelReliability(entries)], []);
 });
 
+// A failover record means the provider refused for a reason nobody saw — a
+// 429 as easily as a dead model — so it is no evidence for or against.
+test('unreliableModelIds does not blame a model that only ever failed over', () => {
+  const entries: HistoryGameEntry[] = [];
+  for (let day = 1; day <= MIN_UNRELIABLE_DAYS; day += 1) {
+    entries.push({
+      ...PUBLISHED_ENTRY,
+      date: `2026-09-0${day}`,
+      model: 'b/model:free',
+      failureKinds: ['generation-failover'],
+      attemptModels: ['a/model:free'],
+    });
+  }
+
+  assert.deepEqual([...unreliableModelIds(entries)], []);
+  assert.equal(modelReliability(entries).get('a/model:free'), undefined);
+});
+
+test("modelReliability keeps a model's real failure when a failover record precedes it the same day", () => {
+  const entries: HistoryGameEntry[] = [
+    {
+      ...PUBLISHED_ENTRY,
+      date: '2026-09-01',
+      model: 'b/model:free',
+      failureKinds: ['generation-failover', 'extract'],
+      attemptModels: ['a/model:free', 'a/model:free'],
+    },
+  ];
+
+  assert.deepEqual(modelReliability(entries).get('a/model:free'), {
+    days: 1,
+    generationCallDays: 0,
+  });
+});
+
 test('unreliableModelIds needs MIN_UNRELIABLE_DAYS of evidence before naming a model', () => {
   const entries: HistoryGameEntry[] = [];
   for (let day = 1; day < MIN_UNRELIABLE_DAYS; day += 1) {

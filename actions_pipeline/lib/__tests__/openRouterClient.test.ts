@@ -86,6 +86,84 @@ test('every request asks for a stream', async () => {
   assert.equal((body as { stream?: unknown }).stream, true);
 });
 
+/** The JSON body of the one request `complete` sends for `request`. */
+async function sentBody(
+  request: Parameters<ReturnType<typeof createOpenRouterClient>['complete']>[0],
+): Promise<Record<string, unknown>> {
+  let body: Record<string, unknown> = {};
+  const fetchImpl: typeof fetch = (_url, init) => {
+    body = JSON.parse(String(init?.body));
+    return Promise.resolve(sseResponse([sseDelta('hi')]));
+  };
+  const client = createOpenRouterClient({ apiKey: 'test-key', fetchImpl });
+  await client.complete(request);
+  return body;
+}
+
+test('fallback models are sent as an ordered `models` list with no `model` key', async () => {
+  const body = await sentBody({
+    model: 'a/primary:free',
+    fallbackModels: ['b/second:free', 'c/third:free'],
+    messages: [],
+    temperature: 0.7,
+  });
+
+  assert.deepEqual(body.models, ['a/primary:free', 'b/second:free', 'c/third:free']);
+  assert.equal('model' in body, false);
+});
+
+test('without fallback models the body carries `model` and no `models`', async () => {
+  const body = await sentBody({ model: 'a/primary:free', messages: [], temperature: 0.7 });
+
+  assert.equal(body.model, 'a/primary:free');
+  assert.equal('models' in body, false);
+});
+
+test('an empty fallback list sends the plain `model` body', async () => {
+  const body = await sentBody({
+    model: 'a/primary:free',
+    fallbackModels: [],
+    messages: [],
+    temperature: 0.7,
+  });
+
+  assert.equal(body.model, 'a/primary:free');
+  assert.equal('models' in body, false);
+});
+
+test('the result names the model whose frames carried the answer', async () => {
+  const client = createOpenRouterClient({
+    apiKey: 'test-key',
+    fetchImpl: streaming([
+      sseDelta('hel', undefined, 'b/second:free'),
+      sseDelta('lo', undefined, 'b/second:free'),
+    ]),
+  });
+  const result = await client.complete({
+    model: 'a/primary:free',
+    fallbackModels: ['b/second:free'],
+    messages: [],
+    temperature: 0.7,
+  });
+
+  assert.equal(result.model, 'b/second:free');
+});
+
+test('the result names the primary when no frame carries a model', async () => {
+  const client = createOpenRouterClient({
+    apiKey: 'test-key',
+    fetchImpl: streaming([sseDelta('hi')]),
+  });
+  const result = await client.complete({
+    model: 'a/primary:free',
+    fallbackModels: ['b/second:free'],
+    messages: [],
+    temperature: 0.7,
+  });
+
+  assert.equal(result.model, 'a/primary:free');
+});
+
 test('a response truncated at the output cap is reported as such', async () => {
   const client = createOpenRouterClient({
     apiKey: 'test-key',

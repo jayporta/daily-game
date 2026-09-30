@@ -6,6 +6,8 @@ import { test } from 'node:test';
 import type { HistoryGameEntry } from '#actions_pipeline/lib/historyStore.ts';
 import {
   appendEntry,
+  FAILURE_KINDS,
+  isObservedFailure,
   lastPublishedEntry,
   patchEntry,
   publishedEntryOn,
@@ -30,6 +32,12 @@ function scratchDir(t: { after(fn: () => void): void }): string {
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
+
+test('isObservedFailure is false only for the failover kind', () => {
+  for (const kind of FAILURE_KINDS) {
+    assert.equal(isObservedFailure(kind), kind !== 'generation-failover', kind);
+  }
+});
 
 test('appendEntry keeps entries sorted oldest-first', () => {
   const result = appendEntry([FAILED], PUBLISHED);
@@ -196,6 +204,24 @@ test('readHotWindow accepts a published entry carrying prior-attempt evidence', 
   const [entry] = readHotWindow(file);
   assert.deepEqual(entry?.failureKinds, ['generation-call']);
   assert.deepEqual(entry?.attemptModels, ['a/model:free']);
+});
+
+test('readHotWindow accepts the failover kind alongside a real failure', (t) => {
+  const dir = scratchDir(t);
+  const file = join(dir, 'games.json');
+  writeFileSync(
+    file,
+    JSON.stringify([
+      {
+        ...PUBLISHED,
+        failureKinds: ['generation-failover', 'smoke-js-error'],
+        attemptModels: ['a/model:free', 'b/model:free'],
+      },
+    ]),
+    'utf8',
+  );
+
+  assert.deepEqual(readHotWindow(file)[0]?.failureKinds, ['generation-failover', 'smoke-js-error']);
 });
 
 test('readHotWindow rejects a published entry whose failureKinds is outside the closed vocabulary', (t) => {

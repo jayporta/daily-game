@@ -6,11 +6,8 @@
 // green. The one write a failed run can make is repointing a manifest that has
 // stopped naming a game at all back at the archive.
 import { applyFeedback } from '#actions_pipeline/fetchFeedback.ts';
-import {
-  type GenerateResult,
-  generateDailyGame,
-  type Logger,
-} from '#actions_pipeline/generateDailyGame.ts';
+import { generateDailyGame } from '#actions_pipeline/generateDailyGame.ts';
+import type { GenerateResult } from '#actions_pipeline/generateResult.ts';
 import { loadAllConfig } from '#actions_pipeline/lib/config/index.ts';
 import { loadReactionConfigOrUnconfigured } from '#actions_pipeline/lib/config/reactionConfig.ts';
 import { isoDate } from '#actions_pipeline/lib/dates.ts';
@@ -37,6 +34,7 @@ import {
   restoreManifestFromArchive,
   writeRunStatus,
 } from '#actions_pipeline/publish.ts';
+import type { Logger } from '#actions_pipeline/runAttempt.ts';
 import { createSmokeTester, type SmokeTester } from '#actions_pipeline/smokeTest.ts';
 
 /**

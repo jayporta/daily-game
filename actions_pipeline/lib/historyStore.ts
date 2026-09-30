@@ -25,7 +25,13 @@ import type { DislikeReason } from '#lib/reactionTypes.ts';
 export type HistoryStatus = 'published' | 'failed_kept_previous';
 
 /**
- * The closed set of ways one generation attempt can fail.
+ * The closed set of ways one generation attempt can fail, plus the record a
+ * failover leaves.
+ *
+ * `generation-failover` is not a failure of the model that wrote anything:
+ * it marks a model OpenRouter skipped for an unseen reason (a 429, a 503, a
+ * delisting) before a fallback answered, so nothing counts it against that
+ * model or turns it into guidance.
  *
  * Closed for the same reason {@link DislikeReason} is: the corrective wording
  * these select in `buildPrompt.ts` is ours, so nothing model-authored — a
@@ -35,6 +41,7 @@ export type HistoryStatus = 'published' | 'failed_kept_previous';
  */
 export const FAILURE_KINDS = [
   'generation-call',
+  'generation-failover',
   'extract',
   'unknown-genre',
   'placeholder-meta',
@@ -48,6 +55,15 @@ export const FAILURE_KINDS = [
 
 /** One of {@link FAILURE_KINDS}. */
 export type FailureKind = (typeof FAILURE_KINDS)[number];
+
+/**
+ * Whether a record of this kind is a failure that was seen. False only for
+ * `generation-failover`, whose cause nobody saw, so nothing that judges a
+ * model or writes about a failure should read it.
+ */
+export function isObservedFailure(kind: FailureKind): boolean {
+  return kind !== 'generation-failover';
+}
 
 /** What every history entry carries, whatever became of the run. */
 interface HistoryEntryCommon {
@@ -66,14 +82,18 @@ interface HistoryEntryCommon {
    *
    * On a `failed_kept_previous` entry, every attempt that day. On a
    * `published` entry, only the attempts that failed before the one that
-   * eventually succeeded — absent, or empty, when the first attempt won.
-   * Drawn from {@link FAILURE_KINDS}, so `buildPrompt.ts` can turn a
+   * eventually succeeded — absent, or empty, when the first attempt won on
+   * the model it asked for. Either kind also carries a `generation-failover`
+   * record for each model that failed over, which has no `failureReasons`
+   * line. Drawn from {@link FAILURE_KINDS}, so `buildPrompt.ts` can turn a
    * recurring failure into fixed guidance without quoting anything a model
    * wrote.
    */
   readonly failureKinds?: FailureKind[];
   /**
-   * The model id each attempt used, parallel to `failureKinds` by index.
+   * The model id each record in `failureKinds` is charged to, parallel to it by
+   * index. One attempt can contribute several: models that failed over ahead
+   * of the one that served each have a `generation-failover` record.
    *
    * Absent on entries written before it was recorded. Lets `checkModels.ts`
    * tell a model that is failing from one that merely rotated in once — on
@@ -132,7 +152,8 @@ export interface PublishedEntry extends HistoryEntryCommon {
 export interface FailedEntry extends HistoryEntryCommon {
   readonly status: 'failed_kept_previous';
   /**
-   * Why each attempt failed, as prose.
+   * Why each attempt failed, as prose, one per attempt. A model that failed
+   * over records no prose, so this can be shorter than `failureKinds`.
    *
    * Recorded so the rollup can distil recurring failures into the lessons
    * note. Without it the only trace of a failed day is the attempt count,

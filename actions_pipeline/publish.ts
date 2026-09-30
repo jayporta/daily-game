@@ -211,9 +211,10 @@ export interface PublishParams {
   /** The exact user-turn prompt that produced `html` — see BYOK. */
   prompt: string;
   /**
-   * Failure kinds for attempts that failed before this one succeeded,
-   * parallel to `attemptModels` by index. Omitted, or empty, when the first
-   * attempt won.
+   * Failure kinds for attempts that failed before this one succeeded, plus
+   * a `generation-failover` record for each model that failed over (the
+   * winning attempt's included), parallel to `attemptModels` by index.
+   * Omitted, or empty, when the first attempt won on the model it asked for.
    *
    * Recorded so `checkModels.ts`'s reliability tally can see a model that
    * fails its attempt every day but is always rescued by a later one in the
@@ -222,7 +223,7 @@ export interface PublishParams {
    * evidence at all.
    */
   kinds?: readonly FailureKind[];
-  /** The model each of those attempts used, parallel to `kinds` by index. */
+  /** The model each of those records is charged to, parallel to `kinds` by index. */
   attemptModels?: readonly string[];
   /** Whether any of those attempts was refused for provider capacity. */
   quotaAffected?: boolean;
@@ -363,10 +364,11 @@ export function publish({
  *   a caller cannot quietly drop the only record of what went wrong; pass
  *   an empty array if there is genuinely nothing to say.
  * @param kinds The same failures as `reasons`, as closed-vocabulary ids,
- *   parallel to it by index. These are what the next generation's prompt
+ *   plus a `generation-failover` record for each model that failed over, which
+ *   has no reason line, so it can be longer than `reasons`. These are what the next generation's prompt
  *   reads directly; `reasons` embed console output from AI-written games and
  *   reach a prompt only by way of the reflection note.
- * @param attemptModels The model each attempt used, parallel to `kinds` by
+ * @param attemptModels The model each record is charged to, parallel to `kinds` by
  *   index — what `checkModels.ts` reads to tell a model that is failing
  *   from one that merely rotated in once.
  * @param quotaAffected Set when any attempt — not necessarily every one —

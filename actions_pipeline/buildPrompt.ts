@@ -11,7 +11,7 @@ import type {
   PopularityEntry,
   PublishedEntry,
 } from '#actions_pipeline/lib/historyStore.ts';
-import { isPublished } from '#actions_pipeline/lib/historyStore.ts';
+import { isObservedFailure, isPublished } from '#actions_pipeline/lib/historyStore.ts';
 import { renderAttemptFeedback } from '#lib/attemptFeedback.ts';
 import type { GeneratedMeta } from '#lib/extractBundleShared.ts';
 import { type DislikeReason, isDislikeReason } from '#lib/reactionTypes.ts';
@@ -182,7 +182,7 @@ export function digestHistory(entries: HistoryGameEntry[], limit = 10): string {
   return recent
     .map((entry) => {
       if (entry.status !== 'published') {
-        const kinds = entry.failureKinds.join(', ') || 'unrecorded';
+        const kinds = entry.failureKinds.filter(isObservedFailure).join(', ') || 'unrecorded';
         return `- ${entry.date} · FAILED after ${entry.attempts ?? '?'} attempts · ${kinds}`;
       }
       const mechanics = entry.mechanics.length > 0 ? entry.mechanics.join(', ') : 'unrecorded';
@@ -324,6 +324,8 @@ const FAILURE_DIRECTIVES: Record<FailureKind, string | null> = {
   moderation:
     'Recent attempts were rejected by the content rules. Re-read them and stay well ' +
     'clear of anything borderline.',
+  // A provider skipped a model before a fallback answered; nothing was written to fix.
+  'generation-failover': null,
   // The game was generated and parsed fine; the moderator never answered.
   'moderation-unreachable': null,
   'smoke-js-error':

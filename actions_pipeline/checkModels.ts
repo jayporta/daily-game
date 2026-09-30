@@ -22,6 +22,7 @@ import { isoDate } from '#actions_pipeline/lib/dates.ts';
 import {
   type FailureKind,
   type HistoryGameEntry,
+  isObservedFailure,
   isPublished,
   readHotWindow,
 } from '#actions_pipeline/lib/historyStore.ts';
@@ -93,9 +94,12 @@ export type CheckModelsResult =
  *
  * True for a day that produced no game, and for one that published only
  * after an earlier model failed: {@link modelReliability} reads both, and a
- * model rescued by a later one every single day produces nothing else. A day
- * whose first attempt won records no `attemptModels`, so the common case
- * still asks OpenRouter nothing.
+ * model rescued by a later one every single day produces nothing else. A
+ * failover record also opens the gate, but the catalogue check removes only
+ * delisted ids: a model that stays listed and only ever fails over is never
+ * judged unreliable, and costs nothing while its fallback serves. A day whose first
+ * attempt won on the model it asked for records no `attemptModels`, so the
+ * common case still asks OpenRouter nothing.
  *
  * Exported so the gate can be checked without a network call.
  */
@@ -237,6 +241,8 @@ export function modelReliability(
     const dayKindByModel = new Map<string, FailureKind>();
     failureKinds.forEach((kind, index) => {
       const id = attemptModels[index];
+      // A model that only ever fails over is left to the catalogue check.
+      if (!isObservedFailure(kind)) return;
       if (id === undefined || dayKindByModel.has(id)) return;
       dayKindByModel.set(id, kind);
     });

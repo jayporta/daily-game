@@ -54,9 +54,10 @@ env:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    # Each active model gets one attempt, including a model call and browser
-    # smoke test. This bounds a provider that accepts the connection and then
-    # never answers, rather than letting GitHub's 6-hour default apply.
+    # Every active model is reached at most once, as a primary or a fallback,
+    # so the rotation size caps the attempts, each including a model call and
+    # browser smoke test. This bounds a provider that accepts the connection
+    # and then never answers, rather than letting GitHub's 6-hour default apply.
     #
     # Being killed by this cap is the one failure that skips
     # `failed_kept_previous` entirely, so the per-call caps are sized to fit
@@ -117,8 +118,9 @@ jobs:
           node actions_pipeline/callOpenRouter.ts "${args[@]}"
 
       # A rotation entry that has quietly disappeared is one reason a run
-      # fails on every attempt. The catalogue is free and unauthenticated,
-      # and the script asks for nothing on a day whose first attempt won.
+      # fails on every attempt. The catalogue is free and unauthenticated, and
+      # the script asks for nothing on a day whose first attempt won on the
+      # model it asked for.
       - name: Check the model rotation
         continue-on-error: true
         env:
