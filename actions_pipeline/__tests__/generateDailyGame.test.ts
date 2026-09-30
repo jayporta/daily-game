@@ -309,8 +309,17 @@ test('the stand-in moderators one attempt tries are bounded', async () => {
       throw new Error('rate limited');
     },
   };
+  // More unrequested models than the cap, so only the cap can stop the chain.
+  const models: ModelsConfig = {
+    ...WIDE_MODELS,
+    models: [
+      ...WIDE_MODELS.models,
+      { id: 'f/model:free', active: true, provider: 'openrouter' },
+      { id: 'g/model:free', active: true, provider: 'openrouter' },
+    ],
+  };
 
-  await generateDailyGame({ ...baseParams(), modelsConfig: WIDE_MODELS, client });
+  await generateDailyGame({ ...baseParams(), modelsConfig: models, client });
 
   for (const models of perAttempt) {
     assert.equal(models.length, MAX_MODERATION_FALLBACKS + 1);
@@ -845,9 +854,10 @@ test('no model requested for the generation moderates the game', async () => {
   }
 });
 
-// With three active models every one is requested, so the stand-in falls back
-// to any model other than the primary and the one that served.
+// Every model in a two-model rotation is requested, so the stand-in is any
+// model but the one that served.
 test('a rotation too small to spare a requested model still has a stand-in moderator', async () => {
+  const twoModels: ModelsConfig = { ...MODELS, models: MODELS.models.slice(0, 2) };
   const asked: string[] = [];
   const client: OpenRouterClient = {
     async complete({ model, messages }) {
@@ -860,10 +870,10 @@ test('a rotation too small to spare a requested model still has a stand-in moder
     },
   };
 
-  const result = await generateDailyGame({ ...baseParams(), client });
+  const result = await generateDailyGame({ ...baseParams(), modelsConfig: twoModels, client });
 
   assert.equal(result.status, 'success');
-  assert.deepEqual(asked, ['mod/model:free', 'c/model:free']);
+  assert.deepEqual(asked, ['mod/model:free', 'a/model:free']);
 });
 
 /** A client whose generation calls all throw, recording each request. */

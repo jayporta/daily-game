@@ -49,7 +49,8 @@ export const MAX_MODERATION_FALLBACKS = 2;
  *
  * No requested model moderates, as a served id that resolved to the primary
  * may hide which one wrote the game. A rotation too small to spare one falls
- * back to excluding only the primary and the model that served.
+ * back to excluding only the model that served, which is the primary when the
+ * served id was ambiguous.
  *
  * @param rotation - Every id in the active rotation, in order.
  * @param requested - The generation's primary followed by its fallbacks.
@@ -64,10 +65,7 @@ function standInModerators(
 ): string[] {
   const others = rotation.filter((id) => id !== moderationModel);
   const unrequested = others.filter((id) => !requested.includes(id));
-  const pool =
-    unrequested.length > 0
-      ? unrequested
-      : others.filter((id) => id !== requested[0] && id !== served);
+  const pool = unrequested.length > 0 ? unrequested : others.filter((id) => id !== served);
   return pool.slice(0, MAX_MODERATION_FALLBACKS);
 }
 

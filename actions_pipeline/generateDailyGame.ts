@@ -137,9 +137,8 @@ export async function generateDailyGame({
       log: (message) => log(`[Attempt ${attempt}] ${message}`),
     });
 
-    // Models OpenRouter skipped on the way to the one that answered get a kind
-    // and a model, ahead of the attempt's own outcome, on success too. They
-    // write no reason: nothing was seen to fail, so there is no prose to record.
+    // Models OpenRouter skipped get a kind and a model, ahead of the attempt's
+    // own outcome, on success too, but no reason: nothing was seen to fail.
     for (const skipped of outcome.failedOver) {
       kinds.push('generation-failover');
       attemptModels.push(skipped);

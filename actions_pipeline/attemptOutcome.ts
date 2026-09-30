@@ -13,8 +13,9 @@ import { EXTRACTION_RETRY_FEEDBACK } from '#lib/extractBundleShared.ts';
 /** Which models an attempt's generation call went through. */
 export interface AttemptProvenance {
   /**
-   * The model that answered, which is the primary unless the call threw or
-   * OpenRouter failed over. Everything from extraction onwards is charged to it.
+   * The model that answered, which is the primary unless OpenRouter failed
+   * over. A call that threw is charged to the primary. Everything from
+   * extraction onwards is charged to it.
    */
   readonly served: string;
   /** Requested models ahead of {@link served} that did not answer, in request order. */
