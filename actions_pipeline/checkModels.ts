@@ -22,7 +22,7 @@ import { isoDate } from '#actions_pipeline/lib/dates.ts';
 import {
   type FailureKind,
   type HistoryGameEntry,
-  isModelFault,
+  isObservedFailure,
   isPublished,
   readHotWindow,
 } from '#actions_pipeline/lib/historyStore.ts';
@@ -242,7 +242,7 @@ export function modelReliability(
     failureKinds.forEach((kind, index) => {
       const id = attemptModels[index];
       // A model that only ever fails over is left to the catalogue check.
-      if (!isModelFault(kind)) return;
+      if (!isObservedFailure(kind)) return;
       if (id === undefined || dayKindByModel.has(id)) return;
       dayKindByModel.set(id, kind);
     });

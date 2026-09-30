@@ -876,6 +876,28 @@ test('a rotation too small to spare a requested model still has a stand-in moder
   assert.deepEqual(asked, ['mod/model:free', 'a/model:free']);
 });
 
+// A four-model rotation spares one unrequested model, so a requested one that
+// did not serve fills the second stand-in slot.
+test('stand-in moderators fill the cap from requested models that did not serve', async () => {
+  const fourModels: ModelsConfig = { ...WIDE_MODELS, models: WIDE_MODELS.models.slice(0, 5) };
+  const asked: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (!isModerationRequest(messages)) {
+        return { text: loadFixture('goodMaze'), stop: 'complete', model };
+      }
+      asked.push(model);
+      if (model === 'mod/model:free' || model === 'd/model:free') throw new Error('rate limited');
+      return { text: 'PASS', stop: 'complete', model };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), modelsConfig: fourModels, client });
+
+  assert.equal(result.status, 'success');
+  assert.deepEqual(asked, ['mod/model:free', 'd/model:free', 'b/model:free']);
+});
+
 /** A client whose generation calls all throw, recording each request. */
 function alwaysThrowing(seen: CompletionRequest[]): OpenRouterClient {
   return {

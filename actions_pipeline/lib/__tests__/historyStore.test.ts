@@ -7,7 +7,7 @@ import type { HistoryGameEntry } from '#actions_pipeline/lib/historyStore.ts';
 import {
   appendEntry,
   FAILURE_KINDS,
-  isModelFault,
+  isObservedFailure,
   lastPublishedEntry,
   patchEntry,
   publishedEntryOn,
@@ -33,9 +33,9 @@ function scratchDir(t: { after(fn: () => void): void }): string {
   return dir;
 }
 
-test('isModelFault is false only for the failover kind', () => {
+test('isObservedFailure is false only for the failover kind', () => {
   for (const kind of FAILURE_KINDS) {
-    assert.equal(isModelFault(kind), kind !== 'generation-failover', kind);
+    assert.equal(isObservedFailure(kind), kind !== 'generation-failover', kind);
   }
 });
 

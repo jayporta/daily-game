@@ -57,11 +57,11 @@ export const FAILURE_KINDS = [
 export type FailureKind = (typeof FAILURE_KINDS)[number];
 
 /**
- * Whether a record of this kind counts as a fault of the model it is charged
- * to. False only for `generation-failover`, whose cause nobody saw, so
- * nothing that judges a model or writes about a failure should read it.
+ * Whether a record of this kind is a failure that was seen. False only for
+ * `generation-failover`, whose cause nobody saw, so nothing that judges a
+ * model or writes about a failure should read it.
  */
-export function isModelFault(kind: FailureKind): boolean {
+export function isObservedFailure(kind: FailureKind): boolean {
   return kind !== 'generation-failover';
 }
 
