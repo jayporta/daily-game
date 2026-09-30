@@ -46,7 +46,7 @@ export const FORCED_MODEL_ATTEMPTS = 3;
  * within the same request in about half a second. Only the generation call
  * carries them; a `forceModel` run sends none.
  */
-export const GENERATION_FALLBACKS = 2;
+const GENERATION_FALLBACKS = 2;
 
 export interface GenerateDailyGameParams {
   client: OpenRouterClient;

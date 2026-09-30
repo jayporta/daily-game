@@ -82,9 +82,10 @@ interface HistoryEntryCommon {
    *
    * On a `failed_kept_previous` entry, every attempt that day. On a
    * `published` entry, only the attempts that failed before the one that
-   * eventually succeeded — absent, or empty, when the first attempt won on the model it asked for.
-   * Either kind also carries a `generation-failover` record for each model
-   * that failed over, which has no `failureReasons` line. Drawn from {@link FAILURE_KINDS}, so `buildPrompt.ts` can turn a
+   * eventually succeeded — absent, or empty, when the first attempt won on
+   * the model it asked for. Either kind also carries a `generation-failover`
+   * record for each model that failed over, which has no `failureReasons`
+   * line. Drawn from {@link FAILURE_KINDS}, so `buildPrompt.ts` can turn a
    * recurring failure into fixed guidance without quoting anything a model
    * wrote.
    */

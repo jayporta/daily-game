@@ -100,8 +100,6 @@ async function sentBody(
   return body;
 }
 
-// OpenRouter reads `models` first when both are present, but a body carrying
-// both says two different things about which model is wanted.
 test('fallback models are sent as an ordered `models` list with no `model` key', async () => {
   const body = await sentBody({
     model: 'a/primary:free',

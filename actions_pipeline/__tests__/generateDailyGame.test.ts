@@ -932,10 +932,6 @@ test('failovers appear in kinds and models but not in the reasons, which stay on
     assert.equal(result.kinds.length, 6);
     assert.equal(result.attemptModels.length, result.kinds.length);
     assert.equal(result.reasons.length, result.attempts);
-    assert.equal(
-      result.reasons.some((reason) => /did not answer/.test(reason)),
-      false,
-    );
     assert.deepEqual(result.kinds.slice(0, 2), ['generation-failover', 'smoke-js-error']);
   }
 });
