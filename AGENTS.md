@@ -4,8 +4,9 @@ This file provides guidance to AI when working with code in this repository.
 
 ## Git
 
-- Never run `git add`, `git commit`, or `git push` unless given explicit permission by the repo owner.
-- Ignore global rule to load skills/conventional-commits for this codebase only.
+- This project does not use Conventional Commits, overriding the global
+  `conventional-commits` rule: sentence-case imperative subjects with no
+  type prefix.
 - Confirm before reconfiguring the GitHub remote or Pages, and before
   provisioning real OpenRouter or Sentry credentials.
 
@@ -141,10 +142,13 @@ refactor.
   all count as rejections. A false rejection costs a retry; a false
   acceptance publishes banned content to a public site.
 - **Exhausting the model rotation is a successful run.** An ordinary run
-  attempts each active model in `config/models.json` exactly once, so the
+  makes one attempt per active model in `config/models.json`, so the
   attempt count is the size of the rotation — seven today, not a number
   written down anywhere. (`forceModel` is the exception: that path is bounded
-  by `FORCED_MODEL_ATTEMPTS`.) When the last one fails the run records
+  by `FORCED_MODEL_ATTEMPTS`.) Each attempt's generation request also carries
+  the next two rotation models as OpenRouter-side fallbacks, and history
+  records the model that served plus a `generation-failover` record for each
+  that failed over, which counts for or against no model. When the last one fails the run records
   `failed_kept_previous`, leaves the live site serving the game it already
   had, and exits green. Only an unexpected crash is a CI failure.
 
