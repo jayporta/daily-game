@@ -9,6 +9,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Automatic forward motion, Steer left/right to change lanes, Avoid barriers that appear on the track, Collect energy cells to increase score
 - model: nvidia/nemotron-3-super-120b-a12b:free
 - attempts: 7
+- reactions: -1
+- likes: 0
+- dislikes: 1
+- disliked for: gameplay-broken: 1, controls-unclear: 1
 
 ## 2026-09-29 — Beat Bounce
 
