@@ -198,6 +198,24 @@ test('readHotWindow accepts a published entry carrying prior-attempt evidence', 
   assert.deepEqual(entry?.attemptModels, ['a/model:free']);
 });
 
+test('readHotWindow accepts the failover kind alongside a real failure', (t) => {
+  const dir = scratchDir(t);
+  const file = join(dir, 'games.json');
+  writeFileSync(
+    file,
+    JSON.stringify([
+      {
+        ...PUBLISHED,
+        failureKinds: ['generation-failover', 'smoke-js-error'],
+        attemptModels: ['a/model:free', 'b/model:free'],
+      },
+    ]),
+    'utf8',
+  );
+
+  assert.deepEqual(readHotWindow(file)[0]?.failureKinds, ['generation-failover', 'smoke-js-error']);
+});
+
 test('readHotWindow rejects a published entry whose failureKinds is outside the closed vocabulary', (t) => {
   const dir = scratchDir(t);
   const file = join(dir, 'games.json');

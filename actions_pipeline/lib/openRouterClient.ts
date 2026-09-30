@@ -14,6 +14,7 @@ import {
   firstChoiceFinishReason,
   OPENROUTER_MAX_OUTPUT_TOKENS,
   responseErrorDetail,
+  servedModel,
   streamedError,
   streamedFrames,
 } from '#lib/providerResponse.ts';
@@ -30,6 +31,22 @@ export interface ChatMessage {
 export interface CompletionRequest {
   /** OpenRouter model id, such as `openai/gpt-4o-mini`. */
   readonly model: string;
+  /**
+   * Further model ids, in order, for OpenRouter to try if `model` errors
+   * before its stream starts. Empty or absent sends plain `model`.
+   *
+   * @remarks
+   * Failover happens on OpenRouter's side, within one request. Its limits: a
+   * chain that fails entirely surfaces only the last model's error, so its
+   * quota classification comes from that one error and a mixed outage can read
+   * as quota-exhausted; a thrown
+   * call is not attributed to whichever model served, only a completed one
+   * names it in {@link CompletionResult.model}; and the idle deadline also
+   * bounds time-to-headers, so a primary that takes over
+   * {@link OPENROUTER_IDLE_TIMEOUT_MS} to refuse aborts the request before any
+   * fallback runs.
+   */
+  readonly fallbackModels?: readonly string[];
   /** The conversation to send, in order. */
   readonly messages: ChatMessage[];
   /** Sampling temperature. Moderation uses `0`; generation wants variety. */
@@ -54,6 +71,12 @@ export interface CompletionResult {
   readonly text: string;
   /** How the response ended — see {@link ProviderStopReason}. */
   readonly stop: ProviderStopReason;
+  /**
+   * Which requested id served the response: `request.model` or one of its
+   * `fallbackModels`. Falls back to `request.model` when the stream never
+   * named a model or named one matching none of them.
+   */
+  readonly model: string;
 }
 
 /**
@@ -269,6 +292,7 @@ export function createOpenRouterClient({
   return {
     async complete({
       model,
+      fallbackModels = [],
       messages,
       temperature,
       timeoutMs: requestTimeoutMs,
@@ -283,7 +307,7 @@ export function createOpenRouterClient({
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model,
+            ...(fallbackModels.length > 0 ? { models: [model, ...fallbackModels] } : { model }),
             messages,
             temperature,
             max_tokens: OPENROUTER_MAX_OUTPUT_TOKENS,
@@ -298,7 +322,7 @@ export function createOpenRouterClient({
         // Awaited, not returned: `finally` runs the moment an async function
         // returns, so handing back the promise unawaited would clear both
         // timers before a single frame had been read.
-        return await readStream(response, deadlines.bump);
+        return await readStream(response, deadlines.bump, model, fallbackModels);
       } finally {
         deadlines.close();
       }
@@ -306,18 +330,61 @@ export function createOpenRouterClient({
   };
 }
 
+/** A model id without its `:variant` suffix (`:free`, `:nitro`, ...). */
+function baseModelId(id: string): string {
+  const colon = id.indexOf(':');
+  return colon === -1 ? id : id.slice(0, colon);
+}
+
+/**
+ * Maps the model id a stream reported back to the id that was requested.
+ *
+ * @remarks
+ * A provider may report its own spelling of a requested id, such as dropping
+ * the `:free` suffix, so an exact match is tried first and then a match on the
+ * base id with any `:variant` suffix stripped from both sides.
+ *
+ * @param served The id from the stream's frames, or `null` when none carried one.
+ * @param primary The request's `model`.
+ * @param fallbacks The request's `fallbackModels`, in order.
+ * @returns The matching requested id, or `primary` when nothing matches, so a
+ *   result never names a model that was not asked for.
+ */
+export function resolveServedModel(
+  served: string | null,
+  primary: string,
+  fallbacks: readonly string[],
+): string {
+  if (served === null) return primary;
+  const requested = [primary, ...fallbacks];
+  const servedBase = baseModelId(served);
+  return (
+    requested.find((id) => id === served) ??
+    requested.find((id) => baseModelId(id) === servedBase) ??
+    primary
+  );
+}
+
 /**
  * Assembles one completion from its stream.
  *
  * @param onBytes Called for every chunk of the body, to reset the idle clock.
+ * @param model The request's primary model, for {@link resolveServedModel}.
+ * @param fallbackModels The request's fallbacks, for {@link resolveServedModel}.
  * @throws {OpenRouterHttpError} For a failure reported inside the stream that
  *   named a status, so an exhausted quota is classified the same whether
  *   OpenRouter refuses with a status or accepts and then gives up.
  * @throws {Error} For a stream that ends having produced no text at all, and
  *   for one cut short by either deadline.
  */
-async function readStream(response: Response, onBytes: () => void): Promise<CompletionResult> {
+async function readStream(
+  response: Response,
+  onBytes: () => void,
+  model: string,
+  fallbackModels: readonly string[],
+): Promise<CompletionResult> {
   let text = '';
+  let served: string | null = null;
   // The last stop reason any frame reported. Providers send it on a final
   // frame carrying no text, so it cannot be read off the fragments.
   let stop: ProviderStopReason = 'complete';
@@ -331,6 +398,7 @@ async function readStream(response: Response, onBytes: () => void): Promise<Comp
           : new OpenRouterHttpError(failure.status, failure.message);
       }
 
+      served ??= servedModel(data);
       stop = classifyStopReason(firstChoiceFinishReason(data)) ?? stop;
       text += firstChoiceDelta(data) ?? '';
     }
@@ -342,5 +410,5 @@ async function readStream(response: Response, onBytes: () => void): Promise<Comp
   if (text.length === 0) {
     throw new Error('OpenRouter stream carried no content');
   }
-  return { text, stop };
+  return { text, stop, model: resolveServedModel(served, model, fallbackModels) };
 }

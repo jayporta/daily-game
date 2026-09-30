@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import {
   FORCED_MODEL_ATTEMPTS,
+  GENERATION_FALLBACKS,
   generateDailyGame,
-  MAX_MODERATION_FALLBACKS,
 } from '#actions_pipeline/generateDailyGame.ts';
 import type { GenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
 import { loadGenresConfig } from '#actions_pipeline/lib/config/genres.ts';
@@ -13,6 +13,7 @@ import type { HistorySummary } from '#actions_pipeline/lib/historyStore.ts';
 import { EMPTY_SUMMARY } from '#actions_pipeline/lib/historyStore.ts';
 import { createMockOpenRouterClient } from '#actions_pipeline/lib/openRouterClient.mock.ts';
 import {
+  type CompletionRequest,
   type OpenRouterClient,
   OpenRouterHttpError,
 } from '#actions_pipeline/lib/openRouterClient.ts';
@@ -22,6 +23,7 @@ import {
   scriptedClient,
 } from '#actions_pipeline/lib/testFixtures.ts';
 import { isModerationRequest } from '#actions_pipeline/moderate.ts';
+import { MAX_MODERATION_FALLBACKS } from '#actions_pipeline/runAttempt.ts';
 import { createSmokeTester, type SmokeTester } from '#actions_pipeline/smokeTest.ts';
 
 const GUARDRAILS = loadGuardrails();
@@ -135,9 +137,9 @@ test('retries after an unparseable response', async () => {
 // stop reason is what tells the two apart in the recorded failure.
 test('an extraction failure caused by truncation names the output cap, not just the missing block', async () => {
   const client: OpenRouterClient = {
-    async complete({ messages }) {
-      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
-      return { text: loadFixture('badMalformedBlocks'), stop: 'truncated' };
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete', model };
+      return { text: loadFixture('badMalformedBlocks'), stop: 'truncated', model };
     },
   };
 
@@ -201,9 +203,9 @@ test('a moderation rejection is tagged as one', async () => {
 // reads as a content violation the game never committed.
 test('an unreachable moderator is recorded as a call failure, not a content rejection', async () => {
   const client: OpenRouterClient = {
-    async complete({ messages }) {
+    async complete({ model, messages }) {
       if (isModerationRequest(messages)) throw new Error('rate limited');
-      return { text: loadFixture('goodMaze'), stop: 'complete' };
+      return { text: loadFixture('goodMaze'), stop: 'complete', model };
     },
   };
 
@@ -228,12 +230,12 @@ test('a genre outside the catalogue is rejected before moderation', async () => 
     '```html\n<!doctype html><html><body><canvas id="c"></canvas></body></html>\n```';
   let moderated = false;
   const client: OpenRouterClient = {
-    async complete({ messages }) {
+    async complete({ model, messages }) {
       if (isModerationRequest(messages)) {
         moderated = true;
-        return { text: 'PASS', stop: 'complete' };
+        return { text: 'PASS', stop: 'complete', model };
       }
-      return { text: skeleton, stop: 'complete' };
+      return { text: skeleton, stop: 'complete', model };
     },
   };
 
@@ -252,12 +254,12 @@ test('a genre outside the catalogue is rejected before moderation', async () => 
 test('placeholder metadata is rejected even when the genre is valid and the page renders text', async () => {
   let moderated = false;
   const client: OpenRouterClient = {
-    async complete({ messages }) {
+    async complete({ model, messages }) {
       if (isModerationRequest(messages)) {
         moderated = true;
-        return { text: 'PASS', stop: 'complete' };
+        return { text: 'PASS', stop: 'complete', model };
       }
-      return { text: loadFixture('badPlaceholderMeta'), stop: 'complete' };
+      return { text: loadFixture('badPlaceholderMeta'), stop: 'complete', model };
     },
   };
 
@@ -283,14 +285,14 @@ test('a stand-in moderator answers when the dedicated one cannot be reached', as
   const client: OpenRouterClient = {
     async complete({ model, messages }) {
       if (!isModerationRequest(messages))
-        return { text: loadFixture('goodMaze'), stop: 'complete' };
+        return { text: loadFixture('goodMaze'), stop: 'complete', model };
       asked.push(model);
       if (model === 'mod/model:free') throw new Error('rate limited');
-      return { text: 'PASS', stop: 'complete' };
+      return { text: 'PASS', stop: 'complete', model };
     },
   };
 
-  const result = await generateDailyGame({ ...baseParams(), client });
+  const result = await generateDailyGame({ ...baseParams(), modelsConfig: WIDE_MODELS, client });
 
   assert.equal(result.status, 'success');
   assert.equal(asked[0], 'mod/model:free');
@@ -305,7 +307,7 @@ test('the stand-in moderators one attempt tries are bounded', async () => {
     async complete({ model, messages }) {
       if (!isModerationRequest(messages)) {
         perAttempt.push([]);
-        return { text: loadFixture('goodMaze'), stop: 'complete' };
+        return { text: loadFixture('goodMaze'), stop: 'complete', model };
       }
       perAttempt.at(-1)?.push(model);
       throw new Error('rate limited');
@@ -323,10 +325,10 @@ test('the stand-in moderators one attempt tries are bounded', async () => {
 test('an unreachable moderator does not tell the next attempt it broke the content rules', async () => {
   const prompts: string[] = [];
   const client: OpenRouterClient = {
-    async complete({ messages }) {
+    async complete({ model, messages }) {
       if (isModerationRequest(messages)) throw new Error('rate limited');
       prompts.push(messages.at(-1)?.content ?? '');
-      return { text: loadFixture('goodMaze'), stop: 'complete' };
+      return { text: loadFixture('goodMaze'), stop: 'complete', model };
     },
   };
 
@@ -354,10 +356,10 @@ test('a run whose every attempt is refused for capacity is marked quota exhauste
 test('a run that fails for mixed reasons is not marked quota exhausted, but is quota affected', async () => {
   let calls = 0;
   const client: OpenRouterClient = {
-    async complete({ messages }) {
-      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete', model };
       calls += 1;
-      if (calls === 1) return { text: loadFixture('badJsError'), stop: 'complete' };
+      if (calls === 1) return { text: loadFixture('badJsError'), stop: 'complete', model };
       throw new OpenRouterHttpError(429, 'rate limited');
     },
   };
@@ -372,11 +374,11 @@ test('a run that fails for mixed reasons is not marked quota exhausted, but is q
 test('a successful run is quota affected when an earlier attempt was refused for capacity', async () => {
   let calls = 0;
   const client: OpenRouterClient = {
-    async complete({ messages }) {
-      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete', model };
       calls += 1;
       if (calls === 1) throw new OpenRouterHttpError(429, 'rate limited');
-      return { text: loadFixture('goodMaze'), stop: 'complete' };
+      return { text: loadFixture('goodMaze'), stop: 'complete', model };
     },
   };
 
@@ -399,13 +401,13 @@ test('a successful run is quota affected when its own moderation call needed a f
     async complete({ model, messages }) {
       if (isModerationRequest(messages)) {
         if (model === 'mod/model:free') throw new OpenRouterHttpError(429, 'rate limited');
-        return { text: 'PASS', stop: 'complete' };
+        return { text: 'PASS', stop: 'complete', model };
       }
-      return { text: loadFixture('goodMaze'), stop: 'complete' };
+      return { text: loadFixture('goodMaze'), stop: 'complete', model };
     },
   };
 
-  const result = await generateDailyGame({ ...baseParams(), client });
+  const result = await generateDailyGame({ ...baseParams(), modelsConfig: WIDE_MODELS, client });
 
   assert.equal(result.status, 'success');
   if (result.status === 'success') {
@@ -419,16 +421,16 @@ test('a successful run is quota affected when its own moderation call needed a f
 test('a moderator refused for capacity marks the attempt quota affected, without exhausting the quota', async () => {
   let attempt = 0;
   const client: OpenRouterClient = {
-    async complete({ messages }) {
+    async complete({ model, messages }) {
       if (isModerationRequest(messages)) {
         // Only the middle attempt's moderator (and its fallbacks) is out of capacity.
         if (attempt === 2) throw new OpenRouterHttpError(429, 'rate limited');
-        return { text: 'PASS', stop: 'complete' };
+        return { text: 'PASS', stop: 'complete', model };
       }
       attempt += 1;
       // Passes moderation but fails the smoke test — a non-quota failure for
       // the attempts that are not the middle one.
-      return { text: loadFixture('badJsError'), stop: 'complete' };
+      return { text: loadFixture('badJsError'), stop: 'complete', model };
     },
   };
 
@@ -450,13 +452,13 @@ test('every attempt hitting capacity mid-chain but rejected on content is not qu
     async complete({ model, messages }) {
       if (isModerationRequest(messages)) {
         if (model === 'mod/model:free') throw new OpenRouterHttpError(429, 'rate limited');
-        return { text: 'FAIL: depicts a banned character', stop: 'complete' };
+        return { text: 'FAIL: depicts a banned character', stop: 'complete', model };
       }
-      return { text: loadFixture('goodMaze'), stop: 'complete' };
+      return { text: loadFixture('goodMaze'), stop: 'complete', model };
     },
   };
 
-  const result = await generateDailyGame({ ...baseParams(), client });
+  const result = await generateDailyGame({ ...baseParams(), modelsConfig: WIDE_MODELS, client });
 
   assert.equal(result.status, 'failed_kept_previous');
   assert.equal(result.quotaExhausted, false);
@@ -503,9 +505,9 @@ test('tries every active model once before giving up', async () => {
   const modelsSeen: string[] = [];
   const client: OpenRouterClient = {
     async complete({ model, messages }) {
-      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete', model };
       modelsSeen.push(model);
-      return { text: loadFixture('badJsError'), stop: 'complete' };
+      return { text: loadFixture('badJsError'), stop: 'complete', model };
     },
   };
 
@@ -536,9 +538,9 @@ test('attemptModels records which model made each attempt, not the one rotated i
   const modelsSeen: string[] = [];
   const client: OpenRouterClient = {
     async complete({ model, messages }) {
-      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete', model };
       modelsSeen.push(model);
-      return { text: loadFixture('badJsError'), stop: 'complete' };
+      return { text: loadFixture('badJsError'), stop: 'complete', model };
     },
   };
 
@@ -556,9 +558,9 @@ test('a forced model still gives up after FORCED_MODEL_ATTEMPTS, however many mo
   const modelsSeen: string[] = [];
   const client: OpenRouterClient = {
     async complete({ model, messages }) {
-      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete', model };
       modelsSeen.push(model);
-      return { text: loadFixture('badJsError'), stop: 'complete' };
+      return { text: loadFixture('badJsError'), stop: 'complete', model };
     },
   };
 
@@ -577,9 +579,9 @@ test('forceModel pins every attempt to one model', async () => {
   const modelsSeen: string[] = [];
   const client: OpenRouterClient = {
     async complete({ model, messages }) {
-      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete', model };
       modelsSeen.push(model);
-      return { text: loadFixture('badJsError'), stop: 'complete' };
+      return { text: loadFixture('badJsError'), stop: 'complete', model };
     },
   };
 
@@ -595,11 +597,11 @@ test('forceModel pins every attempt to one model', async () => {
 test('a failing generation call is retried rather than crashing the run', async () => {
   let calls = 0;
   const client: OpenRouterClient = {
-    async complete({ messages }) {
-      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete', model };
       calls += 1;
       if (calls === 1) throw new Error('rate limited');
-      return { text: loadFixture('goodMaze'), stop: 'complete' };
+      return { text: loadFixture('goodMaze'), stop: 'complete', model };
     },
   };
 
@@ -611,11 +613,11 @@ test('a failing generation call is retried rather than crashing the run', async 
 test('the previous failure is fed back into the next prompt', async () => {
   const prompts: string[] = [];
   const client: OpenRouterClient = {
-    async complete({ messages }) {
-      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete', model };
       prompts.push(messages.at(-1)?.content ?? '');
       const fixture = prompts.length === 1 ? loadFixture('badJsError') : loadFixture('goodMaze');
-      return { text: fixture, stop: 'complete' };
+      return { text: fixture, stop: 'complete', model };
     },
   };
 
@@ -632,10 +634,10 @@ test('the previous failure is fed back into the next prompt', async () => {
 test('a successful run returns the exact prompt sent on the winning attempt', async () => {
   const sentPrompts: string[] = [];
   const client: OpenRouterClient = {
-    async complete({ messages }) {
-      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete' };
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) return { text: 'PASS', stop: 'complete', model };
       sentPrompts.push(messages.at(-1)?.content ?? '');
-      return { text: loadFixture('goodMaze'), stop: 'complete' };
+      return { text: loadFixture('goodMaze'), stop: 'complete', model };
     },
   };
 
@@ -692,4 +694,237 @@ test('a run that is not verbose logs nothing at all', async () => {
   });
 
   assert.deepEqual(lines, []);
+});
+
+/**
+ * A client whose generation calls are served by `serve(request)` whatever
+ * model they asked for, as OpenRouter does after a failover. Moderation is
+ * approved by the model it asked for. Every generation request is pushed onto
+ * `seen`.
+ */
+function failingOver(
+  serve: (request: CompletionRequest) => string,
+  texts: readonly string[],
+  seen: CompletionRequest[],
+): OpenRouterClient {
+  return {
+    async complete(request) {
+      if (isModerationRequest(request.messages)) {
+        return { text: 'PASS', stop: 'complete', model: request.model };
+      }
+      const text = texts[Math.min(seen.length, texts.length - 1)] ?? '';
+      seen.push(request);
+      return { text, stop: 'complete', model: serve(request) };
+    },
+  };
+}
+
+test('each generation request carries the next two rotation models as fallbacks', async () => {
+  const seen: CompletionRequest[] = [];
+  await generateDailyGame({
+    ...baseParams(),
+    modelsConfig: WIDE_MODELS,
+    client: failingOver((request) => request.model, [loadFixture('goodMaze')], seen),
+  });
+
+  assert.equal(GENERATION_FALLBACKS, 2);
+  assert.equal(seen[0]?.model, 'a/model:free');
+  assert.deepEqual(seen[0]?.fallbackModels, ['b/model:free', 'c/model:free']);
+});
+
+test('a forced model gets no fallbacks', async () => {
+  const seen: CompletionRequest[] = [];
+  await generateDailyGame({
+    ...baseParams(),
+    modelsConfig: WIDE_MODELS,
+    forceModel: 'forced/model:free',
+    client: failingOver((request) => request.model, [loadFixture('goodMaze')], seen),
+  });
+
+  assert.ok(seen.length > 0, 'the generation call should have been made');
+  assert.deepEqual(seen[0]?.fallbackModels ?? [], []);
+});
+
+test('moderation requests carry no generation fallbacks', async () => {
+  const moderationRequests: CompletionRequest[] = [];
+  const client: OpenRouterClient = {
+    async complete(request) {
+      if (!isModerationRequest(request.messages)) {
+        return { text: loadFixture('goodMaze'), stop: 'complete', model: request.model };
+      }
+      moderationRequests.push(request);
+      return { text: 'PASS', stop: 'complete', model: request.model };
+    },
+  };
+  await generateDailyGame({ ...baseParams(), client });
+
+  assert.ok(moderationRequests.length > 0);
+  for (const request of moderationRequests) assert.equal(request.fallbackModels, undefined);
+});
+
+test('a game served by a fallback is recorded under the fallback, and the primary as failed over', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: failingOver(() => 'b/model:free', [loadFixture('goodMaze')], []),
+  });
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.equal(result.model, 'b/model:free');
+    assert.equal(result.attempts, 1);
+    assert.deepEqual(result.kinds, ['generation-failover']);
+    assert.deepEqual(result.attemptModels, ['a/model:free']);
+    assert.equal(result.quotaAffected, false, 'a silent failover has an unknown cause');
+  }
+});
+
+test('every model ahead of the one that served is recorded as failed over', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: failingOver(() => 'c/model:free', [loadFixture('goodMaze')], []),
+  });
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.equal(result.model, 'c/model:free');
+    assert.deepEqual(result.kinds, ['generation-failover', 'generation-failover']);
+    assert.deepEqual(result.attemptModels, ['a/model:free', 'b/model:free']);
+  }
+});
+
+test('a failure after a failover is attributed to the model that served', async () => {
+  const seen: CompletionRequest[] = [];
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: failingOver(
+      (request) => (seen.length === 1 ? 'b/model:free' : request.model),
+      [loadFixture('badJsError'), loadFixture('goodMaze')],
+      seen,
+    ),
+  });
+
+  assert.equal(result.status, 'success');
+  if (result.status === 'success') {
+    assert.deepEqual(result.kinds, ['generation-failover', 'smoke-js-error']);
+    assert.deepEqual(result.attemptModels, ['a/model:free', 'b/model:free']);
+  }
+});
+
+// Moving on from the primary would hand the model that just failed to the
+// next attempt as its primary.
+test('the rotation moves on from the model that served, not the one asked for', async () => {
+  const seen: CompletionRequest[] = [];
+  await generateDailyGame({
+    ...baseParams(),
+    client: failingOver(
+      (request) => (seen.length === 1 ? 'b/model:free' : request.model),
+      [loadFixture('badJsError'), loadFixture('goodMaze')],
+      seen,
+    ),
+  });
+
+  assert.equal(seen[1]?.model, 'c/model:free');
+});
+
+// Nothing judges its own work. The author is whichever requested model
+// OpenRouter used, and a served id that resolved back to the primary can hide
+// a fallback that really wrote it, so no requested model moderates.
+test('no model requested for the generation moderates the game', async () => {
+  const asked: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (!isModerationRequest(messages)) {
+        return { text: loadFixture('goodMaze'), stop: 'complete', model: 'a/model:free' };
+      }
+      asked.push(model);
+      if (model === 'mod/model:free') throw new Error('rate limited');
+      return { text: 'PASS', stop: 'complete', model };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), modelsConfig: WIDE_MODELS, client });
+
+  assert.equal(result.status, 'success');
+  assert.ok(asked.length > 1, 'a stand-in should have been asked');
+  for (const requested of ['a/model:free', 'b/model:free', 'c/model:free']) {
+    assert.ok(!asked.includes(requested), `${requested} moderated a game it may have written`);
+  }
+});
+
+/** A client whose generation calls all throw, recording each request. */
+function alwaysThrowing(seen: CompletionRequest[]): OpenRouterClient {
+  return {
+    async complete(request) {
+      if (isModerationRequest(request.messages)) {
+        return { text: 'PASS', stop: 'complete', model: request.model };
+      }
+      seen.push(request);
+      throw new Error('everything is down');
+    },
+  };
+}
+
+test('a call that throws is attributed to the primary with no failover records', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    modelsConfig: WIDE_MODELS,
+    client: alwaysThrowing([]),
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.deepEqual(result.kinds, Array(5).fill('generation-call'));
+  assert.equal(new Set(result.attemptModels).size, 5, 'each attempt charged to its own primary');
+});
+
+// A thrown chain says nothing about which of its models was at fault, so the
+// next attempt starts past all of them rather than re-requesting the dead ones.
+test('after a call that throws the rotation moves on from the end of the chain', async () => {
+  const seen: CompletionRequest[] = [];
+  await generateDailyGame({
+    ...baseParams(),
+    modelsConfig: WIDE_MODELS,
+    client: alwaysThrowing(seen),
+  });
+
+  assert.deepEqual(
+    seen.slice(0, 2).map((request) => request.model),
+    ['a/model:free', 'd/model:free'],
+  );
+});
+
+test('failover records stay parallel across reasons, kinds and models', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: failingOver(
+      (request) => request.fallbackModels?.[0] ?? request.model,
+      [loadFixture('badJsError')],
+      [],
+    ),
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  if (result.status === 'failed_kept_previous') {
+    assert.equal(result.kinds.length, 6);
+    assert.equal(result.attemptModels.length, result.kinds.length);
+    assert.equal(result.reasons.length, result.kinds.length);
+    assert.match(
+      String(result.reasons[0]),
+      /^attempt 1 \(a\/model:free\): did not answer; served by b\/model:free$/,
+    );
+  }
+});
+
+test('the log says which model served when it was not the one asked for', async () => {
+  const lines: string[] = [];
+  await generateDailyGame({
+    ...baseParams(),
+    client: failingOver(() => 'b/model:free', [loadFixture('goodMaze')], []),
+    verbose: true,
+    log: (message) => lines.push(message),
+  });
+
+  assert.ok(
+    lines.some((line) => line.includes('served by b/model:free (fallback from a/model:free)')),
+    JSON.stringify(lines),
+  );
 });

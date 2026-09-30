@@ -222,7 +222,7 @@ export interface PublishParams {
    * evidence at all.
    */
   kinds?: readonly FailureKind[];
-  /** The model each of those attempts used, parallel to `kinds` by index. */
+  /** The model each of those records is charged to, parallel to `kinds` by index. */
   attemptModels?: readonly string[];
   /** Whether any of those attempts was refused for provider capacity. */
   quotaAffected?: boolean;
@@ -366,7 +366,7 @@ export function publish({
  *   parallel to it by index. These are what the next generation's prompt
  *   reads directly; `reasons` embed console output from AI-written games and
  *   reach a prompt only by way of the reflection note.
- * @param attemptModels The model each attempt used, parallel to `kinds` by
+ * @param attemptModels The model each record is charged to, parallel to `kinds` by
  *   index — what `checkModels.ts` reads to tell a model that is failing
  *   from one that merely rotated in once.
  * @param quotaAffected Set when any attempt — not necessarily every one —

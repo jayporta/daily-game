@@ -324,6 +324,8 @@ const FAILURE_DIRECTIVES: Record<FailureKind, string | null> = {
   moderation:
     'Recent attempts were rejected by the content rules. Re-read them and stay well ' +
     'clear of anything borderline.',
+  // A provider skipped a model before a fallback answered; nothing was written to fix.
+  'generation-failover': null,
   // The game was generated and parsed fine; the moderator never answered.
   'moderation-unreachable': null,
   'smoke-js-error':

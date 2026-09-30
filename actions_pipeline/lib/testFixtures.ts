@@ -46,9 +46,15 @@ export function sseResponse(frames: readonly unknown[]): Response {
   });
 }
 
-/** One OpenAI-shaped streaming frame carrying a fragment of the answer. */
-export function sseDelta(content: string, finishReason?: string): unknown {
+/**
+ * One OpenAI-shaped streaming frame carrying a fragment of the answer.
+ *
+ * @param model When given, stamped on the frame the way OpenRouter names the
+ *   model that served it.
+ */
+export function sseDelta(content: string, finishReason?: string, model?: string): unknown {
   return {
+    ...(model === undefined ? {} : { model }),
     choices: [{ delta: { content }, ...(finishReason ? { finish_reason: finishReason } : {}) }],
   };
 }
@@ -154,11 +160,12 @@ export function scriptedClient(
 ): OpenRouterClient {
   const remaining = [...generations];
   return {
-    async complete({ messages }) {
-      if (isModerationRequest(messages)) return { text: moderationVerdict, stop: 'complete' };
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages))
+        return { text: moderationVerdict, stop: 'complete', model };
       const next = remaining.shift();
       if (next === undefined) throw new Error('no generation fixture left');
-      return { text: next, stop: 'complete' };
+      return { text: next, stop: 'complete', model };
     },
   };
 }

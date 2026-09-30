@@ -31,6 +31,22 @@ export function firstChoiceDelta(data: unknown): string | null {
 }
 
 /**
+ * The model id a frame says served the response, read from its top-level
+ * `model` field.
+ *
+ * @remarks
+ * OpenRouter stamps every streamed frame with the model that produced it,
+ * which is the only way to learn which of several requested models answered.
+ * The id is the provider's spelling, so it may differ from the requested one.
+ *
+ * @returns `null` for a frame that carries no model, or an empty one.
+ */
+export function servedModel(data: unknown): string | null {
+  const model = stringAt(data, 'model');
+  return model === '' ? null : model;
+}
+
+/**
  * `choices[0].finish_reason` from an OpenAI-shaped response — the
  * non-streaming counterpart to reading it off a stream's final frame.
  */

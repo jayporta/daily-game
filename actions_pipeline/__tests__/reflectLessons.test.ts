@@ -66,8 +66,8 @@ function readLessons(root: string): string {
 
 function stubClient(reply: string): OpenRouterClient {
   return {
-    async complete() {
-      return { text: reply, stop: 'complete' };
+    async complete({ model }) {
+      return { text: reply, stop: 'complete', model };
     },
   };
 }
@@ -267,9 +267,9 @@ test('reflectLessons distils the recent window, not aged-out games', async (t) =
     root,
     model: 'mod/model:free',
     client: {
-      async complete({ messages }) {
+      async complete({ model, messages }) {
         seen = messages.map((message) => message.content).join('\n');
-        return { text: 'Guard every lookup.', stop: 'complete' };
+        return { text: 'Guard every lookup.', stop: 'complete', model };
       },
     },
   });
@@ -285,7 +285,7 @@ test('reflection asks for a shorter deadline than a generation gets', async () =
   const client: OpenRouterClient = {
     async complete(request) {
       requestedTimeoutMs = request.timeoutMs;
-      return { text: 'Guard every lookup.', stop: 'complete' };
+      return { text: 'Guard every lookup.', stop: 'complete', model: request.model };
     },
   };
 

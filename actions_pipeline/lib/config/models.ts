@@ -17,7 +17,7 @@ export interface ModelEntry {
   readonly id: string;
   /**
    * Whether the rotation includes this entry. Set `false` to retire a model
-   * without deleting it — an ordinary run attempts each active entry once, so
+   * without deleting it — an ordinary run makes one attempt per active entry, so
    * this also changes how many attempts a failing day gets.
    */
   readonly active: boolean;

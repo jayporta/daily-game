@@ -107,9 +107,9 @@ export interface GenerationFailureReport {
   readonly attempts: number;
   /** Free text, one per attempt. Each is truncated before it is sent. */
   readonly reasons: readonly string[];
-  /** The closed-vocabulary `FailureKind` ids for the same attempts. */
+  /** The closed-vocabulary `FailureKind` ids, one per record; an attempt can contribute several. */
   readonly kinds: readonly string[];
-  /** The model each attempt used, parallel to {@link GenerationFailureReport.kinds}. */
+  /** The model each record is charged to, parallel to {@link GenerationFailureReport.kinds}. */
   readonly attemptModels: readonly string[];
   readonly quotaExhausted: boolean;
   /** What `restoreManifestFromArchive` did, so a report says what the site is left serving. */

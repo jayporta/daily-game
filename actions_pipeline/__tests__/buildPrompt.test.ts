@@ -483,6 +483,21 @@ test('a recurring moderator outage hands the model no corrective wording', () =>
   assert.deepEqual(correctiveDirectives([outage]), []);
 });
 
+test('a recurring failover hands the model no corrective wording', () => {
+  // A fallback took over because a provider refused; nothing the model wrote
+  // was wrong, so guidance would describe a fault that was never its own.
+  const failover: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 3,
+    failureReasons: [],
+    failureKinds: ['generation-failover', 'generation-failover'],
+  };
+
+  assert.deepEqual(correctiveDirectives([failover]), []);
+});
+
 test('a recurring blank render tells the model to draw something', () => {
   const blank: FailedEntry = {
     date: '2026-08-29',

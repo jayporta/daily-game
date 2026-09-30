@@ -40,16 +40,17 @@ export function createMockOpenRouterClient({
 }: CreateMockOpenRouterClientOptions = {}): OpenRouterClient {
   let callIndex = 0;
   return {
-    async complete({ messages }: CompletionRequest): Promise<CompletionResult> {
-      if (isModerationRequest(messages)) return { text: moderationVerdict, stop: 'complete' };
-      if (isLessonsRequest(messages)) return { text: lessonsNote, stop: 'complete' };
+    async complete({ model, messages }: CompletionRequest): Promise<CompletionResult> {
+      if (isModerationRequest(messages))
+        return { text: moderationVerdict, stop: 'complete', model };
+      if (isLessonsRequest(messages)) return { text: lessonsNote, stop: 'complete', model };
 
       const fixture = fixtureSequence[callIndex];
       if (fixture === undefined) {
         throw new Error(`createMockOpenRouterClient: no fixture left for call #${callIndex + 1}`);
       }
       callIndex += 1;
-      return { text: fixture, stop: 'complete' };
+      return { text: fixture, stop: 'complete', model };
     },
   };
 }

@@ -5,6 +5,7 @@ import {
   classifyStopReason,
   firstChoiceDelta,
   firstChoiceFinishReason,
+  servedModel,
   streamedError,
   streamedFrames,
 } from '#lib/providerResponse.ts';
@@ -24,6 +25,21 @@ test('firstChoiceFinishReason reads choices[0].finish_reason', () => {
 test('firstChoiceFinishReason is null when the field is absent', () => {
   assert.equal(firstChoiceFinishReason({ choices: [{}] }), null);
   assert.equal(firstChoiceFinishReason({}), null);
+});
+
+test('servedModel reads the top-level model field', () => {
+  assert.equal(servedModel({ model: 'a/model:free', choices: [] }), 'a/model:free');
+});
+
+test('servedModel is null when the frame names no model', () => {
+  assert.equal(servedModel({ choices: [] }), null);
+  assert.equal(servedModel({ model: 7 }), null);
+  assert.equal(servedModel(null), null);
+});
+
+// An empty id names nothing, and the client's `??=` keeps looking only past a null.
+test('servedModel is null for an empty model, so a later frame can still name one', () => {
+  assert.equal(servedModel({ model: '' }), null);
 });
 
 test('classifyStopReason recognises every truncation spelling', () => {

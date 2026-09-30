@@ -91,9 +91,9 @@ test('a day that already published generates nothing', async (t) => {
 
   let generationCalls = 0;
   const client: OpenRouterClient = {
-    async complete() {
+    async complete({ model }) {
       generationCalls += 1;
-      return { text: '', stop: 'complete' };
+      return { text: '', stop: 'complete', model };
     },
   };
 

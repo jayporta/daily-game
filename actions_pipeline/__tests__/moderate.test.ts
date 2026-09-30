@@ -25,8 +25,8 @@ const GUARDRAILS = loadGuardrails();
 /** A moderator that always answers the same thing. */
 function stubModerator(reply: string): OpenRouterClient {
   return {
-    async complete() {
-      return { text: reply, stop: 'complete' };
+    async complete({ model }) {
+      return { text: reply, stop: 'complete', model };
     },
   };
 }
@@ -63,7 +63,7 @@ function moderatorPanel(
       asked.push(model);
       const reply = replies[model];
       if (reply === undefined || reply === null) throw new Error(`unreachable: ${model}`);
-      return { text: reply, stop: 'complete' };
+      return { text: reply, stop: 'complete', model };
     },
   };
 }
@@ -257,7 +257,7 @@ test('a capacity refusal earlier in the fallback chain is reported broadly, but 
     async complete({ model }) {
       asked.push(model);
       if (model === 'mod') throw new OpenRouterHttpError(429, 'rate limited');
-      return { text: 'FAIL', stop: 'complete' };
+      return { text: 'FAIL', stop: 'complete', model };
     },
   };
   const result = await moderate(client, {
@@ -283,7 +283,7 @@ test('a capacity refusal earlier in the fallback chain is still reported once a 
     async complete({ model }) {
       asked.push(model);
       if (model === 'mod') throw new OpenRouterHttpError(429, 'rate limited');
-      return { text: 'PASS', stop: 'complete' };
+      return { text: 'PASS', stop: 'complete', model };
     },
   };
   const result = await moderate(client, {
@@ -375,9 +375,9 @@ test('moderate rejects content only the AI check can catch', async () => {
 test('moderate skips the AI call once the keyword scan has already failed', async () => {
   let aiCalls = 0;
   const countingModerator: OpenRouterClient = {
-    async complete() {
+    async complete({ model }) {
       aiCalls += 1;
-      return { text: 'PASS', stop: 'complete' };
+      return { text: 'PASS', stop: 'complete', model };
     },
   };
   const { meta, html } = loadFixtureBundle('badGuardrailWord');
@@ -480,7 +480,7 @@ test('moderation asks for a shorter deadline than a generation gets', async () =
   const client: OpenRouterClient = {
     async complete(request) {
       requestedTimeoutMs = request.timeoutMs;
-      return { text: 'PASS', stop: 'complete' };
+      return { text: 'PASS', stop: 'complete', model: request.model };
     },
   };
 

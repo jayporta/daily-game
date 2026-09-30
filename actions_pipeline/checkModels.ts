@@ -237,6 +237,9 @@ export function modelReliability(
     const dayKindByModel = new Map<string, FailureKind>();
     failureKinds.forEach((kind, index) => {
       const id = attemptModels[index];
+      // A failover record is no evidence either way, and keying the model to
+      // it would hide the model's real record from the same day.
+      if (kind === 'generation-failover') return;
       if (id === undefined || dayKindByModel.has(id)) return;
       dayKindByModel.set(id, kind);
     });

@@ -25,7 +25,13 @@ import type { DislikeReason } from '#lib/reactionTypes.ts';
 export type HistoryStatus = 'published' | 'failed_kept_previous';
 
 /**
- * The closed set of ways one generation attempt can fail.
+ * The closed set of ways one generation attempt can fail, plus the record a
+ * failover leaves.
+ *
+ * `generation-failover` is not a failure of the model that wrote anything:
+ * it marks a model OpenRouter skipped for an unseen reason (a 429, a 503, a
+ * delisting) before a fallback answered, so nothing counts it against that
+ * model or turns it into guidance.
  *
  * Closed for the same reason {@link DislikeReason} is: the corrective wording
  * these select in `buildPrompt.ts` is ours, so nothing model-authored — a
@@ -35,6 +41,7 @@ export type HistoryStatus = 'published' | 'failed_kept_previous';
  */
 export const FAILURE_KINDS = [
   'generation-call',
+  'generation-failover',
   'extract',
   'unknown-genre',
   'placeholder-meta',
@@ -73,7 +80,9 @@ interface HistoryEntryCommon {
    */
   readonly failureKinds?: FailureKind[];
   /**
-   * The model id each attempt used, parallel to `failureKinds` by index.
+   * The model id each record in `failureKinds` is charged to, parallel to it by
+   * index. One attempt can contribute several: models that failed over ahead
+   * of the one that served each have a `generation-failover` record.
    *
    * Absent on entries written before it was recorded. Lets `checkModels.ts`
    * tell a model that is failing from one that merely rotated in once — on
