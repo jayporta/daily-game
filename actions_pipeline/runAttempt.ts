@@ -43,6 +43,34 @@ export type Logger = (message: string) => void;
  */
 export const MAX_MODERATION_FALLBACKS = 2;
 
+/**
+ * The rotation models that may moderate a game when the dedicated moderator
+ * cannot be reached, at most {@link MAX_MODERATION_FALLBACKS} of them.
+ *
+ * No requested model moderates, as a served id that resolved to the primary
+ * may hide which one wrote the game. A rotation too small to spare one falls
+ * back to excluding only the primary and the model that served.
+ *
+ * @param rotation - Every id in the active rotation, in order.
+ * @param requested - The generation's primary followed by its fallbacks.
+ * @param served - The model the provider reported as serving the generation.
+ * @param moderationModel - The dedicated moderator, never its own stand-in.
+ */
+function standInModerators(
+  rotation: readonly string[],
+  requested: readonly string[],
+  served: string,
+  moderationModel: string,
+): string[] {
+  const others = rotation.filter((id) => id !== moderationModel);
+  const unrequested = others.filter((id) => !requested.includes(id));
+  const pool =
+    unrequested.length > 0
+      ? unrequested
+      : others.filter((id) => id !== requested[0] && id !== served);
+  return pool.slice(0, MAX_MODERATION_FALLBACKS);
+}
+
 interface AttemptParams {
   readonly client: OpenRouterClient;
   readonly model: string;
@@ -55,7 +83,7 @@ interface AttemptParams {
   readonly moderationModel: string;
   /**
    * Every id in the active rotation. Stand-in moderators are drawn from it,
-   * minus every model requested for the generation, and used only when
+   * as {@link standInModerators} describes, and used only when
    * {@link moderationModel} is unreachable.
    */
   readonly rotation: readonly string[];
@@ -144,11 +172,7 @@ export async function runAttempt({
     html: extracted.html,
     guardrailsText: guardrails,
     moderationModel,
-    // No requested model moderates, as a served id that resolved to the primary
-    // may hide which wrote it. With three or fewer active models no stand-in remains.
-    fallbackModels: rotation
-      .filter((id) => !requested.includes(id) && id !== moderationModel)
-      .slice(0, MAX_MODERATION_FALLBACKS),
+    fallbackModels: standInModerators(rotation, requested, served, moderationModel),
   });
 
   if (!moderation.pass) return { ...provenance, ...moderationRejection(moderation) };

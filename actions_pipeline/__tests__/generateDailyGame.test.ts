@@ -845,6 +845,27 @@ test('no model requested for the generation moderates the game', async () => {
   }
 });
 
+// With three active models every one is requested, so the stand-in falls back
+// to any model other than the primary and the one that served.
+test('a rotation too small to spare a requested model still has a stand-in moderator', async () => {
+  const asked: string[] = [];
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (!isModerationRequest(messages)) {
+        return { text: loadFixture('goodMaze'), stop: 'complete', model: 'b/model:free' };
+      }
+      asked.push(model);
+      if (model === 'mod/model:free') throw new Error('rate limited');
+      return { text: 'PASS', stop: 'complete', model };
+    },
+  };
+
+  const result = await generateDailyGame({ ...baseParams(), client });
+
+  assert.equal(result.status, 'success');
+  assert.deepEqual(asked, ['mod/model:free', 'c/model:free']);
+});
+
 /** A client whose generation calls all throw, recording each request. */
 function alwaysThrowing(seen: CompletionRequest[]): OpenRouterClient {
   return {
