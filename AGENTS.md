@@ -142,11 +142,12 @@ refactor.
   all count as rejections. A false rejection costs a retry; a false
   acceptance publishes banned content to a public site.
 - **Exhausting the model rotation is a successful run.** An ordinary run
-  makes one attempt per active model in `config/models.json`, so the
-  attempt count is the size of the rotation — seven today, not a number
-  written down anywhere. (`forceModel` is the exception: that path is bounded
+  reaches each active model in `config/models.json` at most once, as a
+  primary or a fallback, so the size of the rotation — seven today, not a
+  number written down anywhere — caps the attempt count and a run can end
+  early. (`forceModel` is the exception: that path is bounded
   by `FORCED_MODEL_ATTEMPTS`.) Each attempt's generation request also carries
-  the next two rotation models as OpenRouter-side fallbacks, and history
+  the next two rotation models not yet reached as OpenRouter-side fallbacks, and history
   records the model that served plus a `generation-failover` record for each
   that failed over, which counts for or against no model. When the last one fails the run records
   `failed_kept_previous`, leaves the live site serving the game it already

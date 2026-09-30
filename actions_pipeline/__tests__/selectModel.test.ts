@@ -101,3 +101,18 @@ test('a primary outside the rotation gets fallbacks from its start', () => {
 test('a count of zero yields no fallbacks', () => {
   assert.deepEqual(fallbackModelsAfter(rotationOf(3), 'm0', 0), []);
 });
+
+test('fallbacks walk past skipped ids without listing them', () => {
+  assert.deepEqual(fallbackModelsAfter(rotationOf(5), 'm0', 2, new Set(['m1', 'm3'])), [
+    'm2',
+    'm4',
+  ]);
+});
+
+test('skipped ids shrink the list when too few others remain', () => {
+  assert.deepEqual(fallbackModelsAfter(rotationOf(4), 'm0', 2, new Set(['m1', 'm2'])), ['m3']);
+});
+
+test('a walk whose every id is skipped yields nothing, even from a primary outside the rotation', () => {
+  assert.deepEqual(fallbackModelsAfter(rotationOf(3), 'gone', 2, new Set(['m0', 'm1', 'm2'])), []);
+});

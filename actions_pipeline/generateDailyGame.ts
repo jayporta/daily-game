@@ -4,9 +4,9 @@
 // Each attempt: pick a model → build a prompt (feeding back the previous
 // attempt's specific failure) → run it (runAttempt.ts: generate → extract →
 // moderate → smoke test) → record the outcome and rotate.
-// Exhausting the active model rotation is a normal outcome, not a CI failure;
-// runDailyPipeline.ts is what turns that into a run that keeps the game the
-// site is already serving and still exits green.
+// Reaching every active model without a winner is a normal outcome, not a CI
+// failure; runDailyPipeline.ts is what turns that into a run that keeps the
+// game the site is already serving and still exits green.
 
 import { buildPrompt, selectRemixSuggestion } from '#actions_pipeline/buildPrompt.ts';
 import type { GenerateResult } from '#actions_pipeline/generateResult.ts';
@@ -30,9 +30,10 @@ import type { SmokeTester } from '#actions_pipeline/smokeTest.ts';
 /**
  * How many attempts a `forceModel` run gets.
  *
- * Only that path is bounded by a constant. An ordinary run makes one attempt
- * per active model in `config/models.json`, so its attempt count is the size
- * of the rotation, not a number written down anywhere.
+ * Only that path is bounded by a constant. An ordinary run reaches each
+ * active model in `config/models.json` at most once, as a primary or a
+ * fallback, so the size of the rotation caps its attempts and it can end
+ * early.
  */
 export const FORCED_MODEL_ATTEMPTS = 3;
 
@@ -97,7 +98,13 @@ export async function generateDailyGame({
   // that judged past an earlier 429.
   let quotaAffected = false;
   let priorFailureFeedback: string | undefined;
+  // The primary of the next attempt.
   let model = forceModel ?? selectNextModel(modelsConfig, lastUsedModelId).id;
+  // Models an ordinary run has served from or failed over past; later
+  // attempts neither pick nor list them.
+  const reached = new Set<string>();
+  let attemptsMade = 0;
+  let lastServed: string | undefined;
   const rotationIds = activeModels(modelsConfig).map((entry) => entry.id);
   const maxAttempts = forceModel ? FORCED_MODEL_ATTEMPTS : rotationIds.length;
   const log: Logger = verbose ? writeLog : () => undefined;
@@ -110,6 +117,7 @@ export async function generateDailyGame({
   });
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    attemptsMade = attempt;
     log(`\n[Attempt ${attempt}/${maxAttempts}] Using model: ${model}`);
 
     const prompt = buildPrompt({
@@ -129,7 +137,7 @@ export async function generateDailyGame({
       genres,
       fallbackModels: forceModel
         ? []
-        : fallbackModelsAfter(modelsConfig, model, GENERATION_FALLBACKS),
+        : fallbackModelsAfter(modelsConfig, model, GENERATION_FALLBACKS, reached),
       moderationModel: modelsConfig.moderationModel,
       rotation: rotationIds,
       temperature: generationConfig.temperature,
@@ -170,23 +178,25 @@ export async function generateDailyGame({
     if (outcome.quota) quotaFailures += 1;
     if (outcome.quotaAffected) quotaAffected = true;
     priorFailureFeedback = outcome.feedback;
-    model = nextModelAfterFailure(modelsConfig, outcome.served, forceModel);
+    lastServed = outcome.served;
+
+    if (forceModel) continue;
+    reached.add(outcome.served);
+    for (const skipped of outcome.failedOver) reached.add(skipped);
+    // The next primary is the first model nothing has reached; none left ends the run.
+    const next = fallbackModelsAfter(modelsConfig, outcome.served, 1, reached)[0];
+    if (next === undefined) break;
+    model = next;
   }
 
   return {
     status: 'failed_kept_previous',
-    attempts: maxAttempts,
+    attempts: attemptsMade,
     reasons,
     kinds,
     attemptModels,
-    model,
-    quotaExhausted: quotaFailures === maxAttempts,
+    model: forceModel ?? selectNextModel(modelsConfig, lastServed).id,
+    quotaExhausted: quotaFailures === attemptsMade,
     quotaAffected,
   };
-}
-
-/** Retrying on a different model gives a genuinely different roll of the dice. */
-function nextModelAfterFailure(config: ModelsConfig, current: string, forceModel?: string): string {
-  if (forceModel) return forceModel;
-  return selectNextModel(config, current).id;
 }

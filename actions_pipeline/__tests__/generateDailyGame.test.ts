@@ -951,10 +951,79 @@ test('failovers appear in kinds and models but not in the reasons, which stay on
 
   assert.equal(result.status, 'failed_kept_previous');
   if (result.status === 'failed_kept_previous') {
-    assert.equal(result.kinds.length, 6);
+    // a fails over to b, then c is the last model left and has no fallbacks.
+    assert.equal(result.attempts, 2);
+    assert.equal(result.kinds.length, 3);
     assert.equal(result.attemptModels.length, result.kinds.length);
     assert.equal(result.reasons.length, result.attempts);
     assert.deepEqual(result.kinds.slice(0, 2), ['generation-failover', 'smoke-js-error']);
+  }
+});
+
+test('a model reached through failover or serving is never requested again in the same run', async () => {
+  const seen: CompletionRequest[] = [];
+  await generateDailyGame({
+    ...baseParams(),
+    modelsConfig: WIDE_MODELS,
+    client: failingOver(
+      (request) => request.fallbackModels?.[0] ?? request.model,
+      [loadFixture('badJsError')],
+      seen,
+    ),
+  });
+
+  const reached = new Set<string>();
+  for (const request of seen) {
+    const requested = [request.model, ...(request.fallbackModels ?? [])];
+    for (const id of requested) {
+      assert.ok(!reached.has(id), `${id} was requested after it had been reached`);
+    }
+    for (const id of [request.model, request.fallbackModels?.[0] ?? request.model]) {
+      reached.add(id);
+    }
+  }
+  assert.deepEqual(
+    seen.map((request) => request.model),
+    ['a/model:free', 'c/model:free', 'e/model:free'],
+  );
+});
+
+test('a run that ends before every attempt is spent reports the attempts it made', async () => {
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client: failingOver(
+      (request) => request.fallbackModels?.[0] ?? request.model,
+      [loadFixture('badJsError')],
+      [],
+    ),
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  if (result.status === 'failed_kept_previous') {
+    assert.equal(result.attempts, 2);
+    assert.equal(result.quotaExhausted, false);
+    // c served last, so the day after this one starts from a.
+    assert.equal(result.model, 'a/model:free');
+  }
+});
+
+test('a forced model in the rotation still gets every forced attempt', async () => {
+  const seen: CompletionRequest[] = [];
+  const result = await generateDailyGame({
+    ...baseParams(),
+    modelsConfig: WIDE_MODELS,
+    forceModel: 'a/model:free',
+    client: failingOver((request) => request.model, [loadFixture('badJsError')], seen),
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(result.attempts, FORCED_MODEL_ATTEMPTS);
+  assert.deepEqual(
+    seen.map((request) => request.model),
+    Array(FORCED_MODEL_ATTEMPTS).fill('a/model:free'),
+  );
+  if (result.status === 'failed_kept_previous') {
+    assert.equal(result.model, 'a/model:free');
   }
 });
 
