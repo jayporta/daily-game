@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Neon Lane Racer</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#000;color:#fff;font-family:sans-serif}
+  canvas{display:block}
+  #overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;text-align:center;padding-top:20%;box-sizing:border-box}
+  #overlay.hidden{display:none}
+  button{padding:8px 16px;font-size:1.2rem;cursor:pointer}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="overlay">
+  <div id="start">Neon Lane Racer<br>← / → to steer<br>Click or press Space to start</div>
+  <div id="gameover" class="hidden">Game Over<br>Score: <span id="finalScore"></span><br>Click or press Space to restart</div>
+</div>
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const startScreen = document.getElementById('start');
+  const gameOverScreen = document.getElementById('gameover');
+  const finalScoreEl = document.getElementById('finalScore');
+
+  let width, height;
+  function resize(){
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const laneCount = 3;
+  const laneWidth = width / laneCount;
+  const player = { lane: 1, w: 40, h: 40, color: '#0ff' };
+  const speed = 4; // scroll speed
+  let scroll = 0;
+  let obstacles = [];
+  let collectibles = [];
+  let score = 0;
+  let obstacleTimer = 0;
+  let collectibleTimer = 0;
+  const obstacleFreq = 90; // frames
+  const collectibleFreq = 180;
+  const obstacleH = 30;
+  const collectibleH = 20;
+  let playing = false;
+  let frame = 0;
+
+  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+  function reset(){
+    player.lane = 1;
+    scroll = 0;
+    obstacles = [];
+    collectibles = [];
+    score = 0;
+    obstacleTimer = 0;
+    collectibleTimer = 0;
+    frame = 0;
+    playing = true;
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+  }
+
+  function update(){
+    if(!playing) return;
+    frame++;
+    // scroll track
+    scroll += speed;
+
+    // spawn obstacles
+    if(++obstacleTimer >= obstacleFreq){
+      obstacleTimer = 0;
+      const lane = randInt(0, laneCount-1);
+      obstacles.push({ lane, y: -obstacleH, w: laneWidth*0.8, h: obstacleH, color:'#f44' });
+    }
+    // spawn collectibles
+    if(++collectibleTimer >= collectibleFreq){
+      collectibleTimer = 0;
+      const lane = randInt(0, laneCount-1);
+      collectibles.push({ lane, y: -collectibleH, w: laneWidth*0.6, h: collectibleH, color:'#ff0' });
+    }
+
+    // move obstacles & collectibles
+    obstacles = obstacles.filter(o=>{
+      o.y += speed;
+      return o.y < height;
+    });
+    collectibles = collectibles.filter(c=>{
+      c.y += speed;
+      return c.y < height;
+    });
+
+    // collision detection
+    const playerY = height - 80;
+    const playerLeft = player.lane*laneWidth + (laneWidth - player.w)/2;
+    const playerRight = playerLeft + player.w;
+    const playerTop = playerY;
+    const playerBottom = playerY + player.h;
+
+    for(const o of obstacles){
+      if(o.lane !== player.lane) continue;
+      const oLeft = o.lane*laneWidth + (laneWidth - o.w)/2;
+      const oRight = oLeft + o.w;
+      const oTop = o.y;
+      const oBottom = o.y + o.h;
+      if(!(playerRight < oLeft || playerLeft > oRight || playerBottom < oTop || playerTop > oBottom)){
+        // collision
+        playing = false;
+        gameOverScreen.classList.remove('hidden');
+        finalScoreEl.textContent = score;
+        break;
+      }
+    }
+    for(const c of collectibles){
+      if(c.lane !== player.lane) continue;
+      const cLeft = c.lane*laneWidth + (laneWidth - c.w)/2;
+      const cRight = cLeft + c.w;
+      const cTop = c.y;
+      const cBottom = c.y + c.h;
+      if(!(playerRight < cLeft || playerLeft > cRight || playerBottom < cTop || playerTop > cBottom)){
+        // collected
+        score += 10;
+        // remove
+        collectibles.splice(collectibles.indexOf(c),1);
+      }
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,width,height);
+    // road
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0,0,width,height);
+    // lane markers
+    ctx.strokeStyle = '#555';
+    ctx.setLineDash([10,10]);
+    for(let i=1;i<laneCount;i++){
+      ctx.beginPath();
+      ctx.moveTo(i*laneWidth,0);
+      ctx.lineTo(i*laneWidth,height);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    // draw obstacles
+    for(const o of obstacles){
+      ctx.fillStyle = o.color;
+      const x = o.lane*laneWidth + (laneWidth - o.w)/2;
+      ctx.fillRect(x, o.y, o.w, o.h);
+    }
+    // draw collectibles
+    for(const c of collectibles){
+      ctx.fillStyle = c.color;
+      const x = c.lane*laneWidth + (laneWidth - c.w)/2;
+      ctx.fillRect(x, c.y, c.w, c.h);
+    }
+    // draw player
+    const px = player.lane*laneWidth + (laneWidth - player.w)/2;
+    const py = height - 80;
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    // simple pod shape: a rounded triangle-ish
+    ctx.moveTo(px + player.w/2, py);
+    ctx.lineTo(px, py + player.h);
+    ctx.lineTo(px + player.w, py + player.h);
+    ctx.closePath();
+    ctx.fill();
+    // score
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Score: '+score, 20, 30);
+  }
+
+  function loop(){
+    update();
+    draw();
+    if(playing) requestAnimationFrame(loop);
+  }
+
+  function startGame(){
+    reset();
+    loop();
+  }
+
+  // input
+  window.addEventListener('keydown', e=>{
+    if(!playing){
+      if(e.key===' '||e.key==='Enter'){
+        startGame();
+      }
+      return;
+    }
+    if(e.key==='ArrowLeft'||e.key==='a'){
+      if(player.lane>0) player.lane--;
+    }else if(e.key==='ArrowRight'||e.key==='d'){
+      if(player.lane<laneCount-1) player.lane++;
+    }else if(e.key===' '||e.key==='Enter'){
+      // optional: could use for boost, but ignore
+    }
+  });
+  window.addEventListener('click',()=>{
+    if(!playing) startGame();
+  });
+  // initial screen
+  startScreen.classList.remove('hidden');
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-09-30-neon-lane-racer";
+  var RELEASE = "edba691338318ba7dc1e41d5f0c860cb56d17bc1";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

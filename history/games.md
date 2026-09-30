@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-09-30 — Neon Lane Racer
+
+- genre: racing
+- theme: A sleek anti-gravity pod races down a glowing neon track, dodging barriers and collecting energy cells to boost its score.
+- mechanics: Automatic forward motion, Steer left/right to change lanes, Avoid barriers that appear on the track, Collect energy cells to increase score
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 7
+
 ## 2026-09-29 — Beat Bounce
 
 - genre: rhythm

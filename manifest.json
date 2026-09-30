@@ -1,18 +1,22 @@
 {
-  "date": "2026-09-29",
-  "slug": "2026-09-29-beat-bounce",
-  "path": "games/archive/2026-09-29-beat-bounce/game.html",
-  "promptPath": "games/archive/2026-09-29-beat-bounce/prompt.txt",
-  "title": "Beat Bounce",
-  "genre": "rhythm",
-  "genreLabel": "Rhythm",
+  "date": "2026-09-30",
+  "slug": "2026-09-30-neon-lane-racer",
+  "path": "games/archive/2026-09-30-neon-lane-racer/game.html",
+  "promptPath": "games/archive/2026-09-30-neon-lane-racer/prompt.txt",
+  "title": "Neon Lane Racer",
+  "genre": "racing",
+  "genreLabel": "Racing",
   "model": "nvidia/nemotron-3-super-120b-a12b:free",
-  "generatedAt": "2026-09-29T19:01:15.364Z",
-  "expiresAt": "2026-09-30T19:00:00.000Z",
+  "generatedAt": "2026-09-30T19:01:04.109Z",
+  "expiresAt": "2026-10-01T19:00:00.000Z",
   "controls": [
     {
-      "action": "Hit note",
-      "key": "Space"
+      "action": "Move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "Move right",
+      "key": "ArrowRight"
     }
   ]
 }

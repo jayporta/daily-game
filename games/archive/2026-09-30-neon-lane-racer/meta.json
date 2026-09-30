@@ -1,0 +1,21 @@
+{
+  "title": "Neon Lane Racer",
+  "genre": "racing",
+  "theme": "A sleek anti-gravity pod races down a glowing neon track, dodging barriers and collecting energy cells to boost its score.",
+  "mechanics": [
+    "Automatic forward motion",
+    "Steer left/right to change lanes",
+    "Avoid barriers that appear on the track",
+    "Collect energy cells to increase score"
+  ],
+  "controls": [
+    {
+      "action": "Move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "Move right",
+      "key": "ArrowRight"
+    }
+  ]
+}

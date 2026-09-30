@@ -776,5 +776,39 @@
       "gameplay-broken": 1
     },
     "popularityScore": -1
+  },
+  {
+    "date": "2026-09-30",
+    "status": "published",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "slug": "2026-09-30-neon-lane-racer",
+    "genre": "racing",
+    "theme": "A sleek anti-gravity pod races down a glowing neon track, dodging barriers and collecting energy cells to boost its score.",
+    "mechanics": [
+      "Automatic forward motion",
+      "Steer left/right to change lanes",
+      "Avoid barriers that appear on the track",
+      "Collect energy cells to increase score"
+    ],
+    "title": "Neon Lane Racer",
+    "attempts": 7,
+    "canvasDrawn": false,
+    "failureKinds": [
+      "generation-call",
+      "generation-call",
+      "generation-call",
+      "extract",
+      "generation-call",
+      "generation-call"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free",
+      "poolside/laguna-s-2.1:free"
+    ],
+    "quotaAffected": true
   }
 ]
