@@ -9,6 +9,7 @@
 // site is already serving and still exits green.
 
 import { buildPrompt, selectRemixSuggestion } from '#actions_pipeline/buildPrompt.ts';
+import type { GenerateResult } from '#actions_pipeline/generateResult.ts';
 import type { GenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
 import type { GenresConfig } from '#actions_pipeline/lib/config/genres.ts';
 import type { ModelsConfig } from '#actions_pipeline/lib/config/models.ts';
@@ -25,7 +26,6 @@ import {
   selectNextModel,
 } from '#actions_pipeline/selectModel.ts';
 import type { SmokeTester } from '#actions_pipeline/smokeTest.ts';
-import type { GeneratedMeta } from '#lib/extractBundleShared.ts';
 
 /**
  * How many attempts a `forceModel` run gets.
@@ -42,74 +42,11 @@ export const FORCED_MODEL_ATTEMPTS = 3;
  *
  * OpenRouter retries the request on the next one when the primary errors
  * before its stream starts, so an instant refusal (a 429, a 503, a delisted
- * model) no longer costs a whole attempt. Only the generation call carries
- * them; a `forceModel` run sends none.
+ * model) costs no attempt: a delisted primary was measured failing over
+ * within the same request in about half a second. Only the generation call
+ * carries them; a `forceModel` run sends none.
  */
 export const GENERATION_FALLBACKS = 2;
-
-export type GenerateResult =
-  | {
-      status: 'success';
-      meta: GeneratedMeta;
-      html: string;
-      model: string;
-      attempts: number;
-      /** Whether the game painted anything during the smoke test. */
-      canvasDrawn: boolean;
-      /** The exact user-turn prompt that produced this bundle — persisted by publish.ts. */
-      prompt: string;
-      /**
-       * The same failures as `reasons` would describe on a failed run, as
-       * closed-vocabulary ids, for every attempt before this one succeeded.
-       * Empty when the first attempt won on the model it asked for.
-       *
-       * One attempt can contribute more than one record: each model that
-       * failed over to a fallback within it has a `generation-failover`
-       * record of its own, so a first attempt served by a fallback is not
-       * empty.
-       */
-      kinds: FailureKind[];
-      /**
-       * The model each of those records is charged to, parallel to `kinds` by
-       * index. A failed-over model appears here ahead of the one that served.
-       */
-      attemptModels: string[];
-      /** Whether any of those attempts was refused for provider capacity. */
-      quotaAffected: boolean;
-    }
-  | {
-      status: 'failed_kept_previous';
-      attempts: number;
-      reasons: string[];
-      /**
-       * The same failures as `reasons`, as closed-vocabulary ids. One attempt
-       * can contribute more than one record: each model that failed over to a
-       * fallback within it has a `generation-failover` record of its own.
-       */
-      kinds: FailureKind[];
-      /**
-       * The model each record is charged to, parallel to `kinds` by index. A
-       * failed-over model appears here ahead of the one that served.
-       */
-      attemptModels: string[];
-      model: string;
-      /**
-       * Whether every attempt failed because the provider had no capacity
-       * left, which is the one failure no retry and no other model can fix.
-       */
-      quotaExhausted: boolean;
-      /**
-       * Whether any attempt — not necessarily every one — was refused for
-       * provider capacity.
-       *
-       * A superset of `quotaExhausted`: true whenever that is, and also true
-       * on a day that failed for mixed reasons. `checkModels.ts` skips a day
-       * this flags entirely rather than only the exhausted case, so a model
-       * that merely happened to run out the rotation's clock on a quota
-       * refusal is not blamed for it as a `generation-call` failure.
-       */
-      quotaAffected: boolean;
-    };
 
 export interface GenerateDailyGameParams {
   client: OpenRouterClient;
@@ -200,12 +137,10 @@ export async function generateDailyGame({
       log: (message) => log(`[Attempt ${attempt}] ${message}`),
     });
 
-    // Models OpenRouter skipped on the way to the one that answered. They get
-    // records of their own, ahead of the attempt's own outcome, on success too.
+    // Models OpenRouter skipped on the way to the one that answered get a kind
+    // and a model, ahead of the attempt's own outcome, on success too. They
+    // write no reason: nothing was seen to fail, so there is no prose to record.
     for (const skipped of outcome.failedOver) {
-      const skippedReason = `attempt ${attempt} (${skipped}): did not answer; served by ${outcome.served}`;
-      log(`[Attempt ${attempt}] ${skippedReason}`);
-      reasons.push(skippedReason);
       kinds.push('generation-failover');
       attemptModels.push(skipped);
     }

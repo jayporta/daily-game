@@ -22,6 +22,7 @@ import { isoDate } from '#actions_pipeline/lib/dates.ts';
 import {
   type FailureKind,
   type HistoryGameEntry,
+  isModelFault,
   isPublished,
   readHotWindow,
 } from '#actions_pipeline/lib/historyStore.ts';
@@ -239,11 +240,8 @@ export function modelReliability(
     const dayKindByModel = new Map<string, FailureKind>();
     failureKinds.forEach((kind, index) => {
       const id = attemptModels[index];
-      // A failover record is no evidence either way, and keying the model to
-      // it would hide the model's real record from the same day. A model that
-      // only ever fails over is left to the catalogue check, never judged
-      // unreliable.
-      if (kind === 'generation-failover') return;
+      // A model that only ever fails over is left to the catalogue check.
+      if (!isModelFault(kind)) return;
       if (id === undefined || dayKindByModel.has(id)) return;
       dayKindByModel.set(id, kind);
     });

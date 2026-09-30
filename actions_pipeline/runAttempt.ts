@@ -2,15 +2,23 @@
 // moderate, smoke test. The loop that rotates models and records failures
 // around it lives in generateDailyGame.ts.
 
+import {
+  type AttemptOutcome,
+  type AttemptProvenance,
+  extractRejection,
+  generationCallRejection,
+  moderationRejection,
+  placeholderMetaRejection,
+  smokeRejection,
+  unknownGenreRejection,
+} from '#actions_pipeline/attemptOutcome.ts';
 import { isPlaceholderMeta } from '#actions_pipeline/buildPrompt.ts';
 import type { GenresConfig } from '#actions_pipeline/lib/config/genres.ts';
-import type { FailureKind } from '#actions_pipeline/lib/historyStore.ts';
-import { isQuotaFailure, type OpenRouterClient } from '#actions_pipeline/lib/openRouterClient.ts';
+import type { OpenRouterClient } from '#actions_pipeline/lib/openRouterClient.ts';
+import { failedOverModels } from '#actions_pipeline/lib/servedModel.ts';
 import { moderate } from '#actions_pipeline/moderate.ts';
-import type { SmokeTester, SmokeTestResult } from '#actions_pipeline/smokeTest.ts';
-import { errorMessage } from '#lib/errors.ts';
-import type { GeneratedMeta } from '#lib/extractBundleShared.ts';
-import { EXTRACTION_RETRY_FEEDBACK, extractBundle } from '#lib/extractBundleShared.ts';
+import type { SmokeTester } from '#actions_pipeline/smokeTest.ts';
+import { extractBundle } from '#lib/extractBundleShared.ts';
 import type { ProviderStopReason } from '#lib/providerResponse.ts';
 import { SYSTEM_PROMPT } from '#lib/systemPrompt.ts';
 
@@ -34,60 +42,6 @@ export type Logger = (message: string) => void;
  * immediately and never approaches that.
  */
 export const MAX_MODERATION_FALLBACKS = 2;
-
-/** Which models an attempt's generation call went through. */
-interface AttemptProvenance {
-  /**
-   * The model that answered, which is the primary unless the call threw or
-   * OpenRouter failed over. Everything from extraction onwards is charged to it.
-   */
-  readonly served: string;
-  /** Requested models ahead of {@link served} that did not answer, in request order. */
-  readonly failedOver: readonly string[];
-}
-
-/** What one attempt produced, as the loop needs to see it. */
-type AttemptOutcome = AttemptProvenance &
-  (
-    | {
-        ok: true;
-        meta: GeneratedMeta;
-        html: string;
-        /** Whether the game painted anything during the smoke test. */
-        canvasDrawn: boolean;
-        /**
-         * Whether a moderation call along the way was refused for provider
-         * capacity, even though the attempt went on to succeed.
-         */
-        quotaAffected: boolean;
-      }
-    | {
-        ok: false;
-        kind: FailureKind;
-        /** Unprefixed — the loop adds the attempt number and model. */
-        reason: string;
-        /** What to tell the next attempt, or `undefined` to tell it nothing. */
-        feedback: string | undefined;
-        /**
-         * Whether the failure named by `kind` was itself a capacity refusal —
-         * the precise signal `quotaFailures` counts. Never true when `kind`
-         * has some other cause, even if a call earlier in this attempt (a
-         * moderation fallback chain, say) did hit capacity; see
-         * `quotaAffected` for that broader question.
-         */
-        quota: boolean;
-        /**
-         * Whether any provider call this attempt made — not necessarily the
-         * one `kind` names — was refused for capacity. Broader than `quota`
-         * on purpose: this is what `checkModels.ts`'s day-level reliability
-         * gate reads, so an attempt whose moderation chain hit a 429 before a
-         * fallback rejected the game on content grounds still excludes the
-         * day, without inflating `quotaFailures` for a failure that was not
-         * actually about capacity.
-         */
-        quotaAffected: boolean;
-      }
-  );
 
 interface AttemptParams {
   readonly client: OpenRouterClient;
@@ -153,60 +107,26 @@ export async function runAttempt({
     if (served !== model) log(`served by ${served} (fallback from ${model})`);
     log(`Generation finished (Stop reason: ${stop})`);
   } catch (error) {
-    const quota = isQuotaFailure(error);
-    return {
-      served: model,
-      failedOver: [],
-      ok: false,
-      kind: 'generation-call',
-      reason: `generation call failed — ${errorMessage(error)}`,
-      feedback:
-        'The previous request failed before returning a game. Return the two fenced blocks exactly as specified.',
-      quota,
-      quotaAffected: quota,
-    };
+    return { served: model, failedOver: [], ...generationCallRejection(error) };
   }
 
-  const servedAt = requested.indexOf(served);
   const provenance: AttemptProvenance = {
     served,
-    failedOver: servedAt === -1 ? [] : requested.slice(0, servedAt),
+    failedOver: failedOverModels(served, model, fallbackModels),
   };
 
   const extracted = extractBundle(raw);
   log(`Bundle extraction: ${extracted.ok ? 'Success' : 'Failed'}`);
 
   if (!extracted.ok) {
-    // A truncated response loses its closing fence first, which reads as a
-    // missing block — naming the real cause here is what makes it
-    // diagnosable from history/games.json alone.
-    const truncatedNote = stop === 'truncated' ? ' (response truncated at the output cap)' : '';
-    return {
-      ...provenance,
-      ok: false,
-      kind: 'extract',
-      reason: `could not extract bundle — ${extracted.reason}${truncatedNote}`,
-      feedback: EXTRACTION_RETRY_FEEDBACK[extracted.reason],
-      quota: false,
-      quotaAffected: false,
-    };
+    return { ...provenance, ...extractRejection(extracted.reason, stop === 'truncated') };
   }
 
   // The one field of the model's metadata with a fixed vocabulary, so the
   // one that can be checked outright. A response that leaves the output
   // format's example in place fails here rather than publishing as "...".
   if (!genres.some((genre) => genre.id === extracted.meta.genre)) {
-    return {
-      ...provenance,
-      ok: false,
-      kind: 'unknown-genre',
-      reason: 'reported a genre that is not in the catalogue',
-      feedback:
-        'Your previous game named a genre that is not in the catalogue. Use one of the listed ' +
-        'genre ids exactly, copied from the list above.',
-      quota: false,
-      quotaAffected: false,
-    };
+    return { ...provenance, ...unknownGenreRejection() };
   }
 
   // The rest of the metadata has no fixed vocabulary, so it is checked here
@@ -215,18 +135,7 @@ export async function runAttempt({
   // overlay still passes the smoke test's render check — so this is what
   // catches it.
   if (isPlaceholderMeta(extracted.meta)) {
-    return {
-      ...provenance,
-      ok: false,
-      kind: 'placeholder-meta',
-      reason: "echoed the output format's placeholder metadata instead of describing the game",
-      feedback:
-        'Your previous game left the output format\'s example values ("...") in the json ' +
-        'block. Every field — title, theme, mechanics, controls — must describe the real ' +
-        'game you built, not the example.',
-      quota: false,
-      quotaAffected: false,
-    };
+    return { ...provenance, ...placeholderMetaRejection() };
   }
 
   log('Running moderation...');
@@ -235,52 +144,20 @@ export async function runAttempt({
     html: extracted.html,
     guardrailsText: guardrails,
     moderationModel,
-    // Nothing judges its own work, and a served id that resolved to the
-    // primary cannot rule out that a fallback wrote it, so every requested
-    // model is left out of the stand-ins. With three or fewer active models
-    // none remain, and an unreachable dedicated moderator fails the attempt
-    // closed.
+    // No requested model moderates, as a served id that resolved to the primary
+    // may hide which wrote it. With three or fewer active models no stand-in remains.
     fallbackModels: rotation
       .filter((id) => !requested.includes(id) && id !== moderationModel)
       .slice(0, MAX_MODERATION_FALLBACKS),
   });
 
-  if (!moderation.pass) {
-    const detail = moderation.reasons.join('; ');
-    const unreachable = moderation.failure === 'call-failed';
-    return {
-      ...provenance,
-      ok: false,
-      kind: unreachable ? 'moderation-unreachable' : 'moderation',
-      // A failed call's detail already names itself; only a verdict needs a label.
-      reason: unreachable ? detail : `moderation rejected — ${detail}`,
-      // A moderator that never answered judged nothing, so the model is told
-      // nothing: guidance about content rules would describe a violation that
-      // was never found.
-      feedback: unreachable
-        ? undefined
-        : `Your previous game violated the content rules: ${detail}. Re-read the content rules and avoid this entirely.`,
-      quota: moderation.quota,
-      quotaAffected: moderation.quotaAffected,
-    };
-  }
+  if (!moderation.pass) return { ...provenance, ...moderationRejection(moderation) };
 
   log('Running smoke test...');
   const smoke = await smokeTester.test(extracted.html);
 
   if (!smoke.pass) {
-    return {
-      ...provenance,
-      ok: false,
-      kind: smokeFailureKind(smoke),
-      reason: `smoke test failed — ${smoke.reasons.join('; ')}`,
-      feedback: `Your previous game did not run correctly: ${smoke.reasons.join('; ')}. Be more defensive — guard every element lookup, and make no network requests of any kind.`,
-      // The smoke test itself is never a capacity issue — this attempt's
-      // actual failure was not about capacity, even if moderation (already
-      // passed, above) hit one on its way to a verdict.
-      quota: false,
-      quotaAffected: moderation.quotaAffected,
-    };
+    return { ...provenance, ...smokeRejection(smoke, moderation.quotaAffected) };
   }
 
   return {
@@ -291,19 +168,4 @@ export async function runAttempt({
     canvasDrawn: smoke.canvasDrawn,
     quotaAffected: moderation.quotaAffected,
   };
-}
-
-/**
- * Which closed-vocabulary kind a smoke-test rejection was.
- *
- * The result can carry more than one problem; the most specific wins, since
- * that is what the corrective guidance keys off.
- */
-function smokeFailureKind(smoke: SmokeTestResult): FailureKind {
-  if (smoke.networkAttempts.length > 0) return 'smoke-network';
-  if (smoke.pageErrors.length > 0 || smoke.consoleErrors.length > 0) return 'smoke-js-error';
-  // Checked after the two above, which describe a page that ran badly rather
-  // than one that ran cleanly and drew nothing.
-  if (!smoke.renderedSomething) return 'smoke-blank';
-  return 'smoke-load';
 }

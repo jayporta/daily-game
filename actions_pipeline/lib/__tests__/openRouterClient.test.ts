@@ -5,7 +5,6 @@ import {
   createOpenRouterClient,
   isQuotaFailure,
   OpenRouterHttpError,
-  resolveServedModel,
 } from '#actions_pipeline/lib/openRouterClient.ts';
 import {
   neverAnswers,
@@ -165,37 +164,6 @@ test('the result names the primary when no frame carries a model', async () => {
   });
 
   assert.equal(result.model, 'a/primary:free');
-});
-
-test('resolveServedModel matches an id exactly', () => {
-  assert.equal(
-    resolveServedModel('b/second:free', 'a/primary:free', ['b/second:free']),
-    'b/second:free',
-  );
-});
-
-test('resolveServedModel matches when the provider drops the :free suffix', () => {
-  assert.equal(
-    resolveServedModel('b/second', 'a/primary:free', ['b/second:free']),
-    'b/second:free',
-  );
-});
-
-test('resolveServedModel matches when the provider adds a variant suffix', () => {
-  assert.equal(resolveServedModel('b/second:free', 'a/primary', ['b/second']), 'b/second');
-});
-
-// A wrong attribution would credit a failure or a success to a model that
-// never ran; the primary is the honest default when nothing matches.
-test('resolveServedModel falls back to the primary for an id it cannot match', () => {
-  assert.equal(
-    resolveServedModel('b/second-20260101', 'a/primary:free', ['b/second:free']),
-    'a/primary:free',
-  );
-});
-
-test('resolveServedModel falls back to the primary when no frame named a model', () => {
-  assert.equal(resolveServedModel(null, 'a/primary:free', ['b/second:free']), 'a/primary:free');
 });
 
 test('a response truncated at the output cap is reported as such', async () => {

@@ -56,6 +56,15 @@ export const FAILURE_KINDS = [
 /** One of {@link FAILURE_KINDS}. */
 export type FailureKind = (typeof FAILURE_KINDS)[number];
 
+/**
+ * Whether a record of this kind counts as a fault of the model it is charged
+ * to. False only for `generation-failover`, whose cause nobody saw, so
+ * nothing that judges a model or writes about a failure should read it.
+ */
+export function isModelFault(kind: FailureKind): boolean {
+  return kind !== 'generation-failover';
+}
+
 /** What every history entry carries, whatever became of the run. */
 interface HistoryEntryCommon {
   /** The UTC day this run was for, as `YYYY-MM-DD`. */
@@ -141,7 +150,8 @@ export interface PublishedEntry extends HistoryEntryCommon {
 export interface FailedEntry extends HistoryEntryCommon {
   readonly status: 'failed_kept_previous';
   /**
-   * Why each attempt failed, as prose.
+   * Why each attempt failed, as prose, one per attempt. A model that failed
+   * over records no prose, so this can be shorter than `failureKinds`.
    *
    * Recorded so the rollup can distil recurring failures into the lessons
    * note. Without it the only trace of a failed day is the attempt count,

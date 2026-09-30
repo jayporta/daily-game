@@ -886,7 +886,7 @@ test('after a call that throws the next primary is the model after the primary',
   );
 });
 
-test('failover records stay parallel across reasons, kinds and models', async () => {
+test('failovers appear in kinds and models but not in the reasons, which stay one per attempt', async () => {
   const result = await generateDailyGame({
     ...baseParams(),
     client: failingOver(
@@ -900,11 +900,12 @@ test('failover records stay parallel across reasons, kinds and models', async ()
   if (result.status === 'failed_kept_previous') {
     assert.equal(result.kinds.length, 6);
     assert.equal(result.attemptModels.length, result.kinds.length);
-    assert.equal(result.reasons.length, result.kinds.length);
-    assert.match(
-      String(result.reasons[0]),
-      /^attempt 1 \(a\/model:free\): did not answer; served by b\/model:free$/,
+    assert.equal(result.reasons.length, result.attempts);
+    assert.equal(
+      result.reasons.some((reason) => /did not answer/.test(reason)),
+      false,
     );
+    assert.deepEqual(result.kinds.slice(0, 2), ['generation-failover', 'smoke-js-error']);
   }
 });
 

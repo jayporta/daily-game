@@ -6,6 +6,7 @@
 // lives in lib/providerResponse.ts, shared with the browser's BYOK path,
 // which calls the same OpenAI-shaped API and streams it the same way.
 
+import { resolveServedModel, servedModel } from '#actions_pipeline/lib/servedModel.ts';
 import { errorMessage } from '#lib/errors.ts';
 import type { ProviderStopReason } from '#lib/providerResponse.ts';
 import {
@@ -14,7 +15,6 @@ import {
   firstChoiceFinishReason,
   OPENROUTER_MAX_OUTPUT_TOKENS,
   responseErrorDetail,
-  servedModel,
   streamedError,
   streamedFrames,
 } from '#lib/providerResponse.ts';
@@ -42,7 +42,9 @@ export interface CompletionRequest {
    * names it in {@link CompletionResult.model}; and the idle deadline also
    * bounds time-to-headers, so a primary that takes over
    * {@link OPENROUTER_IDLE_TIMEOUT_MS} to refuse aborts the request before any
-   * fallback runs.
+   * fallback runs. Time spent failing over counts toward the same per-request
+   * deadlines; a delisted primary was measured failing over in about half a
+   * second.
    */
   readonly fallbackModels?: readonly string[];
   /** The conversation to send, in order. */
@@ -326,41 +328,6 @@ export function createOpenRouterClient({
       }
     },
   };
-}
-
-/** A model id without its `:variant` suffix (`:free`, `:nitro`, ...). */
-function baseModelId(id: string): string {
-  const colon = id.indexOf(':');
-  return colon === -1 ? id : id.slice(0, colon);
-}
-
-/**
- * Maps the model id a stream reported back to the id that was requested.
- *
- * @remarks
- * A provider may report its own spelling of a requested id, such as dropping
- * the `:free` suffix, so an exact match is tried first and then a match on the
- * base id with any `:variant` suffix stripped from both sides.
- *
- * @param served The id from the stream's frames, or `null` when none carried one.
- * @param primary The request's `model`.
- * @param fallbacks The request's `fallbackModels`, in order.
- * @returns The matching requested id, or `primary` when nothing matches, so a
- *   result never names a model that was not asked for.
- */
-export function resolveServedModel(
-  served: string | null,
-  primary: string,
-  fallbacks: readonly string[],
-): string {
-  if (served === null) return primary;
-  const requested = [primary, ...fallbacks];
-  const servedBase = baseModelId(served);
-  return (
-    requested.find((id) => id === served) ??
-    requested.find((id) => baseModelId(id) === servedBase) ??
-    primary
-  );
 }
 
 /**
