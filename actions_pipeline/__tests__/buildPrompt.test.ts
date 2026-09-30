@@ -91,6 +91,24 @@ test('recentlyUsedGenreIds still ignores failed days', () => {
   assert.deepEqual(recentlyUsedGenreIds(HISTORY), ['maze-adventure', 'puzzle']);
 });
 
+// A failover names no fault of the game, so the digest a model reads lists
+// only the kinds that describe what was wrong with the attempts.
+test('digestHistory leaves failover records out of a failed day', () => {
+  const failed: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 2,
+    failureReasons: [],
+    failureKinds: ['generation-failover', 'smoke-js-error'],
+  };
+
+  const digest = digestHistory([failed]);
+
+  assert.match(digest, /smoke-js-error/);
+  assert.doesNotMatch(digest, /generation-failover/);
+});
+
 test('digestHistory respects its limit', () => {
   assert.equal(digestHistory(HISTORY, 1).split('\n').length, 1);
 });

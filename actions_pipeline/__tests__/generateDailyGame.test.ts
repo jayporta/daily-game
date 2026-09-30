@@ -1,10 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
-import {
-  FORCED_MODEL_ATTEMPTS,
-  GENERATION_FALLBACKS,
-  generateDailyGame,
-} from '#actions_pipeline/generateDailyGame.ts';
+import { FORCED_MODEL_ATTEMPTS, generateDailyGame } from '#actions_pipeline/generateDailyGame.ts';
 import type { GenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
 import { loadGenresConfig } from '#actions_pipeline/lib/config/genres.ts';
 import { loadGuardrails } from '#actions_pipeline/lib/config/guardrails.ts';
@@ -727,7 +723,6 @@ test('each generation request carries the next two rotation models as fallbacks'
     client: failingOver((request) => request.model, [loadFixture('goodMaze')], seen),
   });
 
-  assert.equal(GENERATION_FALLBACKS, 2);
   assert.equal(seen[0]?.model, 'a/model:free');
   assert.deepEqual(seen[0]?.fallbackModels, ['b/model:free', 'c/model:free']);
 });
@@ -810,8 +805,7 @@ test('a failure after a failover is attributed to the model that served', async 
   }
 });
 
-// Moving on from the primary would hand the model that just failed to the
-// next attempt as its primary.
+// The next attempt's primary is the model after the one that served.
 test('the rotation moves on from the model that served, not the one asked for', async () => {
   const seen: CompletionRequest[] = [];
   await generateDailyGame({
@@ -826,9 +820,9 @@ test('the rotation moves on from the model that served, not the one asked for', 
   assert.equal(seen[1]?.model, 'c/model:free');
 });
 
-// Nothing judges its own work. The author is whichever requested model
-// OpenRouter used, and a served id that resolved back to the primary can hide
-// a fallback that really wrote it, so no requested model moderates.
+// Nothing judges its own work: the author is one of the requested models, and
+// a served id that resolved to the primary can hide which one, so none of them
+// moderates.
 test('no model requested for the generation moderates the game', async () => {
   const asked: string[] = [];
   const client: OpenRouterClient = {
@@ -876,9 +870,9 @@ test('a call that throws is attributed to the primary with no failover records',
   assert.equal(new Set(result.attemptModels).size, 5, 'each attempt charged to its own primary');
 });
 
-// A thrown chain says nothing about which of its models was at fault, so the
-// next attempt starts past all of them rather than re-requesting the dead ones.
-test('after a call that throws the rotation moves on from the end of the chain', async () => {
+// A throw can come from the model that was streaming, so the fallbacks it
+// never reached are still ahead in the rotation.
+test('after a call that throws the next primary is the model after the primary', async () => {
   const seen: CompletionRequest[] = [];
   await generateDailyGame({
     ...baseParams(),
@@ -888,7 +882,7 @@ test('after a call that throws the rotation moves on from the end of the chain',
 
   assert.deepEqual(
     seen.slice(0, 2).map((request) => request.model),
-    ['a/model:free', 'd/model:free'],
+    ['a/model:free', 'b/model:free'],
   );
 });
 

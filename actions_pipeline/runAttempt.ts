@@ -44,12 +44,6 @@ interface AttemptProvenance {
   readonly served: string;
   /** Requested models ahead of {@link served} that did not answer, in request order. */
   readonly failedOver: readonly string[];
-  /**
-   * The model the rotation continues after: {@link served}, or the last model
-   * of the requested chain when the call threw, so the next attempt does not
-   * re-request models this one already exhausted.
-   */
-  readonly resumeFrom: string;
 }
 
 /** What one attempt produced, as the loop needs to see it. */
@@ -163,7 +157,6 @@ export async function runAttempt({
     return {
       served: model,
       failedOver: [],
-      resumeFrom: requested.at(-1) ?? model,
       ok: false,
       kind: 'generation-call',
       reason: `generation call failed — ${errorMessage(error)}`,
@@ -177,7 +170,6 @@ export async function runAttempt({
   const servedAt = requested.indexOf(served);
   const provenance: AttemptProvenance = {
     served,
-    resumeFrom: served,
     failedOver: servedAt === -1 ? [] : requested.slice(0, servedAt),
   };
 
@@ -245,7 +237,9 @@ export async function runAttempt({
     moderationModel,
     // Nothing judges its own work, and a served id that resolved to the
     // primary cannot rule out that a fallback wrote it, so every requested
-    // model is left out of the stand-ins.
+    // model is left out of the stand-ins. With three or fewer active models
+    // none remain, and an unreachable dedicated moderator fails the attempt
+    // closed.
     fallbackModels: rotation
       .filter((id) => !requested.includes(id) && id !== moderationModel)
       .slice(0, MAX_MODERATION_FALLBACKS),

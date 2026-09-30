@@ -61,11 +61,12 @@ export type GenerateResult =
       /**
        * The same failures as `reasons` would describe on a failed run, as
        * closed-vocabulary ids, for every attempt before this one succeeded.
-       * Empty when the first attempt won.
+       * Empty when the first attempt won on the model it asked for.
        *
        * One attempt can contribute more than one record: each model that
-       * failed over to a fallback within it has a `generation-call` record of
-       * its own.
+       * failed over to a fallback within it has a `generation-failover`
+       * record of its own, so a first attempt served by a fallback is not
+       * empty.
        */
       kinds: FailureKind[];
       /**
@@ -83,7 +84,7 @@ export type GenerateResult =
       /**
        * The same failures as `reasons`, as closed-vocabulary ids. One attempt
        * can contribute more than one record: each model that failed over to a
-       * fallback within it has a `generation-call` record of its own.
+       * fallback within it has a `generation-failover` record of its own.
        */
       kinds: FailureKind[];
       /**
@@ -235,7 +236,7 @@ export async function generateDailyGame({
     if (outcome.quota) quotaFailures += 1;
     if (outcome.quotaAffected) quotaAffected = true;
     priorFailureFeedback = outcome.feedback;
-    model = nextModelAfterFailure(modelsConfig, outcome.resumeFrom, forceModel);
+    model = nextModelAfterFailure(modelsConfig, outcome.served, forceModel);
   }
 
   return {

@@ -27,13 +27,13 @@ import {
   reportGenerationFailure,
 } from '#actions_pipeline/lib/pipelineReporting.ts';
 import type { ManifestRestoreResult } from '#actions_pipeline/publish.ts';
-import type { Logger } from '#actions_pipeline/runAttempt.ts';
 import {
   publish,
   recordFailure,
   restoreManifestFromArchive,
   writeRunStatus,
 } from '#actions_pipeline/publish.ts';
+import type { Logger } from '#actions_pipeline/runAttempt.ts';
 import { createSmokeTester, type SmokeTester } from '#actions_pipeline/smokeTest.ts';
 
 /**

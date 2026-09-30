@@ -105,7 +105,7 @@ export interface GenerationFailureReport {
   /** The day that failed, as `YYYY-MM-DD`. Tagged, never part of the message. */
   readonly date: string;
   readonly attempts: number;
-  /** Free text, one per attempt. Each is truncated before it is sent. */
+  /** Free text, one per record: attempts plus their failover lines. Each is truncated before it is sent. */
   readonly reasons: readonly string[];
   /** The closed-vocabulary `FailureKind` ids, one per record; an attempt can contribute several. */
   readonly kinds: readonly string[];

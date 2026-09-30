@@ -213,7 +213,7 @@ export interface PublishParams {
   /**
    * Failure kinds for attempts that failed before this one succeeded,
    * parallel to `attemptModels` by index. Omitted, or empty, when the first
-   * attempt won.
+   * attempt won on the model it asked for.
    *
    * Recorded so `checkModels.ts`'s reliability tally can see a model that
    * fails its attempt every day but is always rescued by a later one in the

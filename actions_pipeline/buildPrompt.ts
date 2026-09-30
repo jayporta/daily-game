@@ -182,7 +182,10 @@ export function digestHistory(entries: HistoryGameEntry[], limit = 10): string {
   return recent
     .map((entry) => {
       if (entry.status !== 'published') {
-        const kinds = entry.failureKinds.join(', ') || 'unrecorded';
+        // A failover names no fault in the game, so it is left out of what the model reads.
+        const kinds =
+          entry.failureKinds.filter((kind) => kind !== 'generation-failover').join(', ') ||
+          'unrecorded';
         return `- ${entry.date} · FAILED after ${entry.attempts ?? '?'} attempts · ${kinds}`;
       }
       const mechanics = entry.mechanics.length > 0 ? entry.mechanics.join(', ') : 'unrecorded';

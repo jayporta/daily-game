@@ -93,9 +93,11 @@ export type CheckModelsResult =
  *
  * True for a day that produced no game, and for one that published only
  * after an earlier model failed: {@link modelReliability} reads both, and a
- * model rescued by a later one every single day produces nothing else. A day
- * whose first attempt won records no `attemptModels`, so the common case
- * still asks OpenRouter nothing.
+ * model rescued by a later one every single day produces nothing else. A
+ * failover record also opens the gate, so the catalogue check is what
+ * eventually catches a model that only ever fails over. A day whose first
+ * attempt won on the model it asked for records no `attemptModels`, so the
+ * common case still asks OpenRouter nothing.
  *
  * Exported so the gate can be checked without a network call.
  */
@@ -238,7 +240,9 @@ export function modelReliability(
     failureKinds.forEach((kind, index) => {
       const id = attemptModels[index];
       // A failover record is no evidence either way, and keying the model to
-      // it would hide the model's real record from the same day.
+      // it would hide the model's real record from the same day. A model that
+      // only ever fails over is left to the catalogue check, never judged
+      // unreliable.
       if (kind === 'generation-failover') return;
       if (id === undefined || dayKindByModel.has(id)) return;
       dayKindByModel.set(id, kind);

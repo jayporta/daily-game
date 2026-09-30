@@ -37,9 +37,7 @@ export interface CompletionRequest {
    *
    * @remarks
    * Failover happens on OpenRouter's side, within one request. Its limits: a
-   * chain that fails entirely surfaces only the last model's error, so its
-   * quota classification comes from that one error and a mixed outage can read
-   * as quota-exhausted; a thrown
+   * chain that fails entirely surfaces only the last model's error; a thrown
    * call is not attributed to whichever model served, only a completed one
    * names it in {@link CompletionResult.model}; and the idle deadline also
    * bounds time-to-headers, so a primary that takes over
