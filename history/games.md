@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-01 — Lumina Drift
+
+- genre: puzzle
+- theme: A small floating orb of light navigates a grid of fading tiles to reach a radiant beacon, collecting glowing orbs to restore color.
+- mechanics: Navigate a grid of tiles that dim over time, Collect glowing orbs to restore color and extend time, Reach the radiant beacon to complete each level, Plan moves carefully as tiles fade permanently
+- model: poolside/laguna-s-2.1:free
+- attempts: 5
+
 ## 2026-09-30 — Neon Lane Racer
 
 - genre: racing

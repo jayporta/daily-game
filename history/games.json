@@ -817,5 +817,37 @@
       "controls-unclear": 1
     },
     "popularityScore": -1
+  },
+  {
+    "date": "2026-10-01",
+    "status": "published",
+    "model": "poolside/laguna-s-2.1:free",
+    "slug": "2026-10-01-lumina-drift",
+    "genre": "puzzle",
+    "theme": "A small floating orb of light navigates a grid of fading tiles to reach a radiant beacon, collecting glowing orbs to restore color.",
+    "mechanics": [
+      "Navigate a grid of tiles that dim over time",
+      "Collect glowing orbs to restore color and extend time",
+      "Reach the radiant beacon to complete each level",
+      "Plan moves carefully as tiles fade permanently"
+    ],
+    "title": "Lumina Drift",
+    "attempts": 5,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call",
+      "extract",
+      "generation-failover",
+      "extract",
+      "smoke-js-error"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free"
+    ],
+    "quotaAffected": true
   }
 ]

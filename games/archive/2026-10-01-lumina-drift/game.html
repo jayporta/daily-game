@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumina Drift</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0a0a2a;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  #gameCanvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  #ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: #fff;
+    font-size: 16px;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+    z-index: 10;
+  }
+  #levelComplete {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #fff;
+    font-size: 32px;
+    text-align: center;
+    display: none;
+    text-shadow: 2px 2px 6px rgba(0,0,0,0.8);
+    z-index: 20;
+  }
+  button {
+    padding: 10px 20px;
+    font-size: 16px;
+    margin-top: 10px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background: #3a3aff;
+    color: #fff;
+  }
+  button:hover {
+    background: #5a5aff;
+  }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui">Level: <span id="levelText">1</span> | Time: <span id="timeText">30</span>s</div>
+<div id="levelComplete">
+  <div id="levelMessage">Level Complete!</div>
+  <button onclick="nextLevel()">Next Level</button>
+</div>
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const levelText = document.getElementById('levelText');
+  const timeText = document.getElementById('timeText');
+  const levelComplete = document.getElementById('levelComplete');
+  const levelMessage = document.getElementById('levelMessage');
+
+  let gridSize = 10;
+  let cellSize = 0;
+  let orb = { x: 0, y: 0 };
+  let beacon = { x: 0, y: 0 };
+  let orbs = [];
+  let tiles = [];
+  let timeLeft = 30;
+  let gameActive = true;
+  let currentLevel = 1;
+  let maxLevels = 5;
+
+  const levelConfigs = [
+    { gridSize: 8, orbCount: 3, time: 30 },
+    { gridSize: 9, orbCount: 4, time: 25 },
+    { gridSize: 10, orbCount: 5, time: 20 },
+    { gridSize: 11, orbCount: 6, time: 18 },
+    { gridSize: 12, orbCount: 7, time: 15 }
+  ];
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    cellSize = Math.min(canvas.width, canvas.height) / gridSize;
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+
+  function initLevel() {
+    const config = levelConfigs[currentLevel - 1];
+    gridSize = config.gridSize;
+    timeLeft = config.time;
+    gameActive = true;
+    levelComplete.style.display = 'none';
+
+    orb = { x: 0, y: 0 };
+    beacon = { x: gridSize - 1, y: gridSize - 1 };
+    orbs = [];
+    tiles = [];
+
+    for (let y = 0; y < gridSize; y++) {
+      tiles[y] = [];
+      for (let x = 0; x < gridSize; x++) {
+        tiles[y][x] = { lit: true, dimmed: false };
+      }
+    }
+
+    let placedOrbs = 0;
+    while (placedOrbs < config.orbCount) {
+      const x = Math.floor(Math.random() * gridSize);
+      const y = Math.floor(Math.random() * gridSize);
+      if (!tiles[y][x].dimmed && (x !== orb.x || y !== orb.y) && (x !== beacon.x || y !== beacon.y)) {
+        tiles[y][x].dimmed = true;
+        orbs.push({ x, y, collected: false });
+        placedOrbs++;
+      }
+    }
+
+    updateUI();
+    resizeCanvas();
+  }
+
+  function updateUI() {
+    levelText.textContent = currentLevel;
+    timeText.textContent = Math.ceil(timeLeft);
+  }
+
+  function drawTile(x, y, tile) {
+    const px = x * cellSize;
+    const py = y * cellSize;
+
+    if (tile.lit) {
+      ctx.fillStyle = '#2a2aff';
+      ctx.globalAlpha = 0.3;
+      ctx.fillRect(px, py, cellSize, cellSize);
+      ctx.globalAlpha = 1.0;
+    } else {
+      ctx.fillStyle = '#1a1a3a';
+      ctx.fillRect(px, py, cellSize, cellSize);
+    }
+
+    ctx.strokeStyle = '#1a1a3a';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(px, py, cellSize, cellSize);
+  }
+
+  function drawOrb(x, y) {
+    const px = x * cellSize + cellSize / 2;
+    const py = y * cellSize + cellSize / 2;
+    const radius = cellSize * 0.2;
+
+    const gradient = ctx.createRadialGradient(px - radius/3, py - radius/3, 0.1, px, py, radius);
+    gradient.addColorStop(0, '#ffffff');
+    gradient.addColorStop(1, '#aaaaff');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(px, py, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = '#ffffff';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  function drawBeacon(x, y) {
+    const px = x * cellSize + cellSize / 2;
+    const py = y * cellSize + cellSize / 2;
+    const radius = cellSize * 0.3;
+
+    const gradient = ctx.createRadialGradient(px, py, 0.1, px, py, radius);
+    gradient.addColorStop(0, '#ffff00');
+    gradient.addColorStop(1, '#ffaa00');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(px, py, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 25;
+    ctx.shadowColor = '#ffff00';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  function drawOrbCollectible(orb) {
+    const px = orb.x * cellSize + cellSize / 2;
+    const py = orb.y * cellSize + cellSize / 2;
+    const radius = cellSize * 0.15;
+
+    const gradient = ctx.createRadialGradient(px, py, 0.1, px, py, radius);
+    gradient.addColorStop(0, '#ff88ff');
+    gradient.addColorStop(1, '#aa44aa');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(px, py, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#ff88ff';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  function drawGrid() {
+    for (let y = 0; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        if (tiles[y] && tiles[y][x]) {
+          drawTile(x, y, tiles[y][x]);
+        }
+      }
+    }
+  }
+
+  function drawCollectibles() {
+    for (const o of orbs) {
+      if (!o.collected) {
+        drawOrbCollectible(o);
+      }
+    }
+  }
+
+  function drawEntities() {
+    drawBeacon(beacon.x, beacon.y);
+    drawOrb(orb.x, orb.y);
+  }
+
+  function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawGrid();
+    drawCollectibles();
+    drawEntities();
+  }
+
+  function moveOrb(dx, dy) {
+    if (!gameActive) return;
+    const newX = orb.x + dx;
+    const newY = orb.y + dy;
+    if (newX >= 0 && newX < gridSize && newY >= 0 && newY < gridSize) {
+      if (tiles[newY][newX].lit) {
+        orb.x = newX;
+        orb.y = newY;
+        checkOrbCollection();
+        checkWin();
+      }
+    }
+  }
+
+  function checkOrbCollection() {
+    for (const o of orbs) {
+      if (!o.collected && o.x === orb.x && o.y === orb.y) {
+        o.collected = true;
+        tiles[o.y][o.x].dimmed = false;
+        tiles[o.y][o.x].lit = false;
+        timeLeft += 5;
+        updateUI();
+      }
+    }
+  }
+
+  function checkWin() {
+    if (orb.x === beacon.x && orb.y === beacon.y) {
+      gameActive = false;
+      levelComplete.style.display = 'block';
+      if (currentLevel >= maxLevels) {
+        levelMessage.textContent = 'You Win!';
+      }
+    }
+  }
+
+  function gameLoop(timestamp) {
+    if (!lastTimestamp) lastTimestamp = timestamp;
+    const delta = timestamp - lastTimestamp;
+    lastTimestamp = timestamp;
+
+    if (gameActive) {
+      timeLeft -= delta / 1000;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        gameActive = false;
+        levelComplete.style.display = 'block';
+        levelMessage.textContent = 'Time Out!';
+      }
+      updateUI();
+    }
+
+    render();
+    requestAnimationFrame(gameLoop);
+  }
+
+  let lastTimestamp = 0;
+
+  window.addEventListener('keydown', (e) => {
+    if (!gameActive) return;
+    switch(e.key) {
+      case 'ArrowUp':
+      case 'w':
+      case 'W':
+        moveOrb(0, -1);
+        break;
+      case 'ArrowDown':
+      case 's':
+      case 'S':
+        moveOrb(0, 1);
+        break;
+      case 'ArrowLeft':
+      case 'a':
+      case 'A':
+        moveOrb(-1, 0);
+        break;
+      case 'ArrowRight':
+      case 'd':
+      case 'D':
+        moveOrb(1, 0);
+        break;
+    }
+  });
+
+  window.nextLevel = function() {
+    if (currentLevel < maxLevels) {
+      currentLevel++;
+      initLevel();
+    } else {
+      currentLevel = 1;
+      initLevel();
+    }
+  };
+
+  // Start the game
+  resizeCanvas();
+  initLevel();
+  requestAnimationFrame(gameLoop);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-01-lumina-drift";
+  var RELEASE = "15bc77291505c38edd73c77d40944cb3caf305f1";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
