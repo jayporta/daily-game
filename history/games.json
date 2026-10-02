@@ -853,5 +853,23 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-10-02",
+    "status": "published",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "slug": "2026-10-02-sprout-sim",
+    "genre": "growth-sim",
+    "theme": "A tiny seedling gathers falling droplets of water and sunlight to grow into a flourishing plant.",
+    "mechanics": [
+      "Collect falling water and sunlight droplets",
+      "Manage water and sunlight resources",
+      "Grow your plant by spending resources",
+      "Reach the target growth level to win"
+    ],
+    "title": "Sprout Sim",
+    "attempts": 1,
+    "canvasDrawn": true,
+    "quotaAffected": true
   }
 ]

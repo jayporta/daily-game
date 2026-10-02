@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-02 — Sprout Sim
+
+- genre: growth-sim
+- theme: A tiny seedling gathers falling droplets of water and sunlight to grow into a flourishing plant.
+- mechanics: Collect falling water and sunlight droplets, Manage water and sunlight resources, Grow your plant by spending resources, Reach the target growth level to win
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 1
+
 ## 2026-10-01 — Lumina Drift
 
 - genre: puzzle

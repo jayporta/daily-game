@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Sprout Sim</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#1e3a2a;}
+  canvas{display:block;width:100%;height:100%;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let width, height;
+  function resize(){
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // collector (catcher)
+  const collector = {w:60, h:20, x:width/2, y:height-30, speed:5};
+
+  // resources
+  let water = 0;
+  let sun = 0;
+
+  // droplets
+  const droplets = [];
+  let lastSpawn = 0;
+  const spawnInterval = 800; // ms
+
+  // plant
+  const plant = {x:width/2, y:100, level:0, radius:10, maxLevel:5};
+
+  // game state
+  let state = 'playing'; // 'playing' or 'won'
+  const winMessage = 'Your plant has flourished!';
+
+  // input
+  const keys = {};
+  window.addEventListener('keydown', e=>{keys[e.key]=true;});
+  window.addEventListener('keyup', e=>{keys[e.key]=false;});
+
+  // spawn droplet
+  function spawnDroplet(now){
+    if(now - lastSpawn < spawnInterval) return;
+    lastSpawn = now;
+    const type = Math.random()<0.5?'water':'sun';
+    const radius = 6;
+    const x = Math.random()*(width-2*radius)+radius;
+    const y = -radius;
+    const speed = 1 + Math.random()*2;
+    droplets.push({x,y,radius,type,speed});
+  }
+
+  // update
+  function update(now){
+    spawnDroplet(now);
+    // move collector
+    if(keys['ArrowLeft']) collector.x -= collector.speed;
+    if(keys['ArrowRight']) collector.x += collector.speed;
+    // keep collector in bounds
+    if(collector.x < collector.w/2) collector.x = collector.w/2;
+    if(collector.x > width - collector.w/2) collector.x = width - collector.w/2;
+
+    // update droplets
+    for(let i=droplets.length-1;i>=0;i--){
+      const d = droplets[i];
+      d.y += d.speed;
+      // out of screen
+      if(d.y > height + d.radius){ droplets.splice(i,1); continue; }
+      // collector collision
+      if(d.y + d.radius >= collector.y &&
+         d.x >= collector.x - collector.w/2 &&
+         d.x <= collector.x + collector.w/2){
+        if(d.type==='water') water++; else sun++;
+        droplets.splice(i,1);
+      }
+    }
+
+    // grow plant
+    if(keys['g'] && state==='playing'){
+      if(water>=10 && sun>=10){
+        water-=10; sun-=10;
+        plant.level++;
+        plant.radius += 10;
+        if(plant.level>=plant.maxLevel) state='won';
+      }
+    }
+  }
+
+  // draw
+  function draw(){
+    ctx.clearRect(0,0,width,height);
+    // background gradient
+    const grad = ctx.createLinearGradient(0,0,0,height);
+    grad.addColorStop(0,'#2e7d32');
+    grad.addColorStop(1,'#1b5e20');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,width,height);
+
+    // collector
+    ctx.fillStyle = '#b0bec5';
+    ctx.fillRect(collector.x-collector.w/2, collector.y-collector.h/2, collector.w, collector.h);
+
+    // droplets
+    for(const d of droplets){
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.radius, 0, Math.PI*2);
+      ctx.fillStyle = d.type==='water'? '#4fc3f7' : '#ffeb3b';
+      ctx.fill();
+    }
+
+    // plant
+    ctx.beginPath();
+    ctx.arc(plant.x, plant.y, plant.radius, 0, Math.PI*2);
+    ctx.fillStyle = '#66bb6a';
+    ctx.fill();
+    ctx.strokeStyle = '#2e7d32';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // UI
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Water: ${water}`, 20, 30);
+    ctx.fillText(`Sun: ${sun}`, 20, 60);
+    ctx.fillText(`Level: ${plant.level}/${plant.maxLevel}`, 20, 90);
+    if(state==='won'){
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillRect(0,0,width,height);
+      ctx.fillStyle = '#2e7d32';
+      ctx.font = '32px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(winMessage, width/2, height/2);
+    }
+  }
+
+  // loop
+  function loop(now){
+    update(now);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-02-sprout-sim";
+  var RELEASE = "c2b8d9463fccca59c74ae618b631a12ba609c1e0";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

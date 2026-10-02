@@ -1,30 +1,26 @@
 {
-  "date": "2026-10-01",
-  "slug": "2026-10-01-lumina-drift",
-  "path": "games/archive/2026-10-01-lumina-drift/game.html",
-  "promptPath": "games/archive/2026-10-01-lumina-drift/prompt.txt",
-  "title": "Lumina Drift",
-  "genre": "puzzle",
-  "genreLabel": "Puzzle",
-  "model": "poolside/laguna-s-2.1:free",
-  "generatedAt": "2026-10-01T19:01:14.706Z",
-  "expiresAt": "2026-10-02T19:00:00.000Z",
+  "date": "2026-10-02",
+  "slug": "2026-10-02-sprout-sim",
+  "path": "games/archive/2026-10-02-sprout-sim/game.html",
+  "promptPath": "games/archive/2026-10-02-sprout-sim/prompt.txt",
+  "title": "Sprout Sim",
+  "genre": "growth-sim",
+  "genreLabel": "Growth Simulation",
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
+  "generatedAt": "2026-10-02T19:00:52.239Z",
+  "expiresAt": "2026-10-03T19:00:00.000Z",
   "controls": [
     {
-      "action": "Move the orb up",
-      "key": "Arrow Up / W"
+      "action": "Move collector left",
+      "key": "ArrowLeft"
     },
     {
-      "action": "Move the orb down",
-      "key": "Arrow Down / S"
+      "action": "Move collector right",
+      "key": "ArrowRight"
     },
     {
-      "action": "Move the orb left",
-      "key": "Arrow Left / A"
-    },
-    {
-      "action": "Move the orb right",
-      "key": "Arrow Right / D"
+      "action": "Attempt to grow the plant",
+      "key": "g"
     }
   ]
 }
