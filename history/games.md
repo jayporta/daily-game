@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Collect falling water and sunlight droplets, Manage water and sunlight resources, Grow your plant by spending resources, Reach the target growth level to win
 - model: nvidia/nemotron-3-super-120b-a12b:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-01 — Lumina Drift
 
