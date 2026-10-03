@@ -1,0 +1,19 @@
+{
+  "title": "Block Stacker",
+  "genre": "physics-sandbox",
+  "theme": "A whimsical sky canyon where floating blocks await your engineering",
+  "mechanics": [
+    "Stack objects without toppling them",
+    "Launch a projectile to hit a target"
+  ],
+  "controls": [
+    {
+      "action": "Place block",
+      "key": "Click"
+    },
+    {
+      "action": "Launch projectile",
+      "key": "Space"
+    }
+  ]
+}

@@ -875,5 +875,33 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-10-03",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-10-03-block-stacker",
+    "genre": "physics-sandbox",
+    "theme": "A whimsical sky canyon where floating blocks await your engineering",
+    "mechanics": [
+      "Stack objects without toppling them",
+      "Launch a projectile to hit a target"
+    ],
+    "title": "Block Stacker",
+    "attempts": 3,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "extract",
+      "extract",
+      "generation-failover",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
+    "quotaAffected": true
   }
 ]

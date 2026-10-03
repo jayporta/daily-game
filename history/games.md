@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-03 — Block Stacker
+
+- genre: physics-sandbox
+- theme: A whimsical sky canyon where floating blocks await your engineering
+- mechanics: Stack objects without toppling them, Launch a projectile to hit a target
+- model: cohere/north-mini-code:free
+- attempts: 3
+
 ## 2026-10-02 — Sprout Sim
 
 - genre: growth-sim

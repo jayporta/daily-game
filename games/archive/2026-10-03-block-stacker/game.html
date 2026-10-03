@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Block Stacker</title>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #87CEEB; /* sky */
+    font-family: Arial, sans-serif;
+    color: #333;
+}
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+#ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255,255,255,0.8);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    pointer-events: none;
+}
+#message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px;
+    color: #2e8b57;
+    display: none;
+    pointer-events: none;
+}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui">Left Click to Place Block | Space to Launch</div>
+<div id="message"></div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ui = document.getElementById('ui');
+const messageDiv = document.getElementById('message');
+
+let width, height;
+let groundY;
+let gravity = 0.5;
+let blockWidth = 40;
+let blockHeight = 30;
+let blockColors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#FFA07A'];
+let lastColorIdx = 0;
+
+let blocks = [];
+let projectiles = [];
+let target = null;
+let gameRunning = true;
+let launchX = 80;
+let launchY = 0;
+let winShown = false;
+
+class Block {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = 0;
+        this.vy = 0;
+        this.width = blockWidth;
+        this.height = blockHeight;
+        this.color = blockColors[++lastColorIdx % blockColors.length];
+        this.active = true;
+    }
+    update() {
+        if (!this.active) return;
+        this.vy += gravity;
+        this.x += this.vx;
+        this.y += this.vy;
+
+        // ground collision
+        if (this.y + this.height > groundY) {
+            this.y = groundY - this.height;
+            this.vy = 0;
+        }
+
+        // block‑to‑block collision (simple vertical stacking)
+        for (const other of blocks) {
+            if (other === this || !other.active) continue;
+            if (this.x + this.width > other.x && this.x < other.x + other.width) {
+                // horizontal overlap
+                if (this.y < other.y + other.height && this.y + this.height > other.y) {
+                    // push apart vertically
+                    if (this.y < other.y) {
+                        // this is above other
+                        const push = other.y - this.height;
+                        if (this.y < push) {
+                            this.y = push;
+                            this.vy = 0;
+                        }
+                    } else {
+                        // this is below other
+                        const push = other.y + other.height;
+                        if (this.y > push) {
+                            this.y = push;
+                            this.vy = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    draw(ctx) {
+        if (!this.active) return;
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        // simple border
+        ctx.strokeStyle = '#333';
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+    }
+}
+
+class Projectile {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = 8;
+        this.vy = -6;
+        this.radius = 8;
+        this.color = '#FF4500';
+        this.active = true;
+    }
+    update() {
+        if (!this.active) return;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += gravity;
+
+        // check target
+        if (target && !target.hit) {
+            const tx = target.x + target.width / 2;
+            const ty = target.y + target.height / 2;
+            const dx = this.x - tx;
+            const dy = this.y - ty;
+            if (dx * dx + dy * dy < (target.width/2 + this.radius) ** 2) {
+                target.hit = true;
+                this.active = false;
+                showMessage('Target Hit!');
+                gameRunning = false;
+            }
+        }
+
+        // check blocks
+        for (const b of blocks) {
+            if (!b.active) continue;
+            if (this.x + this.radius > b.x && this.x - this.radius < b.x + b.width &&
+                this.y + this.radius > b.y && this.y - this.radius < b.y + b.height) {
+                // collide: stop projectile
+                this.active = false;
+                b.active = true; // ensure block stays
+                showMessage('Nice shot!');
+                gameRunning = false;
+            }
+        }
+
+        // off‑screen removal
+        if (this.x < -50 || this.x > width + 50 || this.y > height + 50) {
+            this.active = false;
+        }
+    }
+    draw(ctx) {
+        if (!this.active) return;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#333';
+        ctx.stroke();
+    }
+}
+
+class Target {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.width = 60;
+        this.height = 30;
+        this.color = '#32CD32';
+        this.hit = false;
+    }
+    draw(ctx) {
+        ctx.fillStyle = this.hit ? '#888' : this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.strokeStyle = '#333';
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        if (!this.hit) {
+            // simple "aim" indicator
+            ctx.fillStyle = '#FFF';
+            ctx.font = '12px Arial';
+            ctx.fillText('HIT', this.x + this.width/2 - 12, this.y + this.height/2 + 4);
+        }
+    }
+}
+
+function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    groundY = height - 40;
+    // reposition launch point if needed
+    launchY = groundY - 10;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function showMessage(txt) {
+    messageDiv.textContent = txt;
+    messageDiv.style.display = 'block';
+    setTimeout(() => {
+        messageDiv.style.display = 'none';
+    }, 2000);
+}
+
+function placeBlockAt(x, y) {
+    // snap to grid? optional
+    const b = new Block(x - blockWidth/2, y - blockHeight/2);
+    blocks.push(b);
+}
+
+canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (gameRunning && !winShown) {
+        placeBlockAt(mx, my);
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && gameRunning && !winShown) {
+        const p = new Projectile(launchX, launchY);
+        projectiles.push(p);
+    }
+});
+
+// simple launch platform visual
+function drawLaunchPlatform(ctx) {
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(launchX - 10, launchY, 20, 8);
+    // simple sling
+    ctx.beginPath();
+    ctx.moveTo(launchX, launchY + 8);
+    ctx.lineTo(launchX + 30, launchY + 8);
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+// initialization
+target = new Target(width/2 - 30, 80);
+
+function animate() {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, width, height);
+
+    // background gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, height);
+    grad.addColorStop(0, '#87CEEB');
+    grad.addColorStop(1, '#E0F7FA');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+
+    // ground line
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(width, groundY);
+    ctx.stroke();
+
+    // update and draw blocks
+    for (const b of blocks) {
+        b.update();
+        b.draw(ctx);
+    }
+
+    // update and draw projectiles
+    for (const p of projectiles) {
+        p.update();
+        p.draw(ctx);
+    }
+
+    // draw target
+    target.draw(ctx);
+
+    // draw launch platform
+    drawLaunchPlatform(ctx);
+
+    requestAnimationFrame(animate);
+}
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-03-block-stacker";
+  var RELEASE = "fa4ab1a13876ba44602dd8c4738329f0961bd344";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
