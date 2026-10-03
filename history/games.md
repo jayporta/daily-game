@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Stack objects without toppling them, Launch a projectile to hit a target
 - model: cohere/north-mini-code:free
 - attempts: 3
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-02 — Sprout Sim
 

@@ -902,6 +902,10 @@
       "thinkingmachines/inkling-small:free",
       "nvidia/nemotron-3.5-lightning:free"
     ],
-    "quotaAffected": true
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
   }
 ]
