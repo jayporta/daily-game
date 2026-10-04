@@ -1,0 +1,21 @@
+{
+  "title": "Sprout Collector",
+  "genre": "growth-sim",
+  "theme": "A tiny seedling gathers falling droplets of water and sunlight to grow into a flourishing plant.",
+  "mechanics": [
+    "Collect falling water droplets",
+    "Collect falling sunlight droplets",
+    "Grow your plant by collecting resources",
+    "Reach the target size to win"
+  ],
+  "controls": [
+    {
+      "action": "Move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "Move right",
+      "key": "ArrowRight"
+    }
+  ]
+}

@@ -1,22 +1,22 @@
 {
-  "date": "2026-10-03",
-  "slug": "2026-10-03-block-stacker",
-  "path": "games/archive/2026-10-03-block-stacker/game.html",
-  "promptPath": "games/archive/2026-10-03-block-stacker/prompt.txt",
-  "title": "Block Stacker",
-  "genre": "physics-sandbox",
-  "genreLabel": "Physics Sandbox",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-03T19:00:53.345Z",
-  "expiresAt": "2026-10-04T19:00:00.000Z",
+  "date": "2026-10-04",
+  "slug": "2026-10-04-sprout-collector",
+  "path": "games/archive/2026-10-04-sprout-collector/game.html",
+  "promptPath": "games/archive/2026-10-04-sprout-collector/prompt.txt",
+  "title": "Sprout Collector",
+  "genre": "growth-sim",
+  "genreLabel": "Growth Simulation",
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
+  "generatedAt": "2026-10-04T22:41:40.482Z",
+  "expiresAt": "2026-10-05T19:00:00.000Z",
   "controls": [
     {
-      "action": "Place block",
-      "key": "Click"
+      "action": "Move left",
+      "key": "ArrowLeft"
     },
     {
-      "action": "Launch projectile",
-      "key": "Space"
+      "action": "Move right",
+      "key": "ArrowRight"
     }
   ]
 }

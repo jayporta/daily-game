@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Sprout Collector</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b0;}
+  canvas{display:block;width:100%;height:100%;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const player = {
+    x: canvas.width / 2,
+    y: canvas.height - 30,
+    radius: 15,
+    speed: 4,
+    dx: 0
+  };
+  const droplets = [];
+  let collected = 0;
+  const target = 30;
+  let gameOver = false;
+  const keys = {};
+
+  window.addEventListener('keydown', e => { keys[e.key] = true; });
+  window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  function spawnDroplet() {
+    const type = Math.random() < 0.5 ? 'water' : 'sun';
+    droplets.push({
+      x: Math.random() * canvas.width,
+      y: -10,
+      radius: 6,
+      speed: 1.5 + Math.random() * 1,
+      type,
+      color: type === 'water' ? '#4a90e2' : '#f5a623'
+    });
+  }
+  let spawnTimer = 0;
+  const spawnInterval = 180; // frames
+
+  function update() {
+    if (gameOver) return;
+    // player movement
+    if (keys['ArrowLeft']) player.dx = -player.speed;
+    else if (keys['ArrowRight']) player.dx = player.speed;
+    else player.dx = 0;
+    player.x += player.dx;
+    if (player.x - player.radius < 0) player.x = player.radius;
+    if (player.x + player.radius > canvas.width) player.x = canvas.width - player.radius;
+
+    // spawn
+    spawnTimer++;
+    if (spawnTimer >= spawnInterval) {
+      spawnTimer = 0;
+      spawnDroplet();
+    }
+
+    // update droplets
+    for (let i = droplets.length - 1; i >= 0; i--) {
+      const d = droplets[i];
+      d.y += d.speed;
+      if (d.y - d.radius > canvas.height) {
+        droplets.splice(i, 1);
+        continue;
+      }
+      // collision
+      const dx = player.x - d.x;
+      const dy = player.y - d.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < player.radius + d.radius) {
+        collected++;
+        droplets.splice(i, 1);
+        if (collected >= target) gameOver = true;
+      }
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // draw player (seedling)
+    ctx.fillStyle = '#6b8e23';
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+    ctx.fill();
+    // draw droplets
+    for (const d of droplets) {
+      ctx.fillStyle = d.color;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, d.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // UI
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Collected: ${collected} / ${target}`, 10, 20);
+    if (gameOver) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#fff';
+      ctx.font = '24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Your plant has flourished!', canvas.width/2, canvas.height/2);
+    }
+  }
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+});
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-04-sprout-collector";
+  var RELEASE = "369fa43688e759b965ecb7712388190b1cb235a2";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

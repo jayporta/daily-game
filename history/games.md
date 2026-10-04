@@ -2,16 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-10-04 — generation failed, previous game kept
+## 2026-10-04 — Sprout Collector
 
-- model: poolside/laguna-s-2.1:free
-- attempts: 6
-- attempt 1 (poolside/laguna-s-2.1:free): moderation call failed: OpenRouter stream ended early: gave up after 120s
-- attempt 2 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: clientWidth is not defined
-- attempt 3 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
-- attempt 4 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 5 (nvidia/nemotron-3.5-lightning:free): reported a genre that is not in the catalogue
-- attempt 6 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
+- genre: growth-sim
+- theme: A tiny seedling gathers falling droplets of water and sunlight to grow into a flourishing plant.
+- mechanics: Collect falling water droplets, Collect falling sunlight droplets, Grow your plant by collecting resources, Reach the target size to win
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 2
 
 ## 2026-10-03 — Block Stacker
 
