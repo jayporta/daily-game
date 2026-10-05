@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-05 — Skybot Island Hopper
+
+- genre: platformer
+- theme: A small robot explorer jumps between floating islands in the sky, collecting energy crystals to power its portal home.
+- mechanics: Jump between platforms, Avoid falling off the screen, Collect energy crystals, Reach the portal to complete the level
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 4
+
 ## 2026-10-04 — Sprout Collector
 
 - genre: growth-sim
@@ -9,6 +17,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Collect falling water droplets, Collect falling sunlight droplets, Grow your plant by collecting resources, Reach the target size to win
 - model: nvidia/nemotron-3-super-120b-a12b:free
 - attempts: 2
+- reactions: -2
+- likes: 0
+- dislikes: 2
+- disliked for: gameplay-broken: 2, missing-art: 1, goal-unclear: 2, controls-unclear: 1
 
 ## 2026-10-03 — Block Stacker
 

@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Skybot Island Hopper</title>
+<style>
+  html,body{margin:0;height:100%;width:100%;overflow:hidden;background:#87CEEB;display:flex;align-items:center;justify-content:center;}
+  canvas{background:#fff;border:2px solid #333;display:block;}
+  #ui{position:absolute;top:10px;left:10px;color:#000;font-family:sans-serif;font-size:16px;}
+  #msg{position:absolute;top:50%;left:50%;transform:-50% -50%;color:#000;font-family:sans-serif;font-size:32px;text-align:center;display:none;}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui">Score: <span id="score">0</span></div>
+<div id="msg" id="winMsg">You Win!</div>
+<script>
+(function(){
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const uiScore = document.getElementById('score');
+  const winMsg = document.getElementById('winMsg');
+
+  function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const player = {
+    w: 30, h: 40,
+    x: 50, y: canvas.height - 100,
+    vy: 0,
+    onGround: false,
+    color: '#ff6600'
+  };
+  const keys = { left:false, right:false, jump:false };
+  const gravity = 0.6;
+  const jumpSpeed = -15;
+  const moveSpeed = 4;
+
+  // platforms: {x,y,w,h,dx?}
+  const platforms = [
+    {x:0, y:canvas.height-20, w:canvas.width, h:20},
+    {x:200, y:canvas.height-100, w:120, h:20},
+    {x:400, y:canvas.height-180, w:120, h:20, dx:2},
+    {x:650, y:canvas.height-260, w:120, h:20},
+    {x:900, y:canvas.height-340, w:120, h:20, dx:-1.5},
+    {x:1150, y:canvas.height-420, w:120, h:20},
+    {x:1400, y:canvas.height-500, w:120, h:20}
+  ];
+
+  const crystals = [
+    {x:260, y:canvas.height-140, r:12, collected:false},
+    {x:460, y:canvas.height-220, r:12, collected:false},
+    {x:710, y:canvas.height-300, r:12, collected:false},
+    {x:960, y:canvas.height-380, r:12, collected:false},
+    {x:1210, y:canvas.height-460, r:12, collected:false}
+  ];
+  const portal = {x:1460, y:canvas.height-540, w:40, h:60, color:'#6a0dad'};
+
+  let score = 0;
+  let gameOver = false;
+  let won = false;
+
+  function rectIntersect(r1,r2){
+    return !(r2.x > r1.x+r1.w || r2.x+r2.w < r1.x ||
+             r2.y > r1.y+r1.h || r2.y+r2.h < r1.y);
+  }
+  function circleRectIntersect(cx,cy,r,rect){
+    const closestX = Math.max(rect.x, Math.min(cx, rect.x+rect.w));
+    const closestY = Math.max(rect.y, Math.min(cy, rect.y+rect.h));
+    const dx = cx - closestX;
+    const dy = cy - closestY;
+    return dx*dx + dy*dy <= r*r;
+  }
+
+  function update(){
+    if(gameOver) return;
+    // input
+    let vx = 0;
+    if(keys.left) vx = -moveSpeed;
+    if(keys.right) vx = moveSpeed;
+
+    // apply gravity
+    player.vy += gravity;
+    player.y += player.vy;
+    player.x += vx;
+
+    // platform collisions
+    player.onGround = false;
+    for(const p of platforms){
+      const movedX = player.x + vx;
+      const movedY = player.y + player.vy;
+
+      // check top landing
+      if(player.vy > 0 &&
+         player.x + player.w > p.x &&
+         player.x < p.x + p.w &&
+         player.y + player.h <= p.y &&
+         player.y + player.h + player.vy > p.y){
+        player.y = p.y - player.h;
+        player.vy = 0;
+        player.onGround = true;
+      }
+      // side blocking
+      if(player.vx !== 0){
+        // simple AABB check for side
+        if(movedX + player.w > p.x && movedX < p.x + p.w &&
+           player.y + player.h > p.y && player.y < p.y + p.h){
+          if(vx > 0) player.x = p.x - player.w;
+          else if(vx < 0) player.x = p.x + p.w;
+        }
+      }
+    }
+
+    // moving platforms
+    for(const p of platforms){
+      if(p.dx !== undefined){
+        p.x += p.dx;
+        if(p.x < 0 || p.x + p.w > canvas.width) p.dx = -p.dx;
+        // carry player if on top
+        if(player.onGround &&
+           player.x + player.w > p.x &&
+           player.x < p.x + p.w &&
+           player.y + player.h === p.y){
+          player.x += p.dx;
+        }
+      }
+    }
+
+    // fall off screen
+    if(player.y > canvas.height){
+      resetPlayer();
+    }
+
+    // collect crystals
+    for(const c of crystals){
+      if(!c.collected && circleRectIntersect(c.x, c.y, c.r, player)){
+        c.collected = true;
+        score += 10;
+        uiScore.textContent = score;
+      }
+    }
+
+    // check portal win
+    if(rectIntersect(player, portal)){
+      const allCollected = crystals.every(c=>c.collected);
+      if(allCollected){
+        won = true;
+        gameOver = true;
+        winMsg.style.display = 'block';
+      }
+    }
+  }
+
+  function resetPlayer(){
+    player.x = 50;
+    player.y = canvas.height - 100;
+    player.vy = 0;
+    player.onGround = false;
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // sky gradient
+    const grad = ctx.createLinearGradient(0,0,0,canvas.height);
+    grad.addColorStop(0,'#87CEEB');
+    grad.addColorStop(1,'#E0F7FA');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // platforms
+    ctx.fillStyle = '#8B4513';
+    for(const p of platforms){
+      ctx.fillRect(p.x,p.y,p.w,p.h);
+    }
+
+    // crystals
+    ctx.fillStyle = '#FFD700';
+    for(const c of crystals){
+      if(!c.collected){
+        ctx.beginPath();
+        ctx.arc(c.x,c.y,c.r,0,Math.PI*2);
+        ctx.fill();
+      }
+    }
+
+    // portal
+    ctx.fillStyle = portal.color;
+    ctx.fillRect(portal.x,portal.y,portal.w,portal.h);
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px sans-serif';
+    ctx.fillText('EXIT', portal.x+5, portal.y+35);
+
+    // player (simple robot)
+    ctx.fillStyle = player.color;
+    ctx.fillRect(player.x, player.y, player.w, player.h);
+    // eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(player.x+6, player.y+8, 5,5);
+    ctx.fillRect(player.x+19, player.y+8, 5,5);
+    // antenna
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(player.x+player.w/2, player.y);
+    ctx.lineTo(player.x+player.w/2, player.y-10);
+    ctx.stroke();
+  }
+
+  function loop(){
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // input handling
+  window.addEventListener('keydown', e=>{
+    if(e.key === 'ArrowLeft') keys.left = true;
+    if(e.key === 'ArrowRight') keys.right = true;
+    if(e.key === ' ') { e.preventDefault(); keys.jump = true; }
+  });
+  window.addEventListener('keyup', e=>{
+    if(e.key === 'ArrowLeft') keys.left = false;
+    if(e.key === 'ArrowRight') keys.right = false;
+    if(e.key === ' ') keys.jump = false;
+  });
+
+  // jump on keydown (allow holding)
+  window.addEventListener('keydown', e=>{
+    if(e.key === ' ' && player.onGround){
+      player.vy = jumpSpeed;
+    }
+  });
+
+  loop();
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-05-skybot-island-hopper";
+  var RELEASE = "38d3ff64f6b759149d8bc21fe79e44b5c0c6f9a1";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

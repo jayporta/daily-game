@@ -930,6 +930,49 @@
     "attemptModels": [
       "poolside/laguna-s-2.1:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 2,
+    "dislikeReasons": {
+      "gameplay-broken": 2,
+      "missing-art": 1,
+      "goal-unclear": 2,
+      "controls-unclear": 1
+    },
+    "popularityScore": -2
+  },
+  {
+    "date": "2026-10-05",
+    "status": "published",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "slug": "2026-10-05-skybot-island-hopper",
+    "genre": "platformer",
+    "theme": "A small robot explorer jumps between floating islands in the sky, collecting energy crystals to power its portal home.",
+    "mechanics": [
+      "Jump between platforms",
+      "Avoid falling off the screen",
+      "Collect energy crystals",
+      "Reach the portal to complete the level"
+    ],
+    "title": "Skybot Island Hopper",
+    "attempts": 4,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call",
+      "generation-failover",
+      "generation-failover",
+      "unknown-genre",
+      "extract",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free",
+      "poolside/laguna-s-2.1:free"
+    ],
     "quotaAffected": true
   }
 ]
