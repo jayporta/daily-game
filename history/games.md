@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Place color-matching towers to repel approaching creatures, Survive waves of increasingly fast creatures, Earn points between waves to place and upgrade towers
 - model: nvidia/nemotron-3.5-lightning:free
 - attempts: 2
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-05 — Skybot Island Hopper
 
