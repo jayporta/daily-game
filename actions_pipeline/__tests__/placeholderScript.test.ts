@@ -108,3 +108,35 @@ test('a line comment straight after code does not open a block comment', () => {
   const html = page(`let a = 1;// see src/*\n${realCode(MIN_SCRIPT_CHARS + 50)}\n/* end */`);
   assert.equal(isPlaceholderScript(html), false);
 });
+
+test('a quoted > in an attribute does not hide a data block type', () => {
+  const data = `<script data-note="a > b" type="application/json">${JSON.stringify({ levels: realCode(MIN_SCRIPT_CHARS * 2) })}</script>`;
+  assert.equal(isPlaceholderScript(page('// Game code here', data)), true);
+});
+
+test('HTML comment markers inside script strings keep the code between them', () => {
+  const html = page(
+    `const open = "<!--";\n${realCode(MIN_SCRIPT_CHARS + 50)}\nconst close = "-->";`,
+  );
+  assert.equal(isPlaceholderScript(html), false);
+});
+
+test('a line comment straight after a value is still a comment', () => {
+  const html = page(`let score=0// ${'rest of the game goes here '.repeat(60)}`);
+  assert.equal(isPlaceholderScript(html), true);
+});
+
+test('comment markers inside strings are code', () => {
+  const html = page(`const glob = 'src/*';\n${realCode(MIN_SCRIPT_CHARS + 50)}\n/* end */`);
+  assert.equal(isPlaceholderScript(html), false);
+});
+
+test('an old-style hidden script still counts its code', () => {
+  const html = page(`<!--\n${realCode(MIN_SCRIPT_CHARS + 50)}\n//-->`);
+  assert.equal(isPlaceholderScript(html), false);
+});
+
+test('a quote with no partner ends at its line rather than swallowing comments', () => {
+  const html = page(`const quote = /'/;\n// ${'x'.repeat(MIN_SCRIPT_CHARS * 2)}`);
+  assert.equal(isPlaceholderScript(html), true);
+});
