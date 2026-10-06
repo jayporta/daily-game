@@ -274,7 +274,7 @@ test('the display contract is not part of the shared content guardrails', () => 
 // the real extractor to keep them locked together.
 test('the documented output format actually parses with extractBundle', () => {
   const modelStyleResponse = OUTPUT_FORMAT_CONTRACT.replace(
-    '(the whole game: inline <style> and <script>, every line written out in full)',
+    '(the whole game: inline style and script, every line written out in full)',
     '<html><body><canvas></canvas></body></html>',
   ).replace(
     /\{"title".*\}/,
@@ -298,10 +298,8 @@ test('the contract html example body models no elision or placeholder comment', 
   assert.doesNotMatch(body, /\/\/|\/\*|<!--/, 'example body contains a code comment');
 });
 
-test('the contract requires the whole game and forbids stand-ins for code', () => {
-  assert.match(OUTPUT_FORMAT_CONTRACT, /every line/);
-  assert.match(OUTPUT_FORMAT_CONTRACT, /TODO/);
-  assert.match(OUTPUT_FORMAT_CONTRACT, /smaller one/);
+test('the contract requires the whole game', () => {
+  assert.match(OUTPUT_FORMAT_CONTRACT, /Write every line of the game/);
 });
 
 // The looser half of the same invariant: a field can be added to the

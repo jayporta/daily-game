@@ -156,7 +156,7 @@ export function moderationRejection(
 
 /** Corrective words for a page that loaded and ran but drew nothing. */
 const SMOKE_BLANK_GUIDANCE =
-  'Your page showed nothing. Write the complete game script, not a shell, skeleton or placeholder, and draw the opening state before any input.';
+  'Write the complete game script, not a shell, skeleton or placeholder, and draw the opening state before any input.';
 
 /** Corrective words for every other way the smoke test turns a game down. */
 const SMOKE_DEFAULT_GUIDANCE =

@@ -34,7 +34,7 @@ First, a block tagged \`json\` containing only this object:
 Second, a block tagged \`html\` containing the entire game as ONE self-contained HTML file:
 \`\`\`html
 <!doctype html>
-(the whole game: inline <style> and <script>, every line written out in full)
+(the whole game: inline style and script, every line written out in full)
 \`\`\`
 
 The \`genre\` value must be one of the genre ids listed above. The html block

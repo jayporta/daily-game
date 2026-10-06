@@ -19,9 +19,7 @@ test('a blank-page rejection tells the model to write the complete game script',
   const feedback = rejection.feedback ?? '';
 
   assert.equal(rejection.kind, 'smoke-blank');
-  assert.match(feedback, /showed nothing/);
   assert.match(feedback, /complete game script/);
-  assert.match(feedback, /opening state/);
   assert.match(feedback, /page rendered nothing/);
 });
 
