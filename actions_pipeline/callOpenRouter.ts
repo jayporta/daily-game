@@ -9,6 +9,7 @@ import {
   pipelineEnvironment,
   reportPipelineCrash,
 } from '#actions_pipeline/lib/pipelineReporting.ts';
+import { writeWorkflowOutputs } from '#actions_pipeline/lib/workflowOutputs.ts';
 import {
   type RunDailyPipelineOptions,
   runDailyPipeline,
@@ -30,16 +31,22 @@ function parseCliArgs(argv: string[]): RunDailyPipelineOptions {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   // A failed generation is a normal outcome and must still exit green;
   // only an unexpected crash is a real CI failure.
-  runDailyPipeline(parseCliArgs(process.argv.slice(2))).catch(async (error: unknown) => {
-    console.error('Pipeline crashed:', error);
-    process.exitCode = 1;
-    // The DSN is read defensively: an unreadable config is itself one of the
-    // things that gets a run here.
-    await reportPipelineCrash({
-      error,
-      dsn: dsnFromConfigOrNull(),
-      release: process.env['GITHUB_SHA'],
-      environment: pipelineEnvironment(),
+  const options = parseCliArgs(process.argv.slice(2));
+  runDailyPipeline(options)
+    .then((result) => {
+      // Tells the commit step what the run did; a dry run commits nothing.
+      if (!options.dryRun) writeWorkflowOutputs(result, process.env['GITHUB_OUTPUT']);
+    })
+    .catch(async (error: unknown) => {
+      console.error('Pipeline crashed:', error);
+      process.exitCode = 1;
+      // The DSN is read defensively: an unreadable config is itself one of the
+      // things that gets a run here.
+      await reportPipelineCrash({
+        error,
+        dsn: dsnFromConfigOrNull(),
+        release: process.env['GITHUB_SHA'],
+        environment: pipelineEnvironment(),
+      });
     });
-  });
 }
