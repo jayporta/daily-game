@@ -93,3 +93,18 @@ test('data- attributes and legacy script types do not hide a real game', () => {
     assert.equal(isPlaceholderScript(html), false, attributes);
   }
 });
+
+test('a script of exactly the floor is not a placeholder and one character fewer is', () => {
+  assert.equal(isPlaceholderScript(page('a'.repeat(MIN_SCRIPT_CHARS))), false);
+  assert.equal(isPlaceholderScript(page('a'.repeat(MIN_SCRIPT_CHARS - 1))), true);
+});
+
+test('a script inside an HTML comment does not count as code', () => {
+  const commented = `<!-- <script>${realCode(MIN_SCRIPT_CHARS * 2)}</script> -->`;
+  assert.equal(isPlaceholderScript(page('// Game code here', commented)), true);
+});
+
+test('a line comment straight after code does not open a block comment', () => {
+  const html = page(`let a = 1;// see src/*\n${realCode(MIN_SCRIPT_CHARS + 50)}\n/* end */`);
+  assert.equal(isPlaceholderScript(html), false);
+});
