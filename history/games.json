@@ -973,6 +973,37 @@
       "cohere/north-mini-code:free",
       "poolside/laguna-s-2.1:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-10-06",
+    "status": "published",
+    "model": "nvidia/nemotron-3.5-lightning:free",
+    "slug": "2026-10-06-chroma-guard",
+    "genre": "tower-defense",
+    "theme": "Abstract geometric creatures of shifting colors approach a central crystal; place color-matching wardens to repel them",
+    "mechanics": [
+      "Place color-matching towers to repel approaching creatures",
+      "Survive waves of increasingly fast creatures",
+      "Earn points between waves to place and upgrade towers"
+    ],
+    "title": "Chroma Guard",
+    "attempts": 2,
+    "canvasDrawn": false,
+    "failureKinds": [
+      "extract",
+      "generation-failover",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free"
+    ],
     "quotaAffected": true
   }
 ]

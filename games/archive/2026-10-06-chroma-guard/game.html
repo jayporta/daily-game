@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+  <meta charset="utf-8">
+  <title>Color Ward</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border; }
+    body { background: #1a0a2e; }
+    canvas { display: block; }
+    .ui { position: absolute; top: 10px; left: 10px; color: white; font-family: sans-serif; }
+    .wave { margin-bottom: 5px; }
+    .tower-panel { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); padding: 10px; color: white; }
+  </style>
+</head>
+<body>
+  <div class="ui">Wave: <span id="wave">0</span> | Lives: <span id="lives">3</span></div>
+  <div class="tower-panel">
+    Current color: <span id="color-display">R</span>
+    <br>Press 1-4 to change
+    <br>Click to place tower (if you have points)
+    <br>Press U to upgrade selected tower
+  </div>
+  <canvas id="game"></canvas>
+  
+  <script>
+    // Game implementation
+  </script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-06-chroma-guard";
+  var RELEASE = "5b7053d2cc8dfeaaeebd369a59800ebe10c52d43";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

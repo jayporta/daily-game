@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-06 — Chroma Guard
+
+- genre: tower-defense
+- theme: Abstract geometric creatures of shifting colors approach a central crystal; place color-matching wardens to repel them
+- mechanics: Place color-matching towers to repel approaching creatures, Survive waves of increasingly fast creatures, Earn points between waves to place and upgrade towers
+- model: nvidia/nemotron-3.5-lightning:free
+- attempts: 2
+
 ## 2026-10-05 — Skybot Island Hopper
 
 - genre: platformer
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Jump between platforms, Avoid falling off the screen, Collect energy crystals, Reach the portal to complete the level
 - model: nvidia/nemotron-3-super-120b-a12b:free
 - attempts: 4
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-04 — Sprout Collector
 
