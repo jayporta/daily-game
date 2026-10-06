@@ -9,14 +9,9 @@
 export const MIN_SCRIPT_CHARS = 1000;
 
 const INLINE_SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
-const SRC_ATTRIBUTE = /\bsrc\s*=/i;
-const TYPE_ATTRIBUTE = /\btype\s*=\s*["']?([^"'\s>]*)/i;
-const SCRIPT_TYPES: ReadonlySet<string> = new Set([
-  '',
-  'text/javascript',
-  'application/javascript',
-  'module',
-]);
+const SRC_ATTRIBUTE = /(?:^|\s)src\s*=/i;
+const TYPE_ATTRIBUTE = /(?:^|\s)type\s*=\s*["']?([^"'\s>]*)/i;
+const SCRIPT_TYPE = /^(?:|module|(?:text|application)\/(?:x-)?(?:java|ecma)script)$/i;
 // One pass, so whichever comment opens first wins. A `//` counts only at a line
 // start or after whitespace, so a URL's `://` keeps the rest of its line.
 const COMMENT = /\/\*[\s\S]*?\*\/|(?<=^|\s)\/\/[^\n]*/gm;
@@ -25,7 +20,7 @@ const COMMENT = /\/\*[\s\S]*?\*\/|(?<=^|\s)\/\/[^\n]*/gm;
 function isInlineCode(attributes: string): boolean {
   if (SRC_ATTRIBUTE.test(attributes)) return false;
   const type = TYPE_ATTRIBUTE.exec(attributes)?.[1] ?? '';
-  return SCRIPT_TYPES.has(type.toLowerCase());
+  return SCRIPT_TYPE.test(type);
 }
 
 /**

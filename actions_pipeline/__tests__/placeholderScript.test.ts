@@ -61,13 +61,6 @@ test('code in several inline scripts adds up', () => {
   assert.equal(isPlaceholderScript(html), false);
 });
 
-test('a URL containing // inside a large script does not make it a placeholder', () => {
-  const html = page(
-    `const home = 'https://example.com/play';\n${realCode(MIN_SCRIPT_CHARS + 200)}`,
-  );
-  assert.equal(isPlaceholderScript(html), false);
-});
-
 test('a data block beside a placeholder script does not count as code', () => {
   const data = `<script type="application/json">${JSON.stringify({ levels: realCode(MIN_SCRIPT_CHARS * 2) })}</script>`;
   assert.equal(isPlaceholderScript(page('// Game code here', data)), true);
@@ -86,4 +79,17 @@ test('a block-comment opener inside a line comment does not swallow the code aft
 test('a URL in a game written on one line keeps the rest of that line', () => {
   const oneLine = `const ns='http://www.w3.org/2000/svg';${realCode(MIN_SCRIPT_CHARS + 50).replace(/\n/g, '')}`;
   assert.equal(isPlaceholderScript(page(oneLine)), false);
+});
+
+test('data- attributes and legacy script types do not hide a real game', () => {
+  const code = realCode(MIN_SCRIPT_CHARS + 50);
+  for (const attributes of [
+    ' data-src="x"',
+    ' data-type="x"',
+    ' type="text/ecmascript"',
+    ' type="application/x-javascript"',
+  ]) {
+    const html = `<html><body><script${attributes}>${code}</script></body></html>`;
+    assert.equal(isPlaceholderScript(html), false, attributes);
+  }
 });
