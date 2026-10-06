@@ -171,7 +171,7 @@ refactor.
   and `GameView` hides the BYOK panel rather than offering a Generate button
   that fetches a 404.
 - **The prompt contract and the extractor must agree.**
-  `OUTPUT_FORMAT_CONTRACT` in `actions_pipeline/buildPrompt.ts` describes the two
+  `OUTPUT_FORMAT_CONTRACT` in `actions_pipeline/prompt/outputContract.ts` describes the two
   fenced blocks that `lib/extractBundleShared.ts` parses. Change them
   together or every generation fails.
 - **`renderAttemptFeedback` and `stripAttemptFeedback` must agree.** Both
@@ -180,7 +180,7 @@ refactor.
   produced that day's game — corrections to the attempt before it included —
   and BYOK replays it as a fresh first attempt, where an instruction to fix a
   failure that never happened describes nothing. The round-trip test in
-  `actions_pipeline/__tests__/buildPrompt.test.ts` is the guard: strip what the
+  `actions_pipeline/prompt/__tests__/buildPrompt.test.ts` is the guard: strip what the
   builder added and the result must equal a first-attempt prompt byte for
   byte. Only that section goes; the history-derived `## Fix what has been
   going wrong` is guidance any generation can still act on.
@@ -299,7 +299,7 @@ refactor.
   holds the insert key, so no string from the store may ever reach
   `history/games.json` or the generation prompt.
 - **Only our own words reach the generation prompt as guidance.**
-  `correctiveDirectives` in `actions_pipeline/buildPrompt.ts` keys fixed wording off
+  `correctiveDirectives` in `actions_pipeline/prompt/correctiveDirectives.ts` keys fixed wording off
   the closed `DISLIKE_REASONS` and `FAILURE_KINDS` vocabularies, so nothing a
   visitor or a previous generation authored is quoted into the next prompt.
   `digestHistory` shows model-authored `theme`/`mechanics`/`title` as labelled

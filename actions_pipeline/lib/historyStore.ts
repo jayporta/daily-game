@@ -34,7 +34,7 @@ export type HistoryStatus = 'published' | 'failed_kept_previous';
  * model or turns it into guidance.
  *
  * Closed for the same reason {@link DislikeReason} is: the corrective wording
- * these select in `buildPrompt.ts` is ours, so nothing model-authored — a
+ * these select in `correctiveDirectives.ts` is ours, so nothing model-authored — a
  * console message from a broken bundle, say — reaches the next prompt through
  * this path. The free-text `failureReasons` beside it stay for humans reading
  * `history/games.md`.
@@ -86,7 +86,7 @@ interface HistoryEntryCommon {
    * eventually succeeded — absent, or empty, when the first attempt won on
    * the model it asked for. Either kind also carries a `generation-failover`
    * record for each model that failed over, which has no `failureReasons`
-   * line. Drawn from {@link FAILURE_KINDS}, so `buildPrompt.ts` can turn a
+   * line. Drawn from {@link FAILURE_KINDS}, so `correctiveDirectives.ts` can turn a
    * recurring failure into fixed guidance without quoting anything a model
    * wrote.
    */
@@ -167,7 +167,7 @@ export interface FailedEntry extends HistoryEntryCommon {
    * Whether every attempt failed because the provider had no capacity left.
    *
    * Deliberately not a {@link FAILURE_KINDS} member: that vocabulary exists so
-   * `buildPrompt.ts` can turn a recurring failure into corrective guidance,
+   * `correctiveDirectives.ts` can turn a recurring failure into corrective guidance,
    * and there is nothing a model can do about an account-level quota.
    *
    * A superset relationship runs the other way from {@link
@@ -276,7 +276,7 @@ const FAILURE_KIND_IDS: ReadonlySet<string> = new Set(FAILURE_KINDS);
  *
  * Optional fields are still type-checked, because downstream readers use them
  * structurally: `renderGamesMd` and `summariseEntries` call `mechanics.join`,
- * and `buildPrompt.ts` indexes `FAILURE_DIRECTIVES` by `failureKinds`.
+ * and `correctiveDirectives.ts` indexes `FAILURE_DIRECTIVES` by `failureKinds`.
  */
 function historyGameEntryErrors(value: unknown): string[] {
   if (!isPlainObject(value)) return ['must be an object'];

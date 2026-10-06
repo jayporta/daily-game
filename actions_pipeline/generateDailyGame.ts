@@ -8,7 +8,6 @@
 // failure; runDailyPipeline.ts is what turns that into a run that keeps the
 // game the site is already serving and still exits green.
 
-import { buildPrompt, selectRemixSuggestion } from '#actions_pipeline/buildPrompt.ts';
 import type { GenerateResult } from '#actions_pipeline/generateResult.ts';
 import type { GenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
 import type { GenresConfig } from '#actions_pipeline/lib/config/genres.ts';
@@ -19,6 +18,8 @@ import type {
   HistorySummary,
 } from '#actions_pipeline/lib/historyStore.ts';
 import type { OpenRouterClient } from '#actions_pipeline/lib/openRouterClient.ts';
+import { buildPrompt } from '#actions_pipeline/prompt/buildPrompt.ts';
+import { selectRemixSuggestion } from '#actions_pipeline/prompt/remix.ts';
 import { type Logger, runAttempt } from '#actions_pipeline/runAttempt.ts';
 import {
   activeModels,

@@ -173,7 +173,7 @@ export function toGeneratedMeta(value: unknown): GeneratedMeta {
  * `json` block of metadata and an `html` block holding the whole game.
  *
  * The contract it parses is `OUTPUT_FORMAT_CONTRACT` in
- * `actions_pipeline/buildPrompt.ts` — change the two together or every generation
+ * `actions_pipeline/prompt/outputContract.ts` — change the two together or every generation
  * fails.
  *
  * @param rawText The reply. Typed `unknown` because it comes from a provider

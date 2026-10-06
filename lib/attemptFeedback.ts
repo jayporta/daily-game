@@ -41,7 +41,7 @@ Be more defensive this time. Re-read the rules above before you start.
  * history-derived `## Fix what has been going wrong` is guidance any
  * generation can still act on.
  *
- * @param prompt A prompt as `buildPrompt.ts` assembled it.
+ * @param prompt A prompt as `actions_pipeline/prompt/buildPrompt.ts` assembled it.
  * @returns The prompt unchanged when it carries no such section.
  */
 export function stripAttemptFeedback(prompt: string): string {

@@ -13,12 +13,12 @@ import {
   smokeRejection,
   unknownGenreRejection,
 } from '#actions_pipeline/attemptOutcome.ts';
-import { isPlaceholderMeta } from '#actions_pipeline/buildPrompt.ts';
 import type { GenresConfig } from '#actions_pipeline/lib/config/genres.ts';
 import type { OpenRouterClient } from '#actions_pipeline/lib/openRouterClient.ts';
 import { failedOverModels } from '#actions_pipeline/lib/servedModel.ts';
 import { moderate } from '#actions_pipeline/moderate.ts';
 import { isPlaceholderScript } from '#actions_pipeline/placeholderScript.ts';
+import { isPlaceholderMeta } from '#actions_pipeline/prompt/outputContract.ts';
 import type { SmokeTester } from '#actions_pipeline/smokeTest.ts';
 import { extractBundle } from '#lib/extractBundleShared.ts';
 import type { ProviderStopReason } from '#lib/providerResponse.ts';
