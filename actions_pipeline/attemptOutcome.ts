@@ -154,6 +154,14 @@ export function moderationRejection(
   };
 }
 
+/** Corrective words for a page that loaded and ran but drew nothing. */
+const SMOKE_BLANK_GUIDANCE =
+  'Write the complete game script, not a shell, skeleton or placeholder, and draw the opening state before any input.';
+
+/** Corrective words for every other way the smoke test turns a game down. */
+const SMOKE_DEFAULT_GUIDANCE =
+  'Be more defensive — guard every element lookup, and make no network requests of any kind.';
+
 /**
  * The smoke test turned the game down.
  *
@@ -165,11 +173,13 @@ export function smokeRejection(
   smoke: SmokeTestResult,
   moderationQuotaAffected: boolean,
 ): AttemptRejection {
+  const kind = smokeFailureKind(smoke);
+  const guidance = kind === 'smoke-blank' ? SMOKE_BLANK_GUIDANCE : SMOKE_DEFAULT_GUIDANCE;
   return {
     ok: false,
-    kind: smokeFailureKind(smoke),
+    kind,
     reason: `smoke test failed — ${smoke.reasons.join('; ')}`,
-    feedback: `Your previous game did not run correctly: ${smoke.reasons.join('; ')}. Be more defensive — guard every element lookup, and make no network requests of any kind.`,
+    feedback: `Your previous game did not run correctly: ${smoke.reasons.join('; ')}. ${guidance}`,
     quota: false,
     quotaAffected: moderationQuotaAffected,
   };

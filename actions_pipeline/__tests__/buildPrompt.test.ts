@@ -274,7 +274,7 @@ test('the display contract is not part of the shared content guardrails', () => 
 // the real extractor to keep them locked together.
 test('the documented output format actually parses with extractBundle', () => {
   const modelStyleResponse = OUTPUT_FORMAT_CONTRACT.replace(
-    '...your complete game, with inline <style> and <script> only...',
+    '(the whole game: inline style and script, every line written out in full)',
     '<html><body><canvas></canvas></body></html>',
   ).replace(
     /\{"title".*\}/,
@@ -286,6 +286,20 @@ test('the documented output format actually parses with extractBundle', () => {
   assert.equal(result.meta.title, 'T');
   assert.deepEqual(result.meta.controls, [{ action: 'Go', key: 'G' }]);
   assert.match(result.html, /<canvas>/);
+});
+
+// Models copy examples literally: an ellipsis or a code comment in the html
+// example is what a model hands back as its game.
+test('the contract html example body models no elision or placeholder comment', () => {
+  const body = /```html\n([\s\S]*?)\n```/.exec(OUTPUT_FORMAT_CONTRACT)?.[1] ?? '';
+  assert.notEqual(body, '', 'contract should show an html example');
+
+  assert.doesNotMatch(body, /\.\.\.|…/, 'example body contains an elision marker');
+  assert.doesNotMatch(body, /\/\/|\/\*|<!--/, 'example body contains a code comment');
+});
+
+test('the contract requires the whole game', () => {
+  assert.match(OUTPUT_FORMAT_CONTRACT, /Write every line of the game/);
 });
 
 // The looser half of the same invariant: a field can be added to the
