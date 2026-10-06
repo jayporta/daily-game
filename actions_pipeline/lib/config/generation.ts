@@ -1,6 +1,7 @@
 // Everything about `config/generation.json`: its shape, its rules, and how
 // it is read. These are the knobs on the daily run — window sizes, sampling
 // temperature, the cron the countdown is computed from.
+import { parseDailyCron } from '#actions_pipeline/lib/dates.ts';
 import { parseSentryDsn } from '#actions_pipeline/lib/errorReporting.ts';
 import { paths } from '#actions_pipeline/lib/paths.ts';
 import {
@@ -115,6 +116,8 @@ export function validateGenerationConfig(
   }
   if (!isNonEmptyString(json.cronSchedule)) {
     errors.push('cronSchedule must be a non-empty string');
+  } else if (parseDailyCron(json.cronSchedule) === null) {
+    errors.push('cronSchedule must be a daily "M H * * *" cron with a valid minute and hour');
   }
 
   return errors.length === before;

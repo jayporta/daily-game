@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
 import type { GenresConfig } from '#actions_pipeline/lib/config/genres.ts';
-import { MS_PER_DAY } from '#actions_pipeline/lib/dates.ts';
+import { MS_PER_DAY, parseDailyCron, slotStart } from '#actions_pipeline/lib/dates.ts';
 import {
   buildBundleCspMeta,
   buildErrorReportingSnippet,
@@ -88,24 +88,36 @@ export function computeExpiresAt(cronSchedule: string, fromISO: string): string 
     throw new Error(`computeExpiresAt: invalid date ${fromISO}`);
   }
 
-  const parts = cronSchedule.trim().split(/\s+/);
-  const [minuteField, hourField, dayField, monthField, weekdayField] = parts;
-  const isPlainDaily =
-    parts.length === 5 && dayField === '*' && monthField === '*' && weekdayField === '*';
-
-  const minute = Number(minuteField);
-  const hour = Number(hourField);
-  if (!isPlainDaily || !Number.isInteger(minute) || !Number.isInteger(hour)) {
-    return new Date(from.getTime() + MS_PER_DAY).toISOString();
-  }
+  const daily = parseDailyCron(cronSchedule);
+  if (daily === null) return new Date(from.getTime() + MS_PER_DAY).toISOString();
 
   const next = new Date(
-    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate(), hour, minute, 0, 0),
+    Date.UTC(
+      from.getUTCFullYear(),
+      from.getUTCMonth(),
+      from.getUTCDate(),
+      daily.hour,
+      daily.minute,
+    ),
   );
   if (next.getTime() <= from.getTime()) {
     next.setUTCDate(next.getUTCDate() + 1);
   }
   return next.toISOString();
+}
+
+/**
+ * When a game generated at `generatedAt` stops being today's.
+ *
+ * Counts from the later of `generatedAt` and the start of the slot the run
+ * claims, so a run arriving inside the lead window is not handed a countdown
+ * that ends minutes later.
+ */
+function expiresAtFor(cronSchedule: string, generatedAt: string): string {
+  const slot = slotStart(cronSchedule, new Date(generatedAt));
+  const from =
+    slot !== null && slot.getTime() > Date.parse(generatedAt) ? slot.toISOString() : generatedAt;
+  return computeExpiresAt(cronSchedule, from);
 }
 
 export type { Manifest };
@@ -189,7 +201,7 @@ export function buildManifest({
     genreLabel: genres.find((genre) => genre.id === meta.genre)?.label ?? meta.genre,
     model,
     generatedAt,
-    expiresAt: computeExpiresAt(cronSchedule, generatedAt),
+    expiresAt: expiresAtFor(cronSchedule, generatedAt),
     controls: meta.controls,
   };
 }

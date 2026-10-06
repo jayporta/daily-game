@@ -225,6 +225,11 @@ refactor.
   fallback path; making the workflow's *earlier* means the fallback races the
   external trigger every day instead of covering for it.
 
+  A run's day is the slot it falls in (`gameDate` in `actions_pipeline/lib/dates.ts`),
+  not the calendar date: a fallback deferred past midnight UTC still belongs to
+  the day before, and a manual rerun between 00:00 and 18:55 UTC targets the
+  previous day's slot — it fills that day if it failed and skips if it published.
+
   Both triggers firing on the same day is the normal case, not a fault.
   `publishedEntryOn` is what makes that safe: whichever run arrives second
   finds the day already published and stops before generating. Without it the

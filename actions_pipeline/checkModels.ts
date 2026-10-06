@@ -18,7 +18,7 @@ import {
   type ModelsConfig,
   validateModelsConfig,
 } from '#actions_pipeline/lib/config/models.ts';
-import { isoDate } from '#actions_pipeline/lib/dates.ts';
+import { gameDate } from '#actions_pipeline/lib/dates.ts';
 import {
   type FailureKind,
   type HistoryGameEntry,
@@ -450,7 +450,7 @@ function describe(result: CheckModelsResult): string {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const dryRun = process.argv.includes('--dry-run');
-  const today = isoDate(new Date());
+  const today = gameDate(loadGenerationConfig().cronSchedule, new Date());
   // A hand-run check is always allowed; the workflow's is gated on the day
   // having produced no game.
   const forced = dryRun || process.argv.includes('--force');

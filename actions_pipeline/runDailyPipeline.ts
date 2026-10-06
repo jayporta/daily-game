@@ -10,7 +10,7 @@ import { generateDailyGame } from '#actions_pipeline/generateDailyGame.ts';
 import type { GenerateResult } from '#actions_pipeline/generateResult.ts';
 import { loadAllConfig } from '#actions_pipeline/lib/config/index.ts';
 import { loadReactionConfigOrUnconfigured } from '#actions_pipeline/lib/config/reactionConfig.ts';
-import { isoDate } from '#actions_pipeline/lib/dates.ts';
+import { gameDate } from '#actions_pipeline/lib/dates.ts';
 import { getOpenRouterClient } from '#actions_pipeline/lib/getClient.ts';
 import type { HistoryGameEntry } from '#actions_pipeline/lib/historyStore.ts';
 import {
@@ -123,7 +123,7 @@ export async function runDailyPipeline({
   const currentPaths = root ? createPaths(root) : paths;
   const { models, genres, generation, guardrails } = loadAllConfig(root);
   const summary = readSummary(currentPaths.historySummary);
-  const date = isoDate(now);
+  const date = gameDate(generation.cronSchedule, now);
 
   // Reconciled before anything can fail: a generation that later gives up
   // must still leave yesterday's reactions recorded.
