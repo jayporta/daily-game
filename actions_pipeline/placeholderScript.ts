@@ -25,9 +25,9 @@ function isInlineCode(attributes: string): boolean {
 }
 
 /**
- * The index just past the string literal opening at `start`. A quote with no
- * partner ends at its line, so a stray one — in a regex literal, say — cannot
- * swallow the rest of the script.
+ * The index just past the string literal opening at `start`. A `'` or `"`
+ * with no partner ends at its line, so a stray one in a regex literal cannot
+ * swallow the rest of the script; a stray backtick runs to the next one.
  */
 function stringEnd(source: string, start: number): number {
   const quote = source.charAt(start);
