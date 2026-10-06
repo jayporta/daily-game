@@ -981,29 +981,26 @@
   },
   {
     "date": "2026-10-06",
-    "status": "published",
+    "status": "failed_kept_previous",
     "model": "nvidia/nemotron-3.5-lightning:free",
-    "slug": "2026-10-06-shape-defender",
-    "genre": "tower-defense",
-    "theme": "Geometric defenders protect against flowing data entities",
-    "mechanics": [
-      "Place towers along path",
-      "Auto-shooting defenders",
-      "Enemies follow path",
-      "Survive waves"
-    ],
-    "title": "Shape Defender",
     "attempts": 2,
-    "canvasDrawn": false,
+    "failureReasons": [
+      "attempt 2 (nvidia/nemotron-3.5-lightning:free): published as 2026-10-06-chroma-guard, then withdrawn by hand — its script was only a placeholder comment",
+      "attempt 2 (nvidia/nemotron-3.5-lightning:free): regenerated as 2026-10-06-shape-defender, then withdrawn by hand — its script was again only a placeholder comment"
+    ],
     "failureKinds": [
       "extract",
       "generation-failover",
-      "generation-failover"
+      "generation-failover",
+      "placeholder-script",
+      "placeholder-script"
     ],
     "attemptModels": [
       "dots-studio/dots-3-note-preview:free",
       "nvidia/nemotron-3-ultra-550b-a55b:free",
-      "thinkingmachines/inkling-small:free"
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "nvidia/nemotron-3.5-lightning:free"
     ],
     "quotaAffected": true
   }
