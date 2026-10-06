@@ -331,6 +331,9 @@ const FAILURE_DIRECTIVES: Record<FailureKind, string | null> = {
     'Recent attempts left the output format\'s example values ("...") in the json block ' +
     'instead of describing the game actually built. Every field — title, theme, mechanics, ' +
     'controls — must describe your real game, not the example.',
+  'placeholder-script':
+    'Recent attempts returned a placeholder or stub script instead of the game. Write every ' +
+    'function of the game in full; never leave a comment where code belongs.',
   moderation:
     'Recent attempts were rejected by the content rules. Re-read them and stay well ' +
     'clear of anything borderline.',
