@@ -61,11 +61,29 @@ test('code in several inline scripts adds up', () => {
   assert.equal(isPlaceholderScript(html), false);
 });
 
-// Naive `//` stripping eats the tail of a URL; that only ever undercounts, so
-// a real game still clears the floor.
 test('a URL containing // inside a large script does not make it a placeholder', () => {
   const html = page(
     `const home = 'https://example.com/play';\n${realCode(MIN_SCRIPT_CHARS + 200)}`,
   );
   assert.equal(isPlaceholderScript(html), false);
+});
+
+test('a data block beside a placeholder script does not count as code', () => {
+  const data = `<script type="application/json">${JSON.stringify({ levels: realCode(MIN_SCRIPT_CHARS * 2) })}</script>`;
+  assert.equal(isPlaceholderScript(page('// Game code here', data)), true);
+});
+
+test('a module script counts as code', () => {
+  const html = `<html><body><script type="module">${realCode(MIN_SCRIPT_CHARS + 50)}</script></body></html>`;
+  assert.equal(isPlaceholderScript(html), false);
+});
+
+test('a block-comment opener inside a line comment does not swallow the code after it', () => {
+  const html = page(`// assets live under src/*\n${realCode(MIN_SCRIPT_CHARS + 50)}\n/* end */`);
+  assert.equal(isPlaceholderScript(html), false);
+});
+
+test('a URL in a game written on one line keeps the rest of that line', () => {
+  const oneLine = `const ns='http://www.w3.org/2000/svg';${realCode(MIN_SCRIPT_CHARS + 50).replace(/\n/g, '')}`;
+  assert.equal(isPlaceholderScript(page(oneLine)), false);
 });
