@@ -1,0 +1,21 @@
+{
+  "title": "Shape Defender",
+  "genre": "tower-defense",
+  "theme": "Geometric defenders protect against flowing data entities",
+  "mechanics": [
+    "Place towers along path",
+    "Auto-shooting defenders",
+    "Enemies follow path",
+    "Survive waves"
+  ],
+  "controls": [
+    {
+      "action": "Place tower",
+      "key": "click"
+    },
+    {
+      "action": "Start/restart wave",
+      "key": "r"
+    }
+  ]
+}
