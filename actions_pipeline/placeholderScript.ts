@@ -72,8 +72,9 @@ function codeCharCount(source: string): number {
  * self-contained: a `src` script, a data block such as
  * `type="application/json"`, or a script inside an HTML comment adds nothing.
  * JavaScript comments are skipped and string literals counted. Regex literals
- * are not recognised, so a `//` or `/*` inside one reads as a comment; that
- * undercounts, and so can only reject a real game, never accept a stub.
+ * are not recognised: a `//` or `/*` inside one reads as a comment, which
+ * undercounts, and a quote inside one opens a string to the end of its line,
+ * or to the next backtick, which overcounts by whatever follows on it.
  *
  * @param html - The model's complete HTML document.
  * @returns `true` when the inline scripts hold fewer than

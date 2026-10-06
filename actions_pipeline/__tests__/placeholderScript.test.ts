@@ -140,3 +140,13 @@ test('a quote with no partner ends at its line rather than swallowing comments',
   const html = page(`const quote = /'/;\n// ${'x'.repeat(MIN_SCRIPT_CHARS * 2)}`);
   assert.equal(isPlaceholderScript(html), true);
 });
+
+test('an escaped quote does not end a string literal', () => {
+  const html = page(`const s = "a\\" // ${'x'.repeat(MIN_SCRIPT_CHARS * 2)}";`);
+  assert.equal(isPlaceholderScript(html), false);
+});
+
+test('a template literal runs across lines', () => {
+  const html = page(`const t = \`line one\n// ${'x'.repeat(MIN_SCRIPT_CHARS * 2)}\`;`);
+  assert.equal(isPlaceholderScript(html), false);
+});
