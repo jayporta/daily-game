@@ -562,6 +562,22 @@ test('a recurring placeholder-metadata failure tells the model to describe the r
   assert.match(String(directives[0]), /example values/);
 });
 
+test('a recurring placeholder-script failure tells the model to write every function', () => {
+  const stub: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 3,
+    failureReasons: [],
+    failureKinds: ['placeholder-script', 'placeholder-script'],
+  };
+
+  const directives = correctiveDirectives([stub]);
+
+  assert.equal(directives.length, 1);
+  assert.match(String(directives[0]), /placeholder or stub script/);
+});
+
 // Only ids from the closed vocabularies select wording, so nothing a visitor
 // or a past generation wrote can reach the prompt through this path.
 test('correctiveDirectives ignores a reason outside the vocabulary', () => {

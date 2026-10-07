@@ -266,6 +266,50 @@ test('placeholder metadata is rejected even when the genre is valid and the page
   assert.equal(moderated, false, 'a bundle this broken should not reach the moderator');
 });
 
+// The 2026-10-06 shape: real metadata and a rendered shell, with a script
+// that holds only `// Game code here`. Nothing downstream can tell it from a
+// quiet game, so it has to be stopped before moderation and the smoke test.
+test('a placeholder script is rejected before moderation and the smoke test', async () => {
+  const shell =
+    '```json\n{"title": "Empty Game", "genre": "maze-adventure", "theme": "nothing", ' +
+    '"mechanics": ["none"], "controls": []}\n```\n\n' +
+    '```html\n<!doctype html><html><body><canvas id="c"></canvas>' +
+    '<script>\n// Game code here\n</script></body></html>\n```';
+  let moderated = false;
+  let smoked = false;
+  const client: OpenRouterClient = {
+    async complete({ model, messages }) {
+      if (isModerationRequest(messages)) {
+        moderated = true;
+        return { text: 'PASS', stop: 'complete', model };
+      }
+      return { text: shell, stop: 'complete', model };
+    },
+  };
+  const trackedSmokeTester: SmokeTester = {
+    async test(html, options) {
+      smoked = true;
+      return smokeTester.test(html, options);
+    },
+    close: async () => undefined,
+  };
+
+  const result = await generateDailyGame({
+    ...baseParams(),
+    client,
+    smokeTester: trackedSmokeTester,
+  });
+
+  assert.equal(result.status, 'failed_kept_previous');
+  assert.deepEqual(result.kinds, [
+    'placeholder-script',
+    'placeholder-script',
+    'placeholder-script',
+  ]);
+  assert.equal(moderated, false, 'a placeholder script should not reach the moderator');
+  assert.equal(smoked, false, 'a placeholder script should not reach the smoke test');
+});
+
 test('retries after placeholder metadata and succeeds on the second attempt', async () => {
   const result = await generateDailyGame({
     ...baseParams(),

@@ -11,6 +11,43 @@ Here is your game:
 <body>
 <canvas id="game" width="200" height="200"></canvas>
 <script>
+const TILE_COLORS = ['#1b1f3b', '#2a3f5f', '#3f6f8f', '#6cc4d8', '#a8e6cf', '#dcedc1', '#ffd3b6', '#ffaaa5'];
+const TILE_NAMES = ['abyss', 'deep', 'tide', 'shallow', 'moss', 'sand', 'glow', 'ember'];
+function clamp(value, low, high) {
+  return Math.max(low, Math.min(high, value));
+}
+function lerp(from, to, amount) {
+  return from + (to - from) * clamp(amount, 0, 1);
+}
+function tileIndex(level) {
+  return clamp(Math.round(level), 0, TILE_COLORS.length - 1);
+}
+function tileColor(level) {
+  return TILE_COLORS[tileIndex(level)];
+}
+function tileName(level) {
+  return TILE_NAMES[tileIndex(level)];
+}
+function tileLevelAt(column, row) {
+  const wave = Math.sin(column * 0.7) + Math.cos(row * 0.9) + Math.sin((column + row) * 0.3);
+  return clamp(((wave + 3) / 6) * (TILE_COLORS.length - 1), 0, TILE_COLORS.length - 1);
+}
+function buildTileMap(columns, rows) {
+  const map = [];
+  for (let row = 0; row < rows; row += 1) {
+    const line = [];
+    for (let column = 0; column < columns; column += 1) {
+      line.push(tileIndex(tileLevelAt(column, row)));
+    }
+    map.push(line);
+  }
+  return map;
+}
+function describeTileMap(map) {
+  return map.map((line) => line.map((level) => tileName(level)[0]).join('')).join('\n');
+}
+const TILE_MAP = buildTileMap(8, 6);
+const TILE_SUMMARY = describeTileMap(TILE_MAP);
 const ctx = document.getElementById('game').getContext('2d');
 ctx.fillStyle = 'red';
 ctx.fillRect(0, 0, 200, 200);

@@ -132,6 +132,21 @@ export function placeholderMetaRejection(): AttemptRejection {
   };
 }
 
+/** The page's script is a placeholder or stub, not the game's code. */
+export function placeholderScriptRejection(): AttemptRejection {
+  return {
+    ok: false,
+    kind: 'placeholder-script',
+    reason: "returned a placeholder script instead of the game's code",
+    feedback:
+      "Your previous game's script was a placeholder or stub, not the game. Write the " +
+      'complete game script with every function in full, and never leave a comment ' +
+      'standing in for code.',
+    quota: false,
+    quotaAffected: false,
+  };
+}
+
 /** Moderation turned the game down, or never answered. */
 export function moderationRejection(
   moderation: Extract<ModerationResult, { pass: false }>,

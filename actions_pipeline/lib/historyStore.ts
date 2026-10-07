@@ -45,6 +45,7 @@ export const FAILURE_KINDS = [
   'extract',
   'unknown-genre',
   'placeholder-meta',
+  'placeholder-script',
   'moderation',
   'moderation-unreachable',
   'smoke-js-error',

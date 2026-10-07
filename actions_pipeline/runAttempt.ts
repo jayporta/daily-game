@@ -9,6 +9,7 @@ import {
   generationCallRejection,
   moderationRejection,
   placeholderMetaRejection,
+  placeholderScriptRejection,
   smokeRejection,
   unknownGenreRejection,
 } from '#actions_pipeline/attemptOutcome.ts';
@@ -17,6 +18,7 @@ import type { GenresConfig } from '#actions_pipeline/lib/config/genres.ts';
 import type { OpenRouterClient } from '#actions_pipeline/lib/openRouterClient.ts';
 import { failedOverModels } from '#actions_pipeline/lib/servedModel.ts';
 import { moderate } from '#actions_pipeline/moderate.ts';
+import { isPlaceholderScript } from '#actions_pipeline/placeholderScript.ts';
 import type { SmokeTester } from '#actions_pipeline/smokeTest.ts';
 import { extractBundle } from '#lib/extractBundleShared.ts';
 import type { ProviderStopReason } from '#lib/providerResponse.ts';
@@ -162,6 +164,12 @@ export async function runAttempt({
   // catches it.
   if (isPlaceholderMeta(extracted.meta)) {
     return { ...provenance, ...placeholderMetaRejection() };
+  }
+
+  // A script of comments or a few stub lines parses, moderates and runs
+  // cleanly, so it is stopped here before either is spent on it.
+  if (isPlaceholderScript(extracted.html)) {
+    return { ...provenance, ...placeholderScriptRejection() };
   }
 
   log('Running moderation...');
