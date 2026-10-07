@@ -164,9 +164,9 @@ jobs:
           fi
           node actions_pipeline/rollupHistory.ts "${args[@]}"
 
-      # The tree is the source of truth for what happened. Exhausting the
-      # active model rotation is a successful run that writes only history and
-      # leaves manifest.json alone, so the two questions are asked separately.
+      # Whether anything needs committing, and whether manifest.json moved. The
+      # commit message comes from the Generate step's outcome and falls back to
+      # `published` only when that outcome is missing.
       - name: Check what changed
         id: publish-check
         run: |

@@ -61,9 +61,10 @@ export interface GenerationConfig {
    * Cron expression, in UTC, for when the day's game is due.
    *
    * @remarks
-   * Drives the front-end countdown through `computeExpiresAt`, and is the time
-   * the external trigger that dispatches the workflow is set to. Change those
-   * two together. `generateDailyGame.yml`'s own cron is a later fallback and
+   * Drives the front-end countdown through `computeExpiresAt`, dates every
+   * run through `gameDate` (so it is also the day boundary `publishedEntryOn`
+   * dedups on), and is the time the external trigger that dispatches the
+   * workflow is set to. Change the trigger with it. `generateDailyGame.yml`'s own cron is a later fallback and
    * is deliberately not this value.
    *
    * @example

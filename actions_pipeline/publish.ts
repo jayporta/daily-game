@@ -76,8 +76,7 @@ export function buildSlug(date: string, title: string): string {
 }
 
 /**
- * When the slot a run at `fromISO` claims ends: one day after it opened, which
- * is the next tick of a daily `M H * * *` cron strictly after `fromISO`. A run
+ * When the slot a run at `fromISO` claims ends: one day after it opened. A run
  * inside the lead window therefore gets the full day, not a countdown that
  * ends minutes later.
  *
