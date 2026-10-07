@@ -137,6 +137,22 @@ test('a recurring blank render tells the model to draw something', () => {
   assert.match(String(directives[0]), /showed nothing/);
 });
 
+test('a recurring inert page tells the model to start the game loop', () => {
+  const inert: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 3,
+    failureReasons: [],
+    failureKinds: ['smoke-inert', 'smoke-inert'],
+  };
+
+  const directives = correctiveDirectives([inert]);
+
+  assert.equal(directives.length, 1);
+  assert.match(String(directives[0]), /never changed/);
+});
+
 test('a recurring placeholder-metadata failure tells the model to describe the real game', () => {
   const placeholder: FailedEntry = {
     date: '2026-08-29',

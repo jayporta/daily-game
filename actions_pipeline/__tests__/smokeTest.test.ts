@@ -22,6 +22,7 @@ test('accepts the known-good fixtures', async () => {
     const result = await tester.test(html);
     assert.equal(result.pass, true, `${name} should pass: ${result.reasons.join('; ')}`);
     assert.equal(result.canvasDrawn, true, `${name} should draw to its canvas`);
+    assert.equal(result.active, true, `${name} should respond`);
   }
 });
 
@@ -98,7 +99,9 @@ test('a hidden painted element does not count as rendering something', async () 
 test('accepts a game that renders DOM content without drawing to a canvas', async () => {
   const domGame =
     '<!doctype html><html><body><canvas id="c" width="50" height="50"></canvas>' +
-    '<div id="board">Score: 0</div></body></html>';
+    '<div id="board">Score: 0</div>' +
+    '<script>let n=0;setInterval(()=>{document.getElementById("board").textContent="Score: "+(++n);},50);</script>' +
+    '</body></html>';
   const result = await tester.test(domGame, { settleMs: 300 });
   assert.equal(result.canvasDrawn, false);
   assert.equal(result.pass, true);
@@ -109,9 +112,71 @@ test('data: URLs are not treated as network use', async () => {
   const withDataUri =
     '<!doctype html><html><body><canvas id="c" width="10" height="10"></canvas>' +
     '<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">' +
-    '<script>const x=document.getElementById("c").getContext("2d");x.fillRect(0,0,10,10);</script>' +
+    '<script>const x=document.getElementById("c").getContext("2d");x.fillRect(0,0,10,10);' +
+    'let n=0;setInterval(()=>{x.fillStyle="hsl("+(++n*40)+",80%,50%)";x.fillRect(0,0,10,10);},50);</script>' +
     '</body></html>';
   const result = await tester.test(withDataUri, { settleMs: 300 });
   assert.deepEqual(result.networkAttempts, []);
   assert.equal(result.pass, true);
+});
+
+// A static HUD with a script that is only a comment: everything the
+// renderedSomething check looks for is present, and nothing ever moves.
+const INERT_SCRIPT = `// ${'placeholder '.repeat(100)}`;
+
+test('rejects a static page whose script does nothing', async () => {
+  const inert =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    `<body><div id="hud">Score: 0</div><script>${INERT_SCRIPT}</script></body></html>`;
+  const result = await tester.test(inert, { settleMs: 300 });
+  assert.equal(result.renderedSomething, true);
+  assert.equal(result.active, false);
+  assert.equal(result.pass, false);
+  assert.match(result.reasons.join(' '), /never changed/);
+});
+
+test('accepts a page that changes only in response to a key', async () => {
+  const keyed =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Score: 0</div>' +
+    '<script>addEventListener("keydown",()=>{document.getElementById("hud").textContent="Score: 1";});</script>' +
+    '</body></html>';
+  const result = await tester.test(keyed, { settleMs: 300 });
+  assert.equal(result.active, true);
+  assert.equal(result.pass, true);
+});
+
+test('accepts a page that changes only after its Start button is clicked', async () => {
+  const startable =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Press start</div><button id="go">Start</button>' +
+    '<script>document.getElementById("go").addEventListener("click",()=>{' +
+    'document.getElementById("hud").style.background="#f00";document.getElementById("hud").textContent="Playing";});</script>' +
+    '</body></html>';
+  const result = await tester.test(startable, { settleMs: 300 });
+  assert.equal(result.active, true);
+  assert.equal(result.pass, true);
+});
+
+test('accepts a page that animates on its own', async () => {
+  const animated =
+    '<!doctype html><html><head><style>body{margin:0;background:#123}</style></head>' +
+    '<body><canvas id="c" width="100" height="100"></canvas>' +
+    '<script>const x=document.getElementById("c").getContext("2d");let n=0;' +
+    '(function f(){x.fillStyle="hsl("+(n++*7)+",80%,50%)";x.fillRect(0,0,100,100);requestAnimationFrame(f);})();</script>' +
+    '</body></html>';
+  const result = await tester.test(animated, { settleMs: 300 });
+  assert.equal(result.active, true);
+  assert.equal(result.pass, true);
+});
+
+test('blocks and records a request made by a popup a click opens', async () => {
+  const popup =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Score: 0</div><button id="go">Go</button>' +
+    '<script>document.getElementById("go").addEventListener("click",()=>{window.open("http://example.com/popup");});</script>' +
+    '</body></html>';
+  const result = await tester.test(popup, { settleMs: 300 });
+  assert.equal(result.pass, false);
+  assert.match(result.networkAttempts.join(' '), /example\.com\/popup/);
 });

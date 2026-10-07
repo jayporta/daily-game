@@ -1,11 +1,14 @@
 // Loads a generated bundle in headless Chromium and checks it actually
 // works: no uncaught JS errors, no outbound network requests (the bundle
-// must be fully self-contained), and that it renders something visible.
+// must be fully self-contained), that it renders something visible, and that
+// the visible page is alive — it animates, or answers clicks and key presses.
 //
 // Network blocking is an assertion, not just a safety net: a bundle that
 // *tries* to reach the network has broken the self-contained rule and is
 // rejected even though the request never left the machine.
 import { type Browser, chromium } from 'playwright';
+import { pageResponds } from '#actions_pipeline/pageActivity.ts';
+import { inspectRender } from '#actions_pipeline/pageRender.ts';
 import { errorMessage } from '#lib/errors.ts';
 
 /** The verdict on one bundle, plus everything observed while reaching it. */
@@ -49,6 +52,15 @@ export interface SmokeTestResult {
    * skeleton parses, moderates and runs cleanly; this is what catches it.
    */
   readonly renderedSomething: boolean;
+  /**
+   * Whether the page changed on its own, or in response to clicks and key
+   * presses. False for a static shell whose script does nothing, which
+   * renders fine and is still not a game.
+   *
+   * Only probed once the page loaded and {@link renderedSomething} is true;
+   * otherwise false, and the blank or load reason already describes it.
+   */
+  readonly active: boolean;
 }
 
 /** Knobs for one bundle's run. */
@@ -86,7 +98,8 @@ async function runSmokeTest(
     pageErrors.push(error.message);
   });
 
-  await page.route('**/*', async (route) => {
+  // On the context so a popup a clicked button opens is blocked and recorded too.
+  await context.route('**/*', async (route) => {
     const url = route.request().url();
     if (!isRemoteRequest(url)) {
       await route.continue();
@@ -98,6 +111,7 @@ async function runSmokeTest(
 
   let canvasDrawn = false;
   let renderedSomething = false;
+  let active = false;
   const reasons: string[] = [];
   const warnings: string[] = [];
 
@@ -105,57 +119,9 @@ async function runSmokeTest(
     await page.setContent(html, { waitUntil: 'load' });
     await page.waitForTimeout(settleMs);
 
-    ({ canvasDrawn, renderedSomething } = await page.evaluate(() => {
-      const drewToCanvas = Array.from(document.querySelectorAll('canvas')).some((canvas) => {
-        const ctx = canvas.getContext('2d');
-        if (!ctx || canvas.width === 0 || canvas.height === 0) return false;
+    ({ canvasDrawn, renderedSomething } = await inspectRender(page));
 
-        // Read in strips: one full-canvas getImageData allocates four bytes
-        // per pixel at once, which is tens of megabytes at full-page sizes.
-        const stripHeight = 64;
-        for (let top = 0; top < canvas.height; top += stripHeight) {
-          const height = Math.min(stripHeight, canvas.height - top);
-          const { data } = ctx.getImageData(0, top, canvas.width, height);
-          // Any non-transparent pixel means something was painted.
-          for (let i = 3; i < data.length; i += 4) {
-            if (data[i] !== 0) return true;
-          }
-        }
-        return false;
-      });
-
-      // Something a viewer would actually see: a background that is not
-      // transparent, on an element that is not hidden.
-      const isPainted = (element: Element): boolean => {
-        const { backgroundColor, backgroundImage, visibility, opacity } = getComputedStyle(element);
-        if (visibility === 'hidden' || opacity === '0') return false;
-        return (
-          backgroundImage !== 'none' ||
-          (backgroundColor !== 'transparent' && backgroundColor !== 'rgba(0, 0, 0, 0)')
-        );
-      };
-
-      // `html` and `body` are where DISPLAY_CONTRACT tells a game to paint its
-      // background, and neither is matched by a descendant query.
-      const ground = [document.documentElement, document.body];
-      const hasPaintedGround = ground.some((element) => element !== null && isPainted(element));
-
-      // A DOM-based game shows text or media instead of canvas pixels.
-      const hasText = (document.body?.innerText ?? '').trim().length > 0;
-      const hasMedia = document.querySelector('img, svg, video') !== null;
-      const hasPaintedElement = Array.from(document.body?.querySelectorAll('*') ?? []).some(
-        (element) => {
-          const box = element.getBoundingClientRect();
-          return box.width > 0 && box.height > 0 && isPainted(element);
-        },
-      );
-
-      return {
-        canvasDrawn: drewToCanvas,
-        renderedSomething:
-          drewToCanvas || hasText || hasMedia || hasPaintedGround || hasPaintedElement,
-      };
-    }));
+    if (renderedSomething) active = await pageResponds(page);
   } catch (error) {
     reasons.push(`page failed to load: ${errorMessage(error)}`);
   } finally {
@@ -175,6 +141,8 @@ async function runSmokeTest(
     reasons.push(
       'the page rendered nothing visible — no canvas pixels, no text and no painted elements',
     );
+  } else if (!active) {
+    reasons.push('the page never changed — no animation and no response to clicks or keys');
   } else if (!canvasDrawn) {
     // Soft signal only: a game built from DOM elements draws to no canvas,
     // and some canvas games paint nothing until the first input.
@@ -190,6 +158,7 @@ async function runSmokeTest(
     networkAttempts,
     canvasDrawn,
     renderedSomething,
+    active,
   };
 }
 

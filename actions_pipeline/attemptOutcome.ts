@@ -169,7 +169,7 @@ export function moderationRejection(
   };
 }
 
-/** Corrective words for a page that loaded and ran but drew nothing. */
+/** Corrective words for a page that loaded and ran but drew nothing, or drew a shell that never moves. */
 const SMOKE_BLANK_GUIDANCE =
   'Write the complete game script, not a shell, skeleton or placeholder, and draw the opening state before any input.';
 
@@ -189,7 +189,10 @@ export function smokeRejection(
   moderationQuotaAffected: boolean,
 ): AttemptRejection {
   const kind = smokeFailureKind(smoke);
-  const guidance = kind === 'smoke-blank' ? SMOKE_BLANK_GUIDANCE : SMOKE_DEFAULT_GUIDANCE;
+  const guidance =
+    kind === 'smoke-blank' || kind === 'smoke-inert'
+      ? SMOKE_BLANK_GUIDANCE
+      : SMOKE_DEFAULT_GUIDANCE;
   return {
     ok: false,
     kind,
@@ -212,5 +215,6 @@ function smokeFailureKind(smoke: SmokeTestResult): FailureKind {
   // Checked after the two above, which describe a page that ran badly rather
   // than one that ran cleanly and drew nothing.
   if (!smoke.renderedSomething) return 'smoke-blank';
+  if (!smoke.active) return 'smoke-inert';
   return 'smoke-load';
 }

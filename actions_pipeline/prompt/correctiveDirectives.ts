@@ -84,6 +84,10 @@ const FAILURE_DIRECTIVES: Record<FailureKind, string | null> = {
     'Recent games loaded but showed nothing. Do not return the output format example or a ' +
     'placeholder: write the real game, paint a background, and draw the opening state before ' +
     'any input.',
+  'smoke-inert':
+    'Recent games rendered a static screen that never changed — no animation and no response ' +
+    'to input. Write the complete game script, no placeholders or elisions, and start the game ' +
+    'loop or input handlers.',
 };
 
 /** Counts occurrences of each key across the window. */
