@@ -107,17 +107,16 @@ export function computeExpiresAt(cronSchedule: string, fromISO: string): string 
 }
 
 /**
- * When a game generated at `generatedAt` stops being today's.
- *
- * Counts from the later of `generatedAt` and the start of the slot the run
- * claims, so a run arriving inside the lead window is not handed a countdown
- * that ends minutes later.
+ * When the slot a run at `generatedAt` claims ends: one day after it opened.
+ * A run inside the lead window therefore gets the full day, not a countdown
+ * that ends minutes later. A schedule that is not plain daily falls back to
+ * {@link computeExpiresAt}.
  */
 function expiresAtFor(cronSchedule: string, generatedAt: string): string {
   const slot = slotStart(cronSchedule, new Date(generatedAt));
-  const from =
-    slot !== null && slot.getTime() > Date.parse(generatedAt) ? slot.toISOString() : generatedAt;
-  return computeExpiresAt(cronSchedule, from);
+  return slot === null
+    ? computeExpiresAt(cronSchedule, generatedAt)
+    : new Date(slot.getTime() + MS_PER_DAY).toISOString();
 }
 
 export type { Manifest };
@@ -462,7 +461,7 @@ export function writeRunStatus({
   const status: RunStatus = {
     date,
     state: QUOTA_EXCEEDED,
-    retryAt: computeExpiresAt(cronSchedule, generatedAt),
+    retryAt: expiresAtFor(cronSchedule, generatedAt),
   };
   writeJson(paths.status, status);
   return status;

@@ -3,10 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import {
-  workflowOutputLines,
-  writeWorkflowOutputs,
-} from '#actions_pipeline/lib/workflowOutputs.ts';
+import { workflowOutputLines, writeWorkflowOutputs } from '#actions_pipeline/workflowOutputs.ts';
 
 function scratchFile(t: { after(fn: () => void): void }): string {
   const dir = mkdtempSync(join(tmpdir(), 'daily-game-outputs-'));

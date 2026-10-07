@@ -9,11 +9,12 @@ import {
   pipelineEnvironment,
   reportPipelineCrash,
 } from '#actions_pipeline/lib/pipelineReporting.ts';
-import { writeWorkflowOutputs } from '#actions_pipeline/lib/workflowOutputs.ts';
 import {
   type RunDailyPipelineOptions,
   runDailyPipeline,
 } from '#actions_pipeline/runDailyPipeline.ts';
+import { writeWorkflowOutputs } from '#actions_pipeline/workflowOutputs.ts';
+import { errorMessage } from '#lib/errors.ts';
 
 const FORCE_MODEL_FLAG = '--force-model=';
 
@@ -34,8 +35,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const options = parseCliArgs(process.argv.slice(2));
   runDailyPipeline(options)
     .then((result) => {
-      // Tells the commit step what the run did; a dry run commits nothing.
-      if (!options.dryRun) writeWorkflowOutputs(result, process.env['GITHUB_OUTPUT']);
+      // Tells the commit step what the run did; a dry run commits nothing. A
+      // failure here must not fail the step, or a published game goes uncommitted.
+      if (options.dryRun) return;
+      try {
+        writeWorkflowOutputs(result, process.env['GITHUB_OUTPUT']);
+      } catch (error) {
+        console.error(`Could not write workflow outputs: ${errorMessage(error)}`);
+      }
     })
     .catch(async (error: unknown) => {
       console.error('Pipeline crashed:', error);

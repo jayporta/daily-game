@@ -530,6 +530,17 @@ test('writeRunStatus publishes the day and when the next run is due', (t) => {
   });
 });
 
+test('writeRunStatus gives a run inside the lead window the next day, not minutes', (t) => {
+  const status = writeRunStatus({
+    date: '2026-09-07',
+    generatedAt: '2026-09-07T18:57:00.000Z',
+    cronSchedule: '0 19 * * *',
+    root: scratchRoot(t),
+  });
+
+  assert.equal(status.retryAt, '2026-09-08T19:00:00.000Z');
+});
+
 // A published game that painted nothing still passes the smoke test, but it
 // is weak evidence of a working game and the prompt should hear about it.
 test('publish records whether the game drew anything', (t) => {
