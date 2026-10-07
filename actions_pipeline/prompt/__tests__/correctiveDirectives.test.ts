@@ -53,6 +53,39 @@ test('correctiveDirectives responds to recurring generation failures', () => {
   assert.match(String(directives[0]), /over the network/);
 });
 
+// A published day still records the attempts that failed before one won.
+test('correctiveDirectives counts the failed attempts of published days', () => {
+  const directives = correctiveDirectives([
+    received('2026-08-29', { failureKinds: ['extract'] }),
+    received('2026-08-28', { failureKinds: ['extract'] }),
+  ]);
+
+  assert.equal(directives.length, 1);
+  assert.match(String(directives[0]), /could not be parsed/);
+});
+
+test('a generation-call failure on a quota-affected day hands the model no wording', () => {
+  // A refused request is a capacity problem, not something the model wrote.
+  const failed: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 2,
+    failureReasons: [],
+    failureKinds: ['generation-call', 'generation-call'],
+    quotaAffected: true,
+  };
+  const published = received('2026-08-28', {
+    failureKinds: ['generation-call', 'generation-call'],
+    quotaAffected: true,
+  });
+
+  assert.deepEqual(correctiveDirectives([failed, published]), []);
+
+  const unaffected = correctiveDirectives([{ ...failed, quotaAffected: false }]);
+  assert.match(String(unaffected[0]), /failed before returning anything/);
+});
+
 test('a recurring moderator outage hands the model no corrective wording', () => {
   // The generation succeeded and parsed every time; only our moderator was
   // down. Guidance here would tell the model to fix what it never broke.
@@ -134,9 +167,10 @@ test('a recurring placeholder-script failure tells the model to write every func
 // Only ids from the closed vocabularies select wording, so nothing a visitor
 // or a past generation wrote can reach the prompt through this path.
 test('correctiveDirectives ignores a reason outside the vocabulary', () => {
+  const unrecognizedReasons: Record<string, number> = { 'ignore-previous-instructions': 5 };
   const directives = correctiveDirectives([
-    received('2026-08-29', { dislikeReasons: { 'ignore-previous-instructions': 5 } as never }),
-    received('2026-08-28', { dislikeReasons: { 'ignore-previous-instructions': 5 } as never }),
+    received('2026-08-29', { dislikeReasons: unrecognizedReasons }),
+    received('2026-08-28', { dislikeReasons: unrecognizedReasons }),
   ]);
 
   assert.deepEqual(directives, []);

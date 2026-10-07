@@ -6,7 +6,9 @@ import { type DislikeReason, isDislikeReason } from '#lib/reactionTypes.ts';
 
 /**
  * How many times a complaint or failure must appear in the recent window
- * before it earns a directive. One bad day is noise; two is a pattern.
+ * before it earns a directive. A complaint counts once per day; a failure
+ * counts once per failed attempt, so one run that fails twice the same way
+ * is already a pattern.
  */
 const DIRECTIVE_THRESHOLD = 2;
 
@@ -96,7 +98,9 @@ function tally<T extends string>(values: readonly T[]): Map<T, number> {
  *
  * Deterministic and needs no model call: a complaint or failure that recurs
  * at least {@link DIRECTIVE_THRESHOLD} times in the window selects one of the
- * fixed strings above. Ordered most-frequent first so the worst problem leads.
+ * fixed strings above. Failures come from published and failed days alike,
+ * except a `generation-call` on a quota-affected day, which is most likely a
+ * refusal. Ordered most-frequent first so the worst problem leads.
  *
  * @param entries The recent window, newest first or not — order is ignored.
  */
@@ -112,8 +116,11 @@ export function correctiveDirectives(entries: HistoryGameEntry[], limit = 10): s
         // problem; count days, not votes.
         if (count > 0 && isDislikeReason(id)) complaints.push(id);
       }
-    } else {
-      for (const kind of entry.failureKinds) failures.push(kind);
+    }
+    for (const kind of entry.failureKinds ?? []) {
+      // On a quota-affected day a failed call is most likely a refusal.
+      if (kind === 'generation-call' && entry.quotaAffected === true) continue;
+      failures.push(kind);
     }
   }
 

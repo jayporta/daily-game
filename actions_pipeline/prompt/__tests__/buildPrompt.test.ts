@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { HistoryGameEntry } from '#actions_pipeline/lib/historyStore.ts';
 import { EMPTY_SUMMARY } from '#actions_pipeline/lib/historyStore.ts';
 import { GENRES } from '#actions_pipeline/lib/testFixtures.ts';
 import { HISTORY, received, SUMMARY } from '#actions_pipeline/prompt/__tests__/fixtures.ts';
@@ -124,7 +123,7 @@ test('stripping the attempt feedback restores a first-attempt prompt exactly', (
   const params = {
     guardrailsText: 'be nice',
     genres: GENRES,
-    historyEntries: [] as HistoryGameEntry[],
+    historyEntries: [],
     summary: EMPTY_SUMMARY,
   };
   const firstAttempt = buildPrompt(params);
