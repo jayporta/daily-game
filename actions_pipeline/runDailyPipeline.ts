@@ -10,7 +10,7 @@ import { generateDailyGame } from '#actions_pipeline/generateDailyGame.ts';
 import type { GenerateResult } from '#actions_pipeline/generateResult.ts';
 import { loadAllConfig } from '#actions_pipeline/lib/config/index.ts';
 import { loadReactionConfigOrUnconfigured } from '#actions_pipeline/lib/config/reactionConfig.ts';
-import { isoDate } from '#actions_pipeline/lib/dates.ts';
+import { gameDate } from '#actions_pipeline/lib/dates.ts';
 import { getOpenRouterClient } from '#actions_pipeline/lib/getClient.ts';
 import type { HistoryGameEntry } from '#actions_pipeline/lib/historyStore.ts';
 import {
@@ -38,12 +38,12 @@ import type { Logger } from '#actions_pipeline/runAttempt.ts';
 import { createSmokeTester, type SmokeTester } from '#actions_pipeline/smokeTest.ts';
 
 /**
- * What a whole pipeline run produced.
+ * What a whole pipeline run produced, with the day it worked on.
  *
  * Wider than {@link GenerateResult}: the run can also stop before generating
  * anything, which generation itself has no way to report.
  */
-export type PipelineResult =
+export type PipelineResult = (
   | GenerateResult
   | {
       /**
@@ -53,7 +53,11 @@ export type PipelineResult =
       status: 'already_published';
       /** The slug already serving for today. */
       slug: string;
-    };
+    }
+) & {
+  /** The slot's day as `YYYY-MM-DD`, from {@link gameDate} rather than the calendar. */
+  date: string;
+};
 
 export interface RunDailyPipelineOptions {
   dryRun?: boolean;
@@ -123,7 +127,7 @@ export async function runDailyPipeline({
   const currentPaths = root ? createPaths(root) : paths;
   const { models, genres, generation, guardrails } = loadAllConfig(root);
   const summary = readSummary(currentPaths.historySummary);
-  const date = isoDate(now);
+  const date = gameDate(generation.cronSchedule, now);
 
   // Reconciled before anything can fail: a generation that later gives up
   // must still leave yesterday's reactions recorded.
@@ -142,7 +146,7 @@ export async function runDailyPipeline({
   const today = publishedEntryOn(historyEntries, date);
   if (today !== undefined) {
     log(`${date} is already published as ${today.slug} — nothing to generate`);
-    return { status: 'already_published', slug: today.slug };
+    return { status: 'already_published', slug: today.slug, date };
   }
 
   const client = suppliedClient ?? getOpenRouterClient();
@@ -171,7 +175,7 @@ export async function runDailyPipeline({
 
   if (dryRun) {
     log(`[dry-run] ${result.status} — nothing written to disk`);
-    return result;
+    return { ...result, date };
   }
 
   if (result.status === 'success') {
@@ -248,7 +252,7 @@ export async function runDailyPipeline({
     });
   }
 
-  return result;
+  return { ...result, date };
 }
 
 /** How a failed run reports what the site is left showing. */

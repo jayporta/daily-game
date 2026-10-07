@@ -102,6 +102,7 @@ jobs:
       # as text before bash sees it, so a crafted force_model would run as a
       # command. They are empty on a schedule run.
       - name: Generate
+        id: generate
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           REACTION_STORE_KEY: ${{ secrets.REACTION_STORE_KEY }}
@@ -163,9 +164,9 @@ jobs:
           fi
           node actions_pipeline/rollupHistory.ts "${args[@]}"
 
-      # The tree is the source of truth for what happened. Exhausting the
-      # active model rotation is a successful run that writes only history and
-      # leaves manifest.json alone, so the two questions are asked separately.
+      # Whether anything needs committing, and whether manifest.json moved. The
+      # commit message comes from the Generate step's outcome and falls back to
+      # `published` only when that outcome is missing.
       - name: Check what changed
         id: publish-check
         run: |
@@ -187,6 +188,10 @@ jobs:
         if: steps.publish-check.outputs.changed == 'true'
         env:
           PUBLISHED: ${{ steps.publish-check.outputs.published }}
+          # What the run itself reported, which names the day and the outcome
+          # that the tree alone cannot. Empty if the run wrote neither.
+          OUTCOME: ${{ steps.generate.outputs.outcome }}
+          GAME_DATE: ${{ steps.generate.outputs.date }}
           # main requires a reviewed PR; GITHUB_TOKEN authenticates as the
           # github-actions bot, which isn't exempt, so this push would be
           # rejected. This PAT belongs to a repo admin, who is exempt
@@ -205,11 +210,27 @@ jobs:
             [ -e "$path" ] && present+=("$path")
           done
           git add -- "${present[@]}"
-          if [ "$PUBLISHED" = "true" ]; then
-            message="Publish $(jq -r .slug manifest.json)"
-          else
-            message="Record failed generation for $(date -u +%Y-%m-%d), previous game kept"
-          fi
+          # The outcome decides the wording, not whether manifest.json
+          # changed: a failed run can repoint the manifest at the archive.
+          day="${GAME_DATE:-$(date -u +%Y-%m-%d)}"
+          case "$OUTCOME" in
+            success)
+              message="Publish $(jq -r .slug manifest.json)"
+              ;;
+            failed_kept_previous)
+              message="Record failed generation for $day, previous game kept"
+              ;;
+            already_published)
+              message="Update history for $day, no new game"
+              ;;
+            *)
+              if [ "$PUBLISHED" = "true" ]; then
+                message="Publish $(jq -r .slug manifest.json)"
+              else
+                message="Update history for $day, no new game"
+              fi
+              ;;
+          esac
           git commit -m "$message"
 
           # Authenticates the push and the rebase below. Set here rather than

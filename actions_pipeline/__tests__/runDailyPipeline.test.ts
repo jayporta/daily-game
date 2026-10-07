@@ -102,7 +102,7 @@ test('a day that already published generates nothing', async (t) => {
     root,
     client,
     smokeTester,
-    now: new Date(`${PUBLISHED_ENTRY.date}T12:00:00Z`),
+    now: new Date(`${PUBLISHED_ENTRY.date}T20:00:00Z`),
   });
 
   assert.equal(result.status, 'already_published');
@@ -129,7 +129,7 @@ test('the reaction store read follows the scratch root, not the committed config
     root,
     client: scriptedClient([]),
     smokeTester,
-    now: new Date(`${PUBLISHED_ENTRY.date}T12:00:00Z`),
+    now: new Date(`${PUBLISHED_ENTRY.date}T20:00:00Z`),
   });
 
   assert.equal(requested.length, 1);
@@ -152,10 +152,11 @@ test('a dry run reports its result and writes nothing to disk', async (t) => {
     dryRun: true,
     client: scriptedClient([loadFixture('goodMaze')]),
     smokeTester,
-    now: new Date('2026-09-10T12:00:00Z'),
+    now: new Date('2026-09-11T01:05:00Z'),
   });
 
   assert.equal(result.status, 'success');
+  assert.equal(result.date, '2026-09-10');
   assert.equal(existsSync(paths.manifest), false);
   assert.equal(existsSync(paths.historyGames), false);
 });
@@ -169,16 +170,61 @@ test('a successful run publishes the game and records it in history', async (t) 
     root,
     client: scriptedClient([loadFixture('goodMaze')]),
     smokeTester,
-    now: new Date('2026-09-10T12:00:00Z'),
+    now: new Date('2026-09-10T20:00:00Z'),
   });
 
   assert.equal(result.status, 'success');
+  assert.equal(result.date, '2026-09-10');
   assert.ok(existsSync(paths.manifest));
 
   const entries = readHotWindow(paths.historyGames);
   assert.equal(entries.length, 1);
   assert.equal(entries[0]?.date, '2026-09-10');
   assert.equal(entries[0]?.status, 'published');
+});
+
+// 01:05Z is the previous day's slot, not today's: the day the fallback
+// trigger deferred past midnight UTC and published a game a day early.
+test('a run after midnight UTC belongs to the previous day and finds it published', async (t) => {
+  const root = scratchRoot(t);
+  writeGamesJson(createPaths(root).historyGames, [PUBLISHED_ENTRY]);
+  t.mock.method(globalThis, 'fetch', async () => Response.json([]));
+
+  let generationCalls = 0;
+  const client: OpenRouterClient = {
+    async complete({ model }) {
+      generationCalls += 1;
+      return { text: '', stop: 'complete', model };
+    },
+  };
+  const nextDay = new Date(`${PUBLISHED_ENTRY.date}T01:05:31Z`);
+  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
+  const result = await runDailyPipeline({ log: SILENT, root, client, smokeTester, now: nextDay });
+
+  assert.equal(result.status, 'already_published');
+  assert.equal(generationCalls, 0);
+  // The slot's day, not the calendar date the run happened on.
+  assert.equal(result.date, PUBLISHED_ENTRY.date);
+});
+
+// The result names the slot the run claimed, which is also the day the game
+// is published and recorded under.
+test('a game published after midnight UTC is dated by its slot and reports that date', async (t) => {
+  const root = scratchRoot(t);
+  const paths = createPaths(root);
+
+  const result = await runDailyPipeline({
+    log: SILENT,
+    root,
+    client: scriptedClient([loadFixture('goodMaze')]),
+    smokeTester,
+    now: new Date('2026-09-11T01:05:00Z'),
+  });
+
+  assert.equal(result.status, 'success');
+  assert.equal(result.date, '2026-09-10');
+  assert.equal(readHotWindow(paths.historyGames)[0]?.date, '2026-09-10');
 });
 
 test('a run that never gets a game records the failure and leaves the live manifest alone', async (t) => {
@@ -228,10 +274,11 @@ test('a run that never gets a game records the failure and leaves the live manif
     // No fixtures left on the very first call, so every attempt fails.
     client: scriptedClient([]),
     smokeTester,
-    now: new Date('2026-09-10T12:00:00Z'),
+    now: new Date('2026-09-10T20:00:00Z'),
   });
 
   assert.equal(result.status, 'failed_kept_previous');
+  assert.equal(result.date, '2026-09-10');
   assert.equal(readFileSync(paths.manifest, 'utf8'), manifestBefore);
 
   const entries = readHotWindow(paths.historyGames);
@@ -286,7 +333,7 @@ test('a run that never gets a game reports the failure to Sentry', async (t) => 
     root,
     client: scriptedClient([]),
     smokeTester,
-    now: new Date('2026-09-10T12:00:00Z'),
+    now: new Date('2026-09-10T20:00:00Z'),
   });
 
   assert.equal(result.status, 'failed_kept_previous');
@@ -313,7 +360,7 @@ test('a run that publishes reports nothing to Sentry', async (t) => {
     root,
     client: scriptedClient([loadFixture('goodMaze')]),
     smokeTester,
-    now: new Date('2026-09-10T12:00:00Z'),
+    now: new Date('2026-09-10T20:00:00Z'),
   });
 
   assert.equal(result.status, 'success');
@@ -340,7 +387,7 @@ test('a dry run reports nothing to Sentry', async (t) => {
     dryRun: true,
     client: scriptedClient([]),
     smokeTester,
-    now: new Date('2026-09-10T12:00:00Z'),
+    now: new Date('2026-09-10T20:00:00Z'),
   });
 
   assert.deepEqual(

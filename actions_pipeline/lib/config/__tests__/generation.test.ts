@@ -130,3 +130,26 @@ test('validateGenerationConfig reports validity of its own input when errors alr
   assert.equal(valid, true);
   assert.deepEqual(errors, ['an unrelated earlier problem']);
 });
+
+test('validateGenerationConfig rejects a cronSchedule the pipeline cannot read as a daily time', () => {
+  for (const cronSchedule of ['0 25 * * *', '0 19 * * 1', 'nope']) {
+    const errors: string[] = [];
+    const valid = validateGenerationConfig(
+      {
+        historyHotWindowDays: 45,
+        rollupTriggerEntries: 60,
+        remixProbability: 0.2,
+        remixLookbackDays: 90,
+        temperature: 0.7,
+        sentryDsn: null,
+        cronSchedule,
+      },
+      errors,
+    );
+    assert.equal(valid, false, cronSchedule);
+    assert.ok(
+      errors.some((error) => error.includes('cronSchedule')),
+      cronSchedule,
+    );
+  }
+});

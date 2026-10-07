@@ -71,8 +71,31 @@ test('computeExpiresAt falls back to +24h for an unsupported cron shape', () => 
   assert.equal(result, '2026-08-30T14:00:00.000Z');
 });
 
+test('computeExpiresAt falls back to +24h for an out-of-range hour', () => {
+  assert.equal(
+    computeExpiresAt('0 25 * * *', '2026-08-29T14:00:00.000Z'),
+    '2026-08-30T14:00:00.000Z',
+  );
+});
+
 test('computeExpiresAt rejects an invalid date', () => {
   assert.throws(() => computeExpiresAt('0 13 * * *', 'not-a-date'), /invalid date/);
+});
+
+// A run a few minutes ahead of the tick belongs to the slot about to open, so
+// its countdown must end a day after that tick, not minutes after the run.
+test('buildManifest counts the countdown from the slot a run inside the lead window claims', () => {
+  const { meta } = loadFixtureBundle('goodMaze');
+  const manifest = buildManifest({
+    date: '2026-10-06',
+    slug: '2026-10-06-beetle',
+    meta,
+    model: 'a/model:free',
+    generatedAt: '2026-10-06T18:57:00.000Z',
+    cronSchedule: '0 19 * * *',
+    genres: GENRES,
+  });
+  assert.equal(manifest.expiresAt, '2026-10-07T19:00:00.000Z');
 });
 
 test('buildManifest records the url-facing path and computed expiry', () => {
@@ -505,6 +528,17 @@ test('writeRunStatus publishes the day and when the next run is due', (t) => {
     state: 'quota-exceeded',
     retryAt: '2026-09-08T19:00:00.000Z',
   });
+});
+
+test('writeRunStatus gives a run inside the lead window the next day, not minutes', (t) => {
+  const status = writeRunStatus({
+    date: '2026-09-07',
+    generatedAt: '2026-09-07T18:57:00.000Z',
+    cronSchedule: '0 19 * * *',
+    root: scratchRoot(t),
+  });
+
+  assert.equal(status.retryAt, '2026-09-08T19:00:00.000Z');
 });
 
 // A published game that painted nothing still passes the smoke test, but it
