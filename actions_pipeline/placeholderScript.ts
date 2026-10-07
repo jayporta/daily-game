@@ -12,15 +12,20 @@ export const MIN_SCRIPT_CHARS = 1000;
 // opens first wins: a script inside a comment is skipped, and comment markers
 // inside a script body stay part of it. Quoted attribute values may hold `>`.
 const MARKUP = /<!--[\s\S]*?-->|<script\b((?:"[^"]*"|'[^']*'|[^>"'])*)>([\s\S]*?)<\/script\s*>/gi;
-const SRC_ATTRIBUTE = /(?:^|\s)src\s*=/i;
-const TYPE_ATTRIBUTE = /(?:^|\s)type\s*=\s*["']?([^"'\s>]*)/i;
+// One attribute per match, its value whole, so text inside a quoted value is
+// never read as another attribute's name.
+const ATTRIBUTE = /([^\s"'=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"']+)))?/g;
 const SCRIPT_TYPE = /^(?:|module|(?:text|application)\/(?:x-)?(?:java|ecma)script)$/i;
 const WHITESPACE = /\s/;
 
 /** Whether a `<script>` tag's attributes make it inline code the browser runs. */
 function isInlineCode(attributes: string): boolean {
-  if (SRC_ATTRIBUTE.test(attributes)) return false;
-  const type = TYPE_ATTRIBUTE.exec(attributes)?.[1] ?? '';
+  let type = '';
+  for (const [, name = '', double, single, bare] of attributes.matchAll(ATTRIBUTE)) {
+    const lower = name.toLowerCase();
+    if (lower === 'src') return false;
+    if (lower === 'type') type = (double ?? single ?? bare ?? '').trim();
+  }
   return SCRIPT_TYPE.test(type);
 }
 

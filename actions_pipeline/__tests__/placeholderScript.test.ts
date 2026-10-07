@@ -150,3 +150,8 @@ test('a template literal runs across lines', () => {
   const html = page(`const t = \`line one\n// ${'x'.repeat(MIN_SCRIPT_CHARS * 2)}\`;`);
   assert.equal(isPlaceholderScript(html), false);
 });
+
+test('attribute-like text inside a quoted value is not read as an attribute', () => {
+  const html = `<html><body><script data-note="uses type=application/json src=x">${realCode(MIN_SCRIPT_CHARS + 50)}</script></body></html>`;
+  assert.equal(isPlaceholderScript(html), false);
+});
