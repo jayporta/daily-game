@@ -8,11 +8,23 @@
 // rejected even though the request never left the machine.
 import { type Browser, chromium } from 'playwright';
 import { type ProbeVerdict, probeActivity } from '#actions_pipeline/pageActivity.ts';
-import { inspectRender } from '#actions_pipeline/pageRender.ts';
+import { inspectRender, type RenderInspection } from '#actions_pipeline/pageRender.ts';
 import { errorMessage } from '#lib/errors.ts';
 
+/**
+ * How far a run got, which decides what the rest of the result describes.
+ *
+ * - `not-loaded`: setting the document or waiting for it to settle threw.
+ *   Nothing else was watched, and the load failure is the reason.
+ * - `unobserved`: the page loaded, then reading it or probing it threw — it
+ *   crashed, or closed itself — so the render fields and `activity` say
+ *   nothing about it.
+ * - `observed`: every check ran, and the rest of the result is what it saw.
+ */
+export type SmokeTestReach = 'not-loaded' | 'unobserved' | 'observed';
+
 /** The verdict on one bundle, plus everything observed while reaching it. */
-export interface SmokeTestResult {
+export interface SmokeTestResult extends RenderInspection {
   /**
    * Whether the bundle may be published. True only when {@link reasons} is
    * empty; a page that never loaded fails, so an unreachable bundle is a
@@ -38,32 +50,15 @@ export interface SmokeTestResult {
    */
   readonly networkAttempts: string[];
   /**
-   * Whether the page loaded at all: the document was set and the settle
-   * window closed without throwing. What separates a bundle the browser
-   * could not run from one that ran and did nothing, which
-   * {@link renderedSomething} and {@link activity} describe instead.
+   * How far the run got. Only an `observed` run's render fields and
+   * {@link activity} describe the page; see {@link SmokeTestReach}.
    */
-  readonly loaded: boolean;
-  /**
-   * Whether any `<canvas>` held a non-transparent pixel when the settle
-   * window closed. False for a game built entirely from DOM elements, so
-   * this only ever raises a warning.
-   */
-  readonly canvasDrawn: boolean;
-  /**
-   * Whether the bundle put anything on screen at all — canvas pixels, text,
-   * an image, or an element it painted a background onto.
-   *
-   * Distinct from {@link canvasDrawn}, which is false for any game built
-   * without a canvas. A model that returns the output contract's own
-   * skeleton parses, moderates and runs cleanly; this is what catches it.
-   */
-  readonly renderedSomething: boolean;
+  readonly reach: SmokeTestReach;
   /**
    * What probing the page for signs of life found, or `null` when it was
-   * never probed: the page failed to load, rendered nothing, or the probe
-   * itself threw, and the reason already says so. Only probed once the page
-   * loaded and {@link renderedSomething} is true.
+   * never probed: the run did not reach it, or the page rendered nothing,
+   * and the reason already says so. Only probed once the page loaded and
+   * {@link renderedSomething} is true.
    */
   readonly activity: ProbeVerdict | null;
 }
@@ -125,7 +120,7 @@ async function runSmokeTest(
     await route.abort();
   });
 
-  let loaded = false;
+  let reach: SmokeTestReach = 'not-loaded';
   let canvasDrawn = false;
   let renderedSomething = false;
   let probe: ProbeVerdict | null = null;
@@ -136,17 +131,18 @@ async function runSmokeTest(
     try {
       await page.setContent(html, { waitUntil: 'load' });
       await page.waitForTimeout(settleMs);
-      loaded = true;
+      reach = 'unobserved';
     } catch (error) {
       reasons.push(`page failed to load: ${errorMessage(error)}`);
     }
 
-    if (loaded) {
+    if (reach === 'unobserved') {
       try {
         ({ canvasDrawn, renderedSomething } = await inspectRender(page));
         if (renderedSomething) probe = await probeActivity(page, probeTimeoutMs);
+        reach = 'observed';
       } catch (error) {
-        reasons.push(`page loaded but could not be inspected: ${errorMessage(error)}`);
+        reasons.push(`page loaded but could not be observed: ${errorMessage(error)}`);
       }
     }
   } finally {
@@ -162,9 +158,9 @@ async function runSmokeTest(
   if (networkAttempts.length > 0) {
     reasons.push(`bundle is not self-contained — it requested: ${networkAttempts.join(', ')}`);
   }
-  // Nothing was watched on a page that never loaded, so none of these
-  // describe it; the load failure is already its reason.
-  if (loaded) {
+  // None of these describe a page the run could not watch; its reason is
+  // already recorded.
+  if (reach === 'observed') {
     if (!renderedSomething) {
       reasons.push(
         'the page rendered nothing visible — no canvas pixels, no text and no painted elements',
@@ -187,7 +183,7 @@ async function runSmokeTest(
     consoleErrors,
     pageErrors,
     networkAttempts,
-    loaded,
+    reach,
     canvasDrawn,
     renderedSomething,
     activity: probe,

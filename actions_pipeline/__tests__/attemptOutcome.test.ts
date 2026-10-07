@@ -11,7 +11,7 @@ const BLANK_PAGE: SmokeTestResult = {
   pageErrors: [],
   networkAttempts: [],
   canvasDrawn: false,
-  loaded: true,
+  reach: 'observed',
   renderedSomething: false,
   activity: null,
 };
@@ -56,7 +56,7 @@ test('an inert-page rejection is smoke-inert and asks for the complete game scri
 
 test('a page that never loaded is smoke-load, not smoke-blank', () => {
   const rejection = smokeRejection(
-    { ...BLANK_PAGE, loaded: false, reasons: ['page failed to load: boom'] },
+    { ...BLANK_PAGE, reach: 'not-loaded', reasons: ['page failed to load: boom'] },
     false,
   );
 
@@ -64,32 +64,29 @@ test('a page that never loaded is smoke-load, not smoke-blank', () => {
   assert.match(rejection.feedback ?? '', /failed to load/);
 });
 
-test('a page that loaded but rendered nothing is still smoke-blank', () => {
-  const rejection = smokeRejection({ ...BLANK_PAGE, loaded: true }, false);
-
-  assert.equal(rejection.kind, 'smoke-blank');
-});
-
 test('a script error on a page that never loaded stays smoke-js-error', () => {
   const rejection = smokeRejection(
-    { ...BLANK_PAGE, loaded: false, reasons: ['boom'], pageErrors: ['boom'] },
+    { ...BLANK_PAGE, reach: 'not-loaded', reasons: ['boom'], pageErrors: ['boom'] },
     false,
   );
 
   assert.equal(rejection.kind, 'smoke-js-error');
 });
 
-test('a page that rendered but whose probe threw falls through to smoke-load', () => {
+test('a page that loaded but could not be observed is smoke-unobserved and hands the model no feedback', () => {
+  // Nothing was seen, so no fixed guidance fits; the reason is recorded for humans.
   const rejection = smokeRejection(
     {
       ...BLANK_PAGE,
-      renderedSomething: true,
-      reasons: ['page loaded but could not be inspected: crashed'],
+      reach: 'unobserved',
+      reasons: ['page loaded but could not be observed: crashed'],
     },
     false,
   );
 
-  assert.equal(rejection.kind, 'smoke-load');
+  assert.equal(rejection.kind, 'smoke-unobserved');
+  assert.match(rejection.reason, /could not be observed/);
+  assert.equal(rejection.feedback, undefined);
 });
 
 test('a page that stopped responding is smoke-unresponsive and asks for bounded handlers', () => {

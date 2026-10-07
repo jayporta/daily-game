@@ -5,6 +5,7 @@
 import type { FailureKind } from '#actions_pipeline/lib/historyStore.ts';
 import { isQuotaFailure } from '#actions_pipeline/lib/openRouterClient.ts';
 import type { ModerationResult } from '#actions_pipeline/moderate.ts';
+import { SMOKE_REMEDIES } from '#actions_pipeline/prompt/correctiveDirectives.ts';
 import type { SmokeTestResult } from '#actions_pipeline/smokeTest.ts';
 import { errorMessage } from '#lib/errors.ts';
 import type { ExtractFailureReason, GeneratedMeta } from '#lib/extractBundleShared.ts';
@@ -169,16 +170,7 @@ export function moderationRejection(
   };
 }
 
-/** Corrective words for a page that loaded and ran but drew nothing, or drew a shell that never moves. */
-const SMOKE_BLANK_GUIDANCE =
-  'Write the complete game script, not a shell, skeleton or placeholder, and draw the opening state before any input.';
-
-/** Corrective words for a page that loaded and rendered, then stopped answering input. */
-const SMOKE_UNRESPONSIVE_GUIDANCE =
-  'Keep every event handler and loop bounded, never wait on a condition in a busy loop, ' +
-  'and yield between frames with requestAnimationFrame or a timer.';
-
-/** Corrective words for every other way the smoke test turns a game down. */
+/** Corrective words for every way the smoke test turns a game down that has no remedy of its own. */
 const SMOKE_DEFAULT_GUIDANCE =
   'Be more defensive — guard every element lookup, and make no network requests of any kind.';
 
@@ -195,24 +187,34 @@ export function smokeRejection(
 ): AttemptRejection {
   const kind = smokeFailureKind(smoke);
   const guidance = smokeGuidance(kind);
+  const detail = smoke.reasons.join('; ');
   return {
     ok: false,
     kind,
-    reason: `smoke test failed — ${smoke.reasons.join('; ')}`,
-    feedback: `Your previous game did not run correctly: ${smoke.reasons.join('; ')}. ${guidance}`,
+    reason: `smoke test failed — ${detail}`,
+    // A page nobody could examine was judged on nothing, so the model is
+    // told nothing: any guidance would describe a fault that was never seen.
+    feedback:
+      guidance === undefined
+        ? undefined
+        : `Your previous game did not run correctly: ${detail}. ${guidance}`,
     quota: false,
     quotaAffected: moderationQuotaAffected,
   };
 }
 
-/** The corrective words that fit a smoke-test rejection of this kind. */
-function smokeGuidance(kind: FailureKind): string {
+/**
+ * The corrective words that fit a smoke-test rejection of this kind, or
+ * `undefined` when nothing was seen to correct.
+ */
+function smokeGuidance(kind: FailureKind): string | undefined {
   switch (kind) {
     case 'smoke-blank':
     case 'smoke-inert':
-      return SMOKE_BLANK_GUIDANCE;
     case 'smoke-unresponsive':
-      return SMOKE_UNRESPONSIVE_GUIDANCE;
+      return SMOKE_REMEDIES[kind];
+    case 'smoke-unobserved':
+      return undefined;
     default:
       return SMOKE_DEFAULT_GUIDANCE;
   }
@@ -223,18 +225,20 @@ function smokeGuidance(kind: FailureKind): string {
  *
  * The result can carry more than one problem; the most specific wins, since
  * that is what the corrective guidance keys off.
- *
- * A probe that threw on a page that had rendered has no kind of its own and
- * lands on `smoke-load`.
  */
 function smokeFailureKind(smoke: SmokeTestResult): FailureKind {
   if (smoke.networkAttempts.length > 0) return 'smoke-network';
   if (smoke.pageErrors.length > 0 || smoke.consoleErrors.length > 0) return 'smoke-js-error';
   // Checked after the two above, which describe a page that ran badly rather
-  // than one that never loaded or ran cleanly and drew nothing.
-  if (!smoke.loaded) return 'smoke-load';
-  if (!smoke.renderedSomething) return 'smoke-blank';
-  if (smoke.activity === 'inert') return 'smoke-inert';
-  if (smoke.activity === 'unresponsive') return 'smoke-unresponsive';
-  return 'smoke-load';
+  // than one the run never got to look at.
+  switch (smoke.reach) {
+    case 'not-loaded':
+      return 'smoke-load';
+    case 'unobserved':
+      return 'smoke-unobserved';
+    case 'observed':
+      if (!smoke.renderedSomething) return 'smoke-blank';
+      // Nothing above rejected it, so what the probe found did.
+      return smoke.activity === 'unresponsive' ? 'smoke-unresponsive' : 'smoke-inert';
+  }
 }

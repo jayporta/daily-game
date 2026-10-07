@@ -4,13 +4,18 @@ import type { Page } from 'playwright';
 /** What {@link inspectRender} found on screen. */
 export interface RenderInspection {
   /**
-   * Whether any `<canvas>` held a non-transparent pixel. False for a game
-   * built entirely from DOM elements.
+   * Whether any `<canvas>` held a non-transparent pixel when the page was
+   * looked at. False for a game built entirely from DOM elements, so this
+   * only ever raises a warning.
    */
   readonly canvasDrawn: boolean;
   /**
-   * Whether anything is on screen at all — canvas pixels, text, an image, or
-   * an element painted with a background. Distinct from {@link canvasDrawn}.
+   * Whether the page put anything on screen at all — canvas pixels, text,
+   * an image, or an element it painted a background onto.
+   *
+   * Distinct from {@link canvasDrawn}, which is false for any game built
+   * without a canvas. A model that returns the output contract's own
+   * skeleton parses, moderates and runs cleanly; this is what catches it.
    */
   readonly renderedSomething: boolean;
 }

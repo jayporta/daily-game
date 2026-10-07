@@ -43,6 +43,23 @@ const DISLIKE_DIRECTIVES: Record<DislikeReason, string> = {
 };
 
 /**
+ * What to do about each way the smoke test turns a game down that the model
+ * can act on. Shared between the feedback the next attempt gets and the
+ * directive a recurring failure earns, so the two never disagree.
+ */
+export const SMOKE_REMEDIES = {
+  'smoke-blank':
+    'Write the complete game script, not the output format example, a shell or a ' +
+    'placeholder; paint a background and draw the opening state before any input.',
+  'smoke-inert':
+    'Write the complete game script, no placeholders or elisions, and start the game ' +
+    'loop or input handlers.',
+  'smoke-unresponsive':
+    'Keep every handler and loop bounded, never wait on a condition in a busy loop, and ' +
+    'yield between frames with requestAnimationFrame or a timer.',
+} as const satisfies Partial<Record<FailureKind, string>>;
+
+/**
  * What a recurring failure tells the next generation to do differently.
  *
  * `null` where the failure was ours, not the model's: an infrastructure
@@ -80,18 +97,13 @@ const FAILURE_DIRECTIVES: Record<FailureKind, string | null> = {
     'Recent games tried to load something over the network. Everything must be inline ' +
     'in the one HTML file — no fetch, no external images, fonts or scripts.',
   'smoke-load': 'Recent games failed to load at all. Return a complete, valid HTML document.',
-  'smoke-blank':
-    'Recent games loaded but showed nothing. Do not return the output format example or a ' +
-    'placeholder: write the real game, paint a background, and draw the opening state before ' +
-    'any input.',
+  'smoke-blank': `Recent games loaded but showed nothing. ${SMOKE_REMEDIES['smoke-blank']}`,
   'smoke-inert':
     'Recent games rendered a static screen that never changed — no animation and no response ' +
-    'to input. Write the complete game script, no placeholders or elisions, and start the game ' +
-    'loop or input handlers.',
-  'smoke-unresponsive':
-    'Recent games loaded but stopped responding while played. Keep every handler and loop ' +
-    'bounded, never wait on a condition in a busy loop, and yield between frames with ' +
-    'requestAnimationFrame or a timer.',
+    `to input. ${SMOKE_REMEDIES['smoke-inert']}`,
+  'smoke-unresponsive': `Recent games loaded but stopped responding while played. ${SMOKE_REMEDIES['smoke-unresponsive']}`,
+  // The page loaded, then crashed or closed before it could be examined; nobody saw why.
+  'smoke-unobserved': null,
 };
 
 /** Counts occurrences of each key across the window. */

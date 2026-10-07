@@ -18,8 +18,15 @@ const HIDE_FOCUS_RING = '*:focus, *:focus-visible { outline: none !important; }'
 const KEY_HOLD_MS = 60;
 /** The share of the probe's budget the button clicks may spend before the keys run. */
 const CLICK_PHASE_SHARE = 0.25;
+/** The `<input>` types that are buttons: only a script changes one of these on a click. */
+const BUTTON_INPUT_TYPES = ['button', 'submit', 'reset', 'image'] as const;
+/** Every button on the page that a viewer could click. */
+const CLICKABLE_BUTTONS = ['button', ...BUTTON_INPUT_TYPES.map((type) => `input[type=${type}]`)]
+  .map((selector) => `${selector}:visible`)
+  .join(', ');
+const NON_BUTTON_INPUTS = `input${BUTTON_INPUT_TYPES.map((type) => `:not([type=${type}])`).join('')}`;
 /** Native controls the browser itself changes on a click, with no script involved. */
-const NATIVE_CONTROLS = 'input, select, textarea, summary, details, option';
+const NATIVE_CONTROLS = `${NON_BUTTON_INPUTS}, select, textarea, summary, details, option`;
 /** Own property set on `window` to tell a document reload from a same-document navigation. */
 const DOCUMENT_MARKER = '__dailyGameActivityProbe';
 
@@ -74,7 +81,7 @@ async function clickButtonsUntilChanged(
   budgetMs: number,
 ): Promise<boolean> {
   const deadline = Date.now() + budgetMs;
-  for (const button of await page.locator('button:visible').all()) {
+  for (const button of await page.locator(CLICKABLE_BUTTONS).all()) {
     if (Date.now() >= deadline) return false;
     await button.click({ timeout: CLICK_TIMEOUT_MS }).catch(() => undefined);
     if (await changed()) return true;

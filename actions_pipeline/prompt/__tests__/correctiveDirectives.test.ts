@@ -186,6 +186,21 @@ test('a recurring hang tells the model to keep its handlers and loops bounded', 
   assert.doesNotMatch(String(directives[0]), /failed to load/);
 });
 
+test('a recurring unobserved page hands the model no corrective wording', () => {
+  // The page loaded and then crashed or closed before it was examined; whose
+  // fault that was, nobody saw, so there is nothing to tell the model to fix.
+  const unobserved: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 3,
+    failureReasons: [],
+    failureKinds: ['smoke-unobserved', 'smoke-unobserved'],
+  };
+
+  assert.deepEqual(correctiveDirectives([unobserved]), []);
+});
+
 test('a recurring placeholder-metadata failure tells the model to describe the real game', () => {
   const placeholder: FailedEntry = {
     date: '2026-08-29',

@@ -22,7 +22,7 @@ test('accepts the known-good fixtures', async () => {
     const { html } = loadFixtureBundle(name);
     const result = await tester.test(html);
     assert.equal(result.pass, true, `${name} should pass: ${result.reasons.join('; ')}`);
-    assert.equal(result.loaded, true, `${name} should load`);
+    assert.equal(result.reach, 'observed', `${name} should load and be observed`);
     assert.equal(result.canvasDrawn, true, `${name} should draw to its canvas`);
     assert.equal(result.activity, 'active', `${name} should respond`);
   }
@@ -284,15 +284,48 @@ test('rejects a static shell whose no-op form button navigates the page', async 
   assert.equal(result.activity, 'inert');
 });
 
-test('rejects a static page whose centre click only focuses a text input', async () => {
-  const input =
+test('rejects a static page whose centre click only focuses an editable region', async () => {
+  // The centre click focuses the region, and the probe's keys would type
+  // into it; the letters they leave are not the page responding.
+  const editable =
     '<!doctype html><html><head><style>body{background:#123;color:#fff;margin:0}' +
-    'input{position:fixed;inset:0;width:100%;height:100%;border:0;background:transparent;' +
-    'color:#fff;font-size:40px;outline:none}</style></head>' +
-    '<body><input type="text" aria-label="Notes"></body></html>';
-  const result = await tester.test(input, { settleMs: 300 });
+    '#pad{position:fixed;inset:0;font-size:40px;outline:none}</style></head>' +
+    '<body><div id="pad" contenteditable="true"></div></body></html>';
+  const result = await tester.test(editable, { settleMs: 300 });
   assert.equal(result.renderedSomething, true);
   assert.equal(result.activity, 'inert');
+});
+
+test('accepts a page whose only control is an input element styled as a button', async () => {
+  const inputButton =
+    `<!doctype html><html><head>${FLAT_STYLE}` +
+    '<style>input{background:#444;color:#fff;border:0;outline:none}</style></head>' +
+    '<body><div id="hud">Press start</div><input type="button" id="go" value="Start">' +
+    '<script>document.getElementById("go").addEventListener("click",()=>{' +
+    'document.getElementById("hud").textContent="Playing";});</script>' +
+    '</body></html>';
+  const result = await tester.test(inputButton, { settleMs: 300 });
+  assert.equal(result.activity, 'active');
+  assert.equal(result.pass, true);
+});
+
+test('a page that closes itself while probed is unobserved, not blank or inert', async () => {
+  // The close lands after the settle window and well before an inert probe
+  // ends, so the probe is running when the page goes away and every browser
+  // call it makes from then on throws.
+  const closes =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Score: 0</div><script>setTimeout(()=>window.close(),1500);</script>' +
+    '</body></html>';
+  const result = await tester.test(closes, { settleMs: 300 });
+  assert.equal(result.pass, false);
+  assert.equal(result.reach, 'unobserved');
+  assert.equal(result.activity, null);
+  assert.deepEqual(
+    result.reasons.map((reason) => reason.replace(/:.*$/, '')),
+    ['page loaded but could not be observed'],
+  );
+  assert.equal(smokeRejection(result, false).kind, 'smoke-unobserved');
 });
 
 test('accepts a game that sets location.hash from a key handler', async () => {

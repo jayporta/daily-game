@@ -54,6 +54,7 @@ export const FAILURE_KINDS = [
   'smoke-blank',
   'smoke-inert',
   'smoke-unresponsive',
+  'smoke-unobserved',
 ] as const;
 
 /** One of {@link FAILURE_KINDS}. */
