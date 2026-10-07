@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GenerationConfig } from '#actions_pipeline/lib/config/generation.ts';
 import type { GenresConfig } from '#actions_pipeline/lib/config/genres.ts';
-import { MS_PER_DAY, parseDailyCron, slotStart } from '#actions_pipeline/lib/dates.ts';
+import { MS_PER_DAY, slotStart } from '#actions_pipeline/lib/dates.ts';
 import {
   buildBundleCspMeta,
   buildErrorReportingSnippet,
@@ -76,47 +76,23 @@ export function buildSlug(date: string, title: string): string {
 }
 
 /**
- * Next occurrence of a daily cron expression, strictly after `from`.
+ * When the slot a run at `fromISO` claims ends: one day after it opened, which
+ * is the next tick of a daily `M H * * *` cron strictly after `fromISO`. A run
+ * inside the lead window therefore gets the full day, not a countdown that
+ * ends minutes later.
  *
- * Only the daily `M H * * *` shape is supported — the shape this project
- * actually uses — and anything else falls back to 24 hours later, so an
- * exotic schedule degrades to a sane countdown instead of throwing.
+ * Any other schedule falls back to 24 hours later, so an exotic schedule
+ * degrades to a sane countdown instead of throwing.
+ *
+ * @throws When `fromISO` is not a parseable date.
  */
 export function computeExpiresAt(cronSchedule: string, fromISO: string): string {
   const from = new Date(fromISO);
   if (Number.isNaN(from.getTime())) {
     throw new Error(`computeExpiresAt: invalid date ${fromISO}`);
   }
-
-  const daily = parseDailyCron(cronSchedule);
-  if (daily === null) return new Date(from.getTime() + MS_PER_DAY).toISOString();
-
-  const next = new Date(
-    Date.UTC(
-      from.getUTCFullYear(),
-      from.getUTCMonth(),
-      from.getUTCDate(),
-      daily.hour,
-      daily.minute,
-    ),
-  );
-  if (next.getTime() <= from.getTime()) {
-    next.setUTCDate(next.getUTCDate() + 1);
-  }
-  return next.toISOString();
-}
-
-/**
- * When the slot a run at `generatedAt` claims ends: one day after it opened.
- * A run inside the lead window therefore gets the full day, not a countdown
- * that ends minutes later. A schedule that is not plain daily falls back to
- * {@link computeExpiresAt}.
- */
-function expiresAtFor(cronSchedule: string, generatedAt: string): string {
-  const slot = slotStart(cronSchedule, new Date(generatedAt));
-  return slot === null
-    ? computeExpiresAt(cronSchedule, generatedAt)
-    : new Date(slot.getTime() + MS_PER_DAY).toISOString();
+  const slot = slotStart(cronSchedule, from);
+  return new Date((slot ?? from).getTime() + MS_PER_DAY).toISOString();
 }
 
 export type { Manifest };
@@ -200,7 +176,7 @@ export function buildManifest({
     genreLabel: genres.find((genre) => genre.id === meta.genre)?.label ?? meta.genre,
     model,
     generatedAt,
-    expiresAt: expiresAtFor(cronSchedule, generatedAt),
+    expiresAt: computeExpiresAt(cronSchedule, generatedAt),
     controls: meta.controls,
   };
 }
@@ -461,7 +437,7 @@ export function writeRunStatus({
   const status: RunStatus = {
     date,
     state: QUOTA_EXCEEDED,
-    retryAt: expiresAtFor(cronSchedule, generatedAt),
+    retryAt: computeExpiresAt(cronSchedule, generatedAt),
   };
   writeJson(paths.status, status);
   return status;
