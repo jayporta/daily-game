@@ -179,7 +179,7 @@ const SMOKE_DEFAULT_GUIDANCE =
 
 /**
  * The corrective words that fit each kind of smoke-test rejection, or
- * `undefined` when nothing was seen to correct.
+ * `undefined` for a kind with no fault to name.
  */
 const SMOKE_GUIDANCE: Record<SmokeFailureKind, string | undefined> = {
   'smoke-js-error': SMOKE_DEFAULT_GUIDANCE,
@@ -209,8 +209,7 @@ export function smokeRejection(
     ok: false,
     kind,
     reason: `smoke test failed — ${detail}`,
-    // A page nobody could examine was judged on nothing, so the model is
-    // told nothing: any guidance would describe a fault that was never seen.
+    // An unobserved page was seen to go away, not why, so it gets no feedback.
     feedback:
       guidance === undefined
         ? undefined

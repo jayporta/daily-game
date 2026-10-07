@@ -262,6 +262,21 @@ test('a page whose key handler never returns is cut off and read as a hang, not 
   assert.equal(smokeRejection(result, false).kind, 'smoke-unresponsive');
 });
 
+test('a page whose script never yields while loading is cut off and read as a hang, not a load failure', async () => {
+  // `load` never fires, so setting the document is the call that never returns.
+  const hangs =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Score: 0</div><script>while(true){}</script></body></html>';
+  const started = Date.now();
+  const result = await tester.test(hangs, { settleMs: 300, probeTimeoutMs: HANG_BUDGET_MS });
+
+  assert.ok(Date.now() - started < 15_000, 'loading must give up rather than wait forever');
+  assert.equal(result.reach, 'observed');
+  assert.equal(result.activity, 'unresponsive');
+  assert.equal(result.pass, false);
+  assert.equal(smokeRejection(result, false).kind, 'smoke-unresponsive');
+});
+
 test('a page that hangs after loading is cut off and read as a hang, not blank', async () => {
   // The script blocks the main thread during the settle window, so the read
   // of what it rendered is the call that never returns.

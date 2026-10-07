@@ -6,7 +6,7 @@
 // Network blocking is an assertion, not just a safety net: a bundle that
 // *tries* to reach the network has broken the self-contained rule and is
 // rejected even though the request never left the machine.
-import { type Browser, chromium, type Page } from 'playwright';
+import { type Browser, chromium, errors, type Page } from 'playwright';
 import { type ProbeVerdict, probeActivity } from '#actions_pipeline/pageActivity.ts';
 import { inspectRender, type RenderInspection } from '#actions_pipeline/pageRender.ts';
 import { errorMessage } from '#lib/errors.ts';
@@ -75,9 +75,9 @@ export interface SmokeTestOptions {
    */
   settleMs?: number;
   /**
-   * How long reading what the page rendered may take, and then how long
-   * probing it for activity may take, in milliseconds. A page that has not
-   * answered either by then is rejected as unresponsive.
+   * How long loading the page, then reading what it rendered, then probing
+   * it for activity may each take, in milliseconds. A page that has not
+   * answered one of them by then is rejected as unresponsive.
    *
    * Must stay well above a full probe of a page that does nothing, measured
    * at about 2.6s: set it below that and every inert page is reported
@@ -156,10 +156,17 @@ async function runSmokeTest(
 
   try {
     try {
-      await page.setContent(html, { waitUntil: 'load' });
+      await page.setContent(html, { waitUntil: 'load', timeout: probeTimeoutMs });
       reach = 'unobserved';
     } catch (error) {
-      reasons.push(`page failed to load: ${errorMessage(error)}`);
+      // A script that never yields never lets `load` fire. Remote requests
+      // are aborted rather than awaited, so that is what a load timeout means.
+      if (error instanceof errors.TimeoutError) {
+        reach = 'observed';
+        probe = 'unresponsive';
+      } else {
+        reasons.push(`page failed to load: ${errorMessage(error)}`);
+      }
     }
 
     if (reach === 'unobserved') {
@@ -193,7 +200,7 @@ async function runSmokeTest(
   // None of these describe a page the run could not watch; its reason is
   // already recorded.
   if (reach === 'observed') {
-    // A page that hung while being read never showed what it rendered.
+    // A page that hung while loading or being read never showed what it rendered.
     if (probe === 'unresponsive') {
       reasons.push('the page stopped responding');
     } else if (!renderedSomething) {
