@@ -1,6 +1,6 @@
 // Drives the smoke tester over pages built to exercise the activity probe:
-// what counts as a live game, what reads as a static shell, and what the
-// probe must ignore because the browser did it rather than the page.
+// what counts as a live game, what reads as a static shell, and how a page
+// that stops answering is told apart from one that never changes.
 
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
