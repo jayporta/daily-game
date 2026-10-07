@@ -21,6 +21,9 @@ export interface RenderInspection {
  * @param page A page that has loaded and settled.
  */
 export async function inspectRender(page: Page): Promise<RenderInspection> {
+  // The callback below runs in the browser, so Node's coverage never records
+  // it however often the smoke tests exercise it.
+  /* node:coverage disable */
   return page.evaluate(() => {
     const drewToCanvas = Array.from(document.querySelectorAll('canvas')).some((canvas) => {
       const ctx = canvas.getContext('2d');
@@ -72,4 +75,5 @@ export async function inspectRender(page: Page): Promise<RenderInspection> {
         drewToCanvas || hasText || hasMedia || hasPaintedGround || hasPaintedElement,
     };
   });
+  /* node:coverage enable */
 }

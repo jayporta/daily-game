@@ -1,5 +1,8 @@
 // Tells a live game from a static shell: a page whose script does nothing can
 // still paint a HUD and a background, so rendering alone proves little.
+// The page.evaluate callbacks run in the browser, where Node's coverage cannot
+// see them however often the smoke tests exercise them, so each is bracketed
+// by node:coverage pragmas.
 import type { Frame, Page } from 'playwright';
 
 /** How long the page is left alone between the two idle screenshots. */
@@ -49,10 +52,12 @@ interface ScrollPosition {
  */
 async function snapshot(page: Page, scroll: ScrollPosition): Promise<Buffer> {
   await page.mouse.move(0, 0);
+  /* node:coverage disable */
   await page.evaluate(
     ({ x, y }) => window.scrollTo({ left: x, top: y, behavior: 'instant' }),
     scroll,
   );
+  /* node:coverage enable */
   return page.screenshot();
 }
 
@@ -86,10 +91,12 @@ async function clickViewportCentre(page: Page): Promise<void> {
   const viewport = page.viewportSize();
   if (viewport === null) return;
   const centre = { x: viewport.width / 2, y: viewport.height / 2 };
+  /* node:coverage disable */
   const onNativeControl = await page.evaluate(
     ({ x, y, selector }) => document.elementFromPoint(x, y)?.closest(selector) != null,
     { ...centre, selector: NATIVE_CONTROLS },
   );
+  /* node:coverage enable */
   if (onNativeControl) return;
   await page.mouse.click(centre.x, centre.y);
 }
@@ -100,6 +107,7 @@ async function clickViewportCentre(page: Page): Promise<void> {
  * focus and keeps receiving keys.
  */
 async function blurEditable(page: Page): Promise<void> {
+  /* node:coverage disable */
   await page.evaluate(() => {
     const focused = document.activeElement;
     const isEditable =
@@ -109,6 +117,7 @@ async function blurEditable(page: Page): Promise<void> {
       (focused instanceof HTMLElement && focused.isContentEditable);
     if (isEditable) focused.blur();
   });
+  /* node:coverage enable */
 }
 
 /** Holds one key briefly, long enough for a game polling key state to see it. */
@@ -136,7 +145,9 @@ async function pressKey(page: Page, key: string): Promise<void> {
 async function pageResponds(page: Page, clickBudgetMs: number): Promise<boolean> {
   // Focus rings belong to the probe's clicks, not to the page; hide them.
   await page.addStyleTag({ content: HIDE_FOCUS_RING });
+  /* node:coverage disable */
   const scroll = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }));
+  /* node:coverage enable */
   const before = await snapshot(page, scroll);
   const changed = async (): Promise<boolean> => !before.equals(await snapshot(page, scroll));
 
@@ -174,14 +185,18 @@ export type ProbeVerdict = 'active' | 'inert' | 'unresponsive';
 
 /** Marks the current document, so a later load of a new one can be told apart. */
 async function markDocument(page: Page): Promise<void> {
+  /* node:coverage disable */
   await page.evaluate((key) => {
     Object.assign(window, { [key]: true });
   }, DOCUMENT_MARKER);
+  /* node:coverage enable */
 }
 
 /** Whether the document carrying the mark is still the one on screen. */
 function documentIsMarked(page: Page): Promise<boolean> {
+  /* node:coverage disable */
   return page.evaluate((key) => Reflect.has(window, key), DOCUMENT_MARKER);
+  /* node:coverage enable */
 }
 
 /**
