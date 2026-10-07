@@ -12,7 +12,7 @@ const BLANK_PAGE: SmokeTestResult = {
   networkAttempts: [],
   canvasDrawn: false,
   renderedSomething: false,
-  activity: 'not-probed',
+  activity: null,
 };
 
 test('a blank-page rejection tells the model to write the complete game script', () => {
@@ -55,9 +55,28 @@ test('an inert-page rejection is smoke-inert and asks for the complete game scri
 
 test('a page that rendered but was never probed is smoke-load, not smoke-inert', () => {
   const rejection = smokeRejection(
-    { ...BLANK_PAGE, renderedSomething: true, reasons: ['the page stopped responding to input'] },
+    { ...BLANK_PAGE, renderedSomething: true, reasons: ['the page failed to load'] },
     false,
   );
 
   assert.equal(rejection.kind, 'smoke-load');
+});
+
+test('a page that stopped responding is smoke-unresponsive and asks for bounded handlers', () => {
+  const rejection = smokeRejection(
+    {
+      ...BLANK_PAGE,
+      renderedSomething: true,
+      activity: 'unresponsive',
+      reasons: ['the page stopped responding to input'],
+    },
+    false,
+  );
+  const feedback = rejection.feedback ?? '';
+
+  assert.equal(rejection.kind, 'smoke-unresponsive');
+  assert.match(feedback, /stopped responding/);
+  assert.match(feedback, /bounded/);
+  assert.doesNotMatch(feedback, /complete game script/);
+  assert.doesNotMatch(feedback, /Be more defensive/);
 });

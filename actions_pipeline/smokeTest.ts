@@ -53,24 +53,13 @@ export interface SmokeTestResult {
    */
   readonly renderedSomething: boolean;
   /**
-   * Whether the page responds, as {@link PageActivity} spells out. Only
-   * probed once the page loaded and {@link renderedSomething} is true.
+   * What probing the page for signs of life found, or `null` when it was
+   * never probed: the page failed to load, rendered nothing, or the probe
+   * itself threw, and the reason already says so. Only probed once the page
+   * loaded and {@link renderedSomething} is true.
    */
-  readonly activity: PageActivity;
+  readonly activity: ProbeVerdict | null;
 }
-
-/**
- * What probing a page for signs of life found.
- *
- * - `active`: the page changed on its own, or in response to clicks and key
- *   presses.
- * - `inert`: nothing changed, or the page only navigated away. A static shell
- *   whose script does nothing renders fine and is still not a game.
- * - `not-probed`: no verdict. The page never loaded or rendered nothing (the
- *   blank or load reason already describes it), or the probe itself failed or
- *   hit its deadline.
- */
-export type PageActivity = 'active' | 'inert' | 'not-probed';
 
 /** Knobs for one bundle's run. */
 export interface SmokeTestOptions {
@@ -132,14 +121,23 @@ async function runSmokeTest(
   const warnings: string[] = [];
 
   try {
-    await page.setContent(html, { waitUntil: 'load' });
-    await page.waitForTimeout(settleMs);
+    let loaded = false;
+    try {
+      await page.setContent(html, { waitUntil: 'load' });
+      await page.waitForTimeout(settleMs);
+      loaded = true;
+    } catch (error) {
+      reasons.push(`page failed to load: ${errorMessage(error)}`);
+    }
 
-    ({ canvasDrawn, renderedSomething } = await inspectRender(page));
-
-    if (renderedSomething) probe = await probeActivity(page, probeTimeoutMs);
-  } catch (error) {
-    reasons.push(`page failed to load: ${errorMessage(error)}`);
+    if (loaded) {
+      try {
+        ({ canvasDrawn, renderedSomething } = await inspectRender(page));
+        if (renderedSomething) probe = await probeActivity(page, probeTimeoutMs);
+      } catch (error) {
+        reasons.push(`page loaded but could not be inspected: ${errorMessage(error)}`);
+      }
+    }
   } finally {
     await context.close();
   }
@@ -176,7 +174,7 @@ async function runSmokeTest(
     networkAttempts,
     canvasDrawn,
     renderedSomething,
-    activity: probe === 'active' || probe === 'inert' ? probe : 'not-probed',
+    activity: probe,
   };
 }
 

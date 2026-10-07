@@ -88,6 +88,10 @@ const FAILURE_DIRECTIVES: Record<FailureKind, string | null> = {
     'Recent games rendered a static screen that never changed — no animation and no response ' +
     'to input. Write the complete game script, no placeholders or elisions, and start the game ' +
     'loop or input handlers.',
+  'smoke-unresponsive':
+    'Recent games loaded but stopped responding while played. Keep every handler and loop ' +
+    'bounded, never wait on a condition in a busy loop, and yield between frames with ' +
+    'requestAnimationFrame or a timer.',
 };
 
 /** Counts occurrences of each key across the window. */

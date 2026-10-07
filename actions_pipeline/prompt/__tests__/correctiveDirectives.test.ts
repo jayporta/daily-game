@@ -153,6 +153,23 @@ test('a recurring inert page tells the model to start the game loop', () => {
   assert.match(String(directives[0]), /never changed/);
 });
 
+test('a recurring hang tells the model to keep its handlers and loops bounded', () => {
+  const hung: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 3,
+    failureReasons: [],
+    failureKinds: ['smoke-unresponsive', 'smoke-unresponsive'],
+  };
+
+  const directives = correctiveDirectives([hung]);
+
+  assert.equal(directives.length, 1);
+  assert.match(String(directives[0]), /stopped responding/);
+  assert.doesNotMatch(String(directives[0]), /failed to load/);
+});
+
 test('a recurring placeholder-metadata failure tells the model to describe the real game', () => {
   const placeholder: FailedEntry = {
     date: '2026-08-29',

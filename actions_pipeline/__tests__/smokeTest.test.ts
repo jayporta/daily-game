@@ -252,9 +252,9 @@ test('a page whose key handler never returns is cut off and read as a hang, not 
 
   assert.ok(Date.now() - started < 15_000, 'the probe must give up rather than wait forever');
   assert.equal(result.pass, false);
-  assert.equal(result.activity, 'not-probed');
+  assert.equal(result.activity, 'unresponsive');
   assert.match(result.reasons.join(' '), /stopped responding to input/);
-  assert.equal(smokeRejection(result, false).kind, 'smoke-load');
+  assert.equal(smokeRejection(result, false).kind, 'smoke-unresponsive');
 });
 
 test('a page whose click handler never returns is cut off', async () => {
@@ -288,6 +288,51 @@ test('rejects a static page whose centre click only focuses a text input', async
   const result = await tester.test(input, { settleMs: 300 });
   assert.equal(result.renderedSomething, true);
   assert.equal(result.activity, 'inert');
+});
+
+test('accepts a game that sets location.hash from a key handler', async () => {
+  // A same-document navigation keeps the page; only a real load is a reload.
+  const hashing =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Score: 0</div>' +
+    '<script>let n=0;addEventListener("keydown",()=>{' +
+    'document.getElementById("hud").textContent="Score: "+(++n);location.hash="s"+n;});</script>' +
+    '</body></html>';
+  const result = await tester.test(hashing, { settleMs: 300 });
+  assert.equal(result.activity, 'active');
+  assert.equal(result.pass, true);
+});
+
+test('accepts a working game whose controls sit under a start overlay of dead buttons', async () => {
+  // Every button is covered, so each click burns its whole timeout; the keys
+  // must still get their turn well inside the probe budget.
+  const cells = '<button>.</button>'.repeat(40);
+  const overlaid =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}' +
+    'button{background:#444;color:#fff;border:0;outline:none}' +
+    '#overlay{position:fixed;inset:0;z-index:9;background:#000}</style></head>' +
+    `<body><div id="hud">Score: 0</div><div id="grid">${cells}</div>` +
+    '<div id="overlay">Press any key</div>' +
+    '<script>addEventListener("keydown",()=>{document.getElementById("overlay").remove();});' +
+    '</script></body></html>';
+  const probeTimeoutMs = 8000;
+  const started = Date.now();
+  const result = await tester.test(overlaid, { settleMs: 300, probeTimeoutMs });
+
+  assert.equal(result.activity, 'active');
+  assert.ok(Date.now() - started < probeTimeoutMs, 'the buttons must not consume the budget');
+});
+
+test('rejects a static shell whose only element is a centred checkbox', async () => {
+  // Clicking a native checkbox changes it with no script involved.
+  const checkbox =
+    '<!doctype html><html><head><style>body{background:#123;margin:0}' +
+    'input{position:fixed;left:50%;top:50%;width:80px;height:80px;margin:-40px 0 0 -40px}' +
+    '</style></head><body><input type="checkbox" aria-label="Toggle"></body></html>';
+  const result = await tester.test(checkbox, { settleMs: 300 });
+  assert.equal(result.renderedSomething, true);
+  assert.equal(result.activity, 'inert');
+  assert.equal(result.pass, false);
 });
 
 test('accepts a page that changes only on a key once its canvas is clicked and focused', async () => {

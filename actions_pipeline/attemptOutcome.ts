@@ -173,6 +173,11 @@ export function moderationRejection(
 const SMOKE_BLANK_GUIDANCE =
   'Write the complete game script, not a shell, skeleton or placeholder, and draw the opening state before any input.';
 
+/** Corrective words for a page that loaded and rendered, then stopped answering input. */
+const SMOKE_UNRESPONSIVE_GUIDANCE =
+  'Keep every event handler and loop bounded, never wait on a condition in a busy loop, ' +
+  'and yield between frames with requestAnimationFrame or a timer.';
+
 /** Corrective words for every other way the smoke test turns a game down. */
 const SMOKE_DEFAULT_GUIDANCE =
   'Be more defensive — guard every element lookup, and make no network requests of any kind.';
@@ -189,10 +194,7 @@ export function smokeRejection(
   moderationQuotaAffected: boolean,
 ): AttemptRejection {
   const kind = smokeFailureKind(smoke);
-  const guidance =
-    kind === 'smoke-blank' || kind === 'smoke-inert'
-      ? SMOKE_BLANK_GUIDANCE
-      : SMOKE_DEFAULT_GUIDANCE;
+  const guidance = smokeGuidance(kind);
   return {
     ok: false,
     kind,
@@ -201,6 +203,19 @@ export function smokeRejection(
     quota: false,
     quotaAffected: moderationQuotaAffected,
   };
+}
+
+/** The corrective words that fit a smoke-test rejection of this kind. */
+function smokeGuidance(kind: FailureKind): string {
+  switch (kind) {
+    case 'smoke-blank':
+    case 'smoke-inert':
+      return SMOKE_BLANK_GUIDANCE;
+    case 'smoke-unresponsive':
+      return SMOKE_UNRESPONSIVE_GUIDANCE;
+    default:
+      return SMOKE_DEFAULT_GUIDANCE;
+  }
 }
 
 /**
@@ -216,5 +231,6 @@ function smokeFailureKind(smoke: SmokeTestResult): FailureKind {
   // than one that ran cleanly and drew nothing.
   if (!smoke.renderedSomething) return 'smoke-blank';
   if (smoke.activity === 'inert') return 'smoke-inert';
+  if (smoke.activity === 'unresponsive') return 'smoke-unresponsive';
   return 'smoke-load';
 }
