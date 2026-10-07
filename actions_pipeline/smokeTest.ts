@@ -185,7 +185,8 @@ export interface SmokeTester {
  * checking several (the retry loop, and the test suite).
  */
 export async function createSmokeTester(): Promise<SmokeTester> {
-  const browser = await chromium.launch();
+  // Keyboard scrolling animates; that motion would read as the page changing.
+  const browser = await chromium.launch({ args: ['--disable-smooth-scrolling'] });
   return {
     test: (html, options = {}) => runSmokeTest(browser, html, options),
     close: () => browser.close(),

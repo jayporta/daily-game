@@ -146,16 +146,76 @@ test('accepts a page that changes only in response to a key', async () => {
   assert.equal(result.pass, true);
 });
 
+// Buttons styled explicitly so their default hover and focus appearance cannot
+// change a screenshot: only a handler can make these pages differ.
+const FLAT_STYLE =
+  '<style>body{background:#123;color:#fff}' +
+  'button{background:#444;color:#fff;border:0;outline:none}</style>';
+
 test('accepts a page that changes only after its Start button is clicked', async () => {
   const startable =
-    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    `<!doctype html><html><head>${FLAT_STYLE}</head>` +
     '<body><div id="hud">Press start</div><button id="go">Start</button>' +
     '<script>document.getElementById("go").addEventListener("click",()=>{' +
-    'document.getElementById("hud").style.background="#f00";document.getElementById("hud").textContent="Playing";});</script>' +
+    'document.getElementById("hud").textContent="Playing";});</script>' +
     '</body></html>';
   const result = await tester.test(startable, { settleMs: 300 });
   assert.equal(result.active, true);
   assert.equal(result.pass, true);
+});
+
+test('accepts a page whose Start click is undone by a later Reset click', async () => {
+  const resettable =
+    `<!doctype html><html><head>${FLAT_STYLE}</head>` +
+    '<body><div id="hud">Press start</div><button id="go">Start</button>' +
+    '<button id="reset">Reset</button>' +
+    '<script>const hud=document.getElementById("hud");' +
+    'document.getElementById("go").addEventListener("click",()=>{hud.textContent="Playing";});' +
+    'document.getElementById("reset").addEventListener("click",()=>{hud.textContent="Press start";});' +
+    '</script></body></html>';
+  const result = await tester.test(resettable, { settleMs: 300 });
+  assert.equal(result.active, true);
+});
+
+test('rejects a static shell whose unstyled Start button does nothing', async () => {
+  const noop =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Press start</div><button>Start</button></body></html>';
+  const result = await tester.test(noop, { settleMs: 300 });
+  assert.equal(result.renderedSomething, true);
+  assert.equal(result.active, false);
+});
+
+test('rejects a static shell whose no-op button only gains a focus ring when clicked', async () => {
+  const ringed =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}' +
+    'button{background:#444;color:#fff;border:0}button:focus{outline:3px solid #f00}</style></head>' +
+    '<body><div id="hud">Press start</div><button>Start</button></body></html>';
+  const result = await tester.test(ringed, { settleMs: 300 });
+  assert.equal(result.renderedSomething, true);
+  assert.equal(result.active, false);
+});
+
+test('rejects a static shell whose no-op button sits below the fold', async () => {
+  const belowFold =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Press start</div><div style="height:2000px"></div>' +
+    '<button>Start</button></body></html>';
+  const result = await tester.test(belowFold, { settleMs: 300 });
+  assert.equal(result.renderedSomething, true);
+  assert.equal(result.active, false);
+});
+
+test('accepts a page that moves right on ArrowRight and back on ArrowLeft', async () => {
+  const reversible =
+    '<!doctype html><html><head><style>body{background:#123;margin:0}' +
+    '#dot{position:absolute;top:50px;left:50px;width:40px;height:40px;background:#fff}</style></head>' +
+    '<body><div id="dot"></div>' +
+    '<script>const dot=document.getElementById("dot");let x=50;' +
+    'addEventListener("keydown",(e)=>{if(e.key==="ArrowRight")x+=100;if(e.key==="ArrowLeft")x-=100;' +
+    'dot.style.left=x+"px";});</script></body></html>';
+  const result = await tester.test(reversible, { settleMs: 300 });
+  assert.equal(result.active, true);
 });
 
 test('accepts a page that animates on its own', async () => {
