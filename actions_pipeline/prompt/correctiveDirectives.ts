@@ -102,7 +102,8 @@ const FAILURE_DIRECTIVES: Record<FailureKind, string | null> = {
     'Recent games rendered a static screen that never changed — no animation and no response ' +
     `to input. ${SMOKE_REMEDIES['smoke-inert']}`,
   'smoke-unresponsive': `Recent games loaded but stopped responding while played. ${SMOKE_REMEDIES['smoke-unresponsive']}`,
-  // The page loaded, then crashed or closed before it could be examined; nobody saw why.
+  // The page loaded, then crashed or closed before it was examined. The
+  // fault was seen, but not whose it was, so there is no wording to give.
   'smoke-unobserved': null,
 };
 

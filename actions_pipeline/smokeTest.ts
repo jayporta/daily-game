@@ -57,10 +57,10 @@ export interface SmokeTestResult extends RenderInspection {
    */
   readonly reach: SmokeTestReach;
   /**
-   * What probing the page for signs of life found, or `null` when it was
-   * never probed: the run did not reach it, or the page rendered nothing,
-   * and the reason already says so. Only probed once the page loaded and
-   * {@link renderedSomething} is true.
+   * What probing the page for signs of life found. `unresponsive` without a
+   * probe when the page hung before it could even be read, with the render
+   * fields false. `null` when it was never probed: the run did not reach
+   * it, or the page rendered nothing, and the reason already says so.
    */
   readonly activity: ProbeVerdict | null;
 }

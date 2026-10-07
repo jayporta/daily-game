@@ -402,6 +402,18 @@ test('rejects a static shell whose only element is a centred checkbox', async ()
   assert.equal(result.pass, false);
 });
 
+test('rejects a static shell whose centred label toggles a checkbox', async () => {
+  // Clicking the label's text toggles the box beside it with no script involved.
+  const labelled =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff;margin:0}' +
+    'label{position:fixed;left:50%;top:50%;width:200px;height:80px;margin:-40px 0 0 -100px;' +
+    'font-size:30px}input{width:40px;height:40px}</style></head>' +
+    '<body><label><input type="checkbox">Toggle</label></body></html>';
+  const result = await tester.test(labelled, { settleMs: 300 });
+  assert.equal(result.renderedSomething, true);
+  assert.equal(result.activity, 'inert');
+});
+
 test('accepts a page that changes only on a key once its canvas is clicked and focused', async () => {
   // The canvas fills the viewport, so the centre click focuses it, and the
   // keys must still reach it.

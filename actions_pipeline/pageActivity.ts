@@ -25,8 +25,11 @@ const CLICKABLE_BUTTONS = ['button', ...BUTTON_INPUT_TYPES.map((type) => `input[
   .map((selector) => `${selector}:visible`)
   .join(', ');
 const NON_BUTTON_INPUTS = `input${BUTTON_INPUT_TYPES.map((type) => `:not([type=${type}])`).join('')}`;
-/** Native controls the browser itself changes on a click, with no script involved. */
-const NATIVE_CONTROLS = `${NON_BUTTON_INPUTS}, select, textarea, summary, details, option`;
+/**
+ * Native controls the browser itself changes on a click, with no script
+ * involved. A label counts: clicking one activates the control it is for.
+ */
+const NATIVE_CONTROLS = `${NON_BUTTON_INPUTS}, label, select, textarea, summary, details, option`;
 /** Own property set on `window` to tell a document reload from a same-document navigation. */
 const DOCUMENT_MARKER = '__dailyGameActivityProbe';
 
