@@ -4,50 +4,25 @@
 // see them however often the smoke tests exercise them, so each is bracketed
 // by node:coverage pragmas.
 import type { Frame, Page } from 'playwright';
+import {
+  blurEditable,
+  clickButtonsUntilChanged,
+  clickViewportCentre,
+  PROBE_KEYS,
+  pressKey,
+} from '#actions_pipeline/pageInputs.ts';
 
 /** How long the page is left alone between the two idle screenshots. */
 const IDLE_WAIT_MS = 500;
-/** Per-click budget; a button that is covered or gone is skipped, not waited on. */
-const CLICK_TIMEOUT_MS = 500;
 /** Pause for the page to react to the clicks, and again after the last key. */
 const REACTION_WAIT_MS = 200;
 const SETTLE_AFTER_INPUT_MS = 300;
 /** Hides the focus ring a click leaves on the page's buttons. */
 const HIDE_FOCUS_RING = '*:focus, *:focus-visible { outline: none !important; }';
-/** How long each key is held, so a game polling key state on a frame sees it. */
-const KEY_HOLD_MS = 60;
 /** The share of the probe's budget the button clicks may spend before the keys run. */
 const CLICK_PHASE_SHARE = 0.25;
-/** The `<input>` types that are buttons: only a script changes one of these on a click. */
-const BUTTON_INPUT_TYPES = ['button', 'submit', 'reset', 'image'] as const;
-/** Every button on the page that a viewer could click. */
-const CLICKABLE_BUTTONS = ['button', ...BUTTON_INPUT_TYPES.map((type) => `input[type=${type}]`)]
-  .map((selector) => `${selector}:visible`)
-  .join(', ');
-const NON_BUTTON_INPUTS = `input${BUTTON_INPUT_TYPES.map((type) => `:not([type=${type}])`).join('')}`;
-/**
- * Native controls the browser itself changes on a click, with no script
- * involved. A label counts: clicking one activates the control it is for.
- */
-const NATIVE_CONTROLS = `${NON_BUTTON_INPUTS}, label, select, textarea, summary, details, option`;
 /** Own property set on `window` to tell a document reload from a same-document navigation. */
 const DOCUMENT_MARKER = '__dailyGameActivityProbe';
-
-/** The keys a small browser game is most likely to listen for. */
-const PROBE_KEYS = [
-  'Space',
-  'Enter',
-  'ArrowRight',
-  'ArrowLeft',
-  'ArrowUp',
-  'ArrowDown',
-  'w',
-  'a',
-  's',
-  'd',
-  'r',
-  '1',
-] as const;
 
 /** Where the page was scrolled to when it was first looked at. */
 interface ScrollPosition {
@@ -69,72 +44,6 @@ async function snapshot(page: Page, scroll: ScrollPosition): Promise<Buffer> {
   );
   /* node:coverage enable */
   return page.screenshot();
-}
-
-/**
- * Clicks every visible button once, ignoring any that cannot be clicked, and
- * stops at the first click after which `changed` reports a difference.
- *
- * @param budgetMs How long the loop may keep starting new clicks; a click
- *   already under way may finish its own timeout. Returns false once spent.
- */
-async function clickButtonsUntilChanged(
-  page: Page,
-  changed: () => Promise<boolean>,
-  budgetMs: number,
-): Promise<boolean> {
-  const deadline = Date.now() + budgetMs;
-  for (const button of await page.locator(CLICKABLE_BUTTONS).all()) {
-    if (Date.now() >= deadline) return false;
-    await button.click({ timeout: CLICK_TIMEOUT_MS }).catch(() => undefined);
-    if (await changed()) return true;
-  }
-  return false;
-}
-
-/**
- * Clicks the middle of the viewport, where a canvas game usually sits, unless
- * a native control is there: the browser changes those itself, so the change
- * would not be the game's.
- */
-async function clickViewportCentre(page: Page): Promise<void> {
-  const viewport = page.viewportSize();
-  if (viewport === null) return;
-  const centre = { x: viewport.width / 2, y: viewport.height / 2 };
-  /* node:coverage disable */
-  const onNativeControl = await page.evaluate(
-    ({ x, y, selector }) => document.elementFromPoint(x, y)?.closest(selector) != null,
-    { ...centre, selector: NATIVE_CONTROLS },
-  );
-  /* node:coverage enable */
-  if (onNativeControl) return;
-  await page.mouse.click(centre.x, centre.y);
-}
-
-/**
- * Takes focus off a text field or dropdown, so the probe's keys are not typed
- * into it or used to change it. A focused canvas or any other element keeps
- * focus and keeps receiving keys.
- */
-async function blurEditable(page: Page): Promise<void> {
-  /* node:coverage disable */
-  await page.evaluate(() => {
-    const focused = document.activeElement;
-    const isEditable =
-      focused instanceof HTMLInputElement ||
-      focused instanceof HTMLTextAreaElement ||
-      focused instanceof HTMLSelectElement ||
-      (focused instanceof HTMLElement && focused.isContentEditable);
-    if (isEditable) focused.blur();
-  });
-  /* node:coverage enable */
-}
-
-/** Holds one key briefly, long enough for a game polling key state to see it. */
-async function pressKey(page: Page, key: string): Promise<void> {
-  await page.keyboard.down(key);
-  await page.waitForTimeout(KEY_HOLD_MS);
-  await page.keyboard.up(key);
 }
 
 /**
@@ -210,6 +119,29 @@ function documentIsMarked(page: Page): Promise<boolean> {
 }
 
 /**
+ * Settles with whatever `work` settles with, or with `fallback` once
+ * `timeoutMs` passes first. Work that loses the race may still be pending;
+ * whoever owns it ends it, and its later rejection goes nowhere.
+ */
+export async function withinDeadline<T, F>(
+  work: Promise<T>,
+  timeoutMs: number,
+  fallback: F,
+): Promise<T | F> {
+  let cancel = (): void => undefined;
+  const deadline = new Promise<F>((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), timeoutMs);
+    cancel = () => clearTimeout(timer);
+  });
+  work.catch(() => undefined);
+  try {
+    return await Promise.race([work, deadline]);
+  } finally {
+    cancel();
+  }
+}
+
+/**
  * Probes a page for activity under a deadline, since a handler that never
  * returns blocks every browser call the probe makes.
  *
@@ -228,8 +160,7 @@ function documentIsMarked(page: Page): Promise<boolean> {
  */
 export async function probeActivity(page: Page, timeoutMs: number): Promise<ProbeVerdict> {
   let stopWatching = (): void => undefined;
-  const interrupted = new Promise<ProbeVerdict>((resolve) => {
-    const timer = setTimeout(() => resolve('unresponsive'), timeoutMs);
+  const reloaded = new Promise<ProbeVerdict>((resolve) => {
     const onNavigated = (frame: Frame): void => {
       if (frame !== page.mainFrame()) return;
       documentIsMarked(page).then(
@@ -240,20 +171,15 @@ export async function probeActivity(page: Page, timeoutMs: number): Promise<Prob
       );
     };
     page.on('framenavigated', onNavigated);
-    stopWatching = () => {
-      clearTimeout(timer);
-      page.off('framenavigated', onNavigated);
-    };
+    stopWatching = () => page.off('framenavigated', onNavigated);
   });
 
   const probe = markDocument(page)
     .then(() => pageResponds(page, timeoutMs * CLICK_PHASE_SHARE))
     .then((responds): ProbeVerdict => (responds ? 'active' : 'inert'));
-  // A probe that loses the race rejects once its page closes; nobody awaits it.
-  probe.catch(() => undefined);
 
   try {
-    return await Promise.race([probe, interrupted]);
+    return await withinDeadline(Promise.race([probe, reloaded]), timeoutMs, 'unresponsive');
   } finally {
     stopWatching();
   }

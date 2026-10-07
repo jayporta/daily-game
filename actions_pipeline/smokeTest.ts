@@ -6,8 +6,12 @@
 // Network blocking is an assertion, not just a safety net: a bundle that
 // *tries* to reach the network has broken the self-contained rule and is
 // rejected even though the request never left the machine.
-import { type Browser, chromium, errors, type Page } from 'playwright';
-import { type ProbeVerdict, probeActivity } from '#actions_pipeline/pageActivity.ts';
+import { type Browser, chromium, errors } from 'playwright';
+import {
+  type ProbeVerdict,
+  probeActivity,
+  withinDeadline,
+} from '#actions_pipeline/pageActivity.ts';
 import { inspectRender, type RenderInspection } from '#actions_pipeline/pageRender.ts';
 import { errorMessage } from '#lib/errors.ts';
 
@@ -88,30 +92,6 @@ export interface SmokeTestOptions {
   probeTimeoutMs?: number;
 }
 
-/**
- * Reads the page under a deadline, since a script that never yields blocks
- * the read. The read may still be pending when this returns `unresponsive`;
- * closing the page ends it.
- */
-async function inspectUnderDeadline(
-  page: Page,
-  timeoutMs: number,
-): Promise<RenderInspection | 'unresponsive'> {
-  let cancel = (): void => undefined;
-  const deadline = new Promise<'unresponsive'>((resolve) => {
-    const timer = setTimeout(() => resolve('unresponsive'), timeoutMs);
-    cancel = () => clearTimeout(timer);
-  });
-  const read = inspectRender(page);
-  // A read that loses the race rejects once its page closes; nobody awaits it.
-  read.catch(() => undefined);
-  try {
-    return await Promise.race([read, deadline]);
-  } finally {
-    cancel();
-  }
-}
-
 /** Only real remote schemes count as network use; data:/blob: are self-contained. */
 function isRemoteRequest(url: string): boolean {
   return url.startsWith('http://') || url.startsWith('https://');
@@ -172,7 +152,12 @@ async function runSmokeTest(
     if (reach === 'unobserved') {
       try {
         await page.waitForTimeout(settleMs);
-        const inspection = await inspectUnderDeadline(page, probeTimeoutMs);
+        // A script that never yields blocks the read; the deadline is what ends the wait.
+        const inspection: RenderInspection | 'unresponsive' = await withinDeadline(
+          inspectRender(page),
+          probeTimeoutMs,
+          'unresponsive',
+        );
         if (inspection === 'unresponsive') {
           probe = inspection;
         } else {
@@ -259,17 +244,4 @@ export async function createSmokeTester(): Promise<SmokeTester> {
     test: (html, options = {}) => runSmokeTest(browser, html, options),
     close: () => browser.close(),
   };
-}
-
-/** One-shot convenience: launches a browser, checks one bundle, tears down. */
-export async function smokeTest(
-  html: string,
-  options: SmokeTestOptions = {},
-): Promise<SmokeTestResult> {
-  const tester = await createSmokeTester();
-  try {
-    return await tester.test(html, options);
-  } finally {
-    await tester.close();
-  }
 }
