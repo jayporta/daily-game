@@ -9,6 +9,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Place flower towers along a path to block invading shadows, Upgrade towers to increase power, Prevent shadows from reaching the core
 - model: cohere/north-mini-code:free
 - attempts: 4
+- reactions: -1
+- likes: 0
+- dislikes: 1
+- disliked for: goal-unclear: 1, controls-unclear: 1
 
 ## 2026-10-06 — generation failed, previous game kept
 
