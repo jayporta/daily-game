@@ -18,13 +18,6 @@ import { extractBundle } from '#lib/extractBundleShared.ts';
 export const FIXTURES_DIR = fileURLToPath(new URL('../fixtures/mock-responses/', import.meta.url));
 
 /**
- * The probe deadline the smoke tests use for a page that hangs. Must exceed a
- * full probe of a page that merely does nothing (about 2.6s), or a slow probe
- * reads as a hang and the tests stop telling the two apart.
- */
-export const HANG_BUDGET_MS = 4000;
-
-/**
  * A `fetch` that accepts the request and then never answers.
  *
  * Stands in for the socket that stalls rather than refusing — the one failure

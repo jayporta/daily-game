@@ -3,8 +3,9 @@
 
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
+import { HANG_BUDGET_MS } from '#actions_pipeline/__tests__/hangBudget.ts';
 import { smokeRejection } from '#actions_pipeline/attemptOutcome.ts';
-import { HANG_BUDGET_MS, loadFixtureBundle } from '#actions_pipeline/lib/testFixtures.ts';
+import { loadFixtureBundle } from '#actions_pipeline/lib/testFixtures.ts';
 import { createSmokeTester, type SmokeTester } from '#actions_pipeline/smokeTest.ts';
 
 let tester: SmokeTester;
