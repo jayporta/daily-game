@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Plant Guard</title>
+<style>
+html, body { margin:0; width:100%; height:100%; overflow:hidden; background:#e0f7fa; font-family:sans-serif; }
+#gameCanvas { display:block; width:100%; height:100%; }
+#uiOverlay {
+  position:absolute; top:10px; right:10px;
+  background:rgba(255,255,255,0.85);
+  padding:10px; border-radius:8px;
+  box-shadow:0 0 8px rgba(0,0,0,0.3);
+  display:flex; flex-direction:column; gap:8px;
+}
+#info {
+  display:flex; justify-content:space-between; gap:20px; font-size:14px;
+}
+.info-item {
+  padding:4px 8px; background:#f0f0f0; border-radius:4px;
+}
+#towerSelect { display:flex; gap:8px; }
+.tower-btn {
+  width:60px; height:40px; border:none; border-radius:6px; cursor:pointer;
+  transition:transform 0.1s;
+}
+.tower-btn:active { transform:scale(0.95); }
+#tower1 { background:#ff9999; } /* flower */
+#tower2 { background:#99ff99; } /* thorn */
+#tower3 { background:#ffff99; } /* sun */
+#upgradeBtn {
+  margin-top:8px; padding:6px 12px;
+  background:#4a90e2; color:#fff; border:none; border-radius:6px; cursor:pointer;
+}
+.game-over {
+  position:absolute; inset:0;
+  background:rgba(0,0,0,0.7); color:#fff;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  font-size:24px; cursor:pointer;
+}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="uiOverlay">
+  <div id="info">
+    <div class="info-item">Money: <span id="moneyVal">100</span></div>
+    <div class="info-item">Health: <span id="healthVal">3</span></div>
+  </div>
+  <div id="towerSelect">
+    <button id="tower1" class="tower-btn" title="Basic Flower Tower (Cost:20)"></button>
+    <button id="tower2" class="tower-btn" title="Thorn Tower (Cost:30)"></button>
+    <button id="tower3" class="tower-btn" title="Sun Tower (Cost:40)"></button>
+  </div>
+  <button id="upgradeBtn">Upgrade All Towers (50 Money)</button>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let width, height;
+function resize() {
+  width = canvas.width = canvas.offsetWidth;
+  height = canvas.height = canvas.offsetHeight;
+}
+window.addEventListener('resize', () => { resize(); init(); });
+resize();
+
+let pathPoints = [];
+let pathLength = 0;
+
+function init() {
+  // define path based on current canvas size
+  const startX = width * 0.1;
+  const startY = height * 0.5;
+  const midX1 = width * 0.4;
+  const midY1 = height * 0.9;
+  const midX2 = width * 0.6;
+  const midY2 = height * 0.9;
+  const endX = width * 0.9;
+  const endY = height * 0.5;
+  pathPoints = [
+    {x: startX, y: startY},
+    {x: midX1, y: midY1},
+    {x: midX2, y: midY2},
+    {x: endX, y: endY}
+  ];
+  computePathLength();
+}
+function computePathLength() {
+  let total = 0;
+  for (let i = 0; i < pathPoints.length; i++) {
+    const p1 = pathPoints[i];
+    const p2 = pathPoints[(i + 1) % pathPoints.length];
+    total += Math.hypot(p2.x - p1.x, p2.y - p1.y);
+  }
+  pathLength = total;
+}
+init();
+
+const towerTypes = [
+  { name: 'flower', cost: 20, damage: 1, range: 80, fireRate: 30, color: '#ff9999' },
+  { name: 'thorn',  cost: 30, damage: 2, range: 70, fireRate: 60, color: '#99ff99' },
+  { name: 'sun',    cost: 40, damage: 3, range: 120, fireRate: 15, color: '#ffff99' }
+];
+
+let selectedTower = 0;
+let money = 100;
+let health = 3;
+let gameOver = false;
+let towers = [];
+let projectiles = [];
+
+const enemy = {
+  health: 1,
+  speed: 1.5,
+  distance: 0,
+  radius: 8,
+  color: '#2d2d2d'
+};
+
+function getDistanceToPath(x, y) {
+  let minDist = Infinity;
+  for (let p of pathPoints) {
+    const d = Math.hypot(p.x - x, p.y - y);
+    if (d < minDist) minDist = d;
+  }
+  for (let i = 0; i < pathPoints.length; i++) {
+    const p1 = pathPoints[i];
+    const p2 = pathPoints[(i + 1) % pathPoints.length];
+    const d = distancePointToSegment(x, y, p1, p2);
+    if (d < minDist) minDist = d;
+  }
+  return minDist;
+}
+function distancePointToSegment(px, py, p1, p2) {
+  const len2 = Math.hypot(p2.x - p1.x, p2.y - p1.y) ** 2;
+  if (len2 === 0) return Math.hypot(px - p1.x, py - p1.y);
+  const t = ((px - p1.x) * (p2.x - p1.x) + (py - p1.y) * (p2.y - p1.y)) / len2;
+  const clamped = Math.max(0, Math.min(1, t));
+  const projX = p1.x + clamped * (p2.x - p1.x);
+  const projY = p1.y + clamped * (p2.y - p1.y);
+  return Math.hypot(px - projX, py - projY);
+}
+
+function placeTower(x, y) {
+  if (gameOver) return;
+  const type = towerTypes[selectedTower];
+  if (money < type.cost) return;
+  const dist = getDistanceToPath(x, y);
+  if (dist > 30) return;
+  towers.push({
+    typeIndex: selectedTower,
+    x, y,
+    cooldown: 0,
+    level: 1,
+    maxLevel: 3
+  });
+  money -= type.cost;
+  updateUI();
+}
+function getEnemyPosition(dist) {
+  let accumulated = 0;
+  for (let i = 0; i < pathPoints.length; i++) {
+    const p1 = pathPoints[i];
+    const p2 = pathPoints[(i + 1) % pathPoints.length];
+    const segLen = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    if (dist <= accumulated + segLen) {
+      const t = (dist - accumulated) / segLen;
+      return {
+        x: p1.x + t * (p2.x - p1.x),
+        y: p1.y + t * (p2.y - p1.y)
+      };
+    }
+    accumulated += segLen;
+  }
+  return pathPoints[pathPoints.length - 1];
+}
+function updateEnemy(dt) {
+  if (gameOver) return;
+  enemy.distance += enemy.speed * dt;
+  if (enemy.distance >= pathLength) {
+    health--;
+    updateUI();
+    enemy.distance = 0;
+    if (health <= 0) {
+      gameOver = true;
+      drawGameOver();
+    }
+  }
+}
+function updateTowers(dt) {
+  towers.forEach(t => {
+    t.cooldown += dt;
+    const type = towerTypes[t.typeIndex];
+    if (t.cooldown < type.fireRate) return;
+    const ex = getEnemyPosition(enemy.distance).x;
+    const ey = getEnemyPosition(enemy.distance).y;
+    const d = Math.hypot(ex - t.x, ey - t.y);
+    if (d <= type.range) {
+      projectiles.push({
+        tx: t.x, ty: t.y,
+        ex, ey,
+        damage: type.damage * t.level,
+        distance: 0,
+        length: d
+      });
+      t.cooldown = 0;
+    }
+  });
+}
+function updateProjectiles(dt) {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.distance += enemy.speed * dt * 2;
+    if (p.distance >= p.length) {
+      projectiles.splice(i, 1);
+      continue;
+    }
+    const t = p.distance / p.length;
+    const x = p.tx + t * (p.ex - p.tx);
+    const y = p.ty + t * (p.ey - p.ty);
+    const ex = getEnemyPosition(enemy.distance).x;
+    const ey = getEnemyPosition(enemy.distance).y;
+    if (Math.hypot(x - ex, y - ey) < enemy.radius + 4) {
+      enemy.health -= p.damage;
+      projectiles.splice(i, 1);
+      if (enemy.health <= 0) {
+        money += 20;
+        enemy.health = 1;
+        enemy.distance = 0;
+        updateUI();
+      }
+      break;
+    }
+  }
+}
+function drawPath() {
+  ctx.beginPath();
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 4;
+  ctx.setLineDash([5,5]);
+  ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+  for (let i = 1; i < pathPoints.length; i++) {
+    ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+function drawTowers() {
+  towers.forEach(t => {
+    const type = towerTypes[t.typeIndex];
+    ctx.fillStyle = type.color;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(`L${t.level}`, t.x - 3, t.y + 4);
+    ctx.strokeStyle = type.color;
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, type.range, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+}
+function drawEnemy() {
+  const pos = getEnemyPosition(enemy.distance);
+  ctx.fillStyle = enemy.color;
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y - 10);
+  ctx.lineTo(pos.x + 10, pos.y);
+  ctx.lineTo(pos.x, pos.y + 10);
+  ctx.closePath();
+  ctx.fill();
+}
+function drawProjectiles() {
+  projectiles.forEach(p => {
+    const t = p.distance / p.length;
+    const x = p.tx + t * (p.ex - p.tx);
+    const y = p.ty + t * (p.ey - p.ty);
+    ctx.strokeStyle = '#ffcc00';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(p.tx, p.ty);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.fillStyle = '#ffcc00';
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+function drawUIOverlay() {
+  [document.getElementById('tower1'), document.getElementById('tower2'), document.getElementById('tower3')].forEach((btn, idx) => {
+    if (idx === selectedTower) {
+      btn.style.border = '3px solid #000';
+    } else {
+      btn.style.border = 'none';
+    }
+  });
+  document.getElementById('moneyVal').textContent = money;
+  document.getElementById('healthVal').textContent = health;
+}
+function updateUI() {
+  drawUIOverlay();
+}
+function drawGameOver() {
+  let go = document.getElementById('gameOverOverlay');
+  if (!go) {
+    go = document.createElement('div');
+    go.id = 'gameOverOverlay';
+    go.className = 'game-over';
+    go.textContent = 'Game Over! Click to restart';
+    document.body.appendChild(go);
+    go.addEventListener('click', resetGame);
+  } else {
+    go.style.display = 'flex';
+  }
+}
+function resetGame() {
+  money = 100;
+  health = 3;
+  towers = [];
+  projectiles = [];
+  enemy.health = 1;
+  enemy.distance = 0;
+  gameOver = false;
+  document.getElementById('gameOverOverlay')?.remove();
+  updateUI();
+}
+function gameLoop(timestamp) {
+  const dt = (timestamp - lastFrame) / 1000;
+  lastFrame = timestamp;
+  ctx.clearRect(0, 0, width, height);
+  drawPath();
+  updateEnemy(dt);
+  updateTowers(dt);
+  updateProjectiles(dt);
+  drawProjectiles();
+  drawTowers();
+  drawEnemy();
+  drawUIOverlay();
+  if (gameOver) drawGameOver();
+  requestAnimationFrame(gameLoop);
+}
+let lastFrame = 0;
+requestAnimationFrame(gameLoop);
+
+// UI event listeners
+document.getElementById('tower1').addEventListener('click', () => { selectedTower = 0; });
+document.getElementById('tower2').addEventListener('click', () => { selectedTower = 1; });
+document.getElementById('tower3').addEventListener('click', () => { selectedTower = 2; });
+document.getElementById('upgradeBtn').addEventListener('click', () => {
+  const cost = 50;
+  if (money < cost) return;
+  towers.forEach(t => {
+    if (t.level < t.maxLevel) t.level++;
+  });
+  money -= cost;
+  updateUI();
+});
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  if (gameOver) {
+    resetGame();
+    return;
+  }
+  placeTower(x, y);
+});
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-07-plant-guard";
+  var RELEASE = "c7006391d3a937d81aeb39a0a400428d7ba6ebbd";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

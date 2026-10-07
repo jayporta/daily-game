@@ -2,16 +2,20 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-10-06 — Shape Defender
+## 2026-10-07 — Plant Guard
 
 - genre: tower-defense
-- theme: Geometric defenders protect against flowing data entities
-- mechanics: Place towers along path, Auto-shooting defenders, Enemies follow path, Survive waves
+- theme: A magical garden where glowing flower towers defend against shadowy blight
+- mechanics: Place flower towers along a path to block invading shadows, Upgrade towers to increase power, Prevent shadows from reaching the core
+- model: cohere/north-mini-code:free
+- attempts: 4
+
+## 2026-10-06 — generation failed, previous game kept
+
 - model: nvidia/nemotron-3.5-lightning:free
 - attempts: 2
-- reactions: 0
-- likes: 0
-- dislikes: 0
+- attempt 2 (nvidia/nemotron-3.5-lightning:free): published as 2026-10-06-chroma-guard, then withdrawn by hand — its script was only a placeholder comment
+- attempt 2 (nvidia/nemotron-3.5-lightning:free): regenerated as 2026-10-06-shape-defender, then withdrawn by hand — its script was again only a placeholder comment
 
 ## 2026-10-05 — Skybot Island Hopper
 

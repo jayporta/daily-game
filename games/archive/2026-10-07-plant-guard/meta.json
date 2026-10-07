@@ -1,14 +1,12 @@
 {
-  "date": "2026-10-07",
-  "slug": "2026-10-07-plant-guard",
-  "path": "games/archive/2026-10-07-plant-guard/game.html",
-  "promptPath": "games/archive/2026-10-07-plant-guard/prompt.txt",
   "title": "Plant Guard",
   "genre": "tower-defense",
-  "genreLabel": "Tower Defense",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-07T01:40:54.121Z",
-  "expiresAt": "2026-10-07T19:00:00.000Z",
+  "theme": "A magical garden where glowing flower towers defend against shadowy blight",
+  "mechanics": [
+    "Place flower towers along a path to block invading shadows",
+    "Upgrade towers to increase power",
+    "Prevent shadows from reaching the core"
+  ],
   "controls": [
     {
       "action": "Select basic flower tower",

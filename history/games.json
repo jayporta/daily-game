@@ -1007,5 +1007,34 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-10-07",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-10-07-plant-guard",
+    "genre": "tower-defense",
+    "theme": "A magical garden where glowing flower towers defend against shadowy blight",
+    "mechanics": [
+      "Place flower towers along a path to block invading shadows",
+      "Upgrade towers to increase power",
+      "Prevent shadows from reaching the core"
+    ],
+    "title": "Plant Guard",
+    "attempts": 4,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call",
+      "extract",
+      "generation-failover",
+      "extract"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
+    "quotaAffected": true
   }
 ]
