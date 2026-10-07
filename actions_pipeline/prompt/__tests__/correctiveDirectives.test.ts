@@ -85,7 +85,9 @@ test('a generation-call failure on a quota-affected day hands the model no wordi
   assert.equal(directives.length, 1);
   assert.match(String(directives[0]), /could not be parsed/);
 
-  const unaffected = correctiveDirectives([{ ...failed, quotaAffected: false }]);
+  // An unaffected day carries no quotaAffected field at all.
+  const { quotaAffected: _, ...unaffectedDay } = failed;
+  const unaffected = correctiveDirectives([unaffectedDay]);
   assert.match(String(unaffected[0]), /failed before returning anything/);
 });
 
