@@ -1,6 +1,6 @@
 // Tells a live game from a static shell: a page whose script does nothing can
 // still paint a HUD and a background, so rendering alone proves little.
-import type { Page } from 'playwright';
+import type { Frame, Page } from 'playwright';
 
 /** How long the page is left alone between the two idle screenshots. */
 const IDLE_WAIT_MS = 500;
@@ -72,6 +72,21 @@ async function clickViewportCentre(page: Page): Promise<void> {
   await page.mouse.click(viewport.width / 2, viewport.height / 2);
 }
 
+/**
+ * Takes focus off a text field, so the probe's keys are not typed into it. A
+ * focused canvas or any other element keeps focus and keeps receiving keys.
+ */
+async function blurEditable(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const focused = document.activeElement;
+    const isEditable =
+      focused instanceof HTMLInputElement ||
+      focused instanceof HTMLTextAreaElement ||
+      (focused instanceof HTMLElement && focused.isContentEditable);
+    if (isEditable) focused.blur();
+  });
+}
+
 /** Holds one key briefly, long enough for a game polling key state to see it. */
 async function pressKey(page: Page, key: string): Promise<void> {
   await page.keyboard.down(key);
@@ -92,7 +107,7 @@ async function pressKey(page: Page, key: string): Promise<void> {
  *
  * @param page A page that has loaded and settled.
  */
-export async function pageResponds(page: Page): Promise<boolean> {
+async function pageResponds(page: Page): Promise<boolean> {
   // Focus rings belong to the probe's clicks, not to the page; hide them.
   await page.addStyleTag({ content: HIDE_FOCUS_RING });
   const scroll = await page.evaluate(() => ({ x: window.scrollX, y: window.scrollY }));
@@ -107,6 +122,7 @@ export async function pageResponds(page: Page): Promise<boolean> {
   if (await changed()) return true;
 
   await clickViewportCentre(page);
+  await blurEditable(page);
   if (await changed()) return true;
 
   for (const key of PROBE_KEYS) {
@@ -116,4 +132,49 @@ export async function pageResponds(page: Page): Promise<boolean> {
 
   await page.waitForTimeout(SETTLE_AFTER_INPUT_MS);
   return changed();
+}
+
+/** What {@link probeActivity} concluded. */
+export type ProbeVerdict = 'active' | 'inert' | 'unresponsive';
+
+/**
+ * Probes a page for activity under a deadline, since a handler that never
+ * returns blocks every browser call the probe makes.
+ *
+ * A main-frame navigation ends the probe as `inert`: a no-op form submit
+ * reloads the page, and the new screenshot is not the game responding. The
+ * probe may still be running when this returns; closing the page ends it.
+ *
+ * @param page A page that has loaded and settled.
+ * @param timeoutMs How long the probe may take before the page counts as
+ *   `unresponsive`.
+ * @returns `active` or `inert` once the probe decides, or `unresponsive` at
+ *   the deadline.
+ * @throws When a browser call fails, for instance because the page crashed.
+ */
+export async function probeActivity(page: Page, timeoutMs: number): Promise<ProbeVerdict> {
+  let stopWatching = (): void => undefined;
+  const interrupted = new Promise<ProbeVerdict>((resolve) => {
+    const timer = setTimeout(() => resolve('unresponsive'), timeoutMs);
+    const onNavigated = (frame: Frame): void => {
+      if (frame === page.mainFrame()) resolve('inert');
+    };
+    page.on('framenavigated', onNavigated);
+    stopWatching = () => {
+      clearTimeout(timer);
+      page.off('framenavigated', onNavigated);
+    };
+  });
+
+  const probe = pageResponds(page).then((responds): ProbeVerdict =>
+    responds ? 'active' : 'inert',
+  );
+  // A probe that loses the race rejects once its page closes; nobody awaits it.
+  probe.catch(() => undefined);
+
+  try {
+    return await Promise.race([probe, interrupted]);
+  } finally {
+    stopWatching();
+  }
 }

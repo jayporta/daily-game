@@ -3,6 +3,7 @@
 
 import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
+import { smokeRejection } from '#actions_pipeline/attemptOutcome.ts';
 import { loadFixtureBundle } from '#actions_pipeline/lib/testFixtures.ts';
 import { createSmokeTester, type SmokeTester } from '#actions_pipeline/smokeTest.ts';
 
@@ -22,7 +23,7 @@ test('accepts the known-good fixtures', async () => {
     const result = await tester.test(html);
     assert.equal(result.pass, true, `${name} should pass: ${result.reasons.join('; ')}`);
     assert.equal(result.canvasDrawn, true, `${name} should draw to its canvas`);
-    assert.equal(result.active, true, `${name} should respond`);
+    assert.equal(result.activity, 'active', `${name} should respond`);
   }
 });
 
@@ -130,7 +131,7 @@ test('rejects a static page whose script does nothing', async () => {
     `<body><div id="hud">Score: 0</div><script>${INERT_SCRIPT}</script></body></html>`;
   const result = await tester.test(inert, { settleMs: 300 });
   assert.equal(result.renderedSomething, true);
-  assert.equal(result.active, false);
+  assert.equal(result.activity, 'inert');
   assert.equal(result.pass, false);
   assert.match(result.reasons.join(' '), /never changed/);
 });
@@ -142,7 +143,7 @@ test('accepts a page that changes only in response to a key', async () => {
     '<script>addEventListener("keydown",()=>{document.getElementById("hud").textContent="Score: 1";});</script>' +
     '</body></html>';
   const result = await tester.test(keyed, { settleMs: 300 });
-  assert.equal(result.active, true);
+  assert.equal(result.activity, 'active');
   assert.equal(result.pass, true);
 });
 
@@ -160,7 +161,7 @@ test('accepts a page that changes only after its Start button is clicked', async
     'document.getElementById("hud").textContent="Playing";});</script>' +
     '</body></html>';
   const result = await tester.test(startable, { settleMs: 300 });
-  assert.equal(result.active, true);
+  assert.equal(result.activity, 'active');
   assert.equal(result.pass, true);
 });
 
@@ -174,7 +175,7 @@ test('accepts a page whose Start click is undone by a later Reset click', async 
     'document.getElementById("reset").addEventListener("click",()=>{hud.textContent="Press start";});' +
     '</script></body></html>';
   const result = await tester.test(resettable, { settleMs: 300 });
-  assert.equal(result.active, true);
+  assert.equal(result.activity, 'active');
 });
 
 test('rejects a static shell whose unstyled Start button does nothing', async () => {
@@ -183,7 +184,7 @@ test('rejects a static shell whose unstyled Start button does nothing', async ()
     '<body><div id="hud">Press start</div><button>Start</button></body></html>';
   const result = await tester.test(noop, { settleMs: 300 });
   assert.equal(result.renderedSomething, true);
-  assert.equal(result.active, false);
+  assert.equal(result.activity, 'inert');
 });
 
 test('rejects a static shell whose no-op button only gains a focus ring when clicked', async () => {
@@ -193,7 +194,7 @@ test('rejects a static shell whose no-op button only gains a focus ring when cli
     '<body><div id="hud">Press start</div><button>Start</button></body></html>';
   const result = await tester.test(ringed, { settleMs: 300 });
   assert.equal(result.renderedSomething, true);
-  assert.equal(result.active, false);
+  assert.equal(result.activity, 'inert');
 });
 
 test('rejects a static shell whose no-op button sits below the fold', async () => {
@@ -203,7 +204,7 @@ test('rejects a static shell whose no-op button sits below the fold', async () =
     '<button>Start</button></body></html>';
   const result = await tester.test(belowFold, { settleMs: 300 });
   assert.equal(result.renderedSomething, true);
-  assert.equal(result.active, false);
+  assert.equal(result.activity, 'inert');
 });
 
 test('accepts a page that moves right on ArrowRight and back on ArrowLeft', async () => {
@@ -215,7 +216,7 @@ test('accepts a page that moves right on ArrowRight and back on ArrowLeft', asyn
     'addEventListener("keydown",(e)=>{if(e.key==="ArrowRight")x+=100;if(e.key==="ArrowLeft")x-=100;' +
     'dot.style.left=x+"px";});</script></body></html>';
   const result = await tester.test(reversible, { settleMs: 300 });
-  assert.equal(result.active, true);
+  assert.equal(result.activity, 'active');
 });
 
 test('accepts a page that animates on its own', async () => {
@@ -226,7 +227,7 @@ test('accepts a page that animates on its own', async () => {
     '(function f(){x.fillStyle="hsl("+(n++*7)+",80%,50%)";x.fillRect(0,0,100,100);requestAnimationFrame(f);})();</script>' +
     '</body></html>';
   const result = await tester.test(animated, { settleMs: 300 });
-  assert.equal(result.active, true);
+  assert.equal(result.activity, 'active');
   assert.equal(result.pass, true);
 });
 
@@ -239,4 +240,67 @@ test('blocks and records a request made by a popup a click opens', async () => {
   const result = await tester.test(popup, { settleMs: 300 });
   assert.equal(result.pass, false);
   assert.match(result.networkAttempts.join(' '), /example\.com\/popup/);
+});
+
+test('a page whose key handler never returns is cut off and read as a hang, not inert', async () => {
+  const hangs =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Score: 0</div>' +
+    '<script>addEventListener("keydown",()=>{while(true){}});</script></body></html>';
+  const started = Date.now();
+  const result = await tester.test(hangs, { settleMs: 300, probeTimeoutMs: 1500 });
+
+  assert.ok(Date.now() - started < 15_000, 'the probe must give up rather than wait forever');
+  assert.equal(result.pass, false);
+  assert.equal(result.activity, 'not-probed');
+  assert.match(result.reasons.join(' '), /stopped responding to input/);
+  assert.equal(smokeRejection(result, false).kind, 'smoke-load');
+});
+
+test('a page whose click handler never returns is cut off', async () => {
+  const hangs =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Score: 0</div>' +
+    '<script>addEventListener("click",()=>{while(true){}});</script></body></html>';
+  const started = Date.now();
+  const result = await tester.test(hangs, { settleMs: 300, probeTimeoutMs: 1500 });
+
+  assert.ok(Date.now() - started < 15_000);
+  assert.match(result.reasons.join(' '), /stopped responding to input/);
+});
+
+test('rejects a static shell whose no-op form button navigates the page', async () => {
+  const form =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}' +
+    'button{background:#444;color:#fff;border:0;outline:none}</style></head>' +
+    '<body><div id="hud">Press start</div><form><button>Start</button></form></body></html>';
+  const result = await tester.test(form, { settleMs: 300 });
+  assert.equal(result.renderedSomething, true);
+  assert.equal(result.activity, 'inert');
+});
+
+test('rejects a static page whose centre click only focuses a text input', async () => {
+  const input =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff;margin:0}' +
+    'input{position:fixed;inset:0;width:100%;height:100%;border:0;background:transparent;' +
+    'color:#fff;font-size:40px;outline:none}</style></head>' +
+    '<body><input type="text" aria-label="Notes"></body></html>';
+  const result = await tester.test(input, { settleMs: 300 });
+  assert.equal(result.renderedSomething, true);
+  assert.equal(result.activity, 'inert');
+});
+
+test('accepts a page that changes only on a key once its canvas is clicked and focused', async () => {
+  // The canvas fills the viewport, so the centre click focuses it, and the
+  // keys must still reach it.
+  const focusedCanvas =
+    '<!doctype html><html><head><style>body{margin:0;background:#123}' +
+    'canvas{position:fixed;inset:0;width:100%;height:100%;outline:none}</style></head>' +
+    '<body><canvas id="c" tabindex="0" width="100" height="100"></canvas>' +
+    '<script>const c=document.getElementById("c");const x=c.getContext("2d");' +
+    'x.fillStyle="#fff";x.fillRect(0,0,100,100);let n=0;' +
+    'c.addEventListener("keydown",()=>{x.fillStyle="hsl("+(++n*50)+",80%,50%)";x.fillRect(0,0,50,50);});' +
+    '</script></body></html>';
+  const result = await tester.test(focusedCanvas, { settleMs: 300 });
+  assert.equal(result.activity, 'active');
 });

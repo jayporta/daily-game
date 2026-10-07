@@ -215,6 +215,6 @@ function smokeFailureKind(smoke: SmokeTestResult): FailureKind {
   // Checked after the two above, which describe a page that ran badly rather
   // than one that ran cleanly and drew nothing.
   if (!smoke.renderedSomething) return 'smoke-blank';
-  if (!smoke.active) return 'smoke-inert';
+  if (smoke.activity === 'inert') return 'smoke-inert';
   return 'smoke-load';
 }

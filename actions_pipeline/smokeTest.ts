@@ -7,7 +7,7 @@
 // *tries* to reach the network has broken the self-contained rule and is
 // rejected even though the request never left the machine.
 import { type Browser, chromium } from 'playwright';
-import { pageResponds } from '#actions_pipeline/pageActivity.ts';
+import { type ProbeVerdict, probeActivity } from '#actions_pipeline/pageActivity.ts';
 import { inspectRender } from '#actions_pipeline/pageRender.ts';
 import { errorMessage } from '#lib/errors.ts';
 
@@ -53,15 +53,24 @@ export interface SmokeTestResult {
    */
   readonly renderedSomething: boolean;
   /**
-   * Whether the page changed on its own, or in response to clicks and key
-   * presses. False for a static shell whose script does nothing, which
-   * renders fine and is still not a game.
-   *
-   * Only probed once the page loaded and {@link renderedSomething} is true;
-   * otherwise false, and the blank or load reason already describes it.
+   * Whether the page responds, as {@link PageActivity} spells out. Only
+   * probed once the page loaded and {@link renderedSomething} is true.
    */
-  readonly active: boolean;
+  readonly activity: PageActivity;
 }
+
+/**
+ * What probing a page for signs of life found.
+ *
+ * - `active`: the page changed on its own, or in response to clicks and key
+ *   presses.
+ * - `inert`: nothing changed, or the page only navigated away. A static shell
+ *   whose script does nothing renders fine and is still not a game.
+ * - `not-probed`: no verdict. The page never loaded or rendered nothing (the
+ *   blank or load reason already describes it), or the probe itself failed or
+ *   hit its deadline.
+ */
+export type PageActivity = 'active' | 'inert' | 'not-probed';
 
 /** Knobs for one bundle's run. */
 export interface SmokeTestOptions {
@@ -72,6 +81,13 @@ export interface SmokeTestOptions {
    * @defaultValue `1500`
    */
   settleMs?: number;
+  /**
+   * How long probing the page for activity may take, in milliseconds. A page
+   * that has not answered by then is rejected as unresponsive.
+   *
+   * @defaultValue `20000`
+   */
+  probeTimeoutMs?: number;
 }
 
 /** Only real remote schemes count as network use; data:/blob: are self-contained. */
@@ -82,7 +98,7 @@ function isRemoteRequest(url: string): boolean {
 async function runSmokeTest(
   browser: Browser,
   html: string,
-  { settleMs = 1500 }: SmokeTestOptions,
+  { settleMs = 1500, probeTimeoutMs = 20_000 }: SmokeTestOptions,
 ): Promise<SmokeTestResult> {
   const context = await browser.newContext();
   const page = await context.newPage();
@@ -111,7 +127,7 @@ async function runSmokeTest(
 
   let canvasDrawn = false;
   let renderedSomething = false;
-  let active = false;
+  let probe: ProbeVerdict | null = null;
   const reasons: string[] = [];
   const warnings: string[] = [];
 
@@ -121,7 +137,7 @@ async function runSmokeTest(
 
     ({ canvasDrawn, renderedSomething } = await inspectRender(page));
 
-    if (renderedSomething) active = await pageResponds(page);
+    if (renderedSomething) probe = await probeActivity(page, probeTimeoutMs);
   } catch (error) {
     reasons.push(`page failed to load: ${errorMessage(error)}`);
   } finally {
@@ -141,8 +157,10 @@ async function runSmokeTest(
     reasons.push(
       'the page rendered nothing visible — no canvas pixels, no text and no painted elements',
     );
-  } else if (!active) {
+  } else if (probe === 'inert') {
     reasons.push('the page never changed — no animation and no response to clicks or keys');
+  } else if (probe === 'unresponsive') {
+    reasons.push('the page stopped responding to input');
   } else if (!canvasDrawn) {
     // Soft signal only: a game built from DOM elements draws to no canvas,
     // and some canvas games paint nothing until the first input.
@@ -158,7 +176,7 @@ async function runSmokeTest(
     networkAttempts,
     canvasDrawn,
     renderedSomething,
-    active,
+    activity: probe === 'active' || probe === 'inert' ? probe : 'not-probed',
   };
 }
 
