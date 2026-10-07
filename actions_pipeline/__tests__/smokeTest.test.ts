@@ -22,6 +22,7 @@ test('accepts the known-good fixtures', async () => {
     const { html } = loadFixtureBundle(name);
     const result = await tester.test(html);
     assert.equal(result.pass, true, `${name} should pass: ${result.reasons.join('; ')}`);
+    assert.equal(result.loaded, true, `${name} should load`);
     assert.equal(result.canvasDrawn, true, `${name} should draw to its canvas`);
     assert.equal(result.activity, 'active', `${name} should respond`);
   }
@@ -242,13 +243,17 @@ test('blocks and records a request made by a popup a click opens', async () => {
   assert.match(result.networkAttempts.join(' '), /example\.com\/popup/);
 });
 
+// Must exceed a full probe of a page that merely does nothing (about 2.6s), or
+// a slow probe reads as a hang and these tests stop telling the two apart.
+const HANG_BUDGET_MS = 4000;
+
 test('a page whose key handler never returns is cut off and read as a hang, not inert', async () => {
   const hangs =
     '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
     '<body><div id="hud">Score: 0</div>' +
     '<script>addEventListener("keydown",()=>{while(true){}});</script></body></html>';
   const started = Date.now();
-  const result = await tester.test(hangs, { settleMs: 300, probeTimeoutMs: 1500 });
+  const result = await tester.test(hangs, { settleMs: 300, probeTimeoutMs: HANG_BUDGET_MS });
 
   assert.ok(Date.now() - started < 15_000, 'the probe must give up rather than wait forever');
   assert.equal(result.pass, false);
@@ -263,7 +268,7 @@ test('a page whose click handler never returns is cut off', async () => {
     '<body><div id="hud">Score: 0</div>' +
     '<script>addEventListener("click",()=>{while(true){}});</script></body></html>';
   const started = Date.now();
-  const result = await tester.test(hangs, { settleMs: 300, probeTimeoutMs: 1500 });
+  const result = await tester.test(hangs, { settleMs: 300, probeTimeoutMs: HANG_BUDGET_MS });
 
   assert.ok(Date.now() - started < 15_000);
   assert.match(result.reasons.join(' '), /stopped responding to input/);

@@ -121,6 +121,22 @@ test('a recurring failover hands the model no corrective wording', () => {
   assert.deepEqual(correctiveDirectives([failover]), []);
 });
 
+test('a recurring load failure tells the model to return a complete document', () => {
+  const unloadable: FailedEntry = {
+    date: '2026-08-29',
+    status: 'failed_kept_previous',
+    model: 'm',
+    attempts: 3,
+    failureReasons: [],
+    failureKinds: ['smoke-load', 'smoke-load'],
+  };
+
+  const directives = correctiveDirectives([unloadable]);
+
+  assert.equal(directives.length, 1);
+  assert.match(String(directives[0]), /failed to load at all/);
+});
+
 test('a recurring blank render tells the model to draw something', () => {
   const blank: FailedEntry = {
     date: '2026-08-29',

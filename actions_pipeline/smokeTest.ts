@@ -38,6 +38,13 @@ export interface SmokeTestResult {
    */
   readonly networkAttempts: string[];
   /**
+   * Whether the page loaded at all: the document was set and the settle
+   * window closed without throwing. What separates a bundle the browser
+   * could not run from one that ran and did nothing, which
+   * {@link renderedSomething} and {@link activity} describe instead.
+   */
+  readonly loaded: boolean;
+  /**
    * Whether any `<canvas>` held a non-transparent pixel when the settle
    * window closed. False for a game built entirely from DOM elements, so
    * this only ever raises a warning.
@@ -73,6 +80,10 @@ export interface SmokeTestOptions {
   /**
    * How long probing the page for activity may take, in milliseconds. A page
    * that has not answered by then is rejected as unresponsive.
+   *
+   * Must stay well above a full probe of a page that does nothing, measured
+   * at about 2.6s: set it below that and every inert page is reported
+   * unresponsive instead, which earns the wrong corrective directive.
    *
    * @defaultValue `20000`
    */
@@ -114,6 +125,7 @@ async function runSmokeTest(
     await route.abort();
   });
 
+  let loaded = false;
   let canvasDrawn = false;
   let renderedSomething = false;
   let probe: ProbeVerdict | null = null;
@@ -121,7 +133,6 @@ async function runSmokeTest(
   const warnings: string[] = [];
 
   try {
-    let loaded = false;
     try {
       await page.setContent(html, { waitUntil: 'load' });
       await page.waitForTimeout(settleMs);
@@ -151,18 +162,22 @@ async function runSmokeTest(
   if (networkAttempts.length > 0) {
     reasons.push(`bundle is not self-contained — it requested: ${networkAttempts.join(', ')}`);
   }
-  if (!renderedSomething) {
-    reasons.push(
-      'the page rendered nothing visible — no canvas pixels, no text and no painted elements',
-    );
-  } else if (probe === 'inert') {
-    reasons.push('the page never changed — no animation and no response to clicks or keys');
-  } else if (probe === 'unresponsive') {
-    reasons.push('the page stopped responding to input');
-  } else if (!canvasDrawn) {
-    // Soft signal only: a game built from DOM elements draws to no canvas,
-    // and some canvas games paint nothing until the first input.
-    warnings.push('nothing was drawn to a canvas during the settle window');
+  // Nothing was watched on a page that never loaded, so none of these
+  // describe it; the load failure is already its reason.
+  if (loaded) {
+    if (!renderedSomething) {
+      reasons.push(
+        'the page rendered nothing visible — no canvas pixels, no text and no painted elements',
+      );
+    } else if (probe === 'inert') {
+      reasons.push('the page never changed — no animation and no response to clicks or keys');
+    } else if (probe === 'unresponsive') {
+      reasons.push('the page stopped responding to input');
+    } else if (!canvasDrawn) {
+      // Soft signal only: a game built from DOM elements draws to no canvas,
+      // and some canvas games paint nothing until the first input.
+      warnings.push('nothing was drawn to a canvas during the settle window');
+    }
   }
 
   return {
@@ -172,6 +187,7 @@ async function runSmokeTest(
     consoleErrors,
     pageErrors,
     networkAttempts,
+    loaded,
     canvasDrawn,
     renderedSomething,
     activity: probe,

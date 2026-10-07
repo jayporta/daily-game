@@ -11,6 +11,7 @@ const BLANK_PAGE: SmokeTestResult = {
   pageErrors: [],
   networkAttempts: [],
   canvasDrawn: false,
+  loaded: true,
   renderedSomething: false,
   activity: null,
 };
@@ -53,9 +54,38 @@ test('an inert-page rejection is smoke-inert and asks for the complete game scri
   assert.match(feedback, /never changed/);
 });
 
-test('a page that rendered but was never probed is smoke-load, not smoke-inert', () => {
+test('a page that never loaded is smoke-load, not smoke-blank', () => {
   const rejection = smokeRejection(
-    { ...BLANK_PAGE, renderedSomething: true, reasons: ['the page failed to load'] },
+    { ...BLANK_PAGE, loaded: false, reasons: ['page failed to load: boom'] },
+    false,
+  );
+
+  assert.equal(rejection.kind, 'smoke-load');
+  assert.match(rejection.feedback ?? '', /failed to load/);
+});
+
+test('a page that loaded but rendered nothing is still smoke-blank', () => {
+  const rejection = smokeRejection({ ...BLANK_PAGE, loaded: true }, false);
+
+  assert.equal(rejection.kind, 'smoke-blank');
+});
+
+test('a script error on a page that never loaded stays smoke-js-error', () => {
+  const rejection = smokeRejection(
+    { ...BLANK_PAGE, loaded: false, reasons: ['boom'], pageErrors: ['boom'] },
+    false,
+  );
+
+  assert.equal(rejection.kind, 'smoke-js-error');
+});
+
+test('a page that rendered but whose probe threw falls through to smoke-load', () => {
+  const rejection = smokeRejection(
+    {
+      ...BLANK_PAGE,
+      renderedSomething: true,
+      reasons: ['page loaded but could not be inspected: crashed'],
+    },
     false,
   );
 

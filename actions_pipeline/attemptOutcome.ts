@@ -223,12 +223,16 @@ function smokeGuidance(kind: FailureKind): string {
  *
  * The result can carry more than one problem; the most specific wins, since
  * that is what the corrective guidance keys off.
+ *
+ * A probe that threw on a page that had rendered has no kind of its own and
+ * lands on `smoke-load`.
  */
 function smokeFailureKind(smoke: SmokeTestResult): FailureKind {
   if (smoke.networkAttempts.length > 0) return 'smoke-network';
   if (smoke.pageErrors.length > 0 || smoke.consoleErrors.length > 0) return 'smoke-js-error';
   // Checked after the two above, which describe a page that ran badly rather
-  // than one that ran cleanly and drew nothing.
+  // than one that never loaded or ran cleanly and drew nothing.
+  if (!smoke.loaded) return 'smoke-load';
   if (!smoke.renderedSomething) return 'smoke-blank';
   if (smoke.activity === 'inert') return 'smoke-inert';
   if (smoke.activity === 'unresponsive') return 'smoke-unresponsive';
