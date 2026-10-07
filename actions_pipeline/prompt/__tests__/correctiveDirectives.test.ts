@@ -64,7 +64,7 @@ test('correctiveDirectives counts the failed attempts of published days', () => 
   assert.match(String(directives[0]), /could not be parsed/);
 });
 
-test('a generation-call failure on a quota-affected day hands the model no wording', () => {
+test('a generation-call failure on a quota-affected day hands the model no wording, and only that', () => {
   // A refused request is a capacity problem, not something the model wrote.
   const failed: FailedEntry = {
     date: '2026-08-29',
@@ -72,15 +72,18 @@ test('a generation-call failure on a quota-affected day hands the model no wordi
     model: 'm',
     attempts: 2,
     failureReasons: [],
-    failureKinds: ['generation-call', 'generation-call'],
+    failureKinds: ['generation-call', 'generation-call', 'extract'],
     quotaAffected: true,
   };
   const published = received('2026-08-28', {
-    failureKinds: ['generation-call', 'generation-call'],
+    failureKinds: ['generation-call', 'generation-call', 'extract'],
     quotaAffected: true,
   });
 
-  assert.deepEqual(correctiveDirectives([failed, published]), []);
+  // The day's other failures still count.
+  const directives = correctiveDirectives([failed, published]);
+  assert.equal(directives.length, 1);
+  assert.match(String(directives[0]), /could not be parsed/);
 
   const unaffected = correctiveDirectives([{ ...failed, quotaAffected: false }]);
   assert.match(String(unaffected[0]), /failed before returning anything/);
