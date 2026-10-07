@@ -89,6 +89,16 @@ test('a page that loaded but could not be observed is smoke-unobserved and hands
   assert.equal(rejection.feedback, undefined);
 });
 
+test('a page that hung before it was read is smoke-unresponsive, not smoke-blank', () => {
+  // Its render fields are false only because the read never answered.
+  const rejection = smokeRejection(
+    { ...BLANK_PAGE, activity: 'unresponsive', reasons: ['the page stopped responding'] },
+    false,
+  );
+
+  assert.equal(rejection.kind, 'smoke-unresponsive');
+});
+
 test('a page that stopped responding is smoke-unresponsive and asks for bounded handlers', () => {
   const rejection = smokeRejection(
     {

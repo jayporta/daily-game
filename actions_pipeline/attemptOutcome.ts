@@ -170,9 +170,26 @@ export function moderationRejection(
   };
 }
 
+/** The kinds a smoke-test rejection can be. */
+type SmokeFailureKind = Extract<FailureKind, `smoke-${string}`>;
+
 /** Corrective words for every way the smoke test turns a game down that has no remedy of its own. */
 const SMOKE_DEFAULT_GUIDANCE =
   'Be more defensive — guard every element lookup, and make no network requests of any kind.';
+
+/**
+ * The corrective words that fit each kind of smoke-test rejection, or
+ * `undefined` when nothing was seen to correct.
+ */
+const SMOKE_GUIDANCE: Record<SmokeFailureKind, string | undefined> = {
+  'smoke-js-error': SMOKE_DEFAULT_GUIDANCE,
+  'smoke-network': SMOKE_DEFAULT_GUIDANCE,
+  'smoke-load': SMOKE_DEFAULT_GUIDANCE,
+  'smoke-blank': SMOKE_REMEDIES['smoke-blank'],
+  'smoke-inert': SMOKE_REMEDIES['smoke-inert'],
+  'smoke-unresponsive': SMOKE_REMEDIES['smoke-unresponsive'],
+  'smoke-unobserved': undefined,
+};
 
 /**
  * The smoke test turned the game down.
@@ -186,7 +203,7 @@ export function smokeRejection(
   moderationQuotaAffected: boolean,
 ): AttemptRejection {
   const kind = smokeFailureKind(smoke);
-  const guidance = smokeGuidance(kind);
+  const guidance = SMOKE_GUIDANCE[kind];
   const detail = smoke.reasons.join('; ');
   return {
     ok: false,
@@ -204,29 +221,12 @@ export function smokeRejection(
 }
 
 /**
- * The corrective words that fit a smoke-test rejection of this kind, or
- * `undefined` when nothing was seen to correct.
- */
-function smokeGuidance(kind: FailureKind): string | undefined {
-  switch (kind) {
-    case 'smoke-blank':
-    case 'smoke-inert':
-    case 'smoke-unresponsive':
-      return SMOKE_REMEDIES[kind];
-    case 'smoke-unobserved':
-      return undefined;
-    default:
-      return SMOKE_DEFAULT_GUIDANCE;
-  }
-}
-
-/**
  * Which closed-vocabulary kind a smoke-test rejection was.
  *
  * The result can carry more than one problem; the most specific wins, since
  * that is what the corrective guidance keys off.
  */
-function smokeFailureKind(smoke: SmokeTestResult): FailureKind {
+function smokeFailureKind(smoke: SmokeTestResult): SmokeFailureKind {
   if (smoke.networkAttempts.length > 0) return 'smoke-network';
   if (smoke.pageErrors.length > 0 || smoke.consoleErrors.length > 0) return 'smoke-js-error';
   // Checked after the two above, which describe a page that ran badly rather
@@ -237,8 +237,11 @@ function smokeFailureKind(smoke: SmokeTestResult): FailureKind {
     case 'unobserved':
       return 'smoke-unobserved';
     case 'observed':
+      // Before the render fields: a page that hung while being read never
+      // showed what it rendered.
+      if (smoke.activity === 'unresponsive') return 'smoke-unresponsive';
       if (!smoke.renderedSomething) return 'smoke-blank';
-      // Nothing above rejected it, so what the probe found did.
-      return smoke.activity === 'unresponsive' ? 'smoke-unresponsive' : 'smoke-inert';
+      // Nothing above rejected it, so the probe did.
+      return 'smoke-inert';
   }
 }

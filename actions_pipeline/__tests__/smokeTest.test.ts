@@ -258,7 +258,25 @@ test('a page whose key handler never returns is cut off and read as a hang, not 
   assert.ok(Date.now() - started < 15_000, 'the probe must give up rather than wait forever');
   assert.equal(result.pass, false);
   assert.equal(result.activity, 'unresponsive');
-  assert.match(result.reasons.join(' '), /stopped responding to input/);
+  assert.match(result.reasons.join(' '), /stopped responding/);
+  assert.equal(smokeRejection(result, false).kind, 'smoke-unresponsive');
+});
+
+test('a page that hangs after loading is cut off and read as a hang, not blank', async () => {
+  // The script blocks the main thread during the settle window, so the read
+  // of what it rendered is the call that never returns.
+  const hangs =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Score: 0</div>' +
+    '<script>setTimeout(()=>{while(true){}},100);</script></body></html>';
+  const started = Date.now();
+  const result = await tester.test(hangs, { settleMs: 300, probeTimeoutMs: HANG_BUDGET_MS });
+
+  assert.ok(Date.now() - started < 15_000, 'the read must give up rather than wait forever');
+  assert.equal(result.reach, 'observed');
+  assert.equal(result.activity, 'unresponsive');
+  assert.equal(result.pass, false);
+  assert.doesNotMatch(result.reasons.join(' '), /rendered nothing/);
   assert.equal(smokeRejection(result, false).kind, 'smoke-unresponsive');
 });
 
@@ -271,7 +289,7 @@ test('a page whose click handler never returns is cut off', async () => {
   const result = await tester.test(hangs, { settleMs: 300, probeTimeoutMs: HANG_BUDGET_MS });
 
   assert.ok(Date.now() - started < 15_000);
-  assert.match(result.reasons.join(' '), /stopped responding to input/);
+  assert.match(result.reasons.join(' '), /stopped responding/);
 });
 
 test('rejects a static shell whose no-op form button navigates the page', async () => {
@@ -326,6 +344,17 @@ test('a page that closes itself while probed is unobserved, not blank or inert',
     ['page loaded but could not be observed'],
   );
   assert.equal(smokeRejection(result, false).kind, 'smoke-unobserved');
+});
+
+test('a page that closes itself while settling is unobserved, not a load failure', async () => {
+  // The document loaded; what failed came after.
+  const closes =
+    '<!doctype html><html><head><style>body{background:#123;color:#fff}</style></head>' +
+    '<body><div id="hud">Score: 0</div><script>setTimeout(()=>window.close(),100);</script>' +
+    '</body></html>';
+  const result = await tester.test(closes, { settleMs: 600 });
+  assert.equal(result.reach, 'unobserved');
+  assert.match(result.reasons.join(' '), /could not be observed/);
 });
 
 test('accepts a game that sets location.hash from a key handler', async () => {

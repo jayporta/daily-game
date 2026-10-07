@@ -6,7 +6,7 @@
 // Network blocking is an assertion, not just a safety net: a bundle that
 // *tries* to reach the network has broken the self-contained rule and is
 // rejected even though the request never left the machine.
-import { type Browser, chromium } from 'playwright';
+import { type Browser, chromium, type Page } from 'playwright';
 import { type ProbeVerdict, probeActivity } from '#actions_pipeline/pageActivity.ts';
 import { inspectRender, type RenderInspection } from '#actions_pipeline/pageRender.ts';
 import { errorMessage } from '#lib/errors.ts';
@@ -14,12 +14,14 @@ import { errorMessage } from '#lib/errors.ts';
 /**
  * How far a run got, which decides what the rest of the result describes.
  *
- * - `not-loaded`: setting the document or waiting for it to settle threw.
+ * - `not-loaded`: setting the document threw, so the browser never ran it.
  *   Nothing else was watched, and the load failure is the reason.
- * - `unobserved`: the page loaded, then reading it or probing it threw — it
- *   crashed, or closed itself — so the render fields and `activity` say
- *   nothing about it.
- * - `observed`: every check ran, and the rest of the result is what it saw.
+ * - `unobserved`: the page loaded, then a browser call threw while it
+ *   settled or was examined — it crashed, or closed itself — so the render
+ *   fields and `activity` say nothing about it.
+ * - `observed`: every check answered, and the rest of the result is what
+ *   they saw. A page that hung before it could be read is `unresponsive`
+ *   with its render fields false.
  */
 export type SmokeTestReach = 'not-loaded' | 'unobserved' | 'observed';
 
@@ -73,8 +75,9 @@ export interface SmokeTestOptions {
    */
   settleMs?: number;
   /**
-   * How long probing the page for activity may take, in milliseconds. A page
-   * that has not answered by then is rejected as unresponsive.
+   * How long reading what the page rendered may take, and then how long
+   * probing it for activity may take, in milliseconds. A page that has not
+   * answered either by then is rejected as unresponsive.
    *
    * Must stay well above a full probe of a page that does nothing, measured
    * at about 2.6s: set it below that and every inert page is reported
@@ -83,6 +86,30 @@ export interface SmokeTestOptions {
    * @defaultValue `20000`
    */
   probeTimeoutMs?: number;
+}
+
+/**
+ * Reads the page under a deadline, since a script that never yields blocks
+ * the read. The read may still be pending when this returns `unresponsive`;
+ * closing the page ends it.
+ */
+async function inspectUnderDeadline(
+  page: Page,
+  timeoutMs: number,
+): Promise<RenderInspection | 'unresponsive'> {
+  let cancel = (): void => undefined;
+  const deadline = new Promise<'unresponsive'>((resolve) => {
+    const timer = setTimeout(() => resolve('unresponsive'), timeoutMs);
+    cancel = () => clearTimeout(timer);
+  });
+  const read = inspectRender(page);
+  // A read that loses the race rejects once its page closes; nobody awaits it.
+  read.catch(() => undefined);
+  try {
+    return await Promise.race([read, deadline]);
+  } finally {
+    cancel();
+  }
 }
 
 /** Only real remote schemes count as network use; data:/blob: are self-contained. */
@@ -130,7 +157,6 @@ async function runSmokeTest(
   try {
     try {
       await page.setContent(html, { waitUntil: 'load' });
-      await page.waitForTimeout(settleMs);
       reach = 'unobserved';
     } catch (error) {
       reasons.push(`page failed to load: ${errorMessage(error)}`);
@@ -138,8 +164,14 @@ async function runSmokeTest(
 
     if (reach === 'unobserved') {
       try {
-        ({ canvasDrawn, renderedSomething } = await inspectRender(page));
-        if (renderedSomething) probe = await probeActivity(page, probeTimeoutMs);
+        await page.waitForTimeout(settleMs);
+        const inspection = await inspectUnderDeadline(page, probeTimeoutMs);
+        if (inspection === 'unresponsive') {
+          probe = inspection;
+        } else {
+          ({ canvasDrawn, renderedSomething } = inspection);
+          if (renderedSomething) probe = await probeActivity(page, probeTimeoutMs);
+        }
         reach = 'observed';
       } catch (error) {
         reasons.push(`page loaded but could not be observed: ${errorMessage(error)}`);
@@ -161,14 +193,15 @@ async function runSmokeTest(
   // None of these describe a page the run could not watch; its reason is
   // already recorded.
   if (reach === 'observed') {
-    if (!renderedSomething) {
+    // A page that hung while being read never showed what it rendered.
+    if (probe === 'unresponsive') {
+      reasons.push('the page stopped responding');
+    } else if (!renderedSomething) {
       reasons.push(
         'the page rendered nothing visible — no canvas pixels, no text and no painted elements',
       );
     } else if (probe === 'inert') {
       reasons.push('the page never changed — no animation and no response to clicks or keys');
-    } else if (probe === 'unresponsive') {
-      reasons.push('the page stopped responding to input');
     } else if (!canvasDrawn) {
       // Soft signal only: a game built from DOM elements draws to no canvas,
       // and some canvas games paint nothing until the first input.
