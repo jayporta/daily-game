@@ -5,12 +5,13 @@ Generated automatically — do not edit by hand.
 ## 2026-10-09 — generation failed, previous game kept
 
 - model: poolside/laguna-s-2.1:free
-- attempts: 5
-- attempt 1 (poolside/laguna-s-2.1:free): moderation call failed: OpenRouter stream carried no content
-- attempt 2 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: Cannot read properties of undefined (reading '0')
+- attempts: 6
+- attempt 1 (poolside/laguna-s-2.1:free): could not extract bundle — missing-meta-block
+- attempt 2 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: Assignment to constant variable.
 - attempt 3 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
-- attempt 4 (nvidia/nemotron-3.5-lightning:free): reported a genre that is not in the catalogue
-- attempt 5 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
+- attempt 4 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+- attempt 5 (nvidia/nemotron-3.5-lightning:free): could not extract bundle — invalid-json-meta (response truncated at the output cap)
+- attempt 6 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content
 
 ## 2026-10-08 — Glowfire Maze
 
