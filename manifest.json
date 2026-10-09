@@ -1,30 +1,30 @@
 {
-  "date": "2026-10-07",
-  "slug": "2026-10-07-plant-guard",
-  "path": "games/archive/2026-10-07-plant-guard/game.html",
-  "promptPath": "games/archive/2026-10-07-plant-guard/prompt.txt",
-  "title": "Plant Guard",
-  "genre": "tower-defense",
-  "genreLabel": "Tower Defense",
+  "date": "2026-10-08",
+  "slug": "2026-10-08-glowfire-maze",
+  "path": "games/archive/2026-10-08-glowfire-maze/game.html",
+  "promptPath": "games/archive/2026-10-08-glowfire-maze/prompt.txt",
+  "title": "Glowfire Maze",
+  "genre": "maze-adventure",
+  "genreLabel": "Maze Adventure",
   "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-07T01:40:54.121Z",
-  "expiresAt": "2026-10-07T19:00:00.000Z",
+  "generatedAt": "2026-10-09T00:07:32.573Z",
+  "expiresAt": "2026-10-09T19:00:00.000Z",
   "controls": [
     {
-      "action": "Select basic flower tower",
-      "key": "1"
+      "action": "move up",
+      "key": "ArrowUp"
     },
     {
-      "action": "Select thorn tower",
-      "key": "2"
+      "action": "move down",
+      "key": "ArrowDown"
     },
     {
-      "action": "Select sun tower",
-      "key": "3"
+      "action": "move left",
+      "key": "ArrowLeft"
     },
     {
-      "action": "Place selected tower",
-      "key": "Mouse Left"
+      "action": "move right",
+      "key": "ArrowRight"
     }
   ]
 }

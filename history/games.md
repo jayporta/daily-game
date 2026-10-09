@@ -2,14 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-10-08 — generation failed, previous game kept
+## 2026-10-08 — Glowfire Maze
 
-- model: poolside/laguna-s-2.1:free
-- attempts: 4
-- attempt 1 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: Cannot read properties of null (reading 'style')
-- attempt 2 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
-- attempt 3 (nvidia/nemotron-3.5-lightning:free): could not extract bundle — missing-html-block (response truncated at the output cap)
-- attempt 4 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
+- genre: maze-adventure
+- theme: A curious firefly seeks lost starlight fragments in a magical cavern maze, navigating shifting walls to find the exit.
+- mechanics: Navigate a shifting maze to reach an exit, Collect keys scattered through the maze, Avoid being trapped by moving walls
+- model: cohere/north-mini-code:free
+- attempts: 6
 
 ## 2026-10-07 — Plant Guard
 

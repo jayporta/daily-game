@@ -1,0 +1,28 @@
+{
+  "title": "Glowfire Maze",
+  "genre": "maze-adventure",
+  "theme": "A curious firefly seeks lost starlight fragments in a magical cavern maze, navigating shifting walls to find the exit.",
+  "mechanics": [
+    "Navigate a shifting maze to reach an exit",
+    "Collect keys scattered through the maze",
+    "Avoid being trapped by moving walls"
+  ],
+  "controls": [
+    {
+      "action": "move up",
+      "key": "ArrowUp"
+    },
+    {
+      "action": "move down",
+      "key": "ArrowDown"
+    },
+    {
+      "action": "move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "move right",
+      "key": "ArrowRight"
+    }
+  ]
+}

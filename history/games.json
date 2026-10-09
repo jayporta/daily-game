@@ -1046,22 +1046,25 @@
   },
   {
     "date": "2026-10-08",
-    "status": "failed_kept_previous",
-    "model": "poolside/laguna-s-2.1:free",
-    "attempts": 4,
-    "failureReasons": [
-      "attempt 1 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: Cannot read properties of null (reading 'style')",
-      "attempt 2 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content",
-      "attempt 3 (nvidia/nemotron-3.5-lightning:free): could not extract bundle — missing-html-block (response truncated at the output cap)",
-      "attempt 4 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block"
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-10-08-glowfire-maze",
+    "genre": "maze-adventure",
+    "theme": "A curious firefly seeks lost starlight fragments in a magical cavern maze, navigating shifting walls to find the exit.",
+    "mechanics": [
+      "Navigate a shifting maze to reach an exit",
+      "Collect keys scattered through the maze",
+      "Avoid being trapped by moving walls"
     ],
+    "title": "Glowfire Maze",
+    "attempts": 6,
+    "canvasDrawn": true,
     "failureKinds": [
       "generation-failover",
       "smoke-js-error",
       "generation-call",
-      "generation-failover",
-      "generation-failover",
       "extract",
+      "generation-call",
       "extract"
     ],
     "attemptModels": [
@@ -1070,8 +1073,7 @@
       "dots-studio/dots-3-note-preview:free",
       "nvidia/nemotron-3-ultra-550b-a55b:free",
       "thinkingmachines/inkling-small:free",
-      "nvidia/nemotron-3.5-lightning:free",
-      "cohere/north-mini-code:free"
+      "nvidia/nemotron-3.5-lightning:free"
     ],
     "quotaAffected": true
   }
