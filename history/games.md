@@ -2,6 +2,16 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-09 — generation failed, previous game kept
+
+- model: poolside/laguna-s-2.1:free
+- attempts: 5
+- attempt 1 (poolside/laguna-s-2.1:free): moderation call failed: OpenRouter stream carried no content
+- attempt 2 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: Cannot read properties of undefined (reading '0')
+- attempt 3 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
+- attempt 4 (nvidia/nemotron-3.5-lightning:free): reported a genre that is not in the catalogue
+- attempt 5 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
+
 ## 2026-10-08 — Glowfire Maze
 
 - genre: maze-adventure
@@ -9,6 +19,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Navigate a shifting maze to reach an exit, Collect keys scattered through the maze, Avoid being trapped by moving walls
 - model: cohere/north-mini-code:free
 - attempts: 6
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-07 — Plant Guard
 

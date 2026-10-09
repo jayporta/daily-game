@@ -1075,6 +1075,42 @@
       "thinkingmachines/inkling-small:free",
       "nvidia/nemotron-3.5-lightning:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-10-09",
+    "status": "failed_kept_previous",
+    "model": "poolside/laguna-s-2.1:free",
+    "attempts": 5,
+    "failureReasons": [
+      "attempt 1 (poolside/laguna-s-2.1:free): moderation call failed: OpenRouter stream carried no content",
+      "attempt 2 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: Cannot read properties of undefined (reading '0')",
+      "attempt 3 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content",
+      "attempt 4 (nvidia/nemotron-3.5-lightning:free): reported a genre that is not in the catalogue",
+      "attempt 5 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block"
+    ],
+    "failureKinds": [
+      "moderation-unreachable",
+      "smoke-js-error",
+      "generation-call",
+      "generation-failover",
+      "generation-failover",
+      "unknown-genre",
+      "extract"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free"
+    ],
     "quotaAffected": true
   }
 ]
