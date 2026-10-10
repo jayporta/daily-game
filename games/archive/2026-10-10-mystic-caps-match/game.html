@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Mystic Caps Match</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#2c3e50;color:#ecf0f1;font-family:sans-serif;}
+#gameCanvas{display:block;width:100%;height:100%;}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+"use strict";
+
+// Game configuration
+const COLS = 8;
+const ROWS = 8;
+const GOAL_SCORE = 50;
+const MAX_MOVES = 30;
+
+// Tile types and their colors
+const TILE_TYPES = ['red','blue','green','yellow','purple','spore'];
+const TYPE_COLORS = {
+  red:'#e74c3c',
+  blue:'#3498db',
+  green:'#2ecc71',
+  yellow:'#f1c40f',
+  purple:'#9b59b6',
+  spore:'#2d3436'
+};
+
+// Game state
+let board = [];
+let selectedTile = null;
+let movesLeft = MAX_MOVES;
+let score = 0;
+let gameState = 'playing'; // playing, won, lost
+let canvas, ctx;
+let tileSize = 0;
+
+// Initialize the board with random caps
+function randomizeBoard() {
+  board = [];
+  for (let r = 0; r < ROWS; r++) {
+    board[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      board[r][c] = TILE_TYPES[Math.floor(Math.random() * TILE_TYPES.length)];
+    }
+  }
+}
+
+// Get a random tile type
+function randomTile() {
+  return TILE_TYPES[Math.floor(Math.random() * TILE_TYPES.length)];
+}
+
+// Apply gravity: let caps fall and fill empty spots with new random caps
+function applyGravity() {
+  for (let c = 0; c < COLS; c++) {
+    // Collect non‑null tiles from bottom to top
+    const column = [];
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (board[r][c] !== null) column.push(board[r][c]);
+    }
+    // Fill column from bottom
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (column.length > 0) {
+        board[r][c] = column.pop();
+      } else {
+        board[r][c] = null;
+      }
+    }
+    // Fill any remaining nulls with new random caps
+    for (let r = 0; r < ROWS; r++) {
+      if (board[r][c] === null) {
+        board[r][c] = randomTile();
+      }
+    }
+  }
+}
+
+// Find all matches (size >=3) horizontally and vertically
+function findMatches() {
+  const matches = new Set(); // store strings "r,c"
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] === null) continue;
+      // Horizontal
+      let same = 1;
+      for (let cc = c + 1; cc < COLS; cc++) {
+        if (board[r][cc] === board[r][c]) same++;
+        else break;
+      }
+      if (same >= 3) {
+        for (let i = 0; i < same; i++) {
+          matches.add(`${r},${c + i}`);
+        }
+      }
+      // Vertical
+      let sameV = 1;
+      for (let rr = r + 1; rr < ROWS; rr++) {
+        if (board[rr][c] === board[r][c]) sameV++;
+        else break;
+      }
+      if (sameV >= 3) {
+        for (let i = 0; i < sameV; i++) {
+          matches.add(`${r + i},${c}`);
+        }
+      }
+    }
+  }
+  // Convert set of strings to array of objects for easier use
+  const result = [];
+  matches.forEach(str => {
+    const [r, c] = str.split(',').map(Number);
+    result.push({r, c});
+  });
+  return result;
+}
+
+// Process a set of matched caps, handle spore chain, gravity, cascade, scoring
+function processMatches(matched) {
+  if (!matched.length) return;
+  const toClear = new Set(matched.map(p => `${p.r},${p.c}`));
+
+  // Spore chain: any spore adds orthogonal neighbors
+  matched.forEach(p => {
+    if (board[p.r][p.c] === 'spore') {
+      const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+      dirs.forEach(([dr, dc]) => {
+        const nr = p.r + dr;
+        const nc = p.c + dc;
+        if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+          toClear.add(`${nr},${nc}`);
+        }
+      });
+    }
+  });
+
+  // Clear matched caps
+  toClear.forEach(str => {
+    const [r, c] = str.split(',').map(Number);
+    board[r][c] = null;
+  });
+
+  // Apply gravity
+  applyGravity();
+
+  // Cascade: find new matches and process them recursively
+  let newMatches = findMatches();
+  while (newMatches.length) {
+    const set = new Set(newMatches.map(p => `${p.r},${p.c}`));
+    // Spore chain for new matches
+    newMatches.forEach(p => {
+      if (board[p.r][p.c] === 'spore') {
+        const dirs = [[-1,0],[1,0],[0,-1],[0,1]];
+        dirs.forEach(([dr, dc]) => {
+          const nr = p.r + dr;
+          const nc = p.c + dc;
+          if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+            set.add(`${nr},${nc}`);
+          }
+        });
+      }
+    });
+    // Clear these caps
+    set.forEach(str => {
+      const [r, c] = str.split(',').map(Number);
+      board[r][c] = null;
+    });
+    applyGravity();
+    newMatches = findMatches();
+  }
+
+  // Scoring: each cleared cap is worth 2 points
+  const clearedCount = toClear.size;
+  score += clearedCount * 2;
+}
+
+// Check win/lose conditions
+function checkGameState() {
+  if (score >= GOAL_SCORE) {
+    gameState = 'won';
+  } else if (movesLeft <= 0) {
+    gameState = 'lost';
+  }
+}
+
+// Draw the board and UI
+function draw() {
+  // Resize canvas to fill window while preserving aspect ratio (simple fill)
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  tileSize = Math.min(canvas.width / COLS, canvas.height / ROWS);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw caps
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] === null) continue;
+      const x = c * tileSize + tileSize / 2;
+      const y = r * tileSize + tileSize / 2;
+      ctx.beginPath();
+      ctx.arc(x, y, tileSize * 0.4, 0, Math.PI * 2);
+      ctx.fillStyle = TYPE_COLORS[board[r][c]];
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  }
+
+  // Highlight selected cap
+  if (selectedTile) {
+    const {r, c} = selectedTile;
+    const x = c * tileSize;
+    const y = r * tileSize;
+    ctx.save();
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(x, y, tileSize, tileSize);
+    ctx.restore();
+  }
+
+  // UI text
+  ctx.fillStyle = '#ecf0f1';
+  ctx.font = '24px sans-serif';
+  ctx.fillText(`Score: ${score} / ${GOAL_SCORE}`, 20, 40);
+  ctx.fillText(`Moves: ${movesLeft}`, 20, 80);
+
+  // Game over/won overlay
+  if (gameState !== 'playing') {
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#f1c40f';
+    ctx.font = '48px sans-serif';
+    ctx.textAlign = 'center';
+    const msg = gameState === 'won' ? 'You Win!' : 'Game Over';
+    ctx.fillText(msg, canvas.width / 2, canvas.height / 2);
+    ctx.textAlign = 'left';
+  }
+}
+
+// Handle canvas click to select and swap caps
+function onCanvasClick(e) {
+  if (gameState !== 'playing') return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * canvas.width / rect.width;
+  const y = (e.clientY - rect.top) * canvas.height / rect.height;
+  const c = Math.floor(x / tileSize);
+  const r = Math.floor(y / tileSize);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+
+  if (!selectedTile) {
+    selectedTile = {r, c};
+  } else {
+    const {r: r1, c: c1} = selectedTile;
+    const dist = Math.abs(r1 - r) + Math.abs(c1 - c);
+    if (dist === 1) {
+      // Swap caps
+      const temp = board[r1][c1];
+      board[r1][c1] = board[r][c];
+      board[r][c] = temp;
+
+      // Check for matches
+      const matches = findMatches();
+      if (matches.length) {
+        processMatches(matches);
+      } else {
+        // No match – revert swap
+        const temp2 = board[r1][c1];
+        board[r1][c1] = board[r][c];
+        board[r][c] = temp2;
+      }
+
+      movesLeft--;
+      selectedTile = null;
+      checkGameState();
+    } else {
+      // Not adjacent – treat new click as new selection
+      selectedTile = {r, c};
+    }
+  }
+  draw();
+}
+
+// Resize handler
+function resize() {
+  draw();
+}
+
+// Initialize everything
+function init() {
+  canvas = document.getElementById('gameCanvas');
+  ctx = canvas.getContext('2d');
+  randomizeBoard();
+  draw();
+
+  canvas.addEventListener('click', onCanvasClick);
+  window.addEventListener('resize', resize);
+}
+
+// Start when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-10-mystic-caps-match";
+  var RELEASE = "9150db1ea2a7c00d7afa8802dbad16f5120c578d";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

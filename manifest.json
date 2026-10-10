@@ -1,30 +1,18 @@
 {
-  "date": "2026-10-08",
-  "slug": "2026-10-08-glowfire-maze",
-  "path": "games/archive/2026-10-08-glowfire-maze/game.html",
-  "promptPath": "games/archive/2026-10-08-glowfire-maze/prompt.txt",
-  "title": "Glowfire Maze",
-  "genre": "maze-adventure",
-  "genreLabel": "Maze Adventure",
+  "date": "2026-10-10",
+  "slug": "2026-10-10-mystic-caps-match",
+  "path": "games/archive/2026-10-10-mystic-caps-match/game.html",
+  "promptPath": "games/archive/2026-10-10-mystic-caps-match/prompt.txt",
+  "title": "Mystic Caps Match",
+  "genre": "tile-matching",
+  "genreLabel": "Tile Matching",
   "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-09T00:07:32.573Z",
-  "expiresAt": "2026-10-09T19:00:00.000Z",
+  "generatedAt": "2026-10-10T19:00:53.423Z",
+  "expiresAt": "2026-10-11T19:00:00.000Z",
   "controls": [
     {
-      "action": "move up",
-      "key": "ArrowUp"
-    },
-    {
-      "action": "move down",
-      "key": "ArrowDown"
-    },
-    {
-      "action": "move left",
-      "key": "ArrowLeft"
-    },
-    {
-      "action": "move right",
-      "key": "ArrowRight"
+      "action": "Select and swap caps",
+      "key": "Click"
     }
   ]
 }

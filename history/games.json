@@ -1113,5 +1113,39 @@
       "cohere/north-mini-code:free"
     ],
     "quotaAffected": true
+  },
+  {
+    "date": "2026-10-10",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-10-10-mystic-caps-match",
+    "genre": "tile-matching",
+    "theme": "A whimsical forest of glowing mushroom caps awaits, each cap pulsed with magic light. The caps shift and merge when matched, revealing hidden patterns.",
+    "mechanics": [
+      "Swap adjacent caps to match three or more of the same type",
+      "Clear matched caps to score points",
+      "Special spore caps cause chain reactions when matched",
+      "Goal: Clear 50 caps within 30 moves to win"
+    ],
+    "title": "Mystic Caps Match",
+    "attempts": 5,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-failover",
+      "smoke-js-error",
+      "generation-call",
+      "extract",
+      "generation-call",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
+    "quotaAffected": true
   }
 ]
