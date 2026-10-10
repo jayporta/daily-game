@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Swap adjacent caps to match three or more of the same type, Clear matched caps to score points, Special spore caps cause chain reactions when matched, Goal: Clear 50 caps within 30 moves to win
 - model: cohere/north-mini-code:free
 - attempts: 5
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-09 — generation failed, previous game kept
 
