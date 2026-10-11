@@ -9,6 +9,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Drift forward through a scrolling forest, Shift left/right to dodge trees, Collect glowing pollen to charge the forest's light, Survive as long as possible before the grove fades
 - model: poolside/laguna-s-2.1:free
 - attempts: 1
+- reactions: -1
+- likes: 0
+- dislikes: 1
+- disliked for: gameplay-broken: 1
 
 ## 2026-10-10 — Mystic Caps Match
 

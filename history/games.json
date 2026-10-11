@@ -1168,6 +1168,12 @@
     "title": "Echoes of the Deep Grove",
     "attempts": 1,
     "canvasDrawn": true,
-    "quotaAffected": true
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 1,
+    "dislikeReasons": {
+      "gameplay-broken": 1
+    },
+    "popularityScore": -1
   }
 ]
