@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-11 — Echoes of the Deep Grove
+
+- genre: endless-runner
+- theme: A gentle woodland spirit drifts through an ever-scrolling grove, weaving between ancient trees and gathering glowing pollen to keep the forest alive.
+- mechanics: Drift forward through a scrolling forest, Shift left/right to dodge trees, Collect glowing pollen to charge the forest's light, Survive as long as possible before the grove fades
+- model: poolside/laguna-s-2.1:free
+- attempts: 1
+
 ## 2026-10-10 — Mystic Caps Match
 
 - genre: tile-matching

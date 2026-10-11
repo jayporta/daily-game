@@ -1,18 +1,26 @@
 {
-  "date": "2026-10-10",
-  "slug": "2026-10-10-mystic-caps-match",
-  "path": "games/archive/2026-10-10-mystic-caps-match/game.html",
-  "promptPath": "games/archive/2026-10-10-mystic-caps-match/prompt.txt",
-  "title": "Mystic Caps Match",
-  "genre": "tile-matching",
-  "genreLabel": "Tile Matching",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-10T19:00:53.423Z",
-  "expiresAt": "2026-10-11T19:00:00.000Z",
+  "date": "2026-10-11",
+  "slug": "2026-10-11-echoes-of-the-deep-grove",
+  "path": "games/archive/2026-10-11-echoes-of-the-deep-grove/game.html",
+  "promptPath": "games/archive/2026-10-11-echoes-of-the-deep-grove/prompt.txt",
+  "title": "Echoes of the Deep Grove",
+  "genre": "endless-runner",
+  "genreLabel": "Endless Runner",
+  "model": "poolside/laguna-s-2.1:free",
+  "generatedAt": "2026-10-11T19:00:54.578Z",
+  "expiresAt": "2026-10-12T19:00:00.000Z",
   "controls": [
     {
-      "action": "Select and swap caps",
-      "key": "Click"
+      "action": "Move left",
+      "key": "A / Left Arrow"
+    },
+    {
+      "action": "Move right",
+      "key": "D / Right Arrow"
+    },
+    {
+      "action": "Pause / Resume",
+      "key": "Space"
     }
   ]
 }

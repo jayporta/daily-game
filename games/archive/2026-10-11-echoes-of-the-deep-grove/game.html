@@ -1,0 +1,437 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Echoes of the Deep Grove</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0a1a14;font-family:sans-serif;}
+#game{width:100%;height:100%;display:block;background:#0a1a14;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(() => {
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+let W = canvas.width;
+let H = canvas.height;
+
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  W = rect.width;
+  H = rect.height;
+  canvas.width = W;
+  canvas.height = H;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Colors
+const C_BG = '#0a1a14';
+const C_TREE = '#1a3a22';
+const C_TREE_HL = '#2a5a32';
+const C_SPIRIT = '#a0e0c0';
+const C_SPIRIT_HL = '#c0f0d0';
+const C_POLLEN = '#f0e060';
+const C_POLLEN_HL = '#fff8a0';
+const C_UI = '#a0e0c0';
+const C_UI_DARK = '#60a080';
+const C_FADE = '#000000';
+
+// Game state
+let gameState = 'title'; // title, playing, gameover
+let spiritX;
+let spiritY;
+let spiritVY;
+const spiritW = 18;
+const spiritH = 30;
+const spiritR = 10;
+const gravity = 0.4;
+const lift = -7.2;
+const speed = 1.9;
+const treeGap = 150;
+const treeWidth = 50;
+const treeGapMin = 110;
+const treeGapMax = 200;
+const pollenChance = 0.32;
+
+let trees = [];
+let pollen = [];
+let scrollX = 0;
+let score = 0;
+let best = 0;
+let gameOverTimer = 0;
+let pulse = 0;
+let keys = {};
+let paused = false;
+
+function resetGame() {
+  spiritX = W * 0.2;
+  spiritY = H * 0.5;
+  spiritVY = 0;
+  trees = [];
+  pollen = [];
+  scrollX = 0;
+  score = 0;
+  gameOverTimer = 0;
+  pulse = 0;
+  paused = false;
+  // spawn first gap
+  spawnTreeGap();
+}
+
+function spawnTreeGap() {
+  const gapY = treeGapMin / 2 + Math.random() * (H - treeGapMax);
+  const gapSize = treeGapMin + Math.random() * (treeGapMax - treeGapMin);
+  trees.push({ x: W + treeWidth, gapY: gapY, gapSize: gapSize, passed: false });
+  // maybe spawn pollen
+  if (Math.random() < pollenChance) {
+    pollen.push({ x: W + treeWidth / 2, y: gapY + gapSize / 2, vx: speed * 0.6, collected: false });
+  }
+}
+
+function update(dt) {
+  pulse += dt * 0.003;
+  if (gameState === 'playing') {
+    if (paused) return;
+    // physics
+    spiritVY += gravity;
+    spiritY += spiritVY;
+    // horizontal movement
+    if (keys['a'] || keys['ArrowLeft']) {
+      spiritX -= speed * 0.6;
+    }
+    if (keys['d'] || keys['ArrowRight']) {
+      spiritX += speed * 0.6;
+    }
+    // keep on screen horizontally
+    if (spiritX < spiritR) spiritX = spiritR;
+    if (spiritX > W - spiritR) spiritX = W - spiritR;
+    // vertical bounds
+    if (spiritY > H - spiritR) {
+      spiritY = H - spiritR;
+      spiritVY = 0;
+    }
+    if (spiritY < spiritR) {
+      spiritY = spiritR;
+      spiritVY = 0;
+    }
+    // scroll
+    scrollX += speed;
+    score = Math.floor(scrollX * 0.1);
+    // spawn trees
+    if (trees.length === 0 || (W + treeWidth - trees[trees.length - 1].x) > treeGap) {
+      spawnTreeGap();
+    }
+    // update trees
+    for (let i = trees.length - 1; i >= 0; i--) {
+      const t = trees[i];
+      t.x -= speed;
+      if (!t.passed && t.x + treeWidth < spiritX) {
+        t.passed = true;
+        score += 5;
+      }
+      // collision
+      if (spiritX + spiritR > t.x && spiritX - spiritR < t.x + treeWidth) {
+        if (spiritY - spiritR < t.gapY || spiritY + spiritR > t.gapY + t.gapSize) {
+          gameState = 'gameover';
+          if (score > best) best = score;
+        }
+      }
+      if (t.x + treeWidth < 0) {
+        trees.splice(i, 1);
+      }
+    }
+    // update pollen
+    for (let i = pollen.length - 1; i >= 0; i--) {
+      const p = pollen[i];
+      p.x -= speed;
+      p.y += Math.sin(pulse + p.x * 0.05) * 0.3;
+      const dx = spiritX - p.x;
+      const dy = spiritY - p.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < spiritR + 8) {
+        p.collected = true;
+        score += 10;
+        pollen.splice(i, 1);
+      } else if (p.x + 8 < 0) {
+        pollen.splice(i, 1);
+      }
+    }
+  }
+}
+
+function drawTree(x, gapY, gapSize) {
+  // trunk
+  ctx.fillStyle = C_TREE;
+  ctx.fillRect(x, 0, treeWidth, H);
+  // highlight
+  ctx.fillStyle = C_TREE_HL;
+  ctx.fillRect(x + 4, 0, 8, gapY);
+  ctx.fillRect(x + 4, gapY + gapSize, 8, H - gapY - gapSize);
+  // texture lines
+  ctx.strokeStyle = C_TREE_HL;
+  ctx.lineWidth = 2;
+  for (let y = 5; y < gapY; y += 12) {
+    ctx.beginPath();
+    ctx.moveTo(x + 12, y);
+    ctx.lineTo(x + 12, y + 6);
+    ctx.stroke();
+  }
+  for (let y = gapY + gapSize + 5; y < H; y += 12) {
+    ctx.beginPath();
+    ctx.moveTo(x + 12, y);
+    ctx.lineTo(x + 12, y + 6);
+    ctx.stroke();
+  }
+}
+
+function drawSpirit(x, y) {
+  const wobble = Math.sin(pulse * 4) * 1.5;
+  // glow
+  ctx.fillStyle = 'rgba(160, 224, 192, 0.3)';
+  ctx.beginPath();
+  ctx.arc(x, y, spiritR + 4 + wobble, 0, Math.PI * 2);
+  ctx.fill();
+  // body
+  ctx.fillStyle = C_SPIRIT;
+  ctx.beginPath();
+  ctx.ellipse(x, y, spiritR + wobble * 0.5, spiritR, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // highlight
+  ctx.fillStyle = C_SPIRIT_HL;
+  ctx.beginPath();
+  ctx.arc(x - 3, y - 3, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // trail
+  ctx.strokeStyle = 'rgba(160, 224, 192, 0.4)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(x, y + spiritR);
+  ctx.lineTo(x - 5, y + spiritR + 10);
+  ctx.stroke();
+}
+
+function drawPollen(x, y) {
+  ctx.fillStyle = C_POLLEN;
+  ctx.beginPath();
+  ctx.arc(x, y, 8, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = C_POLLEN_HL;
+  ctx.beginPath();
+  ctx.arc(x - 2, y - 2, 3, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawTitle() {
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, W, H);
+  
+  // distant trees silhouette
+  ctx.fillStyle = C_TREE;
+  for (let i = 0; i < 12; i++) {
+    const x = (i * 80 + scrollX * 0.3) % (W + 100) - 50;
+    const h = 80 + Math.sin(i * 0.5) * 20;
+    ctx.fillRect(x, H - h, 30, h);
+  }
+  
+  ctx.fillStyle = C_SPIRIT_HL;
+  ctx.font = 'bold 48px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Echoes of the Deep Grove', W / 2, H * 0.3);
+  
+  ctx.fillStyle = C_UI;
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText('Drift through the ancient grove', W / 2, H * 0.45);
+  ctx.fillText('Collect glowing pollen to keep the forest alive', W / 2, H * 0.52);
+  ctx.fillText('Dodge the shifting trees', W / 2, H * 0.59);
+  
+  ctx.fillStyle = C_POLLEN;
+  ctx.font = 'bold 20px sans-serif';
+  ctx.fillText('A / ← : Move Left   |   D / → : Move Right   |   Space : Pause', W / 2, H * 0.72);
+  
+  ctx.fillStyle = C_SPIRIT;
+  ctx.font = 'bold 24px sans-serif';
+  ctx.fillText('Press ENTER to begin', W / 2, H * 0.85);
+  ctx.fillText('Best: ' + best, W / 2, H * 0.92);
+}
+
+function drawGame() {
+  // background
+  ctx.fillStyle = C_BG;
+  ctx.fillRect(0, 0, W, H);
+  
+  // distant trees
+  ctx.fillStyle = C_TREE;
+  for (let i = 0; i < 15; i++) {
+    const x = (i * 70 + scrollX * 0.2) % (W + 100) - 50;
+    const h = 60 + Math.sin(i * 0.7 + pulse) * 15;
+    ctx.fillRect(x, H - h, 25, h);
+  }
+  
+  // draw trees
+  for (const t of trees) {
+    drawTree(t.x, t.gapY, t.gapSize);
+  }
+  
+  // draw pollen
+  for (const p of pollen) {
+    drawPollen(p.x, p.y);
+  }
+  
+  // draw spirit
+  drawSpirit(spiritX, spiritY);
+  
+  // UI
+  ctx.fillStyle = C_UI;
+  ctx.font = 'bold 20px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Distance: ' + score, 20, 30);
+  ctx.fillText('Best: ' + best, 20, 55);
+  
+  if (paused) {
+    ctx.fillStyle = 'rgba(10, 26, 20, 0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = C_SPIRIT_HL;
+    ctx.font = 'bold 36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Paused', W / 2, H * 0.5);
+  }
+}
+
+function drawGameOver() {
+  // dim background
+  ctx.fillStyle = 'rgba(10, 26, 20, 0.8)';
+  ctx.fillRect(0, 0, W, H);
+  
+  ctx.fillStyle = C_SPIRIT_HL;
+  ctx.font = 'bold 48px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('The Grove Fades', W / 2, H * 0.35);
+  
+  ctx.fillStyle = C_UI;
+  ctx.font = 'bold 26px sans-serif';
+  ctx.fillText('Distance Traveled: ' + score, W / 2, H * 0.5);
+  ctx.fillText('Best: ' + best, W / 2, H * 0.6);
+  
+  ctx.fillStyle = C_POLLEN;
+  ctx.font = 'bold 22px sans-serif';
+  ctx.fillText('Press ENTER to try again', W / 2, H * 0.78);
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  if (gameState === 'title') {
+    drawTitle();
+  } else if (gameState === 'playing') {
+    drawGame();
+    if (gameState === 'gameover') {
+      drawGameOver();
+    }
+  }
+}
+
+let lastTime = 0;
+function loop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const dt = timestamp - lastTime;
+  lastTime = timestamp;
+  
+  update(dt);
+  draw();
+  
+  requestAnimationFrame(loop);
+}
+
+// Input
+window.addEventListener('keydown', (e) => {
+  keys[e.key.toLowerCase()] = true;
+  if (gameState === 'title' && (e.key === 'Enter' || e.key === ' ')) {
+    gameState = 'playing';
+    resetGame();
+  } else if (gameState === 'gameover' && (e.key === 'Enter' || e.key === ' ')) {
+    gameState = 'playing';
+    resetGame();
+  } else if (e.key === ' ' || e.key === 'Spacebar') {
+    if (gameState === 'playing') {
+      paused = !paused;
+    }
+    e.preventDefault();
+  }
+});
+
+window.addEventListener('keyup', (e) => {
+  keys[e.key.toLowerCase()] = false;
+});
+
+// Click/tap for jump on mobile-friendly feel
+let touchStartX = 0;
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  if (gameState === 'title' || gameState === 'gameover') {
+    gameState = 'playing';
+    resetGame();
+  }
+  touchStartX = e.touches[0].clientX;
+}, { passive: false });
+
+canvas.addEventListener('mousedown', (e) => {
+  if (gameState === 'title' || gameState === 'gameover') {
+    gameState = 'playing';
+    resetGame();
+  }
+});
+
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-11-echoes-of-the-deep-grove";
+  var RELEASE = "38f0e4bc070af9a6d6cb7f15882d23287431dd86";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
