@@ -1175,5 +1175,23 @@
       "gameplay-broken": 1
     },
     "popularityScore": -1
+  },
+  {
+    "date": "2026-10-12",
+    "status": "published",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "slug": "2026-10-12-beat-bounce",
+    "genre": "rhythm",
+    "theme": "A cheerful jelly creature bounces on a musical platform, tapping glowing orbs as they roll in time with the beat.",
+    "mechanics": [
+      "Orbs travel from right to left across four lanes",
+      "Press the corresponding arrow key when an orb reaches the hit line to score",
+      "Missing an orb or pressing the wrong key adds a miss",
+      "Game ends after 5 misses"
+    ],
+    "title": "Beat Bounce",
+    "attempts": 1,
+    "canvasDrawn": true,
+    "quotaAffected": true
   }
 ]

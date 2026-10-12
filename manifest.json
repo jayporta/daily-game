@@ -1,26 +1,30 @@
 {
-  "date": "2026-10-11",
-  "slug": "2026-10-11-echoes-of-the-deep-grove",
-  "path": "games/archive/2026-10-11-echoes-of-the-deep-grove/game.html",
-  "promptPath": "games/archive/2026-10-11-echoes-of-the-deep-grove/prompt.txt",
-  "title": "Echoes of the Deep Grove",
-  "genre": "endless-runner",
-  "genreLabel": "Endless Runner",
-  "model": "poolside/laguna-s-2.1:free",
-  "generatedAt": "2026-10-11T19:00:54.578Z",
-  "expiresAt": "2026-10-12T19:00:00.000Z",
+  "date": "2026-10-12",
+  "slug": "2026-10-12-beat-bounce",
+  "path": "games/archive/2026-10-12-beat-bounce/game.html",
+  "promptPath": "games/archive/2026-10-12-beat-bounce/prompt.txt",
+  "title": "Beat Bounce",
+  "genre": "rhythm",
+  "genreLabel": "Rhythm",
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
+  "generatedAt": "2026-10-12T19:00:51.873Z",
+  "expiresAt": "2026-10-13T19:00:00.000Z",
   "controls": [
     {
-      "action": "Move left",
-      "key": "A / Left Arrow"
+      "action": "Hit left lane",
+      "key": "ArrowLeft"
     },
     {
-      "action": "Move right",
-      "key": "D / Right Arrow"
+      "action": "Hit down lane",
+      "key": "ArrowDown"
     },
     {
-      "action": "Pause / Resume",
-      "key": "Space"
+      "action": "Hit up lane",
+      "key": "ArrowUp"
+    },
+    {
+      "action": "Hit right lane",
+      "key": "ArrowRight"
     }
   ]
 }

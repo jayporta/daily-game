@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Beat Bounce</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#111;color:#fff;font-family:sans-serif;}
+  canvas{display:block;width:100%;height:100%;background:#222;}
+  #ui{position:absolute;top:10px;left:10px;font-size:1.2rem;}
+  #msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:3rem;text-align:center;pointer-events:none;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui">Score: <span id="score">0</span> &nbsp; Misses: <span id="misses">0</span> / 5</div>
+<div id="msg" id="message"></div>
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const uiScore = document.getElementById('score');
+  const uiMisses = document.getElementById('misses');
+  const msgDiv = document.getElementById('message');
+
+  function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const laneCount = 4;
+  const laneY = []; // will set after resize
+  const hitLineX = 0.2; // proportion of width
+  const hitWindow = 20; // px tolerance
+  const noteSpeed = 200; // px per second
+  const spawnInterval = 900; // ms between notes (adjustable)
+  let lastSpawn = 0;
+  let notes = [];
+  let score = 0;
+  let misses = 0;
+  let gameOver = false;
+  let lastTimestamp = 0;
+
+  function initLanes(){
+    const h = canvas.height;
+    const spacing = h / (laneCount + 1);
+    for(let i=0;i<laneCount;i++){
+      laneY[i] = spacing * (i+1);
+    }
+  }
+  initLanes();
+
+  function spawnNote(){
+    const lane = Math.floor(Math.random()*laneCount);
+    notes.push({
+      lane: lane,
+      x: canvas.width,
+      y: laneY[lane],
+      active: true,
+      hit: false
+    });
+  }
+
+  function handleKey(e){
+    if(gameOver) return;
+    const keyMap = {
+      ArrowLeft:0,
+      ArrowDown:1,
+      ArrowUp:2,
+      ArrowRight:3
+    };
+    const lane = keyMap[e.key];
+    if(lane===undefined) return;
+    // find earliest active note in lane that is in hit window
+    let hitNote = null;
+    for(const n of notes){
+      if(!n.active||n.hit||n.lane!==lane) continue;
+      const dx = n.x - canvas.width*hitLineX;
+      if(Math.abs(dx) <= hitWindow){
+        hitNote = n;
+        break;
+      }
+    }
+    if(hitNote){
+      hitNote.hit = true;
+      hitNote.active = false;
+      score++;
+      uiScore.textContent = score;
+    }else{
+      misses++;
+      uiMisses.textContent = misses;
+      if(misses>=5){
+        endGame();
+      }
+    }
+  }
+  window.addEventListener('keydown', handleKey);
+
+  function endGame(){
+    gameOver = true;
+    msgDiv.textContent = `Game Over\nScore: ${score}`;
+    msgDiv.style.display = 'block';
+  }
+
+  function update(timestamp){
+    if(!lastTimestamp) lastTimestamp = timestamp;
+    const dt = (timestamp - lastTimestamp)/1000;
+    lastTimestamp = timestamp;
+
+    // spawn notes
+    if(!gameOver){
+      if(timestamp - lastSpawn > spawnInterval){
+        spawnNote();
+        lastSpawn = timestamp;
+      }
+    }
+
+    // update notes
+    for(const n of notes){
+      if(!n.active) continue;
+      n.x -= noteSpeed * dt;
+      // remove if off screen left
+      if(n.x < -50){
+        n.active = false;
+        if(!n.hit){
+          misses++;
+          uiMisses.textContent = misses;
+          if(misses>=5){
+            endGame();
+          }
+        }
+      }
+    }
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // draw lanes
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    for(let i=0;i<laneCount;i++){
+      ctx.beginPath();
+      ctx.moveTo(0, laneY[i]);
+      ctx.lineTo(canvas.width, laneY[i]);
+      ctx.stroke();
+    }
+    // draw hit line
+    const hitX = canvas.width*hitLineX;
+    ctx.strokeStyle = '#0f0';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(hitX,0);
+    ctx.lineTo(hitX,canvas.height);
+    ctx.stroke();
+    // draw notes
+    for(const n of notes){
+      if(!n.active) continue;
+      ctx.fillStyle = n.hit ? '#0f0' : '#ff0';
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, 15, 0, Math.PI*2);
+      ctx.fill();
+    }
+    // draw jelly creature (simple circle at bottom center)
+    ctx.fillStyle = '#0ff';
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, canvas.height-30, 25, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('♪', canvas.width/2, canvas.height-20);
+  }
+
+  function loop(timestamp){
+    update(timestamp);
+    draw();
+    if(!gameOver){
+      requestAnimationFrame(loop);
+    }
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-12-beat-bounce";
+  var RELEASE = "37dff81d1ca2ccb63dcdfe017180331db182f7d7";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

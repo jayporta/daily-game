@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-12 — Beat Bounce
+
+- genre: rhythm
+- theme: A cheerful jelly creature bounces on a musical platform, tapping glowing orbs as they roll in time with the beat.
+- mechanics: Orbs travel from right to left across four lanes, Press the corresponding arrow key when an orb reaches the hit line to score, Missing an orb or pressing the wrong key adds a miss, Game ends after 5 misses
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 1
+
 ## 2026-10-11 — Echoes of the Deep Grove
 
 - genre: endless-runner
