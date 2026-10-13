@@ -1,30 +1,26 @@
 {
-  "date": "2026-10-12",
-  "slug": "2026-10-12-beat-bounce",
-  "path": "games/archive/2026-10-12-beat-bounce/game.html",
-  "promptPath": "games/archive/2026-10-12-beat-bounce/prompt.txt",
-  "title": "Beat Bounce",
-  "genre": "rhythm",
-  "genreLabel": "Rhythm",
+  "date": "2026-10-13",
+  "slug": "2026-10-13-turtle-turbo-rush",
+  "path": "games/archive/2026-10-13-turtle-turbo-rush/game.html",
+  "promptPath": "games/archive/2026-10-13-turtle-turbo-rush/prompt.txt",
+  "title": "Turtle Turbo Rush",
+  "genre": "racing",
+  "genreLabel": "Racing",
   "model": "nvidia/nemotron-3-super-120b-a12b:free",
-  "generatedAt": "2026-10-12T19:00:51.873Z",
-  "expiresAt": "2026-10-13T19:00:00.000Z",
+  "generatedAt": "2026-10-13T19:00:49.778Z",
+  "expiresAt": "2026-10-14T19:00:00.000Z",
   "controls": [
     {
-      "action": "Hit left lane",
+      "action": "Steer left",
       "key": "ArrowLeft"
     },
     {
-      "action": "Hit down lane",
-      "key": "ArrowDown"
-    },
-    {
-      "action": "Hit up lane",
-      "key": "ArrowUp"
-    },
-    {
-      "action": "Hit right lane",
+      "action": "Steer right",
       "key": "ArrowRight"
+    },
+    {
+      "action": "Activate boost",
+      "key": "Space"
     }
   ]
 }

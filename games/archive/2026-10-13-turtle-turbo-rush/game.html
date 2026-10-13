@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Turtle Turbo Rush</title>
+<style>
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#f0e68c;}
+  canvas{display:block;}
+  #ui{position:absolute;top:10px;left:10px;color:#222;font-family:sans-serif;pointer-events:none;}
+  #msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#222;font-size:2rem;font-family:sans-serif;pointer-events:none;text-align:center;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui">
+  Distance: <span id="dist">0</span> m<br>
+  Timer: <span id="timer">30</span> s<br>
+  Boost: <span id="boost">0</span> s
+</div>
+<div id="msg"></div>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const uiDist = document.getElementById('dist');
+  const uiTimer = document.getElementById('timer');
+  const uiBoost = document.getElementById('boost');
+  const msgDiv = document.getElementById('msg');
+
+  let width = innerWidth;
+  let height = innerHeight;
+  function resize() {
+    width = innerWidth;
+    height = innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Game constants
+  const baseSpeed = 3; // pixels per frame forward
+  const boostSpeed = 6;
+  const boostDuration = 180; // frames (~3 sec at 60fps)
+  const targetDistance = 2000; // pixels to win
+  const totalTime = 30; // seconds
+  const laneWidth = width / 5; // approximate lanes for spawning
+
+  // Player
+  const player = {
+    x: width / 2,
+    y: height - 80,
+    radius: 20,
+    color: '#2e8b57',
+    shellColor: '#8b4513'
+  };
+
+  // Input
+  const keys = { ArrowLeft: false, ArrowRight: false, Space: false };
+  window.addEventListener('keydown', e => { if (e.key in keys) keys[e.key] = true; });
+  window.addEventListener('keyup', e => { if (e.key in keys) keys[e.key] = false; });
+
+  // Obstacles and boosts
+  const obstacles = [];
+  const boosts = [];
+  const obstacleSize = { w: 30, h: 50 };
+  const boostSize = { w: 25, h: 25 };
+  let spawnTimer = 0;
+  const spawnInterval = 90; // frames
+
+  // Game state
+  let distance = 0;
+  let timeLeft = totalTime;
+  let boostTimer = 0;
+  let crashed = false;
+  let won = false;
+  let lastTimestamp = null;
+
+  // Helper: random integer
+  function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  // Spawn obstacles/boosts
+  function spawn() {
+    // choose lane
+    const lane = randInt(0, 4);
+    const laneCenter = (lane + 0.5) * laneWidth;
+    const x = laneCenter - obstacleSize.w / 2;
+    if (Math.random() < 0.7) {
+      obstacles.push({ x, y: -obstacleSize.h, w: obstacleSize.w, h: obstacleSize.h });
+    } else {
+      boosts.push({ x: laneCenter - boostSize.w / 2, y: -boostSize.h, w: boostSize.w, h: boostSize.h });
+    }
+  }
+
+  // AABB collision
+  function rectCollides(a, b) {
+    return a.x < b.x + b.w &&
+           a.x + a.w > b.x &&
+           a.y < b.y + b.h &&
+           a.y + a.h > b.y;
+  }
+
+  function circleRectCollides(circle, rect) {
+    const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.w));
+    const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.h));
+    const dx = circle.x - closestX;
+    const dy = circle.y - closestY;
+    return dx * dx + dy * dy < circle.radius * circle.radius;
+  }
+
+  // Draw turtle (simple)
+  function drawTurtle() {
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    // body
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+    ctx.fill();
+    // shell
+    ctx.fillStyle = player.shellColor;
+    ctx.beginPath();
+    ctx.arc(0, -player.radius * 0.3, player.radius * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    // legs (simple lines)
+    ctx.strokeStyle = '#556b2f';
+    ctx.lineWidth = 3;
+    for (let angle of [-0.5, 0.5, -2.5, 2.5]) {
+      const legX = Math.cos(angle) * player.radius * 0.6;
+      const legY = Math.sin(angle) * player.radius * 0.6;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(legX, legY);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Draw obstacle (cactus-like)
+  function drawObstacle(o) {
+    ctx.fillStyle = '#228b22';
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+    // spikes
+    ctx.fillStyle = '#006400';
+    ctx.fillRect(o.x + o.w * 0.2, o.y - o.h * 0.3, o.w * 0.6, o.h * 0.3);
+    ctx.fillRect(o.x, o.y + o.h * 0.3, o.w * 0.2, o.h * 0.4);
+    ctx.fillRect(o.x + o.w * 0.8, o.y + o.h * 0.3, o.w * 0.2, o.h * 0.4);
+  }
+
+  // Draw boost (star)
+  function drawBoost(b) {
+    ctx.save();
+    ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
+      const outer = { x: Math.cos(angle) * (b.w / 2), y: Math.sin(angle) * (b.w / 2) };
+      ctx.lineTo(outer.x, outer.y);
+      const innerAngle = angle + Math.PI / 5;
+      const inner = { x: Math.cos(innerAngle) * (b.w / 4), y: Math.sin(innerAngle) * (b.w / 4) };
+      ctx.lineTo(inner.x, inner.y);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Game loop
+  function loop(timestamp) {
+    if (!lastTimestamp) lastTimestamp = timestamp;
+    const delta = timestamp - lastTimestamp;
+    lastTimestamp = timestamp;
+
+    if (crashed || won) {
+      // show message
+      msgDiv.textContent = won ? 'You reached the finish line! 🎉' : 'You crashed! Try again.';
+      return;
+    }
+
+    // update timer
+    timeLeft -= delta / 1000;
+    if (timeLeft <= 0) {
+      crashed = true; // out of time
+      msgDiv.textContent = 'Time\'s up! Try again.';
+      return;
+    }
+
+    // update boost timer
+    if (boostTimer > 0) boostTimer--;
+
+    // player movement
+    const speed = boostTimer > 0 ? boostSpeed : baseSpeed;
+    if (keys.ArrowLeft) player.x -= speed * 0.7;
+    if (keys.ArrowRight) player.x += speed * 0.7;
+    // keep within road bounds (simple)
+    const leftBound = player.radius;
+    const rightBound = width - player.radius;
+    if (player.x < leftBound) player.x = leftBound;
+    if (player.x > rightBound) player.x = rightBound;
+
+    // forward movement (increase distance)
+    distance += speed;
+
+    // spawn
+    spawnTimer++;
+    if (spawnTimer >= spawnInterval) {
+      spawnTimer = 0;
+      spawn();
+    }
+
+    // update obstacles and boosts
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const o = obstacles[i];
+      o.y += speed;
+      if (o.y > height) obstacles.splice(i, 1);
+      else if (circleRectCollides(player, o)) {
+        crashed = true;
+        msgDiv.textContent = 'You hit a cactus!';
+        break;
+      }
+    }
+    for (let i = boosts.length - 1; i >= 0; i--) {
+      const b = boosts[i];
+      b.y += speed;
+      if (b.y > height) boosts.splice(i, 1);
+      else if (rectCollides(player, { x: b.x, y: b.y, w: b.w, h: b.h })) {
+        boosts.splice(i, 1);
+        boostTimer = boostDuration;
+      }
+    }
+
+    // check win
+    if (distance >= targetDistance) {
+      won = true;
+      msgDiv.textContent = 'You reached the finish line! 🎉';
+      return;
+    }
+
+    // clear
+    ctx.clearRect(0, 0, width, height);
+    // road (simple gradient)
+    ctx.fillStyle = '#deb887';
+    ctx.fillRect(0, 0, width, height);
+    // lane markings
+    ctx.strokeStyle = '#8b4513';
+    ctx.setLineDash([10, 10]);
+    ctx.lineWidth = 2;
+    for (let i = 1; i < 5; i++) {
+      const x = i * laneWidth;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // draw entities
+    drawTurtle();
+    for (const o of obstacles) drawObstacle(o);
+    for (const b of boosts) drawBoost(b);
+
+    // UI
+    uiDist.textContent = Math.floor(distance);
+    uiTimer.textContent = Math.ceil(timeLeft);
+    uiBoost.textContent = Math.ceil(boostTimer / 60);
+
+    requestAnimationFrame(loop);
+  }
+
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-13-turtle-turbo-rush";
+  var RELEASE = "dd4bcaf236d1cf032eb09e74bac2e72059ac3f38";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

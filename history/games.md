@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-13 — Turtle Turbo Rush
+
+- genre: racing
+- theme: A speedy turtle races across a colorful desert track, dodging cacti and collecting turbo boosts to reach the finish line.
+- mechanics: Auto-forward movement with constant speed, Steer left/right to avoid obstacles, Collect boost icons for temporary speed increase, Reach the finish line before the timer runs out
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 6
+
 ## 2026-10-12 — Beat Bounce
 
 - genre: rhythm

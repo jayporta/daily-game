@@ -1197,5 +1197,39 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-10-13",
+    "status": "published",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "slug": "2026-10-13-turtle-turbo-rush",
+    "genre": "racing",
+    "theme": "A speedy turtle races across a colorful desert track, dodging cacti and collecting turbo boosts to reach the finish line.",
+    "mechanics": [
+      "Auto-forward movement with constant speed",
+      "Steer left/right to avoid obstacles",
+      "Collect boost icons for temporary speed increase",
+      "Reach the finish line before the timer runs out"
+    ],
+    "title": "Turtle Turbo Rush",
+    "attempts": 6,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call",
+      "extract",
+      "generation-call",
+      "generation-call",
+      "extract",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free",
+      "poolside/laguna-s-2.1:free"
+    ],
+    "quotaAffected": true
   }
 ]
