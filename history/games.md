@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Orbs travel from right to left across four lanes, Press the corresponding arrow key when an orb reaches the hit line to score, Missing an orb or pressing the wrong key adds a miss, Game ends after 5 misses
 - model: nvidia/nemotron-3-super-120b-a12b:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-11 — Echoes of the Deep Grove
 
