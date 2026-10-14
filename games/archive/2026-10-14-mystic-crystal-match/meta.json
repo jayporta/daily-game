@@ -1,0 +1,16 @@
+{
+  "title": "Mystic Crystal Match",
+  "genre": "puzzle",
+  "theme": "A mystical garden of glowing crystal orbs, each holding a unique ancient symbol.",
+  "mechanics": [
+    "Match pairs of identical symbols by revealing cards",
+    "Flip cards with a click to reveal their symbol",
+    "Clear the board by matching all pairs"
+  ],
+  "controls": [
+    {
+      "action": "Select card",
+      "key": "Click"
+    }
+  ]
+}

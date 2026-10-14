@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Mystic Crystal Match</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0d1a2b;
+    color: #fff;
+    font-family: sans-serif;
+  }
+  .container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .header {
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .message {
+    font-size: 1.2em;
+    margin-top: 10px;
+  }
+  .board {
+    display: grid;
+    gap: 8px;
+  }
+  .card {
+    width: 80px;
+    height: 80px;
+    position: relative;
+    perspective: 600px;
+    cursor: pointer;
+  }
+  .card.is-flipped .card-inner {
+    transform: rotateY(180deg);
+  }
+  .card-inner {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.5s;
+  }
+  .card-front, .card-back {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    backface-visibility: hidden;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2em;
+  }
+  .card-front {
+    background: #2a3f5f;
+    color: #fff;
+  }
+  .card-back {
+    background: #fff;
+    color: #000;
+    transform: rotateY(180deg);
+  }
+  .matched {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  @media (max-width: 600px) {
+    .card {
+      width: 60px;
+      height: 60px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Mystic Crystal Match</h1>
+    <div class="message" id="status">Match all crystal pairs to win!</div>
+    <div class="message" id="moves">Moves: 0</div>
+  </div>
+  <div class="board" id="board"></div>
+</div>
+
+<script>
+  const symbols = ['★','☀','⧖','♥','♠','♣','♦','☾'];
+  let cards = [];
+  let flippedCards = [];
+  let moves = 0;
+  let matched = 0;
+  const totalPairs = symbols.length;
+  const totalCards = totalPairs * 2;
+  const boardEl = document.getElementById('board');
+  const statusEl = document.getElementById('status');
+  const movesEl = document.getElementById('moves');
+
+  function initBoard() {
+    const arr = [...symbols, ...symbols];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    boardEl.style.gridTemplateColumns = `repeat(${Math.ceil(Math.sqrt(totalCards))}, 1fr)`;
+    boardEl.innerHTML = '';
+    cards = [];
+    arr.forEach((sym, idx) => {
+      const cardEl = document.createElement('div');
+      cardEl.className = 'card';
+      cardEl.dataset.index = idx;
+      const inner = document.createElement('div');
+      inner.className = 'card-inner';
+      const front = document.createElement('div');
+      front.className = 'card-front';
+      const back = document.createElement('div');
+      back.className = 'card-back';
+      back.textContent = sym;
+      inner.appendChild(front);
+      inner.appendChild(back);
+      cardEl.appendChild(inner);
+      cardEl.addEventListener('click', () => onCardClick(cardEl));
+      boardEl.appendChild(cardEl);
+      cards.push({el: cardEl, symbol: sym, matched: false});
+    });
+  }
+
+  function onCardClick(cardDiv) {
+    if (cardDiv.classList.contains('matched') || flippedCards.includes(cardDiv)) return;
+    cardDiv.classList.add('is-flipped');
+    const card = cards.find(c => c.el === cardDiv);
+    if (!card) return;
+    flippedCards.push(cardDiv);
+    if (flippedCards.length === 2) {
+      moves++;
+      movesEl.textContent = 'Moves: ' + moves;
+      setTimeout(checkMatch, 800);
+    }
+  }
+
+  function checkMatch() {
+    const first = flippedCards[0];
+    const second = flippedCards[1];
+    const card1 = cards.find(c => c.el === first);
+    const card2 = cards.find(c => c.el === second);
+    if (card1.symbol === card2.symbol) {
+      first.classList.add('matched');
+      second.classList.add('matched');
+      card1.matched = true;
+      card2.matched = true;
+      matched += 2;
+      if (matched === totalCards) {
+        statusEl.textContent = 'Puzzle solved! Great job!';
+      } else {
+        statusEl.textContent = 'All matched so far... keep going!';
+      }
+    } else {
+      first.classList.remove('is-flipped');
+      second.classList.remove('is-flipped');
+    }
+    flippedCards = [];
+  }
+
+  initBoard();
+
+  function resizeBoard() {
+    const boardWidth = boardEl.clientWidth;
+    const maxCardSize = Math.floor(boardWidth / Math.ceil(Math.sqrt(totalCards))) - 8;
+    const cardElements = document.querySelectorAll('.card');
+    cardElements.forEach(c => {
+      const size = Math.max(40, maxCardSize);
+      c.style.width = `${size}px`;
+      c.style.height = `${size}px`;
+    });
+  }
+  window.addEventListener('resize', resizeBoard);
+  resizeBoard();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-14-mystic-crystal-match";
+  var RELEASE = "ed1c219d421d6f56bed42df2a76ace7c55619cda";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

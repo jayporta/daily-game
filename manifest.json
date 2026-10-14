@@ -1,26 +1,18 @@
 {
-  "date": "2026-10-13",
-  "slug": "2026-10-13-turtle-turbo-rush",
-  "path": "games/archive/2026-10-13-turtle-turbo-rush/game.html",
-  "promptPath": "games/archive/2026-10-13-turtle-turbo-rush/prompt.txt",
-  "title": "Turtle Turbo Rush",
-  "genre": "racing",
-  "genreLabel": "Racing",
-  "model": "nvidia/nemotron-3-super-120b-a12b:free",
-  "generatedAt": "2026-10-13T19:00:49.778Z",
-  "expiresAt": "2026-10-14T19:00:00.000Z",
+  "date": "2026-10-14",
+  "slug": "2026-10-14-mystic-crystal-match",
+  "path": "games/archive/2026-10-14-mystic-crystal-match/game.html",
+  "promptPath": "games/archive/2026-10-14-mystic-crystal-match/prompt.txt",
+  "title": "Mystic Crystal Match",
+  "genre": "puzzle",
+  "genreLabel": "Puzzle",
+  "model": "cohere/north-mini-code:free",
+  "generatedAt": "2026-10-14T22:57:27.907Z",
+  "expiresAt": "2026-10-15T19:00:00.000Z",
   "controls": [
     {
-      "action": "Steer left",
-      "key": "ArrowLeft"
-    },
-    {
-      "action": "Steer right",
-      "key": "ArrowRight"
-    },
-    {
-      "action": "Activate boost",
-      "key": "Space"
+      "action": "Select card",
+      "key": "Click"
     }
   ]
 }

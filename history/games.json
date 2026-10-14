@@ -1242,34 +1242,30 @@
   },
   {
     "date": "2026-10-14",
-    "status": "failed_kept_previous",
-    "model": "dots-studio/dots-3-note-preview:free",
-    "attempts": 6,
-    "failureReasons": [
-      "attempt 1 (dots-studio/dots-3-note-preview:free): could not extract bundle — missing-meta-block (response truncated at the output cap)",
-      "attempt 2 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block",
-      "attempt 3 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter stream carried no content",
-      "attempt 4 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream ended early: terminated",
-      "attempt 5 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block",
-      "attempt 6 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: Cannot read properties of undefined (reading '0')"
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-10-14-mystic-crystal-match",
+    "genre": "puzzle",
+    "theme": "A mystical garden of glowing crystal orbs, each holding a unique ancient symbol.",
+    "mechanics": [
+      "Match pairs of identical symbols by revealing cards",
+      "Flip cards with a click to reveal their symbol",
+      "Clear the board by matching all pairs"
     ],
+    "title": "Mystic Crystal Match",
+    "attempts": 5,
+    "canvasDrawn": false,
     "failureKinds": [
       "extract",
       "extract",
       "generation-call",
-      "generation-call",
-      "extract",
-      "generation-failover",
-      "smoke-js-error"
+      "generation-call"
     ],
     "attemptModels": [
       "dots-studio/dots-3-note-preview:free",
       "nvidia/nemotron-3-ultra-550b-a55b:free",
       "thinkingmachines/inkling-small:free",
-      "nvidia/nemotron-3.5-lightning:free",
-      "cohere/north-mini-code:free",
-      "poolside/laguna-s-2.1:free",
-      "nvidia/nemotron-3-super-120b-a12b:free"
+      "nvidia/nemotron-3.5-lightning:free"
     ],
     "quotaAffected": true
   }

@@ -2,16 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-10-14 — generation failed, previous game kept
+## 2026-10-14 — Mystic Crystal Match
 
-- model: dots-studio/dots-3-note-preview:free
-- attempts: 6
-- attempt 1 (dots-studio/dots-3-note-preview:free): could not extract bundle — missing-meta-block (response truncated at the output cap)
-- attempt 2 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 3 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter stream carried no content
-- attempt 4 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream ended early: terminated
-- attempt 5 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
-- attempt 6 (nvidia/nemotron-3-super-120b-a12b:free): smoke test failed — uncaught JS error: Cannot read properties of undefined (reading '0')
+- genre: puzzle
+- theme: A mystical garden of glowing crystal orbs, each holding a unique ancient symbol.
+- mechanics: Match pairs of identical symbols by revealing cards, Flip cards with a click to reveal their symbol, Clear the board by matching all pairs
+- model: cohere/north-mini-code:free
+- attempts: 5
 
 ## 2026-10-13 — Turtle Turbo Rush
 
