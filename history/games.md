@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Move the blob with arrow keys to navigate the garden., Press 'P' to plant a seed on the tile you occupy; seeds need sunlight and water to grow into flowers.
 - model: nvidia/nemotron-3-super-120b-a12b:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-14 — Mystic Crystal Match
 
