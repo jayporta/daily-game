@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-15 — Bloomtopia
+
+- genre: growth-sim
+- theme: A cheerful blob creature tends a floating garden island, planting seeds that blossom into glowing flowers under drifting sunlight and water droplets.
+- mechanics: Move the blob with arrow keys to navigate the garden., Press 'P' to plant a seed on the tile you occupy; seeds need sunlight and water to grow into flowers.
+- model: nvidia/nemotron-3-super-120b-a12b:free
+- attempts: 1
+
 ## 2026-10-14 — Mystic Crystal Match
 
 - genre: puzzle
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Match pairs of identical symbols by revealing cards, Flip cards with a click to reveal their symbol, Clear the board by matching all pairs
 - model: cohere/north-mini-code:free
 - attempts: 5
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-13 — Turtle Turbo Rush
 

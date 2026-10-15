@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Bloomtopia</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#f0fff0;}
+canvas{display:block;}
+#ui{position:absolute;top:10px;left:10px;color:#222;font-family:sans-serif;}
+#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#222;font-size:2em;font-family:sans-serif;pointer-events:none;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui"></div>
+<div id="msg"></div>
+<script>
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+const ui=document.getElementById('ui');
+const msgDiv=document.getElementById('msg');
+let cellSize=40;
+let cols,rows;
+let player={col:0,row:0};
+let seeds=3;
+let flowerGoal=5;
+let timeLimit=60;
+let elapsed=0;
+let flowers=0;
+let state='playing'; // playing, won, lost
+let plants=[];
+let drops=[]; // {x,y,type:'sun'|'water',life}
+const stageTime=3000; // ms per stage when resources ready
+let lastTime=0;
+function resize(){
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+cols=Math.floor(canvas.width/cellSize);
+rows=Math.floor(canvas.height/cellSize);
+if(cols<1)cols=1;
+if(rows<1)rows=1;
+player.col=Math.floor(cols/2);
+player.row=Math.floor(rows/2);
+}
+window.addEventListener('resize',resize);
+resize();
+function randInt(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+function spawnDrop(){
+const type=Math.random()<0.5?'sun':'water';
+const x=randInt(0,cols-1)*cellSize+cellSize/2;
+const y=randInt(0,rows-1)*cellSize+cellSize/2;
+drops.push({x,y,type,life:5000});
+}
+let dropTimer=0;
+function update(dt){
+if(state!=='playing')return;
+elapsed+=dt;
+if(elapsed>=timeLimit*1000){state='lost';}
+dropTimer+=dt;
+if(dropTimer>2000){dropTimer=0;spawnDrop();}
+for(let i=drops.length-1;i>=0;i--){
+const d=drops[i];
+d.life-=dt;
+if(d.life<=0){drops.splice(i,1);continue}
+for(let p of plants){
+const dx=Math.abs(d.x-(p.x*cellSize+cellSize/2));
+const dy=Math.abs(d.y-(p.y*cellSize+cellSize/2));
+if(dx<cellSize/2 && dy<cellSize/2){
+if(d.type==='sun'){p.sunReady=true;}
+else if(d.type==='water'){p.waterReady=true;}
+drops.splice(i,1);
+break;
+}
+}
+}
+for(let p of plants){
+if(p.stage>=2){
+if(!p.counted){p.counted=true;flowers++;}}
+if(p.stage<2){
+if(p.sunReady && p.waterReady){
+p.timer+=dt;
+if(p.timer>=stageTime){
+p.stage++;
+p.timer=0;
+p.sunReady=false;
+p.waterReady=false;
+}
+}
+}
+}
+if(flowers>=flowerGoal){state='won';}
+}
+function draw(){
+ctx.clearRect(0,0,canvas.width,canvas.height);
+ctx.strokeStyle='#ddd';
+ctx.lineWidth=1;
+for(let c=0;c<=cols;c++){ctx.beginPath();ctx.moveTo(c*cellSize,0);ctx.lineTo(c*cellSize,canvas.height);ctx.stroke();}
+for(let r=0;r<=rows;r++){ctx.beginPath();ctx.moveTo(0,r*cellSize);ctx.lineTo(canvas.width,r*cellSize);ctx.stroke();}
+for(let p of plants){
+const cx=p.x*cellSize+cellSize/2;
+const cy=p.y*cellSize+cellSize/2;
+if(p.stage===0){
+ctx.fillStyle='#8b4513';
+ctx.beginPath();ctx.arc(cx,cy,cellSize*0.2,0,Math.PI*2);ctx.fill();
+}else if(p.stage===1){
+ctx.fillStyle='#228b22';
+ctx.beginPath();ctx.rect(cx-cellSize*0.15,cy-cellSize*0.3,cellSize*0.3,cellSize*0.6);ctx.fill();
+}else{
+ctx.fillStyle='#ff69b4';
+ctx.beginPath();ctx.arc(cx,cy,cellSize*0.3,0,Math.PI*2);ctx.fill();
+}
+}
+for(let d of drops){
+ctx.fillStyle=d.type==='sun'?'#ffd700':'#1e90ff';
+ctx.beginPath();ctx.arc(d.x,d.y,cellSize*0.15,0,Math.PI*2);ctx.fill();
+}
+const pcx=player.col*cellSize+cellSize/2;
+const pcy=player.row*cellSize+cellSize/2;
+ctx.fillStyle='#ff8c00';
+ctx.beginPath();
+ctx.arc(pcx,pcy,cellSize*0.35,0,Math.PI*2);
+ctx.fill();
+ctx.fillStyle='#000';
+ctx.beginPath();ctx.arc(pcx-cellSize*0.12,pcy-cellSize*0.1,cellSize*0.05,0,Math.PI*2);ctx.fill();
+ctx.beginPath();ctx.arc(pcx+cellSize*0.12,pcy-cellSize*0.1,cellSize*0.05,0,Math.PI*2);ctx.fill();
+ui.innerHTML=`Time: ${Math.max(0,Math.ceil((timeLimit*1000-elapsed)/1000))}s &nbsp; Flowers: ${flowers}/${flowerGoal} &nbsp; Seeds: ${seeds}`;
+if(state==='won'){
+msgDiv.textContent='You grew enough flowers! 🌸';
+msgDiv.style.color='#228b22';
+}else if(state==='lost'){
+msgDiv.textContent='Time ran out. Try again.';
+msgDiv.style.color='#b22222';
+}else{
+msgDiv.textContent='';
+}
+}
+function loop(timestamp){
+if(!lastTime)lastTime=timestamp;
+const dt=timestamp-lastTime;
+lastTime=timestamp;
+update(dt);
+draw();
+requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+window.addEventListener('keydown',e=>{
+if(state!=='playing')return;
+switch(e.key){
+case'ArrowUp':if(player.row>0)player.row--;break;
+case'ArrowDown':if(player.row<rows-1)player.row++;break;
+case'ArrowLeft':if(player.col>0)player.col--;break;
+case'ArrowRight':if(player.col<cols-1)player.col++;break;
+case'p':
+case'P':
+if(seeds>0){
+const col=player.col;
+const row=player.row;
+let occupied=false;
+for(let p of plants){
+if(p.x===col && p.y===row){occupied=true;break;}
+}
+if(!occupied){
+seeds--;
+plants.push({x:col,y:row,stage:0,timer:0,sunReady:false,waterReady:false,counted:false});
+}
+}
+break;
+}
+});
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-15-bloomtopia";
+  var RELEASE = "03a4bd81a80511a28d915ccdb21d2569a714246a";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

@@ -1267,6 +1267,32 @@
       "thinkingmachines/inkling-small:free",
       "nvidia/nemotron-3.5-lightning:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-10-15",
+    "status": "published",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "slug": "2026-10-15-bloomtopia",
+    "genre": "growth-sim",
+    "theme": "A cheerful blob creature tends a floating garden island, planting seeds that blossom into glowing flowers under drifting sunlight and water droplets.",
+    "mechanics": [
+      "Move the blob with arrow keys to navigate the garden.",
+      "Press 'P' to plant a seed on the tile you occupy; seeds need sunlight and water to grow into flowers."
+    ],
+    "title": "Bloomtopia",
+    "attempts": 1,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free"
+    ],
     "quotaAffected": true
   }
 ]

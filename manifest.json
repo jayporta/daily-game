@@ -1,18 +1,34 @@
 {
-  "date": "2026-10-14",
-  "slug": "2026-10-14-mystic-crystal-match",
-  "path": "games/archive/2026-10-14-mystic-crystal-match/game.html",
-  "promptPath": "games/archive/2026-10-14-mystic-crystal-match/prompt.txt",
-  "title": "Mystic Crystal Match",
-  "genre": "puzzle",
-  "genreLabel": "Puzzle",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-14T22:57:27.907Z",
-  "expiresAt": "2026-10-15T19:00:00.000Z",
+  "date": "2026-10-15",
+  "slug": "2026-10-15-bloomtopia",
+  "path": "games/archive/2026-10-15-bloomtopia/game.html",
+  "promptPath": "games/archive/2026-10-15-bloomtopia/prompt.txt",
+  "title": "Bloomtopia",
+  "genre": "growth-sim",
+  "genreLabel": "Growth Simulation",
+  "model": "nvidia/nemotron-3-super-120b-a12b:free",
+  "generatedAt": "2026-10-15T19:00:59.299Z",
+  "expiresAt": "2026-10-16T19:00:00.000Z",
   "controls": [
     {
-      "action": "Select card",
-      "key": "Click"
+      "action": "Move up",
+      "key": "ArrowUp"
+    },
+    {
+      "action": "Move down",
+      "key": "ArrowDown"
+    },
+    {
+      "action": "Move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "Move right",
+      "key": "ArrowRight"
+    },
+    {
+      "action": "Plant seed",
+      "key": "p"
     }
   ]
 }
