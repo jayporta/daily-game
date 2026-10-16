@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Stack blocks without toppling, Launch seed to hit target, Win by hitting target with stable stack
 - model: cohere/north-mini-code:free
 - attempts: 4
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-15 — Bloomtopia
 
