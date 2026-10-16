@@ -1298,5 +1298,34 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-10-16",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-10-16-block-stacker-launcher",
+    "genre": "physics-sandbox",
+    "theme": "A whimsical forest where a gentle tree spirit stacks floating logs and launches a seed to bloom a flower.",
+    "mechanics": [
+      "Stack blocks without toppling",
+      "Launch seed to hit target",
+      "Win by hitting target with stable stack"
+    ],
+    "title": "Block Stacker & Launcher",
+    "attempts": 4,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call",
+      "generation-call",
+      "generation-call",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
+    "quotaAffected": true
   }
 ]

@@ -1,34 +1,42 @@
 {
-  "date": "2026-10-15",
-  "slug": "2026-10-15-bloomtopia",
-  "path": "games/archive/2026-10-15-bloomtopia/game.html",
-  "promptPath": "games/archive/2026-10-15-bloomtopia/prompt.txt",
-  "title": "Bloomtopia",
-  "genre": "growth-sim",
-  "genreLabel": "Growth Simulation",
-  "model": "nvidia/nemotron-3-super-120b-a12b:free",
-  "generatedAt": "2026-10-15T19:00:59.299Z",
-  "expiresAt": "2026-10-16T19:00:00.000Z",
+  "date": "2026-10-16",
+  "slug": "2026-10-16-block-stacker-launcher",
+  "path": "games/archive/2026-10-16-block-stacker-launcher/game.html",
+  "promptPath": "games/archive/2026-10-16-block-stacker-launcher/prompt.txt",
+  "title": "Block Stacker & Launcher",
+  "genre": "physics-sandbox",
+  "genreLabel": "Physics Sandbox",
+  "model": "cohere/north-mini-code:free",
+  "generatedAt": "2026-10-16T19:00:51.021Z",
+  "expiresAt": "2026-10-17T19:00:00.000Z",
   "controls": [
     {
-      "action": "Move up",
-      "key": "ArrowUp"
-    },
-    {
-      "action": "Move down",
-      "key": "ArrowDown"
-    },
-    {
-      "action": "Move left",
+      "action": "Move block left",
       "key": "ArrowLeft"
     },
     {
-      "action": "Move right",
+      "action": "Move block right",
       "key": "ArrowRight"
     },
     {
-      "action": "Plant seed",
-      "key": "p"
+      "action": "Move block up",
+      "key": "ArrowUp"
+    },
+    {
+      "action": "Move block down",
+      "key": "ArrowDown"
+    },
+    {
+      "action": "Place block",
+      "key": "P"
+    },
+    {
+      "action": "Launch seed",
+      "key": "L"
+    },
+    {
+      "action": "Restart game",
+      "key": "R"
     }
   ]
 }

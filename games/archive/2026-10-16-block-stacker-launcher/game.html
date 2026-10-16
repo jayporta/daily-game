@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Block Stacker & Launcher</title>
+<style>
+  body { margin:0; padding:0; width:100vw; height:100vh; overflow:hidden; background:#e0f7fa; font-family:sans-serif; }
+  canvas { display:block; width:100%; height:100%; }
+  #ui { position:absolute; top:10px; left:10px; color:#333; font-size:1.2em; }
+  #msg { position:absolute; left:0; right:0; top:50%; transform:translateY(-50%); text-align:center; font-size:2em; color:#fff; background:rgba(0,0,0,0.5); padding:10px; border-radius:8px; display:none; }
+</style>
+</head>
+<body>
+<div id="ui"></div>
+<canvas id="c"></canvas>
+<div id="msg"></div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const uiDiv = document.getElementById('ui');
+const msgDiv = document.getElementById('msg');
+
+let w = canvas.width = window.innerWidth;
+let h = canvas.height = window.innerHeight;
+const groundY = h - 30; // ground line y
+
+const blockW = 40;
+const blockH = 20;
+const blockColor = '#8d6e63';
+const previewColor = '#c8e6c9';
+const seedColor = '#ffab00';
+const targetColor = '#ff4081';
+const maxBlocks = 5;
+
+let keys = {};
+let previewX, previewY;
+let stack = []; // each {x, y}
+let seed = { active: false, x: 0, y: 0, vx: 0, vy: 0 };
+let target = { x: w/2, y: 50, r: 10 };
+let score = 0;
+let gameState = 'playing'; // playing, win, lose
+let lastTime = 0;
+
+const gravity = 0.5;
+const launchSpeed = 12;
+const launchAngle = -Math.PI/4; // angle upward
+
+function resize() {
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+  groundY = h - 30;
+  target.x = w/2;
+  // reset preview position if any
+  if (previewX === undefined) initPreview();
+}
+window.addEventListener('resize', resize);
+
+function initPreview() {
+  previewX = w/2;
+  previewY = groundY - 10; // just above ground
+}
+initPreview();
+
+const keyDownHandler = e => {
+  const k = e.key;
+  keys[k] = true;
+  // Prevent default for arrow keys to avoid scroll
+  if (k.startsWith('Arrow')) e.preventDefault();
+};
+const keyUpHandler = e => {
+  const k = e.key;
+  keys[k] = false;
+};
+window.addEventListener('keydown', keyDownHandler);
+window.addEventListener('keyup', keyUpHandler);
+
+function placeBlock() {
+  if (gameState !== 'playing') return;
+  // Create new block at preview position on top of stack
+  const newBlock = { x: previewX, y: previewY - blockH };
+  stack.push(newBlock);
+  // Reset preview to initial position
+  initPreview();
+  // Check stability
+  stabilizeStack();
+  // Update score
+  score = stack.length;
+}
+
+function stabilizeStack() {
+  // Remove any block that is unstable (center outside the block below)
+  // Iterate from top to bottom
+  for (let i = stack.length - 1; i > 0; i--) {
+    const cur = stack[i];
+    const below = stack[i-1];
+    const curLeft = cur.x - blockW/2;
+    const curRight = cur.x + blockW/2;
+    const belowLeft = below.x - blockW/2;
+    const belowRight = below.x + blockW/2;
+    // If current block's horizontal range does not overlap with below's range, remove it
+    if (curRight < belowLeft || curLeft > belowRight) {
+      stack.splice(i, 1);
+      // after removal, re-evaluate from this index again (since blocks above shifted)
+      i++;
+    }
+  }
+  // Also ensure all blocks are within canvas horizontally
+  for (let i = 0; i < stack.length; i++) {
+    const b = stack[i];
+    if (b.x - blockW/2 < 0) b.x = blockW/2;
+    if (b.x + blockW/2 > w) b.x = w - blockW/2;
+  }
+}
+
+function launchSeed() {
+  if (gameState !== 'playing') return;
+  if (stack.length < maxBlocks) {
+    // Not enough blocks, maybe show message
+    return;
+  }
+  // Launch from catapult at bottom center
+  const catX = w/2;
+  const catY = groundY;
+  seed.x = catX;
+  seed.y = catY;
+  // Set velocity based on launch angle
+  const angle = launchAngle;
+  seed.vx = Math.cos(angle) * launchSpeed;
+  seed.vy = Math.sin(angle) * launchSpeed;
+  seed.active = true;
+}
+
+function updateSeed() {
+  if (!seed.active) return;
+  seed.vy += gravity;
+  seed.x += seed.vx;
+  seed.y += seed.vy;
+
+  // Check collision with target
+  const dx = seed.x - target.x;
+  const dy = seed.y - target.y;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist < target.r) {
+    gameState = 'win';
+    seed.active = false;
+    // Show win message
+    msgDiv.textContent = 'You Win!';
+    msgDiv.style.display = 'block';
+    return;
+  }
+
+  // Check if seed fell off screen
+  if (seed.y > h + 10 || seed.x < -10 || seed.x > w + 10) {
+    gameState = 'lose';
+    seed.active = false;
+    msgDiv.textContent = 'Game Over. Press R to restart.';
+    msgDiv.style.display = 'block';
+  }
+}
+
+function drawGround() {
+  ctx.beginPath();
+  ctx.strokeStyle = '#81c784';
+  ctx.lineWidth = 2;
+  ctx.moveTo(0, groundY);
+  ctx.lineTo(w, groundY);
+  ctx.stroke();
+}
+
+function drawBlock(b) {
+  ctx.fillStyle = blockColor;
+  ctx.fillRect(b.x - blockW/2, b.y - blockH/2, blockW, blockH);
+}
+
+function drawPreview() {
+  ctx.fillStyle = previewColor;
+  ctx.fillRect(previewX - blockW/2, previewY - blockH/2, blockW, blockH);
+}
+
+function drawCatapult() {
+  const catX = w/2;
+  const catY = groundY;
+  ctx.fillStyle = '#795da3';
+  // draw a simple triangle
+  ctx.beginPath();
+  ctx.moveTo(catX - 15, catY);
+  ctx.lineTo(catX + 15, catY);
+  ctx.lineTo(catX, catY - 20);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawSeed() {
+  if (!seed.active) return;
+  ctx.beginPath();
+  ctx.fillStyle = seedColor;
+  ctx.arc(seed.x, seed.y, 5, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawTarget() {
+  // flower: central circle
+  ctx.beginPath();
+  ctx.fillStyle = targetColor;
+  ctx.arc(target.x, target.y, target.r, 0, Math.PI*2);
+  ctx.fill();
+  // petals (simple arcs)
+  ctx.strokeStyle = '#c2185b';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 5; i++) {
+    const angle = (Math.PI * 2 * i) / 5;
+    const px = target.x + Math.cos(angle) * (target.r + 8);
+    const py = target.y + Math.sin(angle) * (target.r + 8);
+    ctx.beginPath();
+    ctx.moveTo(target.x, target.y);
+    ctx.lineTo(px, py);
+    ctx.stroke();
+  }
+}
+
+function drawUI() {
+  uiDiv.innerHTML = `Blocks: ${score}/${maxBlocks} | Goal: Stack ${maxBlocks} blocks and launch seed to hit the flower!`;
+}
+
+function resetGame() {
+  stack = [];
+  initPreview();
+  seed.active = false;
+  gameState = 'playing';
+  score = 0;
+  msgDiv.style.display = 'none';
+}
+
+function update(delta) {
+  // Move preview with arrow keys
+  if (keys['ArrowLeft']) previewX -= 5;
+  if (keys['ArrowRight']) previewX += 5;
+  if (keys['ArrowUp']) previewY -= 5;
+  if (keys['ArrowDown']) previewY += 5;
+
+  // Clamp preview within canvas
+  previewX = Math.max(blockW/2, Math.min(w - blockW/2, previewX));
+  previewY = Math.max(blockH/2, Math.min(groundY - blockH/2, previewY));
+
+  // Keyboard actions
+  if (keys['p'] || keys['P']) placeBlock();
+  if (keys['l'] || keys['L']) launchSeed();
+  if (keys['r'] || keys['R']) resetGame();
+
+  // Update seed physics
+  updateSeed();
+}
+
+function draw() {
+  // Clear canvas with background
+  ctx.fillStyle = '#e0f7fa';
+  ctx.fillRect(0, 0, w, h);
+
+  // Draw environment
+  drawGround();
+  drawTarget();
+  drawCatapult();
+
+  // Draw stack
+  for (let i = 0; i < stack.length; i++) {
+    drawBlock(stack[i]);
+  }
+
+  // Draw preview block
+  drawPreview();
+
+  // Draw seed
+  drawSeed();
+
+  // Draw UI
+  drawUI();
+
+  // If game over, maybe dim the screen
+  if (gameState !== 'playing') {
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, 0, w, h);
+  }
+}
+
+function loop(timestamp) {
+  const delta = timestamp - lastTime;
+  lastTime = timestamp;
+  if (gameState === 'playing') {
+    update(delta);
+  }
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// Start the game loop
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-16-block-stacker-launcher";
+  var RELEASE = "365a2e9625bdaf4a0b26ebfbbe548f942e5df907";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

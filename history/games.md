@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-16 — Block Stacker & Launcher
+
+- genre: physics-sandbox
+- theme: A whimsical forest where a gentle tree spirit stacks floating logs and launches a seed to bloom a flower.
+- mechanics: Stack blocks without toppling, Launch seed to hit target, Win by hitting target with stable stack
+- model: cohere/north-mini-code:free
+- attempts: 4
+
 ## 2026-10-15 — Bloomtopia
 
 - genre: growth-sim

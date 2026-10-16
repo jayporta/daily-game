@@ -1,0 +1,40 @@
+{
+  "title": "Block Stacker & Launcher",
+  "genre": "physics-sandbox",
+  "theme": "A whimsical forest where a gentle tree spirit stacks floating logs and launches a seed to bloom a flower.",
+  "mechanics": [
+    "Stack blocks without toppling",
+    "Launch seed to hit target",
+    "Win by hitting target with stable stack"
+  ],
+  "controls": [
+    {
+      "action": "Move block left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "Move block right",
+      "key": "ArrowRight"
+    },
+    {
+      "action": "Move block up",
+      "key": "ArrowUp"
+    },
+    {
+      "action": "Move block down",
+      "key": "ArrowDown"
+    },
+    {
+      "action": "Place block",
+      "key": "P"
+    },
+    {
+      "action": "Launch seed",
+      "key": "L"
+    },
+    {
+      "action": "Restart game",
+      "key": "R"
+    }
+  ]
+}
