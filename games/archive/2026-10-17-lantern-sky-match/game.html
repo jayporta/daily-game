@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Lantern Sky Match</title>
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0b1020; color:#fff; font-family:Arial, Helvetica, sans-serif; }
+#gameContainer { width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+#objective { font-size:22px; margin-bottom:10px; text-align:center; }
+#info { font-size:20px; margin-bottom:10px; text-align:center; }
+canvas { display:block; background:#1a2030; border:2px solid #3a4050; box-shadow:0 0 20px #000; }
+#message { font-size:28px; color:#ffdd44; margin-top:10px; text-align:center; }
+#restart { margin-top:20px; padding:10px 20px; font-size:20px; display:none; }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+<div id="objective">Objective: Clear all lanterns within 30 moves to win!</div>
+<div id="info">Moves left: 30</div>
+<canvas id="gameCanvas"></canvas>
+<div id="message"></div>
+<button id="restart">Play Again</button>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const objectiveDiv = document.getElementById('objective');
+const infoDiv = document.getElementById('info');
+const messageDiv = document.getElementById('message');
+const restartBtn = document.getElementById('restart');
+
+const COLS = 5;
+const ROWS = 4;
+const MOVE_LIMIT = 30;
+let CELL_SIZE = 60;
+let board = [];
+let selected = null;
+let movesLeft = MOVE_LIMIT;
+let win = false;
+let gameOver = false;
+
+const COLORS = ['#FF5555', '#55FF55', '#5555FF', '#FFFF55', '#FF55FF'];
+
+function resize() {
+  const container = document.getElementById('gameContainer');
+  const cw = container.clientWidth;
+  const ch = container.clientHeight;
+  const cellSize = Math.floor(Math.min(cw / COLS, ch / ROWS));
+  CELL_SIZE = cellSize;
+  canvas.width = COLS * cellSize;
+  canvas.height = ROWS * cellSize;
+}
+window.addEventListener('resize', resize);
+resize();
+
+function randomColor() {
+  return Math.floor(Math.random() * COLORS.length);
+}
+
+function createBoard() {
+  board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      board[r][c] = randomColor();
+    }
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = c * CELL_SIZE;
+      const y = r * CELL_SIZE;
+      const color = board[r][c];
+      ctx.save();
+      if (color !== null) {
+        ctx.fillStyle = COLORS[color];
+        ctx.shadowColor = COLORS[color];
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(x + CELL_SIZE/2, y + CELL_SIZE/2, CELL_SIZE/2 - 6, 0, Math.PI*2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+      }
+      ctx.restore();
+      ctx.strokeStyle = '#ddd';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
+    }
+  }
+  if (selected !== null) {
+    const [sr, sc] = selected;
+    const x = sc * CELL_SIZE;
+    const y = sr * CELL_SIZE;
+    ctx.save();
+    ctx.strokeStyle = '#ff0';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x, y, CELL_SIZE, CELL_SIZE);
+    ctx.restore();
+  }
+  infoDiv.textContent = `Moves left: ${movesLeft}`;
+  if (win) {
+    messageDiv.textContent = 'You win!';
+    restartBtn.style.display = 'inline';
+  } else if (gameOver) {
+    messageDiv.textContent = 'Game over!';
+    restartBtn.style.display = 'inline';
+  } else {
+    messageDiv.textContent = '';
+    restartBtn.style.display = 'none';
+  }
+}
+
+function swap(r1, c1, r2, c2) {
+  const tmp = board[r1][c1];
+  board[r1][c1] = board[r2][c2];
+  board[r2][c2] = tmp;
+}
+
+function findMatches() {
+  const toClear = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const color = board[r][c];
+      if (color === null) continue;
+      const horiz = [[r, c]];
+      for (let dc = 1; dc < 3; dc++) {
+        if (c + dc < COLS && board[r][c + dc] === color) {
+          horiz.push([r, c + dc]);
+        } else {
+          break;
+        }
+      }
+      if (horiz.length >= 3) {
+        horiz.forEach(pos => toClear.push(pos));
+      }
+      const vert = [[r, c]];
+      for (let dr = 1; dr < 3; dr++) {
+        if (r + dr < ROWS && board[r + dr][c] === color) {
+          vert.push([r + dr, c]);
+        } else {
+          break;
+        }
+      }
+      if (vert.length >= 3) {
+        vert.forEach(pos => {
+          if (!toClear.some(p => p[0] === pos[0] && p[1] === pos[1])) {
+            toClear.push(pos);
+          }
+        });
+      }
+    }
+  }
+  return toClear;
+}
+
+function gravity() {
+  for (let c = 0; c < COLS; c++) {
+    const column = [];
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (board[r][c] !== null) {
+        column.push(board[r][c]);
+      }
+    }
+    let idx = 0;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (idx < column.length) {
+        board[r][c] = column[idx];
+        idx++;
+      } else {
+        board[r][c] = randomColor();
+      }
+    }
+  }
+}
+
+function processMatches() {
+  const toClear = findMatches();
+  if (toClear.length > 0) {
+    toClear.forEach(([r, c]) => {
+      board[r][c] = null;
+    });
+    gravity();
+    processMatches();
+  } else {
+    checkGameState();
+  }
+}
+
+function checkGameState() {
+  let anyTile = false;
+  for (let r = 0; r < ROWS && !anyTile; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] !== null) {
+        anyTile = true;
+        break;
+      }
+    }
+  }
+  if (!anyTile) {
+    win = true;
+    gameOver = true;
+    draw();
+    return;
+  }
+  if (movesLeft <= 0) {
+    gameOver = true;
+    draw();
+    return;
+  }
+}
+
+function onClick(e) {
+  if (gameOver || win) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const c = Math.floor(x / CELL_SIZE);
+  const r = Math.floor(y / CELL_SIZE);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+  if (selected === null) {
+    selected = [r, c];
+  } else {
+    const [sr, sc] = selected;
+    const dr = Math.abs(sr - r);
+    const dc = Math.abs(sc - c);
+    if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+      swap(sr, sc, r, c);
+      selected = null;
+      movesLeft--;
+      processMatches();
+    } else {
+      selected = [r, c];
+    }
+  }
+  draw();
+}
+
+canvas.addEventListener('click', onClick);
+
+function startGame() {
+  createBoard();
+  movesLeft = MOVE_LIMIT;
+  selected = null;
+  win = false;
+  gameOver = false;
+  draw();
+}
+
+restartBtn.addEventListener('click', startGame);
+
+startGame();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-17-lantern-sky-match";
+  var RELEASE = "eaa069c40a83b2e9ee967d400fd67381b445b90a";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

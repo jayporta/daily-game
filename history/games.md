@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-17 — Lantern Sky Match
+
+- genre: tile-matching
+- theme: A whimsical sky of floating lanterns
+- mechanics: Swap adjacent lanterns to match colors, Clear matched sets and apply gravity, Win by clearing all lanterns within the move limit
+- model: cohere/north-mini-code:free
+- attempts: 4
+
 ## 2026-10-16 — Block Stacker & Launcher
 
 - genre: physics-sandbox
@@ -9,9 +17,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Stack blocks without toppling, Launch seed to hit target, Win by hitting target with stable stack
 - model: cohere/north-mini-code:free
 - attempts: 4
-- reactions: 0
+- reactions: -1
 - likes: 0
-- dislikes: 0
+- dislikes: 1
+- disliked for: goal-unclear: 1
 
 ## 2026-10-15 — Bloomtopia
 

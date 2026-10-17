@@ -1,0 +1,16 @@
+{
+  "title": "Lantern Sky Match",
+  "genre": "tile-matching",
+  "theme": "A whimsical sky of floating lanterns",
+  "mechanics": [
+    "Swap adjacent lanterns to match colors",
+    "Clear matched sets and apply gravity",
+    "Win by clearing all lanterns within the move limit"
+  ],
+  "controls": [
+    {
+      "action": "Click to select and swap adjacent lanter",
+      "key": "Click"
+    }
+  ]
+}

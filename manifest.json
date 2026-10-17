@@ -1,42 +1,18 @@
 {
-  "date": "2026-10-16",
-  "slug": "2026-10-16-block-stacker-launcher",
-  "path": "games/archive/2026-10-16-block-stacker-launcher/game.html",
-  "promptPath": "games/archive/2026-10-16-block-stacker-launcher/prompt.txt",
-  "title": "Block Stacker & Launcher",
-  "genre": "physics-sandbox",
-  "genreLabel": "Physics Sandbox",
+  "date": "2026-10-17",
+  "slug": "2026-10-17-lantern-sky-match",
+  "path": "games/archive/2026-10-17-lantern-sky-match/game.html",
+  "promptPath": "games/archive/2026-10-17-lantern-sky-match/prompt.txt",
+  "title": "Lantern Sky Match",
+  "genre": "tile-matching",
+  "genreLabel": "Tile Matching",
   "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-16T19:00:51.021Z",
-  "expiresAt": "2026-10-17T19:00:00.000Z",
+  "generatedAt": "2026-10-17T19:00:43.913Z",
+  "expiresAt": "2026-10-18T19:00:00.000Z",
   "controls": [
     {
-      "action": "Move block left",
-      "key": "ArrowLeft"
-    },
-    {
-      "action": "Move block right",
-      "key": "ArrowRight"
-    },
-    {
-      "action": "Move block up",
-      "key": "ArrowUp"
-    },
-    {
-      "action": "Move block down",
-      "key": "ArrowDown"
-    },
-    {
-      "action": "Place block",
-      "key": "P"
-    },
-    {
-      "action": "Launch seed",
-      "key": "L"
-    },
-    {
-      "action": "Restart game",
-      "key": "R"
+      "action": "Click to select and swap adjacent lanter",
+      "key": "Click"
     }
   ]
 }

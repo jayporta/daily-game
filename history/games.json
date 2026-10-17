@@ -1328,8 +1328,43 @@
     ],
     "quotaAffected": true,
     "likes": 0,
-    "dislikes": 0,
-    "dislikeReasons": {},
-    "popularityScore": 0
+    "dislikes": 1,
+    "dislikeReasons": {
+      "goal-unclear": 1
+    },
+    "popularityScore": -1
+  },
+  {
+    "date": "2026-10-17",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-10-17-lantern-sky-match",
+    "genre": "tile-matching",
+    "theme": "A whimsical sky of floating lanterns",
+    "mechanics": [
+      "Swap adjacent lanterns to match colors",
+      "Clear matched sets and apply gravity",
+      "Win by clearing all lanterns within the move limit"
+    ],
+    "title": "Lantern Sky Match",
+    "attempts": 4,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-failover",
+      "moderation-unreachable",
+      "generation-call",
+      "generation-call",
+      "generation-failover",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
+    "quotaAffected": true
   }
 ]
