@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Swap adjacent lanterns to match colors, Clear matched sets and apply gravity, Win by clearing all lanterns within the move limit
 - model: cohere/north-mini-code:free
 - attempts: 4
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-16 — Block Stacker & Launcher
 
