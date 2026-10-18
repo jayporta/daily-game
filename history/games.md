@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-18 — Robot Hopper
+
+- genre: platformer
+- theme: A whimsical sky of floating platforms where a tiny robot collects gears.
+- mechanics: Move left/right and jump to navigate floating platforms, Collect gears (coins) to reach the goal flag, Avoid moving obstacles like rolling boulders
+- model: cohere/north-mini-code:free
+- attempts: 5
+
 ## 2026-10-17 — Lantern Sky Match
 
 - genre: tile-matching

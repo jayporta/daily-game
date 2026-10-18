@@ -1,0 +1,20 @@
+{
+  "title": "Robot Hopper",
+  "genre": "platformer",
+  "theme": "A whimsical sky of floating platforms where a tiny robot collects gears.",
+  "mechanics": [
+    "Move left/right and jump to navigate floating platforms",
+    "Collect gears (coins) to reach the goal flag",
+    "Avoid moving obstacles like rolling boulders"
+  ],
+  "controls": [
+    {
+      "action": "move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "move right",
+      "key": "ArrowRight"
+    }
+  ]
+}

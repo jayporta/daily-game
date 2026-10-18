@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Robot Hopper</title>
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #87CEEB; /* sky blue */
+    font-family: Arial, sans-serif;
+    user-select: none;
+}
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+#ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: #fff;
+    text-shadow: 0 0 4px #000;
+    pointer-events: none;
+}
+#message {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    text-align: center;
+    color: #fff;
+    font-size: 2em;
+    text-shadow: 0 0 6px #000;
+    pointer-events: none;
+    display: none;
+}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui"></div>
+<div id="message"></div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const uiDiv = document.getElementById('ui');
+const msgDiv = document.getElementById('message');
+
+let width, height;
+let running = false;
+let gameOver = false;
+let win = false;
+
+// Game objects
+const robot = {
+    x: 100,
+    y: 0,
+    w: 30,
+    h: 30,
+    vx: 0,
+    vy: 0,
+    onGround: false
+};
+
+const gravity = 0.6;
+const jumpStrength = -12;
+const moveSpeed = 5;
+
+const platforms = [];
+const coins = [];
+const enemies = [];
+
+// Level data (built for a typical screen size, will scale)
+function buildLevel() {
+    // Clear previous
+    platforms.length = 0;
+    coins.length = 0;
+    enemies.length = 0;
+
+    // Ground
+    platforms.push({x: 0, y: height - 40, w: width, h: 40});
+
+    // Floating platforms (static)
+    platforms.push({x: 200, y: height - 200, w: 150, h: 20});
+    platforms.push({x: 500, y: height - 350, w: 150, h: 20});
+    platforms.push({x: 800, y: height - 150, w: 150, h: 20});
+    platforms.push({x: 1100, y: height - 300, w: 150, h: 20});
+
+    // Coins to collect
+    coins.push({x: 250, y: height - 190, r: 8});
+    coins.push({x: 550, y: height - 340, r: 8});
+    coins.push({x: 850, y: height - 140, r: 8});
+    coins.push({x: 1150, y: height - 290, r: 8});
+    coins.push({x: 400, y: height - 80, r: 8}); // on ground
+
+    // Moving enemy (boulder)
+    enemies.push({
+        x: 600,
+        y: height - 80,
+        w: 40,
+        h: 40,
+        dx: 2
+    });
+
+    // Goal flag at top right
+    // store flag separately
+}
+
+// State
+let collected = 0;
+const requiredCoins = 3;
+const maxCoins = coins.length;
+
+// Input handling
+const keys = {};
+function keyDown(e) {
+    if (e.key === ' ') e.preventDefault(); // prevent space scroll
+    keys[e.key] = true;
+}
+function keyUp(e) {
+    keys[e.key] = false;
+}
+window.addEventListener('keydown', keyDown);
+window.addEventListener('keyup', keyUp);
+
+// Resize handling
+function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    buildLevel();
+    // place robot at start
+    robot.x = 100;
+    robot.y = height - 100;
+    robot.vy = 0;
+    collected = 0;
+    gameOver = false;
+    win = false;
+    running = true;
+    requestAnimationFrame(gameLoop);
+}
+window.addEventListener('resize', resize);
+
+// Restart game
+function restart() {
+    buildLevel();
+    robot.x = 100;
+    robot.y = height - 100;
+    robot.vy = 0;
+    collected = 0;
+    gameOver = false;
+    win = false;
+    running = true;
+    msgDiv.style.display = 'none';
+    requestAnimationFrame(gameLoop);
+}
+
+// Game loop
+function gameLoop() {
+    if (!running) return;
+
+    // Update
+    updateRobot();
+
+    // Check win/lose
+    if (!gameOver) {
+        if (collected >= requiredCoins && checkFlag()) {
+            win = true;
+            gameOver = true;
+        }
+        if (robot.y > height || robot.x < -robot.w || robot.x > width) {
+            win = false;
+            gameOver = true;
+        }
+    }
+
+    // Draw
+    draw();
+
+    // Show game over/win message
+    if (gameOver) {
+        running = false;
+        if (win) {
+            msgDiv.textContent = `You Win! Collected ${collected}/${requiredCoins} gears.`;
+        } else {
+            msgDiv.textContent = `Game Over. Collected ${collected}/${requiredCoins} gears.`;
+        }
+        msgDiv.style.display = 'block';
+        // Wait a tick then allow restart with any key
+        setTimeout(() => {
+            const anyKeyListener = (e) => {
+                restart();
+                window.removeEventListener('keydown', anyKeyListener);
+            };
+            window.addEventListener('keydown', anyKeyListener);
+        }, 500);
+        return;
+    }
+
+    requestAnimationFrame(gameLoop);
+}
+
+// Update robot physics and collisions
+function updateRobot() {
+    // Horizontal movement
+    robot.vx = 0;
+    if (keys['ArrowLeft']) robot.vx = -moveSpeed;
+    if (keys['ArrowRight']) robot.vx = moveSpeed;
+    robot.x += robot.vx;
+
+    // Apply gravity
+    robot.vy += gravity;
+    robot.y += robot.vy;
+
+    // Platform collision
+    robot.onGround = false;
+    for (let i = 0; i < platforms.length; i++) {
+        const p = platforms[i];
+        // Check if robot is moving downwards and intersects platform top
+        if (robot.vy > 0 &&
+            robot.x + robot.w > p.x &&
+            robot.x < p.x + p.w &&
+            robot.y + robot.h >= p.y &&
+            robot.y < p.y) {
+            // Land on platform
+            robot.y = p.y - robot.h;
+            robot.vy = 0;
+            robot.onGround = true;
+        }
+    }
+
+    // Jump
+    if (keys[' '] && robot.onGround) {
+        robot.vy = jumpStrength;
+        robot.onGround = false;
+    }
+
+    // Collect coins
+    for (let i = coins.length - 1; i >= 0; i--) {
+        const c = coins[i];
+        const dx = robot.x + robot.w/2 - (c.x);
+        const dy = robot.y + robot.h/2 - (c.y);
+        if (dx*dx + dy*dy < (robot.w/2 + c.r)*(robot.w/2 + c.r)) {
+            coins.splice(i, 1);
+            collected++;
+        }
+    }
+
+    // Enemy movement and collision
+    for (let i = 0; i < enemies.length; i++) {
+        const e = enemies[i];
+        e.x += e.dx;
+        if (e.x < 0 || e.x + e.w > width) {
+            e.dx = -e.dx;
+        }
+
+        // Robot vs enemy
+        if (robot.x + robot.w > e.x &&
+            robot.x < e.x + e.w &&
+            robot.y + robot.h > e.y &&
+            robot.y < e.y + e.h) {
+            win = false;
+            gameOver = true;
+        }
+    }
+}
+
+// Check if robot reached flag
+function checkFlag() {
+    const flag = {x: width - 120, y: 40, w: 60, h: 80};
+    return robot.x + robot.w > flag.x &&
+           robot.x < flag.x + flag.w &&
+           robot.y + robot.h > flag.y &&
+           robot.y < flag.y + flag.h &&
+           collected >= requiredCoins;
+}
+
+// Draw everything
+function draw() {
+    ctx.clearRect(0, 0, width, height);
+
+    // Draw platforms
+    ctx.fillStyle = '#2e7d32';
+    for (const p of platforms) {
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+    }
+
+    // Draw coins
+    ctx.fillStyle = '#ffd700';
+    for (const c of coins) {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    // Draw robot (simple square with a face)
+    ctx.fillStyle = '#1976d2';
+    ctx.fillRect(robot.x, robot.y, robot.w, robot.h);
+    // Simple eyes
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(robot.x + 8, robot.y + 8, 6, 6);
+    ctx.fillRect(robot.x + 16, robot.y + 8, 6, 6);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(robot.x + 10, robot.y + 10, 2, 2);
+    ctx.fillRect(robot.x + 18, robot.y + 10, 2, 2);
+
+    // Draw enemies
+    ctx.fillStyle = '#e53935';
+    for (const e of enemies) {
+        ctx.fillRect(e.x, e.y, e.w, e.h);
+    }
+
+    // Draw flag (pole + flag)
+    ctx.fillStyle = '#aaa';
+    ctx.fillRect(width - 110, 10, 10, 120);
+    ctx.fillStyle = '#c62828';
+    ctx.fillRect(width - 120, 40, 60, 80);
+
+    // UI text
+    ctx.save();
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px Arial';
+    ctx.fillText(`Gears: ${collected}/${requiredCoins}`, 20, 40);
+    ctx.fillText('Press SPACE to jump', 20, 70);
+    ctx.restore();
+}
+
+// Start
+resize();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-18-robot-hopper";
+  var RELEASE = "7870a9628334b47ce758ef80e4a6fe4e8561b808";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

@@ -1,18 +1,22 @@
 {
-  "date": "2026-10-17",
-  "slug": "2026-10-17-lantern-sky-match",
-  "path": "games/archive/2026-10-17-lantern-sky-match/game.html",
-  "promptPath": "games/archive/2026-10-17-lantern-sky-match/prompt.txt",
-  "title": "Lantern Sky Match",
-  "genre": "tile-matching",
-  "genreLabel": "Tile Matching",
+  "date": "2026-10-18",
+  "slug": "2026-10-18-robot-hopper",
+  "path": "games/archive/2026-10-18-robot-hopper/game.html",
+  "promptPath": "games/archive/2026-10-18-robot-hopper/prompt.txt",
+  "title": "Robot Hopper",
+  "genre": "platformer",
+  "genreLabel": "Platformer",
   "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-17T19:00:43.913Z",
-  "expiresAt": "2026-10-18T19:00:00.000Z",
+  "generatedAt": "2026-10-18T19:00:53.032Z",
+  "expiresAt": "2026-10-19T19:00:00.000Z",
   "controls": [
     {
-      "action": "Click to select and swap adjacent lanter",
-      "key": "Click"
+      "action": "move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "move right",
+      "key": "ArrowRight"
     }
   ]
 }

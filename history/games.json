@@ -1370,5 +1370,38 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-10-18",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-10-18-robot-hopper",
+    "genre": "platformer",
+    "theme": "A whimsical sky of floating platforms where a tiny robot collects gears.",
+    "mechanics": [
+      "Move left/right and jump to navigate floating platforms",
+      "Collect gears (coins) to reach the goal flag",
+      "Avoid moving obstacles like rolling boulders"
+    ],
+    "title": "Robot Hopper",
+    "attempts": 5,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "extract",
+      "moderation-unreachable",
+      "generation-call",
+      "extract",
+      "generation-failover",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
+    "quotaAffected": true
   }
 ]
