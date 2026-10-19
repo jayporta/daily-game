@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Place towers along a path to block invading storm clouds, Earn coins over time to purchase and upgrade towers, Survive all waves to win
 - model: cohere/north-mini-code:free
 - attempts: 7
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-18 — Robot Hopper
 
