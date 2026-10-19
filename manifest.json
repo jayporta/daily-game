@@ -1,22 +1,22 @@
 {
-  "date": "2026-10-18",
-  "slug": "2026-10-18-robot-hopper",
-  "path": "games/archive/2026-10-18-robot-hopper/game.html",
-  "promptPath": "games/archive/2026-10-18-robot-hopper/prompt.txt",
-  "title": "Robot Hopper",
-  "genre": "platformer",
-  "genreLabel": "Platformer",
+  "date": "2026-10-19",
+  "slug": "2026-10-19-mushroom-guard",
+  "path": "games/archive/2026-10-19-mushroom-guard/game.html",
+  "promptPath": "games/archive/2026-10-19-mushroom-guard/prompt.txt",
+  "title": "Mushroom Guard",
+  "genre": "tower-defense",
+  "genreLabel": "Tower Defense",
   "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-18T19:00:53.032Z",
-  "expiresAt": "2026-10-19T19:00:00.000Z",
+  "generatedAt": "2026-10-19T19:00:53.786Z",
+  "expiresAt": "2026-10-20T19:00:00.000Z",
   "controls": [
     {
-      "action": "move left",
-      "key": "ArrowLeft"
+      "action": "Place a tower",
+      "key": "Left click"
     },
     {
-      "action": "move right",
-      "key": "ArrowRight"
+      "action": "Upgrade a tower",
+      "key": "Right click"
     }
   ]
 }

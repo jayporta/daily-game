@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Mushroom Guard</title>
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#e0f7fa; }
+canvas { display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let w = window.innerWidth;
+let h = window.innerHeight;
+canvas.width = w;
+canvas.height = h;
+
+const CELL_SIZE = 40; // fixed cell size, grid scales with window
+let GRID_WIDTH = Math.floor(w / CELL_SIZE);
+let GRID_HEIGHT = Math.floor(h / CELL_SIZE);
+
+let path = [];
+
+// Constants
+const TOWER_COST = 50;
+const UPGRADE_COST = 30;
+const MAX_WAVES = 10;
+const ENEMY_HEALTH = 3;
+const ENEMY_REWARD = 10;
+const ENEMY_SPEED = 0.12; // pixels per millisecond
+const COIN_PER_SEC = 1; // coins per second
+const PROJECTILE_SPEED = 0.2; // pixels per millisecond
+
+// Game state
+const state = {
+  coins: 0,
+  wave: 1,
+  maxWaves: MAX_WAVES,
+  towers: [],
+  enemies: [],
+  projectiles: [],
+  selectedTower: null,
+  gameOver: false,
+  win: false,
+  lastFrameTime: 0,
+};
+
+// Helper functions
+function isPathCell(x, y) {
+  return path.some(p => p.x === x && p.y === y);
+}
+function isTowerAt(x, y) {
+  return state.towers.some(t => t.x === x && t.y === y);
+}
+function getMouseGrid(e) {
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  return {
+    x: Math.floor(mx / CELL_SIZE),
+    y: Math.floor(my / CELL_SIZE)
+  };
+}
+
+// Path generation (Z‑shape)
+function generatePath() {
+  path = [];
+  // start top middle
+  const startX = Math.floor(GRID_WIDTH / 2);
+  const startY = 0;
+  path.push({x: startX, y: startY});
+  // go down to middle row
+  for (let y = startY + 1; y < Math.floor(GRID_HEIGHT / 2); y++) {
+    path.push({x: startX, y: y});
+  }
+  // go right to right side at middle row
+  for (let x = startX + 1; x < GRID_WIDTH - 1; x++) {
+    path.push({x: x, y: Math.floor(GRID_HEIGHT / 2)});
+  }
+  // go down to bottom
+  for (let y = Math.floor(GRID_HEIGHT / 2) + 1; y < GRID_HEIGHT - 1; y++) {
+    path.push({x: GRID_WIDTH - 2, y: y});
+  }
+  // final cell
+  path.push({x: GRID_WIDTH - 2, y: GRID_HEIGHT - 1});
+}
+
+// Tower class
+function Tower(gx, gy) {
+  this.x = gx;
+  this.y = gy;
+  this.damage = 1;
+  this.range = 3; // cells
+  this.cooldown = 1000; // ms
+  this.lastShot = 0;
+  this.level = 0;
+  this.selected = false;
+}
+Tower.prototype.upgrade = function() {
+  this.level++;
+  this.damage++;
+  this.range++;
+  this.cooldown = Math.max(300, this.cooldown - 200);
+  this.lastShot = 0;
+};
+
+// Enemy class
+function Enemy(pathIdx) {
+  this.pathIdx = pathIdx;
+  this.health = ENEMY_HEALTH;
+  this.reward = ENEMY_REWARD;
+  this.speed = ENEMY_SPEED;
+  const cell = path[pathIdx];
+  this.x = cell.x * CELL_SIZE + CELL_SIZE / 2;
+  this.y = cell.y * CELL_SIZE + CELL_SIZE / 2;
+}
+
+// Projectile class
+function Projectile(sx, sy, tx, ty, damage) {
+  this.x = sx;
+  this.y = sy;
+  this.targetX = tx;
+  this.targetY = ty;
+  this.damage = damage;
+  const dist = Math.hypot(tx - sx, ty - sy);
+  this.speed = PROJECTILE_SPEED;
+  this.travelTime = dist / this.speed; // ms
+  this.elapsed = 0;
+}
+
+// Spawn a wave of enemies
+function spawnWave(waveNum) {
+  const count = 3 + (waveNum - 1) * 2;
+  for (let i = 0; i < count; i++) {
+    state.enemies.push(new Enemy(0));
+  }
+}
+
+// Place a tower
+function placeTower(gx, gy) {
+  if (state.coins >= TOWER_COST && !isTowerAt(gx, gy) && !isPathCell(gx, gy)) {
+    state.towers.push(new Tower(gx, gy));
+    state.coins -= TOWER_COST;
+  }
+}
+
+// Upgrade selected tower
+function upgradeTower(tower) {
+  if (state.coins >= UPGRADE_COST && tower) {
+    tower.upgrade();
+    state.coins -= UPGRADE_COST;
+  }
+}
+
+// Reset game
+function resetGame() {
+  state.coins = 0;
+  state.wave = 1;
+  state.towers = [];
+  state.enemies = [];
+  state.projectiles = [];
+  state.selectedTower = null;
+  state.gameOver = false;
+  state.win = false;
+  spawnWave(state.wave);
+}
+
+// Drawing functions
+function drawPath() {
+  if (path.length < 2) return;
+  ctx.beginPath();
+  ctx.strokeStyle = '#8b4513';
+  ctx.lineWidth = CELL_SIZE / 2;
+  const first = path[0];
+  ctx.moveTo(first.x * CELL_SIZE + CELL_SIZE / 2, first.y * CELL_SIZE + CELL_SIZE / 2);
+  for (let i = 1; i < path.length; i++) {
+    const p = path[i];
+    ctx.lineTo(p.x * CELL_SIZE + CELL_SIZE / 2, p.y * CELL_SIZE + CELL_SIZE / 2);
+  }
+  ctx.stroke();
+}
+
+function drawTower(t) {
+  const cx = t.x * CELL_SIZE + CELL_SIZE / 2;
+  const cy = t.y * CELL_SIZE + CELL_SIZE / 2;
+  ctx.fillStyle = '#90ee90';
+  ctx.beginPath();
+  ctx.arc(cx, cy, CELL_SIZE / 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ff69b4';
+  ctx.beginPath();
+  ctx.arc(cx, cy - CELL_SIZE / 6, CELL_SIZE / 4, 0, Math.PI * 2);
+  ctx.fill();
+  if (t.selected) {
+    ctx.strokeStyle = 'yellow';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, CELL_SIZE / 3 + 5, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawEnemy(e) {
+  ctx.fillStyle = '#808080';
+  ctx.beginPath();
+  ctx.arc(e.x, e.y, CELL_SIZE / 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawProjectile(p) {
+  ctx.fillStyle = '#ff0000';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, CELL_SIZE / 6, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawUI() {
+  ctx.fillStyle = '#000';
+  ctx.font = '20px sans-serif';
+  ctx.fillText(`Coins: ${Math.floor(state.coins)}`, 20, 30);
+  ctx.fillText(`Wave: ${state.wave} / ${state.maxWaves}`, 20, 60);
+  ctx.font = '16px sans-serif';
+  ctx.fillText('Place towers to stop the storm clouds. Survive all waves to win.', 20, h - 20);
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#fff';
+  ctx.font = '40px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Game Over', w / 2, h / 2);
+  ctx.font = '20px sans-serif';
+  ctx.fillText('Press R to restart', w / 2, h / 2 + 40);
+}
+
+function drawWin() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#fff';
+  ctx.font = '40px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('You Win!', w / 2, h / 2);
+  ctx.font = '20px sans-serif';
+  ctx.fillText('Press R to restart', w / 2, h / 2 + 40);
+}
+
+// Game loop
+function gameLoop(timestamp) {
+  if (!state.lastFrameTime) state.lastFrameTime = timestamp;
+  const deltaTime = timestamp - state.lastFrameTime;
+  state.lastFrameTime = timestamp;
+
+  // Coin accumulation
+  state.coins += COIN_PER_SEC * deltaTime / 1000;
+
+  // Tower shooting
+  for (const tower of state.towers) {
+    tower.selected = (tower === state.selectedTower);
+    if (timestamp - tower.lastShot < tower.cooldown) continue;
+
+    let nearest = null;
+    let minDist = Infinity;
+    for (const enemy of state.enemies) {
+      const dx = enemy.x - (tower.x * CELL_SIZE + CELL_SIZE / 2);
+      const dy = enemy.y - (tower.y * CELL_SIZE + CELL_SIZE / 2);
+      const dist = Math.hypot(dx, dy);
+      if (dist <= tower.range * CELL_SIZE && dist < minDist) {
+        minDist = dist;
+        nearest = enemy;
+      }
+    }
+    if (nearest) {
+      state.projectiles.push(new Projectile(
+        tower.x * CELL_SIZE + CELL_SIZE / 2,
+        tower.y * CELL_SIZE + CELL_SIZE / 2,
+        nearest.x,
+        nearest.y,
+        tower.damage
+      ));
+      tower.lastShot = timestamp;
+    }
+  }
+
+  // Update enemies
+  for (const enemy of state.enemies) {
+    if (enemy.pathIdx >= path.length - 1) {
+      state.gameOver = true;
+      break;
+    }
+    const cur = path[enemy.pathIdx];
+    const nxt = path[enemy.pathIdx + 1];
+    const tx = nxt.x * CELL_SIZE + CELL_SIZE / 2;
+    const ty = nxt.y * CELL_SIZE + CELL_SIZE / 2;
+    const dx = tx - enemy.x;
+    const dy = ty - enemy.y;
+    const dist = Math.hypot(dx, dy);
+    const move = enemy.speed * deltaTime;
+    if (move >= dist) {
+      enemy.x = tx;
+      enemy.y = ty;
+      enemy.pathIdx++;
+    } else {
+      const angle = Math.atan2(dy, dx);
+      enemy.x += Math.cos(angle) * move;
+      enemy.y += Math.sin(angle) * move;
+    }
+  }
+
+  // Update projectiles
+  for (let i = state.projectiles.length - 1; i >= 0; i--) {
+    const p = state.projectiles[i];
+    p.elapsed += deltaTime;
+    if (p.elapsed >= p.travelTime) {
+      // apply damage
+      let hit = false;
+      for (let j = state.enemies.length - 1; j >= 0; j--) {
+        const e = state.enemies[j];
+        const d = Math.hypot(e.x - p.x, e.y - p.y);
+        if (d < CELL_SIZE / 2) {
+          e.health -= p.damage;
+          if (e.health <= 0) {
+            state.enemies.splice(j, 1);
+            state.coins += e.reward;
+          }
+          hit = true;
+          break;
+        }
+      }
+      state.projectiles.splice(i, 1);
+    } else {
+      const angle = Math.atan2(p.targetY - p.y, p.targetX - p.x);
+      p.x += Math.cos(angle) * p.speed * deltaTime;
+      p.y += Math.sin(angle) * p.speed * deltaTime;
+    }
+  }
+
+  // Wave management
+  if (state.enemies.length === 0 && state.wave < state.maxWaves) {
+    state.wave++;
+    spawnWave(state.wave);
+  }
+  if (state.wave > state.maxWaves && state.enemies.length === 0) {
+    state.win = true;
+  }
+
+  // Drawing
+  ctx.clearRect(0, 0, w, h);
+  drawPath();
+  for (const t of state.towers) drawTower(t);
+  for (const e of state.enemies) drawEnemy(e);
+  for (const p of state.projectiles) drawProjectile(p);
+  drawUI();
+  if (state.gameOver) drawGameOver();
+  if (state.win) drawWin();
+
+  requestAnimationFrame(gameLoop);
+}
+
+// Input handling
+function onMouseDown(e) {
+  const pos = getMouseGrid(e);
+  // check if click on a tower
+  let clickedTower = null;
+  for (const t of state.towers) {
+    if (t.x === pos.x && t.y === pos.y) {
+      clickedTower = t;
+      break;
+    }
+  }
+  if (e.button === 0) { // left click
+    if (clickedTower) {
+      state.selectedTower = clickedTower;
+    } else {
+      placeTower(pos.x, pos.y);
+    }
+  } else if (e.button === 2) { // right click
+    if (clickedTower) {
+      upgradeTower(clickedTower);
+    }
+  }
+  e.preventDefault();
+}
+
+// Keyboard restart
+function onKeyDown(e) {
+  if (e.key === 'r' || e.key === 'R') {
+    if (state.gameOver || state.win) {
+      resetGame();
+    }
+  }
+}
+
+// Resize handling
+function onResize() {
+  w = window.innerWidth;
+  h = window.innerHeight;
+  canvas.width = w;
+  canvas.height = h;
+  GRID_WIDTH = Math.floor(w / CELL_SIZE);
+  GRID_HEIGHT = Math.floor(h / CELL_SIZE);
+  generatePath();
+}
+
+// Initialization
+window.addEventListener('resize', onResize);
+canvas.addEventListener('mousedown', onMouseDown);
+document.addEventListener('keydown', onKeyDown);
+onResize();
+generatePath();
+spawnWave(state.wave);
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-19-mushroom-guard";
+  var RELEASE = "5f0ba5699beb42ec79ae05409fc3ef903cd204bb";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

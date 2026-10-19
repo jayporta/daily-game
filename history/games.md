@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-19 — Mushroom Guard
+
+- genre: tower-defense
+- theme: A whimsical garden where cute mushroom towers protect sparkling blossoms from swirling storm clouds.
+- mechanics: Place towers along a path to block invading storm clouds, Earn coins over time to purchase and upgrade towers, Survive all waves to win
+- model: cohere/north-mini-code:free
+- attempts: 7
+
 ## 2026-10-18 — Robot Hopper
 
 - genre: platformer
@@ -9,9 +17,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Move left/right and jump to navigate floating platforms, Collect gears (coins) to reach the goal flag, Avoid moving obstacles like rolling boulders
 - model: cohere/north-mini-code:free
 - attempts: 5
-- reactions: 0
+- reactions: -1
 - likes: 0
-- dislikes: 0
+- dislikes: 1
+- disliked for: gameplay-broken: 1
 
 ## 2026-10-17 — Lantern Sky Match
 

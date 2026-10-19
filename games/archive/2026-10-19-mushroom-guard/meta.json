@@ -1,0 +1,20 @@
+{
+  "title": "Mushroom Guard",
+  "genre": "tower-defense",
+  "theme": "A whimsical garden where cute mushroom towers protect sparkling blossoms from swirling storm clouds.",
+  "mechanics": [
+    "Place towers along a path to block invading storm clouds",
+    "Earn coins over time to purchase and upgrade towers",
+    "Survive all waves to win"
+  ],
+  "controls": [
+    {
+      "action": "Place a tower",
+      "key": "Left click"
+    },
+    {
+      "action": "Upgrade a tower",
+      "key": "Right click"
+    }
+  ]
+}

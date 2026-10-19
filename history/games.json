@@ -1404,8 +1404,43 @@
     ],
     "quotaAffected": true,
     "likes": 0,
-    "dislikes": 0,
-    "dislikeReasons": {},
-    "popularityScore": 0
+    "dislikes": 1,
+    "dislikeReasons": {
+      "gameplay-broken": 1
+    },
+    "popularityScore": -1
+  },
+  {
+    "date": "2026-10-19",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-10-19-mushroom-guard",
+    "genre": "tower-defense",
+    "theme": "A whimsical garden where cute mushroom towers protect sparkling blossoms from swirling storm clouds.",
+    "mechanics": [
+      "Place towers along a path to block invading storm clouds",
+      "Earn coins over time to purchase and upgrade towers",
+      "Survive all waves to win"
+    ],
+    "title": "Mushroom Guard",
+    "attempts": 7,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call",
+      "moderation-unreachable",
+      "extract",
+      "extract",
+      "generation-call",
+      "extract"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
+    "quotaAffected": true
   }
 ]
