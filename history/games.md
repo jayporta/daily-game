@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-20 — Lumen Path
+
+- genre: maze-adventure
+- theme: A soft constellation of floating light orbs drifts through a starlit void, weaving between shifting barriers of crystallized stardust to reach a pulsing nebula gateway.
+- mechanics: Navigate a grid of cells using arrow keys to guide the light orb toward the nebula goal, Each move shifts stardust barriers to new positions, changing the maze layout, Collect smaller star fragments along the way to illuminate the path and earn bonus points, Reach the nebula within a limited number of moves to win; running out of moves ends the game
+- model: poolside/laguna-s-2.1:free
+- attempts: 1
+
 ## 2026-10-19 — Mushroom Guard
 
 - genre: tower-defense

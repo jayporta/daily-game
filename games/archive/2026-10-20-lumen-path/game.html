@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Lumen Path</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0a0a2a;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #e0e0ff;
+  }
+  #gameContainer {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  canvas {
+    background: #0a0a2a;
+    image-rendering: pixelated;
+    border: 2px solid #2a2a5a;
+    border-radius: 8px;
+  }
+  #hud {
+    display: flex;
+    gap: 20px;
+    font-size: 16px;
+    color: #c0c0ff;
+  }
+  #message {
+    font-size: 24px;
+    color: #ffffff;
+    text-align: center;
+    min-height: 28px;
+  }
+  #title {
+    font-size: 22px;
+    color: #a0c0ff;
+    margin-bottom: 4px;
+  }
+  #objective {
+    font-size: 14px;
+    color: #80a0c0;
+    margin-top: 4px;
+  }
+  button {
+    margin-top: 10px;
+    padding: 8px 16px;
+    font-size: 14px;
+    background: #2a2a5a;
+    color: #e0e0ff;
+    border: 1px solid #4a4a7a;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #3a3a6a;
+  }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+  <div id="title">Lumen Path</div>
+  <div id="objective">Guide the light orb to the nebula gateway. Collect star fragments and avoid stardust barriers. They shift each move!</div>
+  <canvas id="gameCanvas"></canvas>
+  <div id="hud">
+    <span>Moves: <b id="moveCount">0</b>/<b id="maxMoves">20</b></span>
+    <span>Fragments: <b id="fragCount">0</b>/<b id="fragTotal">5</b></span>
+  </div>
+  <div id="message"></div>
+  <button id="restartBtn" style="display:none;">Restart</button>
+</div>
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const moveCountEl = document.getElementById('moveCount');
+  const maxMovesEl = document.getElementById('maxMoves');
+  const fragCountEl = document.getElementById('fragCount');
+  const fragTotalEl = document.getElementById('fragTotal');
+  const messageEl = document.getElementById('message');
+  const restartBtn = document.getElementById('restartBtn');
+
+  const GRID_SIZE = 9;
+  let cellSize = 48;
+  let orbPos = { x: 0, y: 0 };
+  let nebulaPos = { x: 0, y: 0 };
+  let fragments = [];
+  let barriers = [];
+  let moveCount = 0;
+  const maxMoves = 20;
+  const totalFragments = 5;
+  let gameState = 'playing'; // playing, won, lost
+  let fragmentCount = 0;
+
+  function resize() {
+    const maxSize = Math.min(window.innerWidth, window.innerHeight) - 40;
+    cellSize = Math.floor(maxSize / GRID_SIZE);
+    canvas.width = cellSize * GRID_SIZE;
+    canvas.height = cellSize * GRID_SIZE;
+  }
+
+  function initLevel() {
+    orbPos = { x: 0, y: 0 };
+    nebulaPos = { x: GRID_SIZE - 1, y: GRID_SIZE - 1 };
+    moveCount = 0;
+    fragmentCount = 0;
+    gameState = 'playing';
+    messageEl.textContent = '';
+    restartBtn.style.display = 'none';
+
+    // Place fragments (avoid start, nebula, and each other)
+    fragments = [];
+    const fragPositions = [];
+    while (fragPositions.length < totalFragments) {
+      const fx = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
+      const fy = Math.floor(Math.random() * (GRID_SIZE - 2)) + 1;
+      const key = fx + ',' + fy;
+      if (!fragPositions.includes(key) && !(fx === orbPos.x && fy === orbPos.y) && !(fx === nebulaPos.x && fy === nebulaPos.y)) {
+        fragPositions.push(key);
+        fragments.push({ x: fx, y: fy });
+      }
+    }
+
+    // Place barriers (avoid start and nebula)
+    barriers = [];
+    const barrierPositions = [];
+    const numBarriers = 12;
+    while (barrierPositions.length < numBarriers) {
+      const bx = Math.floor(Math.random() * GRID_SIZE);
+      const by = Math.floor(Math.random() * GRID_SIZE);
+      const key = bx + ',' + by;
+      if (!barrierPositions.includes(key) && !(bx === orbPos.x && by === orbPos.y) && !(bx === nebulaPos.x && by === nebulaPos.y) && !isFragAt(bx, by)) {
+        barrierPositions.push(key);
+        barriers.push({ x: bx, y: by });
+      }
+    }
+
+    updateHUD();
+  }
+
+  function isFragAt(x, y) {
+    return fragments.some(f => f.x === x && f.y === y);
+  }
+
+  function isBarrierAt(x, y) {
+    return barriers.some(b => b.x === x && b.y === y);
+  }
+
+  function shiftBarriers() {
+    // Move each barrier in a random direction, staying in bounds
+    barriers.forEach(b => {
+      const dir = Math.floor(Math.random() * 4);
+      let nx = b.x, ny = b.y;
+      if (dir === 0) ny--;
+      else if (dir === 1) ny++;
+      else if (dir === 2) nx--;
+      else nx++;
+
+      if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE &&
+          !(nx === orbPos.x && ny === orbPos.y) &&
+          !(nx === nebulaPos.x && ny === nebulaPos.y) &&
+          !isFragAt(nx, ny) &&
+          !isBarrierAt(nx, ny)) {
+        b.x = nx;
+        b.y = ny;
+      }
+    });
+  }
+
+  function updateHUD() {
+    moveCountEl.textContent = moveCount;
+    maxMovesEl.textContent = maxMoves;
+    fragCountEl.textContent = fragmentCount;
+    fragTotalEl.textContent = totalFragments;
+  }
+
+  function handleKey(e) {
+    if (gameState !== 'playing') return;
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+
+    let nx = orbPos.x;
+    let ny = orbPos.y;
+    if (e.key === 'ArrowUp') ny--;
+    else if (e.key === 'ArrowDown') ny++;
+    else if (e.key === 'ArrowLeft') nx--;
+    else if (e.key === 'ArrowRight') nx++;
+
+    // Check bounds
+    if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) return;
+
+    // Check barrier collision
+    if (isBarrierAt(nx, ny)) return;
+
+    // Move orb
+    orbPos.x = nx;
+    orbPos.y = ny;
+    moveCount++;
+
+    // Check fragment collection
+    fragments = fragments.filter(f => {
+      if (f.x === orbPos.x && f.y === orbPos.y) {
+        fragmentCount++;
+        return false;
+      }
+      return true;
+    });
+
+    // Shift barriers after player move
+    shiftBarriers();
+
+    // Check win condition
+    if (orbPos.x === nebulaPos.x && orbPos.y === nebulaPos.y && fragmentCount >= totalFragments) {
+      gameState = 'won';
+      messageEl.textContent = 'You reached the nebula! Well done!';
+      restartBtn.style.display = 'inline-block';
+      return;
+    }
+
+    // Check lose condition (move limit)
+    if (moveCount >= maxMoves) {
+      gameState = 'lost';
+      messageEl.textContent = 'Out of moves! The path fades...';
+      restartBtn.style.display = 'inline-block';
+      return;
+    }
+
+    updateHUD();
+    draw();
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw background grid with subtle stars
+    ctx.fillStyle = '#0a0a2a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw grid lines
+    ctx.strokeStyle = '#1a1a3a';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= GRID_SIZE; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * cellSize, 0);
+      ctx.lineTo(i * cellSize, canvas.height);
+      ctx.moveTo(0, i * cellSize);
+      ctx.lineTo(canvas.width, i * cellSize);
+      ctx.stroke();
+    }
+
+    // Draw cells with dark fill
+    ctx.fillStyle = '#151535';
+    for (let x = 0; x < GRID_SIZE; x++) {
+      for (let y = 0; y < GRID_SIZE; y++) {
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+      }
+    }
+
+    // Draw nebula (goal)
+    const nx = nebulaPos.x * cellSize + cellSize / 2;
+    const ny = nebulaPos.y * cellSize + cellSize / 2;
+    const nebulaGrad = ctx.createRadialGradient(nx, ny, 0, nx, ny, cellSize * 0.4);
+    nebulaGrad.addColorStop(0, '#8a2be2');
+    nebulaGrad.addColorStop(0.5, '#4b0082');
+    nebulaGrad.addColorStop(1, '#000080');
+    ctx.fillStyle = nebulaGrad;
+    ctx.beginPath();
+    ctx.arc(nx, ny, cellSize * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw fragments
+    fragments.forEach(f => {
+      const fx = f.x * cellSize + cellSize / 2;
+      const fy = f.y * cellSize + cellSize / 2;
+      ctx.fillStyle = '#ffd700';
+      ctx.beginPath();
+      ctx.arc(fx, fy, cellSize * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      // Glow
+      ctx.shadowColor = '#ffffff';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(fx, fy, cellSize * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+
+    // Draw barriers (stardust crystals)
+    barriers.forEach(b => {
+      const bx = b.x * cellSize + cellSize / 2;
+      const by = b.y * cellSize + cellSize / 2;
+      ctx.fillStyle = '#a9a9a9';
+      ctx.strokeStyle = '#c0c0c0';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(bx - cellSize * 0.18, by);
+      ctx.lineTo(bx + cellSize * 0.18, by);
+      ctx.lineTo(bx, by + cellSize * 0.25);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    // Draw light orb (player)
+    const ox = orbPos.x * cellSize + cellSize / 2;
+    const oy = orbPos.y * cellSize + cellSize / 2;
+    const orbGrad = ctx.createRadialGradient(ox - cellSize * 0.1, oy - cellSize * 0.1, 0, ox, oy, cellSize * 0.3);
+    orbGrad.addColorStop(0, '#ffffff');
+    orbGrad.addColorStop(0.5, '#87ceeb');
+    orbGrad.addColorStop(1, '#00bfff');
+    ctx.fillStyle = orbGrad;
+    ctx.beginPath();
+    ctx.arc(ox, oy, cellSize * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+    // Glow
+    ctx.shadowColor = '#00bfff';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(ox, oy, cellSize * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  function start() {
+    resize();
+    initLevel();
+    draw();
+  }
+
+  window.addEventListener('resize', () => {
+    resize();
+    draw();
+  });
+  window.addEventListener('keydown', handleKey);
+  restartBtn.addEventListener('click', start);
+
+  start();
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-20-lumen-path";
+  var RELEASE = "671f512365ab516ec132b222c26b36cdb840c95a";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

@@ -1,22 +1,30 @@
 {
-  "date": "2026-10-19",
-  "slug": "2026-10-19-mushroom-guard",
-  "path": "games/archive/2026-10-19-mushroom-guard/game.html",
-  "promptPath": "games/archive/2026-10-19-mushroom-guard/prompt.txt",
-  "title": "Mushroom Guard",
-  "genre": "tower-defense",
-  "genreLabel": "Tower Defense",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-19T19:00:53.786Z",
-  "expiresAt": "2026-10-20T19:00:00.000Z",
+  "date": "2026-10-20",
+  "slug": "2026-10-20-lumen-path",
+  "path": "games/archive/2026-10-20-lumen-path/game.html",
+  "promptPath": "games/archive/2026-10-20-lumen-path/prompt.txt",
+  "title": "Lumen Path",
+  "genre": "maze-adventure",
+  "genreLabel": "Maze Adventure",
+  "model": "poolside/laguna-s-2.1:free",
+  "generatedAt": "2026-10-20T19:00:45.657Z",
+  "expiresAt": "2026-10-21T19:00:00.000Z",
   "controls": [
     {
-      "action": "Place a tower",
-      "key": "Left click"
+      "action": "Move the light orb up",
+      "key": "ArrowUp"
     },
     {
-      "action": "Upgrade a tower",
-      "key": "Right click"
+      "action": "Move the light orb down",
+      "key": "ArrowDown"
+    },
+    {
+      "action": "Move the light orb left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "Move the light orb right",
+      "key": "ArrowRight"
     }
   ]
 }
