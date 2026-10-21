@@ -1468,5 +1468,38 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-10-21",
+    "status": "failed_kept_previous",
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "attempts": 7,
+    "failureReasons": [
+      "attempt 1 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter stream carried no content",
+      "attempt 2 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content",
+      "attempt 3 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block",
+      "attempt 4 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter stream carried no content",
+      "attempt 5 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content",
+      "attempt 6 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block",
+      "attempt 7 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter stream carried no content"
+    ],
+    "failureKinds": [
+      "generation-call",
+      "generation-call",
+      "extract",
+      "generation-call",
+      "generation-call",
+      "extract",
+      "generation-call"
+    ],
+    "attemptModels": [
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free",
+      "poolside/laguna-s-2.1:free"
+    ]
   }
 ]
