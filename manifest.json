@@ -1,29 +1,21 @@
 {
-  "date": "2026-10-20",
-  "slug": "2026-10-20-lumen-path",
-  "path": "games/archive/2026-10-20-lumen-path/game.html",
-  "promptPath": "games/archive/2026-10-20-lumen-path/prompt.txt",
-  "title": "Lumen Path",
-  "genre": "maze-adventure",
-  "genreLabel": "Maze Adventure",
-  "model": "poolside/laguna-s-2.1:free",
-  "generatedAt": "2026-10-20T19:00:45.657Z",
-  "expiresAt": "2026-10-21T19:00:00.000Z",
+  "date": "2026-10-23",
+  "slug": "2026-10-23-sky-pollen-run",
+  "path": "games/archive/2026-10-23-sky-pollen-run/game.html",
+  "promptPath": "games/archive/2026-10-23-sky-pollen-run/prompt.txt",
+  "title": "Sky Pollen Run",
+  "genre": "endless-runner",
+  "genreLabel": "Endless Runner",
+  "model": "cohere/north-mini-code:free",
+  "generatedAt": "2026-10-23T23:00:20.611Z",
+  "expiresAt": "2026-10-24T19:00:00.000Z",
   "controls": [
     {
-      "action": "Move the light orb up",
-      "key": "ArrowUp"
-    },
-    {
-      "action": "Move the light orb down",
-      "key": "ArrowDown"
-    },
-    {
-      "action": "Move the light orb left",
+      "action": "move left",
       "key": "ArrowLeft"
     },
     {
-      "action": "Move the light orb right",
+      "action": "move right",
       "key": "ArrowRight"
     }
   ]

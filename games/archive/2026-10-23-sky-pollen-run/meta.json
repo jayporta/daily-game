@@ -1,0 +1,21 @@
+{
+  "title": "Sky Pollen Run",
+  "genre": "endless-runner",
+  "theme": "Friendly luminous creatures drift through a sky of swirling clouds, collecting glowing pollen while avoiding drifting storm clouds.",
+  "mechanics": [
+    "Run automatically to the right, avoid obstacles and collect pollen",
+    "Move left/right and jump to dodge obstacles",
+    "Score points for collected pollen",
+    "Game ends after time limit or collision"
+  ],
+  "controls": [
+    {
+      "action": "move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "move right",
+      "key": "ArrowRight"
+    }
+  ]
+}

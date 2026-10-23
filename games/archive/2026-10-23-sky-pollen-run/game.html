@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Sky Pollen Run</title>
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; }
+canvas { display:block; width:100%; height:100%; }
+#ui { position:absolute; top:10px; left:10px; color:#fff; font-family:sans-serif; font-size:20px; pointer-events:none; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui"></div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const uiDiv = document.getElementById('ui');
+
+let gameSpeed = 5;
+
+function resizeCanvas() {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+}
+window.addEventListener('resize', () => {
+    resizeCanvas();
+    startGame();
+});
+resizeCanvas();
+
+let gameRunning = false;
+let score = 0;
+let timeLeft = 60;
+let lastTime = 0;
+let spawnObstacleTimer = 0;
+let spawnCollectibleTimer = 0;
+const spawnInterval = 1500;
+const spawnCollectibleInterval = 800;
+
+const obstacles = [];
+const collectibles = [];
+
+class Player {
+    constructor() {
+        this.x = canvas.width / 2;
+        this.y = canvas.height - 50;
+        this.width = 30;
+        this.height = 30;
+        this.vx = 0;
+        this.vy = 0;
+        this.onGround = true;
+        this.jumpPower = -15;
+        this.gravity = 0.8;
+    }
+    update(input) {
+        if (input.left) this.vx = -5;
+        else if (input.right) this.vx = 5;
+        else this.vx *= 0.9;
+
+        this.vy += this.gravity;
+        this.x += this.vx;
+        this.y += this.vy;
+
+        if (this.x < this.width/2) this.x = this.width/2;
+        if (this.x > canvas.width - this.width/2) this.x = canvas.width - this.width/2;
+        if (this.y > canvas.height - this.height/2) {
+            this.y = canvas.height - this.height/2;
+            this.vy = 0;
+            this.onGround = true;
+        } else {
+            this.onGround = false;
+        }
+    }
+    draw() {
+        ctx.fillStyle = '#0f0';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.width/2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#0f0';
+        ctx.fillRect(this.x - 2, this.y - this.width/2 - 5, 4, 10);
+    }
+}
+
+class Obstacle {
+    constructor(x, y, w, h) {
+        this.x = x;
+        this.y = y;
+        this.width = w;
+        this.height = h;
+    }
+}
+class Collectible {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 5;
+    }
+}
+
+const player = new Player();
+
+const keys = {};
+window.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (e.key === ' ') e.preventDefault();
+});
+window.addEventListener('keyup', e => {
+    keys[e.key] = false;
+});
+
+function startGame() {
+    score = 0;
+    timeLeft = 60;
+    obstacles.length = 0;
+    collectibles.length = 0;
+    player.x = canvas.width / 2;
+    player.y = canvas.height - 50;
+    player.vx = 0;
+    player.vy = 0;
+    player.onGround = true;
+    gameRunning = true;
+    lastTime = 0;
+    spawnObstacleTimer = 0;
+    spawnCollectibleTimer = 0;
+    uiDiv.innerHTML = '';
+    requestAnimationFrame(gameLoop);
+}
+
+function gameOver() {
+    gameRunning = false;
+    uiDiv.innerHTML = `Game Over! Score: ${score}`;
+}
+
+function gameLoop(timestamp) {
+    if (!lastTime) lastTime = timestamp;
+    const delta = timestamp - lastTime;
+    lastTime = timestamp;
+
+    if (!gameRunning) return;
+
+    spawnObstacleTimer += delta;
+    spawnCollectibleTimer += delta;
+    timeLeft -= delta / 1000;
+
+    if (spawnObstacleTimer >= spawnInterval) {
+        const y = Math.random() * (canvas.height - 100) + 50;
+        obstacles.push(new Obstacle(canvas.width, y, 40, 40));
+        spawnObstacleTimer = 0;
+    }
+
+    if (spawnCollectibleTimer >= spawnCollectibleInterval) {
+        const y = Math.random() * (canvas.height - 100) + 50;
+        collectibles.push(new Collectible(canvas.width, y));
+        spawnCollectibleTimer = 0;
+    }
+
+    const input = {
+        left: keys['ArrowLeft'] || false,
+        right: keys['ArrowRight'] || false,
+        jump: keys[' ']
+    };
+    player.update(input);
+    if (input.jump && player.onGround) {
+        player.vy = player.jumpPower;
+        player.onGround = false;
+    }
+
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+        const o = obstacles[i];
+        o.x -= gameSpeed;
+        if (o.x + o.width < 0) obstacles.splice(i, 1);
+    }
+
+    for (let i = collectibles.length - 1; i >= 0; i--) {
+        const c = collectibles[i];
+        c.x -= gameSpeed;
+        if (c.x - c.radius < 0) collectibles.splice(i, 1);
+    }
+
+    for (const o of obstacles) {
+        if (player.x + player.width/2 > o.x - o.width/2 &&
+            player.x - player.width/2 < o.x + o.width/2 &&
+            player.y + player.height/2 > o.y - o.height/2 &&
+            player.y - player.height/2 < o.y + o.height/2) {
+            gameOver();
+            return;
+        }
+    }
+
+    for (let i = collectibles.length - 1; i >= 0; i--) {
+        const c = collectibles[i];
+        const dx = player.x - c.x;
+        const dy = player.y - c.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < player.width/2 + c.radius) {
+            score++;
+            collectibles.splice(i, 1);
+        }
+    }
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    for (let i = 0; i < 200; i++) {
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 1, 1);
+    }
+
+    for (const c of collectibles) {
+        ctx.fillStyle = '#ff0';
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.radius, 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    for (const o of obstacles) {
+        ctx.fillStyle = '#777';
+        ctx.fillRect(o.x - o.width/2, o.y - o.height/2, o.width, o.height);
+    }
+
+    player.draw();
+
+    uiDiv.innerHTML = `Score: ${score} | Time: ${Math.ceil(timeLeft)}`;
+
+    if (timeLeft <= 0) {
+        gameOver();
+    } else {
+        requestAnimationFrame(gameLoop);
+    }
+}
+
+window.addEventListener('load', startGame);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-23-sky-pollen-run";
+  var RELEASE = "ab5146c69d69ebede1a8e1d66be7448e35f288f5";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

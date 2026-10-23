@@ -2,17 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-10-23 — generation failed, previous game kept
+## 2026-10-23 — Sky Pollen Run
 
-- model: nvidia/nemotron-3-super-120b-a12b:free
-- attempts: 7
-- attempt 1 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter stream carried no content
-- attempt 2 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
-- attempt 3 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 4 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter stream carried no content
-- attempt 5 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content
-- attempt 6 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
-- attempt 7 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter stream carried no content
+- genre: endless-runner
+- theme: Friendly luminous creatures drift through a sky of swirling clouds, collecting glowing pollen while avoiding drifting storm clouds.
+- mechanics: Run automatically to the right, avoid obstacles and collect pollen, Move left/right and jump to dodge obstacles, Score points for collected pollen, Game ends after time limit or collision
+- model: cohere/north-mini-code:free
+- attempts: 5
 
 ## 2026-10-22 — generation failed, previous game kept
 
