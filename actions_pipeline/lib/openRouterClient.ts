@@ -14,6 +14,7 @@ import {
   firstChoiceDelta,
   firstChoiceFinishReason,
   OPENROUTER_MAX_OUTPUT_TOKENS,
+  reportableDeltaKeys,
   responseErrorDetail,
   streamedError,
   streamedFrames,
@@ -353,6 +354,9 @@ async function readStream(
   // The last stop reason any frame reported. Providers send it on a final
   // frame carrying no text, so it cannot be read off the fragments.
   let stop: ProviderStopReason = 'complete';
+  // What an empty stream looked like, for the error raised when it is one.
+  let frames = 0;
+  const deltaKeys = new Set<string>();
 
   try {
     for await (const data of streamedFrames(watchBytes(response, onBytes))) {
@@ -362,6 +366,9 @@ async function readStream(
           ? new Error(`OpenRouter reported: ${failure.message}`)
           : new OpenRouterHttpError(failure.status, failure.message);
       }
+
+      frames += 1;
+      for (const key of reportableDeltaKeys(data)) deltaKeys.add(key);
 
       served ??= servedModel(data);
       stop = classifyStopReason(firstChoiceFinishReason(data)) ?? stop;
@@ -373,7 +380,10 @@ async function readStream(
   }
 
   if (text.length === 0) {
-    throw new Error('OpenRouter stream carried no content');
+    const keys = deltaKeys.size > 0 ? [...deltaKeys].join(', ') : 'none';
+    throw new Error(
+      `OpenRouter stream carried no content (${frames} frames, delta keys: ${keys}, stop: ${stop})`,
+    );
   }
   return { text, stop, model: resolveServedModel(served, model, fallbackModels) };
 }
