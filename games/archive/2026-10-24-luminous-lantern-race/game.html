@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Luminous Lantern Race</title>
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; }
+canvas { display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let w = canvas.width = window.innerWidth;
+let h = canvas.height = window.innerHeight;
+
+const roadY = h * 0.6;
+const trackHeight = h * 0.2;
+let laneHeight = trackHeight / 3;
+
+window.addEventListener('resize', () => {
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+  roadY = h * 0.6;
+  trackHeight = h * 0.2;
+  laneHeight = trackHeight / 3;
+});
+
+const carSpeed = 4;
+const finishDistance = w * 4;
+const spawnOffset = w * 2;
+const spawnRange = w;
+
+let progress = 0;
+let lane = 1;
+let score = 0;
+let gameOver = false;
+let obstacles = [];
+let collectibles = [];
+
+let spawnTimer = 0;
+const spawnInterval = 120;
+let collectTimer = 0;
+const collectInterval = 200;
+
+function getLaneY(laneIdx) {
+  return roadY + laneIdx * laneHeight + laneHeight / 2;
+}
+
+const carRadius = 8;
+const collisionThreshold = 30;
+
+const keys = {};
+window.addEventListener('keydown', e => { keys[e.key] = true; });
+window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+function updateLane() {
+  if (keys['ArrowLeft']) lane = Math.max(0, lane - 1);
+  if (keys['ArrowRight']) lane = Math.min(2, lane + 1);
+}
+
+function spawnObstacle() {
+  const laneIdx = Math.floor(Math.random() * 3);
+  const offset = spawnOffset + Math.random() * spawnRange;
+  const x = progress + offset;
+  obstacles.push({x, lane: laneIdx});
+}
+
+function spawnCollectible() {
+  const laneIdx = Math.floor(Math.random() * 3);
+  const offset = spawnOffset + Math.random() * spawnRange;
+  const x = progress + offset;
+  collectibles.push({x, lane: laneIdx});
+}
+
+function checkCollisions() {
+  const carX = progress;
+  const carY = getLaneY(lane);
+  for (let i = obstacles.length - 1; i >= 0; i--) {
+    const o = obstacles[i];
+    const oY = getLaneY(o.lane);
+    if (Math.abs(o.x - carX) < collisionThreshold && Math.abs(oY - carY) < laneHeight / 2) {
+      gameOver = true;
+      return;
+    }
+    if (o.x < carX - spawnOffset) {
+      obstacles.splice(i, 1);
+    }
+  }
+  for (let i = collectibles.length - 1; i >= 0; i--) {
+    const c = collectibles[i];
+    const cY = getLaneY(c.lane);
+    if (Math.abs(c.x - carX) < collisionThreshold && Math.abs(cY - carY) < laneHeight / 2) {
+      score += 10;
+      collectibles.splice(i, 1);
+    }
+    if (c.x < carX - spawnOffset) {
+      collectibles.splice(i, 1);
+    }
+  }
+}
+
+function drawBackground() {
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, '#0a1f33');
+  grad.addColorStop(1, '#1e3a5f');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function drawRoad() {
+  ctx.save();
+  ctx.fillStyle = '#2c3e50';
+  ctx.fillRect(0, roadY, w, trackHeight);
+  ctx.strokeStyle = '#7f8c8d';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([10, 10]);
+  for (let i = 0; i < 3; i++) {
+    const y = roadY + (i + 1) * laneHeight;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(w, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCar() {
+  const x = progress;
+  const y = getLaneY(lane);
+  ctx.save();
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = '#ffeb3b';
+  ctx.fillStyle = '#fffde7';
+  ctx.beginPath();
+  ctx.arc(x, y, carRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = '#ff9800';
+  ctx.beginPath();
+  ctx.arc(x, y, carRadius * 0.6, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawObstacle(o) {
+  const x = o.x;
+  const y = getLaneY(o.lane);
+  ctx.save();
+  ctx.fillStyle = '#95a5a6';
+  ctx.beginPath();
+  ctx.arc(x - 10, y, 12, 0, Math.PI * 2);
+  ctx.arc(x + 10, y, 12, 0, Math.PI * 2);
+  ctx.arc(x, y - 8, 12, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawCollectible(c) {
+  const x = c.x;
+  const y = getLaneY(c.lane);
+  ctx.save();
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = '#ffeb3b';
+  ctx.fillStyle = '#ffeaa7';
+  ctx.beginPath();
+  ctx.arc(x, y, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawUI() {
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '20px Arial';
+  ctx.fillText(`Score: ${score}`, 20, 40);
+  if (gameOver) {
+    ctx.fillStyle = '#ff5252';
+    ctx.font = '36px Arial';
+    const msg = progress >= finishDistance ? 'You Win!' : 'Game Over';
+    ctx.fillText(msg, w / 2 - 100, h / 2);
+    ctx.font = '20px Arial';
+    ctx.fillText(`Final Score: ${score}`, w / 2 - 80, h / 2 + 40);
+  }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, w, h);
+  drawBackground();
+  drawRoad();
+  for (const o of obstacles) drawObstacle(o);
+  for (const c of collectibles) drawCollectible(c);
+  drawCar();
+  drawUI();
+}
+
+function gameLoop() {
+  if (!gameOver) {
+    updateLane();
+    progress += carSpeed;
+    spawnTimer++;
+    if (spawnTimer >= spawnInterval) {
+      spawnObstacle();
+      spawnTimer = 0;
+    }
+    collectTimer++;
+    if (collectTimer >= collectInterval) {
+      spawnCollectible();
+      collectTimer = 0;
+    }
+    checkCollisions();
+    if (progress >= finishDistance) {
+      gameOver = true;
+    }
+  }
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-24-luminous-lantern-race";
+  var RELEASE = "0a9f251173cf946ea4a13a72f903f002cd2f4693";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

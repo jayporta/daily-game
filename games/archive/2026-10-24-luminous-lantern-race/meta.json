@@ -1,0 +1,21 @@
+{
+  "title": "Luminous Lantern Race",
+  "genre": "racing",
+  "theme": "Colorful magical floating lanterns race through a night sky of swirling clouds, collecting glowing star dust while avoiding drifting storm clouds.",
+  "mechanics": [
+    "Drive forward automatically",
+    "Steer left/right to avoid obstacles",
+    "Collect star dust for points",
+    "Race to the finish line"
+  ],
+  "controls": [
+    {
+      "action": "Steer left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "Steer right",
+      "key": "ArrowRight"
+    }
+  ]
+}

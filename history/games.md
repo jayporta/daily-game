@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-24 — Luminous Lantern Race
+
+- genre: racing
+- theme: Colorful magical floating lanterns race through a night sky of swirling clouds, collecting glowing star dust while avoiding drifting storm clouds.
+- mechanics: Drive forward automatically, Steer left/right to avoid obstacles, Collect star dust for points, Race to the finish line
+- model: cohere/north-mini-code:free
+- attempts: 7
+
 ## 2026-10-23 — Sky Pollen Run
 
 - genre: endless-runner
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Run automatically to the right, avoid obstacles and collect pollen, Move left/right and jump to dodge obstacles, Score points for collected pollen, Game ends after time limit or collision
 - model: cohere/north-mini-code:free
 - attempts: 5
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-22 — generation failed, previous game kept
 

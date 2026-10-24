@@ -1565,6 +1565,44 @@
       "thinkingmachines/inkling-small:free",
       "nvidia/nemotron-3.5-lightning:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-10-24",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-10-24-luminous-lantern-race",
+    "genre": "racing",
+    "theme": "Colorful magical floating lanterns race through a night sky of swirling clouds, collecting glowing star dust while avoiding drifting storm clouds.",
+    "mechanics": [
+      "Drive forward automatically",
+      "Steer left/right to avoid obstacles",
+      "Collect star dust for points",
+      "Race to the finish line"
+    ],
+    "title": "Luminous Lantern Race",
+    "attempts": 7,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call",
+      "generation-call",
+      "generation-call",
+      "extract",
+      "generation-call",
+      "generation-call"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
     "quotaAffected": true
   }
 ]
