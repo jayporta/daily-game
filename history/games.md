@@ -9,6 +9,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Drive forward automatically, Steer left/right to avoid obstacles, Collect star dust for points, Race to the finish line
 - model: cohere/north-mini-code:free
 - attempts: 7
+- reactions: -1
+- likes: 0
+- dislikes: 1
+- disliked for: no-load: 1, gameplay-broken: 1, goal-unclear: 1, controls-unclear: 1
 
 ## 2026-10-23 — Sky Pollen Run
 
