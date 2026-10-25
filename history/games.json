@@ -1613,5 +1613,31 @@
       "controls-unclear": 1
     },
     "popularityScore": -1
+  },
+  {
+    "date": "2026-10-25",
+    "status": "published",
+    "model": "dots-studio/dots-3-note-preview:free",
+    "slug": "2026-10-25-pulse-garden-rhythm",
+    "genre": "rhythm",
+    "theme": "A whimsical garden of glowing plants that pulse with rhythm, tended by a small friendly robot.",
+    "mechanics": [
+      "Hit cues in time with a beat by pressing the corresponding key when the note reaches the hit line",
+      "Match a sequence of visual pulses falling down four lanes",
+      "Score points for perfect timing, with combo multiplier for consecutive hits",
+      "Reach the target score to win the rhythm garden"
+    ],
+    "title": "Pulse Garden Rhythm",
+    "attempts": 1,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-failover",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "poolside/laguna-s-2.1:free",
+      "nvidia/nemotron-3-super-120b-a12b:free"
+    ],
+    "quotaAffected": true
   }
 ]

@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-25 — Pulse Garden Rhythm
+
+- genre: rhythm
+- theme: A whimsical garden of glowing plants that pulse with rhythm, tended by a small friendly robot.
+- mechanics: Hit cues in time with a beat by pressing the corresponding key when the note reaches the hit line, Match a sequence of visual pulses falling down four lanes, Score points for perfect timing, with combo multiplier for consecutive hits, Reach the target score to win the rhythm garden
+- model: dots-studio/dots-3-note-preview:free
+- attempts: 1
+
 ## 2026-10-24 — Luminous Lantern Race
 
 - genre: racing

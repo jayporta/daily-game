@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Pulse Garden Rhythm</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0a0a2a;
+    font-family: 'Arial', sans-serif;
+    color: #fff;
+  }
+  #game {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0,0,0,0.7);
+    z-index: 10;
+  }
+  .hidden { display: none; }
+  button {
+    padding: 15px 30px;
+    font-size: 1.2em;
+    background: #4a4aff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 20px;
+  }
+  button:hover { background: #6a6aff; }
+  h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px #fff;
+  }
+  p {
+    font-size: 1.2em;
+    max-width: 600px;
+    text-align: center;
+    line-height: 1.5;
+  }
+  .stats { font-size: 1.5em; margin-top: 20px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="menu" class="overlay">
+  <h1>Pulse Garden Rhythm</h1>
+  <p>Guide the glowing plants' rhythm! Press the key corresponding to the lane when the note reaches the hit line.<br>
+  Keys: <b>1</b>, <b>2</b>, <b>3</b>, <b>4</b> for lanes left to right.</p>
+  <p>Score points for perfect timing. Build combos for bonus points. Reach 100 points to win!</p>
+  <button id="startBtn">Start Rhythm</button>
+</div>
+<div id="gameover" class="overlay hidden">
+  <h1 id="gameoverTitle">Game Over</h1>
+  <p id="gameoverMessage"></p>
+  <div class="stats" id="gameoverStats"></div>
+  <button id="restartBtn">Play Again</button>
+</div>
+
+<script>
+// ======== Setup ========
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let width, height;
+
+function resize() {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ======== Constants ========
+const laneCount = 4;
+let laneWidth, hitLineY;
+const noteHeight = 30;
+const noteWidthRatio = 0.6;
+const hitTolerance = 25;
+const speedPxPerMs = 0.25; // 250 px/s
+const targetScore = 100;
+
+const laneColors = ['#ff5e62', '#ffa502', '#4cd964', '#5ac8fa'];
+const laneKeys = { '1': 0, '2': 1, '3': 2, '4': 3 };
+
+// ======== Song Data ========
+const song = [
+  { lane: 0, time: 500  },
+  { lane: 1, time: 750  },
+  { lane: 2, time: 1000 },
+  { lane: 3, time: 1250 },
+  { lane: 0, time: 1500 },
+  { lane: 1, time: 1750 },
+  { lane: 2, time: 2000 },
+  { lane: 3, time: 2250 },
+  { lane: 0, time: 2500 },
+  { lane: 1, time: 2750 },
+  { lane: 2, time: 3000 },
+  { lane: 3, time: 3250 },
+  { lane: 0, time: 3500 },
+  { lane: 1, time: 3750 },
+  { lane: 2, time: 4000 },
+  { lane: 3, time: 4250 },
+  { lane: 0, time: 4500 },
+  { lane: 1, time: 4750 },
+  { lane: 2, time: 5000 },
+  { lane: 3, time: 5250 }
+];
+const lastNoteTime = Math.max(...song.map(n => n.time));
+
+// ======== Game State ========
+const state = {
+  screen: 'menu', // 'menu', 'playing', 'gameover'
+  score: 0,
+  combo: 0,
+  bestCombo: 0,
+  hits: { perfect: 0, good: 0, miss: 0 },
+  startTime: 0,
+  lastTime: 0,
+  ending: false,
+  endTimer: 0
+};
+
+// ======== Audio ========
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (e) { /* no audio */ }
+  }
+}
+function playTone(freq, dur) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.frequency.value = freq;
+  osc.type = 'sine';
+  gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur);
+  osc.start();
+  osc.stop(audioCtx.currentTime + dur);
+}
+
+// ======== Geometry Helpers ========
+function updateGeometry() {
+  laneWidth = width / laneCount;
+  hitLineY = height - 150;
+}
+window.addEventListener('resize', () => { resize(); updateGeometry(); });
+updateGeometry();
+
+// ======== Drawing ========
+function drawBackground() {
+  // Sky gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, height);
+  grad.addColorStop(0, '#0a0a2a');
+  grad.addColorStop(1, '#1a1a4a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, width, height);
+
+  // Floating glowing plants (circles)
+  ctx.save();
+  ctx.globalAlpha = 0.4;
+  for (let i = 0; i < 12; i++) {
+    const x = (i * 97) % width;
+    const y = ((i * 53) % (height * 0.6));
+    const r = 10 + (i % 5) * 4;
+    ctx.fillStyle = laneColors[i % laneCount];
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawLanes() {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 2;
+  for (let i = 1; i < laneCount; i++) {
+    const x = i * laneWidth;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, hitLineY);
+    ctx.stroke();
+  }
+  // Key labels at top
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  ctx.font = 'bold 24px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < laneCount; i++) {
+    const x = i * laneWidth + laneWidth / 2;
+    ctx.fillText(String(i + 1), x, 30);
+  }
+  ctx.restore();
+}
+
+function drawHitLine() {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(0, hitLineY);
+  ctx.lineTo(width, hitLineY);
+  ctx.stroke();
+  // Glow
+  ctx.shadowColor = '#fff';
+  ctx.shadowBlur = 15;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawNotes() {
+  const elapsed = performance.now() - state.startTime;
+  ctx.save();
+  for (const note of song) {
+    if (note.hit) continue;
+    const y = hitLineY - (note.time - elapsed) * speedPxPerMs;
+    if (y < -noteHeight || y > hitLineY + hitTolerance + 50) continue;
+
+    const laneX = note.lane * laneWidth;
+    const x = laneX + (laneWidth - noteWidth) / 2;
+    const nw = noteWidth;
+    const nh = noteHeight;
+
+    // Glow
+    ctx.shadowColor = laneColors[note.lane];
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = laneColors[note.lane];
+    roundRect(ctx, x, y, nw, nh, 8);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Inner highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    roundRect(ctx, x + 4, y + 4, nw - 8, nh / 2 - 2, 4);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawUI() {
+  ctx.save();
+  ctx.font = 'bold 28px Arial';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+
+  // Score
+  ctx.fillStyle = '#fff';
+  ctx.fillText('Score: ' + state.score, 20, 20);
+
+  // Combo
+  if (state.combo > 1) {
+    ctx.fillStyle = '#ffa502';
+    ctx.fillText('Combo: ' + state.combo, 20, 60);
+  }
+
+  // Accuracy
+  const total = state.hits.perfect + state.hits.good + state.hits.miss;
+  const acc = total > 0 ? Math.round((state.hits.perfect + state.hits.good * 0.5) / total * 100) : 100;
+  ctx.fillStyle = '#fff';
+  ctx.fillText('Accuracy: ' + acc + '%', 20, 100);
+
+  // Target
+  ctx.fillStyle = state.score >= targetScore ? '#4cd964' : '#fff';
+  ctx.fillText('Goal: ' + targetScore, width - 200, 20);
+
+  ctx.restore();
+}
+
+// ======== Game Logic ========
+function startGame() {
+  initAudio();
+  updateGeometry();
+  state.screen = 'playing';
+  state.score = 0;
+  state.combo = 0;
+  state.bestCombo = 0;
+  state.hits = { perfect: 0, good: 0, miss: 0 };
+  state.startTime = performance.now();
+  state.lastTime = state.startTime;
+  state.ending = false;
+  state.endTimer = 0;
+  // Reset notes
+  song.forEach(n => n.hit = false);
+
+  document.getElementById('menu').classList.add('hidden');
+  document.getElementById('gameover').classList.add('hidden');
+  requestAnimationFrame(loop);
+}
+
+function endGame(won) {
+  state.screen = 'gameover';
+  const title = document.getElementById('gameoverTitle');
+  const msg = document.getElementById('gameoverMessage');
+  const stats = document.getElementById('gameoverStats');
+
+  if (won) {
+    title.textContent = 'You Win!';
+    title.style.color = '#4cd964';
+    msg.textContent = 'You mastered the rhythm garden!';
+  } else {
+    title.textContent = 'Game Over';
+    title.style.color = '#ff5e62';
+    msg.textContent = 'Keep practicing to reach the target score.';
+  }
+
+  stats.innerHTML = `
+    Score: ${state.score}<br>
+    Best Combo: ${state.bestCombo}<br>
+    Perfect: ${state.hits.perfect} &nbsp; Good: ${state.hits.good} &nbsp; Miss: ${state.hits.miss}<br>
+    Accuracy: ${Math.round((state.hits.perfect + state.hits.good * 0.5) / (state.hits.perfect + state.hits.good + state.hits.miss) * 100) || 0}%
+  `;
+
+  document.getElementById('gameover').classList.remove('hidden');
+}
+
+function update(dt) {
+  if (state.screen !== 'playing') return;
+  const elapsed = performance.now() - state.startTime;
+
+  // Check missed notes
+  for (const note of song) {
+    if (note.hit) continue;
+    const y = hitLineY - (note.time - elapsed) * speedPxPerMs;
+    if (y > hitLineY + hitTolerance) {
+      note.hit = true;
+      state.hits.miss++;
+      state.combo = 0;
+    }
+  }
+
+  // Check win condition
+  if (!state.ending) {
+    const allDone = song.every(n => n.hit);
+    const scoreMet = state.score >= targetScore;
+    if (allDone || scoreMet) {
+      state.ending = true;
+      state.endTimer = elapsed + 1500; // 1.5 sec delay
+    }
+  }
+  if (state.ending && elapsed >= state.endTimer) {
+    endGame(state.score >= targetScore);
+  }
+}
+
+function loop(timestamp) {
+  if (!state.lastTime) state.lastTime = timestamp;
+  const dt = timestamp - state.lastTime;
+  state.lastTime = timestamp;
+  update(dt);
+  draw();
+  if (state.screen === 'playing') {
+    requestAnimationFrame(loop);
+  }
+}
+
+// ======== Input ========
+window.addEventListener('keydown', (e) => {
+  if (state.screen !== 'playing') return;
+  const lane = laneKeys[e.key];
+  if (lane === undefined) return;
+
+  const elapsed = performance.now() - state.startTime;
+  let bestNote = null;
+  let bestDist = Infinity;
+
+  for (const note of song) {
+    if (note.hit || note.lane !== lane) continue;
+    const y = hitLineY - (note.time - elapsed) * speedPxPerMs;
+    const dist = Math.abs(y - hitLineY);
+    if (dist < hitTolerance && dist < bestDist) {
+      bestDist = dist;
+      bestNote = note;
+    }
+  }
+
+  if (bestNote) {
+    bestNote.hit = true;
+    let points = 0;
+    if (bestDist <= 10) {
+      points = 10;
+      state.hits.perfect++;
+      playTone(880, 0.1); // perfect beep
+    } else {
+      points = 5;
+      state.hits.good++;
+      playTone(660, 0.1); // good beep
+    }
+    state.score += points;
+    state.combo++;
+    if (state.combo > state.bestCombo) state.bestCombo = state.combo;
+
+    // Combo bonus every 5 hits
+    const comboBonus = Math.floor(state.combo / 5) * 5;
+    state.score += comboBonus;
+
+    // Early win check
+    if (state.score >= targetScore) {
+      state.ending = true;
+      state.endTimer = elapsed + 1000;
+    }
+  }
+});
+
+// ======== Buttons ========
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('restartBtn').addEventListener('click', startGame);
+
+// ======== Initial Draw ========
+drawBackground();
+drawLanes();
+drawHitLine();
+ctx.save();
+ctx.fillStyle = '#fff';
+ctx.font = 'bold 3em Arial';
+ctx.textAlign = 'center';
+ctx.textBaseline = 'middle';
+ctx.fillText('Pulse Garden Rhythm', width / 2, height / 2 - 50);
+ctx.font = '1.5em Arial';
+ctx.fillText('Press 1 2 3 4 to hit notes', width / 2, height / 2 + 50);
+ctx.restore();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-25-pulse-garden-rhythm";
+  var RELEASE = "7309c7a60fbbba4ba8c8ab01c6fea30ebfe75b8e";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

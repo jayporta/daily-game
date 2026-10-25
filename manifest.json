@@ -1,22 +1,30 @@
 {
-  "date": "2026-10-24",
-  "slug": "2026-10-24-luminous-lantern-race",
-  "path": "games/archive/2026-10-24-luminous-lantern-race/game.html",
-  "promptPath": "games/archive/2026-10-24-luminous-lantern-race/prompt.txt",
-  "title": "Luminous Lantern Race",
-  "genre": "racing",
-  "genreLabel": "Racing",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-24T19:00:55.466Z",
-  "expiresAt": "2026-10-25T19:00:00.000Z",
+  "date": "2026-10-25",
+  "slug": "2026-10-25-pulse-garden-rhythm",
+  "path": "games/archive/2026-10-25-pulse-garden-rhythm/game.html",
+  "promptPath": "games/archive/2026-10-25-pulse-garden-rhythm/prompt.txt",
+  "title": "Pulse Garden Rhythm",
+  "genre": "rhythm",
+  "genreLabel": "Rhythm",
+  "model": "dots-studio/dots-3-note-preview:free",
+  "generatedAt": "2026-10-25T19:01:06.890Z",
+  "expiresAt": "2026-10-26T19:00:00.000Z",
   "controls": [
     {
-      "action": "Steer left",
-      "key": "ArrowLeft"
+      "action": "Hit note in lane 1",
+      "key": "1"
     },
     {
-      "action": "Steer right",
-      "key": "ArrowRight"
+      "action": "Hit note in lane 2",
+      "key": "2"
+    },
+    {
+      "action": "Hit note in lane 3",
+      "key": "3"
+    },
+    {
+      "action": "Hit note in lane 4",
+      "key": "4"
     }
   ]
 }
