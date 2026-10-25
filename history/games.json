@@ -1638,6 +1638,10 @@
       "poolside/laguna-s-2.1:free",
       "nvidia/nemotron-3-super-120b-a12b:free"
     ],
-    "quotaAffected": true
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
   }
 ]
