@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Crystal Cascade</title>
+<style>
+html, body { margin:0; width:100%; height:100%; background:#0a0f14; color:#e0e0e0; font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow:hidden; }
+#canvas { display:block; width:100%; height:100%; }
+#ui { position:absolute; top:10px; left:10px; font-size:24px; }
+#message { position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:48px; color:#ffdf5d; display:none; }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="ui"></div>
+<div id="message"></div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const uiDiv = document.getElementById('ui');
+const msgDiv = document.getElementById('message');
+
+let width, height;
+let launchPoint = {x: 100, y: 0};
+let projectile = {x:0, y:0, radius:8, vx:0, vy:0, active:false};
+let target = {x:0, y:0, radius:20, color:'#ffdf5d'};
+let gameState = {score:0, timeLeft:60, startTime:0, gameOver:false, win:false};
+let pulling = false;
+let mousePos = {x:0, y:0};
+
+const GRAVITY = 0.5;
+const MAX_POWER = 30;
+const TARGET_SCORE = 200;
+
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  width = canvas.width = window.innerWidth;
+  height = canvas.height = window.innerHeight;
+  launchPoint.y = height - 100;
+  resetProjectile();
+  placeTarget();
+}
+
+function resetProjectile() {
+  projectile.x = launchPoint.x;
+  projectile.y = launchPoint.y;
+  projectile.vx = 0;
+  projectile.vy = 0;
+  projectile.active = false;
+}
+
+function placeTarget() {
+  const margin = 100;
+  target.x = Math.random() * (width - 2*margin) + margin;
+  target.y = Math.random() * (height - 2*margin) + margin;
+}
+
+function drawBackground() {
+  const grd = ctx.createLinearGradient(0,0,width,height);
+  grd.addColorStop(0, '#0a0f14');
+  grd.addColorStop(1, '#1b2632');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0,0,width,height);
+}
+
+function drawStar(x, y, radius, spikes=5) {
+  const rot = Math.PI / 2 * 3;
+  const step = Math.PI / spikes;
+  ctx.beginPath();
+  ctx.moveTo(x, y - radius);
+  for(let i=0;i<spikes;i++) {
+    const r = (i%2===0) ? radius : radius*0.5;
+    const ang = rot + i*step;
+    ctx.lineTo(x + Math.cos(ang)*r, y + Math.sin(ang)*r);
+  }
+  ctx.closePath();
+  ctx.fillStyle = target.color;
+  ctx.fill();
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = target.color;
+}
+
+function drawCrystal(x, y, radius) {
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI*2);
+  ctx.fillStyle = '#a8d8ff';
+  ctx.fill();
+  ctx.shadowBlur = 8;
+  ctx.shadowColor = '#a8d8ff';
+}
+
+function drawLaunchPoint() {
+  ctx.beginPath();
+  ctx.arc(launchPoint.x, launchPoint.y, 6, 0, Math.PI*2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+}
+
+function drawPullLine() {
+  ctx.beginPath();
+  ctx.moveTo(launchPoint.x, launchPoint.y);
+  ctx.lineTo(mousePos.x, mousePos.y);
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([5,5]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawUI() {
+  uiDiv.innerHTML = `Score: ${gameState.score} | Time: ${gameState.timeLeft}s`;
+}
+
+function drawMessage() {
+  msgDiv.style.display = 'block';
+  msgDiv.innerHTML = (gameState.win ? 'You Win!' : 'Game Over') + `<br>Final Score: ${gameState.score}`;
+}
+
+function update() {
+  if(gameState.gameOver) return;
+  const now = Date.now();
+  gameState.timeLeft = Math.max(0, Math.floor((gameState.startTime + 60000 - now) / 1000));
+  if(gameState.timeLeft <= 0) {
+    gameState.gameOver = true;
+    gameState.win = false;
+    drawMessage();
+    return;
+  }
+  if(projectile.active) {
+    projectile.vx *= 0.99;
+    projectile.vy += GRAVITY;
+    projectile.x += projectile.vx;
+    projectile.y += projectile.vy;
+    if(projectile.x < projectile.radius || projectile.x > width - projectile.radius ||
+       projectile.y < projectile.radius || projectile.y > height - projectile.radius) {
+      projectile.active = false;
+      resetProjectile();
+    } else {
+      const dx = projectile.x - target.x;
+      const dy = projectile.y - target.y;
+      const dist = Math.hypot(dx, dy);
+      if(dist < projectile.radius + target.radius) {
+        gameState.score += gameState.timeLeft * 10;
+        if(gameState.score >= TARGET_SCORE) {
+          gameState.gameOver = true;
+          gameState.win = true;
+          drawMessage();
+          return;
+        }
+        resetProjectile();
+        placeTarget();
+      }
+    }
+  }
+}
+
+function draw() {
+  ctx.clearRect(0,0,width,height);
+  drawBackground();
+  if(pulling) drawPullLine();
+  drawLaunchPoint();
+  drawStar(target.x, target.y, target.radius);
+  if(projectile.active) drawCrystal(projectile.x, projectile.y, projectile.radius);
+  drawUI();
+}
+
+function launch() {
+  const dx = mousePos.x - launchPoint.x;
+  const dy = mousePos.y - launchPoint.y;
+  const dist = Math.hypot(dx, dy);
+  const power = Math.min(dist / 5, MAX_POWER);
+  const angle = Math.atan2(dy, dx);
+  projectile.vx = power * Math.cos(angle);
+  projectile.vy = power * Math.sin(angle);
+  projectile.active = true;
+}
+
+function onMouseDown(e) {
+  if(gameState.gameOver) return;
+  if(!projectile.active) {
+    pulling = true;
+    mousePos = {x: e.clientX, y: e.clientY};
+  }
+}
+function onMouseMove(e) {
+  if(pulling) {
+    mousePos = {x: e.clientX, y: e.clientY};
+  }
+}
+function onMouseUp(e) {
+  if(pulling) {
+    pulling = false;
+    launch();
+  }
+}
+
+window.addEventListener('resize', resize);
+canvas.addEventListener('mousedown', onMouseDown);
+canvas.addEventListener('mousemove', onMouseMove);
+canvas.addEventListener('mouseup', onMouseUp);
+
+resize();
+gameState.startTime = Date.now();
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-26-crystal-cascade";
+  var RELEASE = "e8ec1143e45c280e08da0e7c9bdd6cb812443439";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

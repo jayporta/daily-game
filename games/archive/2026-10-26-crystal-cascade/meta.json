@@ -1,0 +1,19 @@
+{
+  "title": "Crystal Cascade",
+  "genre": "physics-sandbox",
+  "theme": "A whimsical sky of drifting crystal orbs where a glowing star target pulses; the player launches their own crystal orb to strike the star and restore harmony.",
+  "mechanics": [
+    "Charge and launch a crystal orb",
+    "Score points by hitting the glowing star target within the time limit"
+  ],
+  "controls": [
+    {
+      "action": "Pull back to charge launch",
+      "key": "Mouse down"
+    },
+    {
+      "action": "Release to launch",
+      "key": "Mouse up"
+    }
+  ]
+}

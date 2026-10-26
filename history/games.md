@@ -2,17 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-10-26 — generation failed, previous game kept
+## 2026-10-26 — Crystal Cascade
 
-- model: nvidia/nemotron-3-ultra-550b-a55b:free
-- attempts: 7
-- attempt 1 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 2 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter stream carried no content
-- attempt 3 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content
-- attempt 4 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
-- attempt 5 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter stream carried no content
-- attempt 6 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter stream carried no content
-- attempt 7 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
+- genre: physics-sandbox
+- theme: A whimsical sky of drifting crystal orbs where a glowing star target pulses; the player launches their own crystal orb to strike the star and restore harmony.
+- mechanics: Charge and launch a crystal orb, Score points by hitting the glowing star target within the time limit
+- model: cohere/north-mini-code:free
+- attempts: 3
 
 ## 2026-10-25 — Pulse Garden Rhythm
 
