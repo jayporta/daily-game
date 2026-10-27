@@ -1668,6 +1668,29 @@
       "thinkingmachines/inkling-small:free",
       "nvidia/nemotron-3.5-lightning:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-10-27",
+    "status": "published",
+    "model": "poolside/laguna-s-2.1:free",
+    "slug": "2026-10-27-lumen-drift",
+    "genre": "puzzle",
+    "theme": "A serene sky of floating geometric islands where a small light orb drifts between them, connecting pairs of matching colors to illuminate the constellation.",
+    "mechanics": [
+      "Drag to create a path between pairs of matching colored orbs",
+      "Each connection lights up and becomes a permanent bridge",
+      "Complete all connections within a limited number of moves to win",
+      "Bridges cannot cross each other",
+      "Light procedural variation of island layouts across rounds"
+    ],
+    "title": "Lumen Drift",
+    "attempts": 1,
+    "canvasDrawn": true,
     "quotaAffected": true
   }
 ]

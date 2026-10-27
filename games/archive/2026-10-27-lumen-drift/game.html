@@ -1,0 +1,394 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Lumen Drift</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#1a1a2e;font-family:sans-serif;}
+#game{width:100%;height:100%;display:block;background:#1a1a2e;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(() => {
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    let W, H, dpr;
+
+    function resize() {
+        dpr = window.devicePixelRatio || 1;
+        W = canvas.clientWidth * dpr;
+        H = canvas.clientHeight * dpr;
+        canvas.width = W;
+        canvas.height = H;
+        ctx.scale(dpr, dpr);
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Colors
+    const COLORS = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a8e6cf', '#c9a0ff'];
+    const BG = '#1a1a2e';
+    const GRID_BG = '#16213e';
+
+    // Game state
+    let gameState = 'playing'; // playing, win, lose
+    let level = 1;
+    let connections = [];
+    let islands = [];
+    let selected = null;
+    let maxMoves = 12;
+    let movesLeft = maxMoves;
+    let roundStartTime = 0;
+
+    // Island layout definitions (hand-authored base layouts)
+    const BASE_LAYOUTS = [
+        // Level 1: 3 pairs
+        [
+            {x:0.25,y:0.3}, {x:0.75,y:0.3},
+            {x:0.2,y:0.7}, {x:0.8,y:0.7},
+            {x:0.5,y:0.5}, {x:0.5,y:0.85}
+        ],
+        // Level 2: 4 pairs
+        [
+            {x:0.2,y:0.2}, {x:0.8,y:0.2},
+            {x:0.2,y:0.8}, {x:0.8,y:0.8},
+            {x:0.35,y:0.5}, {x:0.65,y:0.5},
+            {x:0.5,y:0.15}, {x:0.5,y:0.85}
+        ],
+        // Level 3: 5 pairs
+        [
+            {x:0.15,y:0.3}, {x:0.85,y:0.3},
+            {x:0.15,y:0.7}, {x:0.85,y:0.7},
+            {x:0.5,y:0.2}, {x:0.5,y:0.8},
+            {x:0.3,y:0.5}, {x:0.7,y:0.5},
+            {x:0.5,y:0.5}
+        ]
+    ];
+
+    function generateLevel() {
+        connections = [];
+        selected = null;
+        const baseIdx = Math.min(level - 1, BASE_LAYOUTS.length - 1);
+        const baseLayout = BASE_LAYOUTS[baseIdx];
+        const numPairs = baseLayout.length / 2;
+        maxMoves = 8 + numPairs * 2;
+        movesLeft = maxMoves;
+
+        // Light procedural variation: shuffle positions slightly
+        islands = baseLayout.map(p => ({
+            x: p.x + (Math.random() - 0.5) * 0.06,
+            y: p.y + (Math.random() - 0.5) * 0.06,
+            color: COLORS[Math.floor(Math.random() * COLORS.length)]
+        }));
+
+        // Assign matching pairs: pair up islands with same color
+        // Group into pairs
+        const pairs = [];
+        for (let i = 0; i < islands.length; i += 2) {
+            const c = COLORS[Math.floor(Math.random() * COLORS.length)];
+            islands[i].color = c;
+            islands[i+1].color = c;
+            pairs.push([i, i+1]);
+        }
+
+        // Shuffle islands order for visual variety but keep pairs
+        // Actually, let's just shuffle the island array itself
+        for (let i = islands.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [islands[i], islands[j]] = [islands[j], islands[i]];
+        }
+
+        gameState = 'playing';
+        roundStartTime = performance.now();
+    }
+
+    // Input handling
+    canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('mouseup', onMouseUp);
+    canvas.addEventListener('touchstart', onTouchStart, {passive: false});
+    canvas.addEventListener('touchmove', onTouchMove, {passive: false});
+    canvas.addEventListener('touchend', onTouchEnd, {passive: false});
+
+    let mousePos = {x:0, y:0};
+    let isDragging = false;
+    let dragStart = null;
+
+    function getCanvasPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX || e.touches[0].clientX) - rect.left;
+        const y = (e.clientY || e.touches[0].clientY) - rect.top;
+        return {x, y};
+    }
+
+    function onMouseDown(e) {
+        if (gameState !== 'playing') return;
+        const pos = getCanvasPos(e);
+        const island = findIsland(pos.x, pos.y);
+        if (island) {
+            selected = island;
+            isDragging = true;
+            dragStart = {x: pos.x, y: pos.y};
+        }
+    }
+
+    function onMouseMove(e) {
+        if (gameState !== 'playing') return;
+        const pos = getCanvasPos(e);
+        mousePos = pos;
+    }
+
+    function onMouseUp(e) {
+        if (gameState !== 'playing' || !isDragging || !selected) return;
+        const pos = getCanvasPos(e);
+        const target = findIsland(pos.x, pos.y);
+        if (target && target !== selected && target.color === selected.color) {
+            // Check if connection already exists
+            const exists = connections.some(c => 
+                (c[0] === selected && c[1] === target) || 
+                (c[0] === target && c[1] === selected));
+            if (!exists) {
+                connections.push([selected, target]);
+                movesLeft--;
+                checkWin();
+            }
+        }
+        selected = null;
+        isDragging = false;
+        dragStart = null;
+    }
+
+    function onTouchStart(e) {
+        e.preventDefault();
+        if (gameState !== 'playing') return;
+        const pos = getCanvasPos(e);
+        const island = findIsland(pos.x, pos.y);
+        if (island) {
+            selected = island;
+            isDragging = true;
+            dragStart = {x: pos.x, y: pos.y};
+        }
+    }
+
+    function onTouchMove(e) {
+        e.preventDefault();
+        if (gameState !== 'playing') return;
+        const pos = getCanvasPos(e);
+        mousePos = pos;
+    }
+
+    function onTouchEnd(e) {
+        e.preventDefault();
+        if (gameState !== 'playing' || !isDragging || !selected) return;
+        const pos = getCanvasPos(e);
+        const target = findIsland(pos.x, pos.y);
+        if (target && target !== selected && target.color === selected.color) {
+            const exists = connections.some(c => 
+                (c[0] === selected && c[1] === target) || 
+                (c[0] === target && c[1] === selected));
+            if (!exists) {
+                connections.push([selected, target]);
+                movesLeft--;
+                checkWin();
+            }
+        }
+        selected = null;
+        isDragging = false;
+        dragStart = null;
+    }
+
+    function findIsland(x, y) {
+        const hitRadius = 22;
+        for (const island of islands) {
+            const dx = x - island.px;
+            const dy = y - island.py;
+            if (Math.sqrt(dx*dx + dy*dy) < hitRadius) {
+                return island;
+            }
+        }
+        return null;
+    }
+
+    function checkWin() {
+        const numPairs = islands.length / 2;
+        if (connections.length >= numPairs) {
+            gameState = 'win';
+            setTimeout(() => {
+                level++;
+                generateLevel();
+            }, 1500);
+        } else if (movesLeft <= 0) {
+            gameState = 'lose';
+        }
+    }
+
+    // Keyboard
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'r' || e.key === 'R') {
+            generateLevel();
+        }
+    });
+
+    function draw() {
+        ctx.clearRect(0, 0, W, H);
+        
+        // Scale for CSS pixels
+        ctx.save();
+        ctx.scale(1/dpr, 1/dpr);
+
+        // Background gradient
+        const grad = ctx.createLinearGradient(0, 0, 0, H/dpr);
+        grad.addColorStop(0, '#1a1a2e');
+        grad.addColorStop(1, '#16213e');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W/dpr, H/dpr);
+
+        const cx = W / dpr / 2;
+        const cy = H / dpr / 2;
+        const scale = Math.min(W, H) / dpr / 800;
+
+        // Draw connections (bridges)
+        ctx.strokeStyle = '#ffffff30';
+        ctx.lineWidth = 3 * scale;
+        ctx.lineCap = 'round';
+        for (const [a, b] of connections) {
+            ctx.beginPath();
+            ctx.moveTo(a.px * scale * 800 + cx - 400*scale, a.py * scale * 800 + cy - 400*scale);
+            // Use actual pixel positions
+            ctx.moveTo(a.px, a.py);
+            ctx.lineTo(b.px, b.py);
+            ctx.stroke();
+        }
+
+        // Draw drag line
+        if (isDragging && selected) {
+            ctx.strokeStyle = selected.color + '60';
+            ctx.lineWidth = 2 * scale;
+            ctx.setLineDash([5*scale, 5*scale]);
+            ctx.beginPath();
+            ctx.moveTo(selected.px, selected.py);
+            ctx.lineTo(mousePos.x, mousePos.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Draw islands
+        for (const island of islands) {
+            const px = island.x * (W/dpr);
+            const py = island.y * (H/dpr);
+            island.px = px;
+            island.py = py;
+
+            // Glow
+            const glowGrad = ctx.createRadialGradient(px, py, 0, px, py, 25*scale);
+            glowGrad.addColorStop(0, island.color + '80');
+            glowGrad.addColorStop(1, 'transparent');
+            ctx.fillStyle = glowGrad;
+            ctx.beginPath();
+            ctx.arc(px, py, 25*scale, 0, Math.PI*2);
+            ctx.fill();
+
+            // Island circle
+            ctx.fillStyle = island.color;
+            ctx.beginPath();
+            ctx.arc(px, py, 16*scale, 0, Math.PI*2);
+            ctx.fill();
+
+            // Inner highlight
+            ctx.fillStyle = '#ffffff60';
+            ctx.beginPath();
+            ctx.arc(px - 3*scale, py - 3*scale, 5*scale, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        // UI
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `${16*scale}px sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(`Level: ${level}`, 20*scale, 30*scale);
+        ctx.fillText(`Moves: ${movesLeft}`, 20*scale, 55*scale);
+
+        // Win/Lose overlay
+        if (gameState === 'win') {
+            ctx.fillStyle = '#00000080';
+            ctx.fillRect(0, 0, W/dpr, H/dpr);
+            ctx.fillStyle = '#a8e6cf';
+            ctx.font = `${32*scale}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText('Level Complete!', cx, cy - 40*scale);
+            ctx.font = `${20*scale}px sans-serif`;
+            ctx.fillText(`Next: Level ${level + 1}`, cx, cy + 10*scale);
+        } else if (gameState === 'lose') {
+            ctx.fillStyle = '#00000080';
+            ctx.fillRect(0, 0, W/dpr, H/dpr);
+            ctx.fillStyle = '#ff6b6b';
+            ctx.font = `${32*scale}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText('Out of Moves!', cx, cy - 40*scale);
+            ctx.font = `${20*scale}px sans-serif`;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText('Press R to restart', cx, cy + 10*scale);
+        }
+
+        ctx.restore();
+    }
+
+    function loop() {
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    generateLevel();
+    loop();
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-27-lumen-drift";
+  var RELEASE = "c2725b5fea8967204421869fb5656f835fbb7354";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

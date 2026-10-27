@@ -1,22 +1,22 @@
 {
-  "date": "2026-10-26",
-  "slug": "2026-10-26-crystal-cascade",
-  "path": "games/archive/2026-10-26-crystal-cascade/game.html",
-  "promptPath": "games/archive/2026-10-26-crystal-cascade/prompt.txt",
-  "title": "Crystal Cascade",
-  "genre": "physics-sandbox",
-  "genreLabel": "Physics Sandbox",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-26T23:33:03.174Z",
-  "expiresAt": "2026-10-27T19:00:00.000Z",
+  "date": "2026-10-27",
+  "slug": "2026-10-27-lumen-drift",
+  "path": "games/archive/2026-10-27-lumen-drift/game.html",
+  "promptPath": "games/archive/2026-10-27-lumen-drift/prompt.txt",
+  "title": "Lumen Drift",
+  "genre": "puzzle",
+  "genreLabel": "Puzzle",
+  "model": "poolside/laguna-s-2.1:free",
+  "generatedAt": "2026-10-27T19:07:10.673Z",
+  "expiresAt": "2026-10-28T19:00:00.000Z",
   "controls": [
     {
-      "action": "Pull back to charge launch",
-      "key": "Mouse down"
+      "action": "Select and connect matching colored orbs",
+      "key": "Mouse drag"
     },
     {
-      "action": "Release to launch",
-      "key": "Mouse up"
+      "action": "Restart current round",
+      "key": "R key"
     }
   ]
 }

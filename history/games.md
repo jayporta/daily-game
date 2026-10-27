@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-27 — Lumen Drift
+
+- genre: puzzle
+- theme: A serene sky of floating geometric islands where a small light orb drifts between them, connecting pairs of matching colors to illuminate the constellation.
+- mechanics: Drag to create a path between pairs of matching colored orbs, Each connection lights up and becomes a permanent bridge, Complete all connections within a limited number of moves to win, Bridges cannot cross each other, Light procedural variation of island layouts across rounds
+- model: poolside/laguna-s-2.1:free
+- attempts: 1
+
 ## 2026-10-26 — Crystal Cascade
 
 - genre: physics-sandbox
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Charge and launch a crystal orb, Score points by hitting the glowing star target within the time limit
 - model: cohere/north-mini-code:free
 - attempts: 3
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-25 — Pulse Garden Rhythm
 
