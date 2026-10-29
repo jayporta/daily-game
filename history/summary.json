@@ -1,6 +1,65 @@
 {
-  "genreCounts": {},
-  "genreLastUsed": {},
-  "popularityLeaderboard": [],
+  "genreCounts": {
+    "maze-adventure": 1,
+    "physics-sandbox": 1,
+    "growth-sim": 1,
+    "puzzle": 1,
+    "platformer": 1,
+    "tower-defense": 1,
+    "tile-matching": 1
+  },
+  "genreLastUsed": {
+    "maze-adventure": "2026-08-30",
+    "physics-sandbox": "2026-09-02",
+    "growth-sim": "2026-09-04",
+    "puzzle": "2026-09-05",
+    "platformer": "2026-09-06",
+    "tower-defense": "2026-09-13",
+    "tile-matching": "2026-09-14"
+  },
+  "popularityLeaderboard": [
+    {
+      "slug": "2026-09-06-lily-leap",
+      "theme": "A tiny geometric salamander hops across floating lily pads in a twilight pond, collecting fireflies to illuminate the way to a glowing lotus gate",
+      "mechanicsSummary": "Jump between platforms to reach the lotus gate at the top of each level, Collect glowing firefly pickups to fill a progress meter, Collect all fireflies on each level to fully open the gate, Progress through 5 hand-crafted levels of increasing difficulty",
+      "popularityScore": 2
+    },
+    {
+      "slug": "2026-09-14-glowing-garden-match",
+      "theme": "A magical garden of glowing flowers and plants that must be matched to restore the garden's light.",
+      "mechanicsSummary": "Swap adjacent tiles to form matches of three or more identical flowers, Cleared tiles disappear and new tiles fall from above, Create chains by setting up cascading matches, Reach a target score to complete the level",
+      "popularityScore": 1
+    },
+    {
+      "slug": "2026-08-30-construct-critters",
+      "theme": "A cavern where geometric critters seek their glowing homes",
+      "mechanicsSummary": "Navigate through procedurally generated mazes, Collect keys scattered through the labyrinth, Reach the exit before getting trapped",
+      "popularityScore": 0
+    },
+    {
+      "slug": "2026-09-04-bloom-garden",
+      "theme": "A tiny seedling sprouting colors across a stone courtyard, attracting friendly floating pollen spirits",
+      "mechanicsSummary": "Tap/click to make the plant bloom and spread color, Manage water and sunlight resources to grow different flower types, Attract helpful pollen spirits that assist in growth, Progress through a small set of hand-authored garden layouts",
+      "popularityScore": 0
+    },
+    {
+      "slug": "2026-09-05-gem-runner",
+      "theme": "A tiny crystal cube navigating a grid of gem pedestals, collecting them before they shatter",
+      "mechanicsSummary": "Navigate a small cube character across a grid to collect falling gems, Gems fall from the top in a predictable pattern the player must intercept, Collect all gems on the level to unlock the exit portal, Reach the exit portal to complete each level",
+      "popularityScore": 0
+    },
+    {
+      "slug": "2026-09-02-elemental-stack",
+      "theme": "Elemental spirit creatures stack together to reach a floating beacon",
+      "mechanicsSummary": "Stack elemental shapes on platforms, Balance physics objects to reach the goal, Place creatures strategically across 5 levels",
+      "popularityScore": -1
+    },
+    {
+      "slug": "2026-09-13-storm-island-defender",
+      "theme": "A floating archipelago of colorful islands is besieged by chaotic storm clouds that drop disruptive lightning bolts. The player must place protective towers—wind turbines, water sprinklers, and luminous balloons—to intercept the bolts and preserve the islands' stability.",
+      "mechanicsSummary": "Place defensive towers along a path to block incoming threats, Upgrade towers to increase interception range and power, Survive multiple waves of lightning bolts without letting any hit the islands, Manage limited resources (energy crystals) to afford tower upgrades",
+      "popularityScore": -1
+    }
+  ],
   "lessons": "The growth-sim and the puzzle entry both landed cleanly — the growth-sim on its second attempt and the puzzle game on its very first — and together they sharpen a picture the earlier refinement had already been pointing toward. Tap to bloom, intercept falling gems, manage two resources, attract small helpers, navigate a small bounded grid with discrete pickups and one explicit terminal goal: that is the same hand-authored handful of levels dressed with light procedural variation, just with a different verb each time. The puzzle entry sits most comfortably at the authored end of that spectrum — finite, legible, and produced with essentially no scaffolding — and that ease is worth taking seriously.\n\nThe dislikes on the physics-sandbox remain the one caution worth folding forward. When the terminal goal depends on precise placement or stacking, the interaction has to be legible from frame one, not discovered through failure, and the feedback suggested the sandbox fell short on both broken and unclear controls. Mood and identity continue to carry the hook; pressure-based variants still have not shipped and should stay a secondary thread.\n\nThe infrastructure failures sandwiched between these builds are no longer representative — they were provider flakiness, not problems with the skeleton, and the recent record has moved past them, so they should not be carried into the next prompt.\n\nWhat reliably worked, then, is a clear small character with a clear small want, rendered simply, in a small bounded space with discrete pickups or placements and one explicit terminal objective, wrapped in a mood and identity that earns attention. Worth revisiting next is the same skeleton in fresh skins — puzzle, growth, traversal, whatever verb fits — with a hand-authored handful of levels dressed in light procedural variation, and controls that read clearly from the very first frame."
 }
