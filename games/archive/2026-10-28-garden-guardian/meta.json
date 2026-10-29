@@ -1,0 +1,30 @@
+{
+  "title": "Garden Guardian",
+  "genre": "growth-sim",
+  "theme": "A whimsical garden of floating bioluminescent flora that thrive on balanced sunlight and rain, where the player tends to seedlings and harvests glowing fruits to keep the ecosystem alive.",
+  "mechanics": [
+    "Plant seeds in empty plots",
+    "Manage water and sunlight resources",
+    "Nurture plants through growth stages",
+    "Harvest fruits to meet a target",
+    "Time‑based challenge with resource depletion"
+  ],
+  "controls": [
+    {
+      "action": "Plant seed",
+      "key": "Click"
+    },
+    {
+      "action": "Add water",
+      "key": "W"
+    },
+    {
+      "action": "Add sunlight",
+      "key": "S"
+    },
+    {
+      "action": "Restart",
+      "key": "R"
+    }
+  ]
+}

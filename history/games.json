@@ -1699,35 +1699,34 @@
   },
   {
     "date": "2026-10-28",
-    "status": "failed_kept_previous",
-    "model": "nvidia/nemotron-3-super-120b-a12b:free",
-    "attempts": 7,
-    "failureReasons": [
-      "attempt 1 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter stream carried no content",
-      "attempt 2 (dots-studio/dots-3-note-preview:free): could not extract bundle — missing-html-block (response truncated at the output cap)",
-      "attempt 3 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block",
-      "attempt 4 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter stream carried no content",
-      "attempt 5 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content",
-      "attempt 6 (cohere/north-mini-code:free): could not extract bundle — missing-html-block (response truncated at the output cap)",
-      "attempt 7 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error"
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-10-28-garden-guardian",
+    "genre": "growth-sim",
+    "theme": "A whimsical garden of floating bioluminescent flora that thrive on balanced sunlight and rain, where the player tends to seedlings and harvests glowing fruits to keep the ecosystem alive.",
+    "mechanics": [
+      "Plant seeds in empty plots",
+      "Manage water and sunlight resources",
+      "Nurture plants through growth stages",
+      "Harvest fruits to meet a target",
+      "Time‑based challenge with resource depletion"
     ],
+    "title": "Garden Guardian",
+    "attempts": 4,
+    "canvasDrawn": true,
     "failureKinds": [
-      "generation-call",
       "extract",
       "extract",
-      "generation-call",
-      "generation-call",
-      "extract",
-      "generation-call"
+      "generation-failover",
+      "generation-failover",
+      "smoke-js-error"
     ],
     "attemptModels": [
-      "nvidia/nemotron-3-super-120b-a12b:free",
       "dots-studio/dots-3-note-preview:free",
       "nvidia/nemotron-3-ultra-550b-a55b:free",
       "thinkingmachines/inkling-small:free",
-      "nvidia/nemotron-3.5-lightning:free",
-      "cohere/north-mini-code:free",
-      "poolside/laguna-s-2.1:free"
+      "thinkingmachines/inkling:free",
+      "nvidia/nemotron-3.5-lightning:free"
     ],
     "quotaAffected": true
   }

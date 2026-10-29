@@ -2,17 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-10-28 — generation failed, previous game kept
+## 2026-10-28 — Garden Guardian
 
-- model: nvidia/nemotron-3-super-120b-a12b:free
-- attempts: 7
-- attempt 1 (nvidia/nemotron-3-super-120b-a12b:free): generation call failed — OpenRouter stream carried no content
-- attempt 2 (dots-studio/dots-3-note-preview:free): could not extract bundle — missing-html-block (response truncated at the output cap)
-- attempt 3 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 4 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter stream carried no content
-- attempt 5 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content
-- attempt 6 (cohere/north-mini-code:free): could not extract bundle — missing-html-block (response truncated at the output cap)
-- attempt 7 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter request failed: 429 Provider returned error
+- genre: growth-sim
+- theme: A whimsical garden of floating bioluminescent flora that thrive on balanced sunlight and rain, where the player tends to seedlings and harvests glowing fruits to keep the ecosystem alive.
+- mechanics: Plant seeds in empty plots, Manage water and sunlight resources, Nurture plants through growth stages, Harvest fruits to meet a target, Time‑based challenge with resource depletion
+- model: cohere/north-mini-code:free
+- attempts: 4
 
 ## 2026-10-27 — Lumen Drift
 

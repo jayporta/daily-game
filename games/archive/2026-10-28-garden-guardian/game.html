@@ -1,0 +1,263 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Garden Guardian</title>
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#111; color:#fff; font-family:sans-serif; }
+#gameContainer { position:relative; width:100%; height:100%; }
+#gameCanvas { position:absolute; left:0; top:0; width:100%; height:100%; }
+#uiOverlay { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; }
+.uiElement { pointer-events:auto; }
+.stats { position:absolute; left:10px; top:10px; }
+.resourceBarContainer { position:absolute; left:10px; width:200px; height:20px; border:1px solid #fff; }
+#waterBar { background:#00f; height:100%; width:0%; }
+#sunBar { background:#ff0; height:100%; width:0%; margin-top:5px; }
+.message { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); text-align:center; font-size:2em; }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+<canvas id="gameCanvas"></canvas>
+<div id="uiOverlay">
+<div class="stats uiElement">
+<div>Fruits: <span id="fruitCount">0</span> / <span id="fruitTarget">5</span></div>
+<div>Time: <span id="timer">60</span>s</div>
+</div>
+<div class="resourceBarContainer uiElement" style="top:50px;">
+<div id="waterBar"></div>
+</div>
+<div class="resourceBarContainer uiElement" style="top:80px;">
+<div id="sunBar"></div>
+</div>
+<div class="message uiElement" id="message" style="display:none;"></div>
+</div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+if (!canvas) { throw new Error('Canvas not found'); }
+const ctx = canvas.getContext('2d');
+if (!ctx) { throw new Error('2D context not supported'); }
+
+const gameContainer = document.getElementById('gameContainer');
+
+const GRID_SIZE = 5;
+const TARGET_FRUIT = 5;
+const GAME_DURATION = 60000;
+
+let cells = new Array(GRID_SIZE * GRID_SIZE).fill(0);
+let water = 100;
+let sun = 100;
+let fruitCount = 0;
+let timeStart = Date.now();
+let gameOver = false;
+let animationId = null;
+
+const thresholds = [
+null,
+{ water: 30, sun: 30 },
+{ water: 50, sun: 50 },
+{ water: 80, sun: 80 }
+];
+
+const fruitCountEl = document.getElementById('fruitCount');
+const fruitTargetEl = document.getElementById('fruitTarget');
+const timerEl = document.getElementById('timer');
+const waterBar = document.getElementById('waterBar');
+const sunBar = document.getElementById('sunBar');
+const messageEl = document.getElementById('message');
+
+fruitTargetEl.textContent = TARGET_FRUIT;
+
+function resizeCanvas() {
+canvas.width = gameContainer.clientWidth;
+canvas.height = gameContainer.clientHeight;
+}
+window.addEventListener('resize', () => {
+resizeCanvas();
+draw();
+});
+resizeCanvas();
+
+function draw() {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+const cellSize = Math.min(canvas.width, canvas.height) / GRID_SIZE;
+const offsetX = (canvas.width - GRID_SIZE * cellSize) / 2;
+const offsetY = (canvas.height - GRID_SIZE * cellSize) / 2;
+
+for (let row = 0; row < GRID_SIZE; row++) {
+for (let col = 0; col < GRID_SIZE; col++) {
+const idx = row * GRID_SIZE + col;
+const stage = cells[idx];
+let color;
+switch (stage) {
+case 0: color = '#555'; break;
+case 1: color = '#8B4513'; break;
+case 2: color = '#2ecc71'; break;
+case 3: color = '#e74c3c'; break;
+case 4: color = '#f1c40f'; break;
+default: color = '#fff';
+}
+ctx.fillStyle = color;
+ctx.fillRect(offsetX + col * cellSize, offsetY + row * cellSize, cellSize, cellSize);
+ctx.strokeStyle = '#000';
+ctx.lineWidth = 1;
+ctx.strokeRect(offsetX + col * cellSize, offsetY + row * cellSize, cellSize, cellSize);
+}
+}
+
+waterBar.style.width = water + '%';
+sunBar.style.width = sun + '%';
+waterBar.style.background = water < 20 ? '#f00' : '#00f';
+sunBar.style.background = sun < 20 ? '#f00' : '#ff0';
+}
+
+function update() {
+if (gameOver) return;
+const now = Date.now();
+const elapsed = now - timeStart;
+const remaining = GAME_DURATION - elapsed;
+if (remaining <= 0) {
+gameOver = true;
+if (fruitCount >= TARGET_FRUIT) {
+messageEl.textContent = 'You saved the garden!';
+} else {
+messageEl.textContent = 'Garden withered.';
+}
+messageEl.style.display = 'block';
+return;
+}
+timerEl.textContent = Math.ceil(remaining / 1000);
+
+water = Math.max(0, water - 0.05);
+sun = Math.max(0, sun - 0.05);
+
+for (let i = 0; i < cells.length; i++) {
+const stage = cells[i];
+if (stage > 0 && stage < 4) {
+const need = thresholds[stage];
+if (water >= need.water && sun >= need.sun) {
+cells[i] = stage + 1;
+if (stage + 1 === 4) {
+fruitCount++;
+fruitCountEl.textContent = fruitCount;
+}
+}
+}
+}
+draw();
+}
+
+canvas.addEventListener('click', (e) => {
+if (gameOver) return;
+const rect = canvas.getBoundingClientRect();
+const x = e.clientX - rect.left;
+const y = e.clientY - rect.top;
+const cellSize = Math.min(canvas.width, canvas.height) / GRID_SIZE;
+const col = Math.floor(x / cellSize);
+const row = Math.floor(y / cellSize);
+if (col < 0 || col >= GRID_SIZE || row < 0 || row >= GRID_SIZE) return;
+const idx = row * GRID_SIZE + col;
+if (cells[idx] === 0) {
+if (water > 0 && sun > 0) {
+water = Math.max(0, water - 20);
+sun = Math.max(0, sun - 20);
+cells[idx] = 1;
+}
+} else if (cells[idx] === 4) {
+fruitCount++;
+fruitCountEl.textContent = fruitCount;
+cells[idx] = 0;
+}
+draw();
+});
+
+document.addEventListener('keydown', (e) => {
+const key = e.key.toLowerCase();
+if (gameOver) {
+if (key === 'r') {
+reset();
+}
+return;
+}
+if (key === 'w') {
+water = Math.min(100, water + 20);
+} else if (key === 's') {
+sun = Math.min(100, sun + 20);
+} else if (key === 'r') {
+reset();
+}
+draw();
+});
+
+function reset() {
+cells = new Array(GRID_SIZE * GRID_SIZE).fill(0);
+water = 100;
+sun = 100;
+fruitCount = 0;
+fruitCountEl.textContent = '0';
+timeStart = Date.now();
+gameOver = false;
+messageEl.style.display = 'none';
+draw();
+}
+
+function loop() {
+update();
+animationId = requestAnimationFrame(loop);
+}
+loop();
+
+window.addEventListener('beforeunload', () => {
+if (animationId) cancelAnimationFrame(animationId);
+});
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-28-garden-guardian";
+  var RELEASE = "ddde74b3fbd1313ab0e1b15688a7cff691dffb26";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
