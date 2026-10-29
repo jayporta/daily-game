@@ -1,0 +1,478 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Lumen Drift</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0a0e1a;font-family:sans-serif;}
+#game{width:100%;height:100%;display:block;}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  let W = canvas.width;
+  let H = canvas.height;
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    W = r.width;
+    H = r.height;
+    canvas.width = W;
+    canvas.height = H;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const COLORS = ['#ff6b8b', '#54d2a6', '#feca57', '#4facfe', '#a381ff'];
+  const NODE_RADIUS = 14;
+
+  let levels = [];
+  let currentLevel = 0;
+  let gameState = 'playing';
+  let moveCount = 0;
+  let maxMoves = 0;
+
+  let selectedNode = null;
+  let dragPoint = null;
+  let bridges = [];
+
+  function createLevel(index) {
+    const levelData = LEVELS[index] || LEVELS[0];
+    const nodes = [];
+    const shuffledColors = [...levelData.colors];
+    for (let i = 0; i < shuffledColors.length; i++) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledColors[i], shuffledColors[j]] = [shuffledColors[j], shuffledColors[i]];
+    }
+    for (let i = 0; i < levelData.positions.length; i++) {
+      nodes.push({
+        x: levelData.positions[i].x * W,
+        y: levelData.positions[i].y * H,
+        color: shuffledColors[i % shuffledColors.length],
+        connected: false,
+        pair: levelData.pairs[i]
+      });
+    }
+    return { nodes, pairs: levelData.pairs };
+  }
+
+  const LEVELS = [
+    {
+      positions: [
+        {x: 0.25, y: 0.3}, {x: 0.75, y: 0.3},
+        {x: 0.25, y: 0.7}, {x: 0.75, y: 0.7}
+      ],
+      colors: ['#ff6b8b', '#54d2a6'],
+      pairs: [0, 1, 0, 1]
+    },
+    {
+      positions: [
+        {x: 0.2, y: 0.2}, {x: 0.8, y: 0.2},
+        {x: 0.5, y: 0.5},
+        {x: 0.2, y: 0.8}, {x: 0.8, y: 0.8}
+      ],
+      colors: ['#feca57', '#4facfe'],
+      pairs: [0, 0, 1, 1, 1]
+    },
+    {
+      positions: [
+        {x: 0.3, y: 0.15}, {x: 0.7, y: 0.15},
+        {x: 0.15, y: 0.5}, {x: 0.5, y: 0.5}, {x: 0.85, y: 0.5},
+        {x: 0.3, y: 0.85}, {x: 0.7, y: 0.85}
+      ],
+      colors: ['#a381ff', '#ff6b8b'],
+      pairs: [0, 0, 1, 1, 1, 0, 1]
+    },
+    {
+      positions: [
+        {x: 0.5, y: 0.2},
+        {x: 0.2, y: 0.4}, {x: 0.8, y: 0.4},
+        {x: 0.2, y: 0.6}, {x: 0.8, y: 0.6},
+        {x: 0.5, y: 0.8}
+      ],
+      colors: ['#54d2a6', '#feca57'],
+      pairs: [0, 1, 1, 1, 0, 0]
+    },
+    {
+      positions: [
+        {x: 0.25, y: 0.25}, {x: 0.75, y: 0.25},
+        {x: 0.25, y: 0.5}, {x: 0.5, y: 0.5}, {x: 0.75, y: 0.5},
+        {x: 0.25, y: 0.75}, {x: 0.75, y: 0.75}
+      ],
+      colors: ['#4facfe', '#a381ff'],
+      pairs: [0, 0, 1, 1, 0, 1, 1]
+    }
+  ];
+
+  function init() {
+    currentLevel = 0;
+    moveCount = 0;
+    maxMoves = 12;
+    gameState = 'playing';
+    selectedNode = null;
+    dragPoint = null;
+    bridges = [];
+    loadLevel(currentLevel);
+  }
+
+  function loadLevel(index) {
+    const level = createLevel(index);
+    moveCount = 0;
+    maxMoves = Math.min(12 + index * 2, 20);
+    selectedNode = null;
+    dragPoint = null;
+    bridges = [];
+    gameState = 'playing';
+    window.currentLevelData = level;
+  }
+
+  function getNodeAtPos(px, py) {
+    const level = window.currentLevelData;
+    if (!level || !level.nodes) return null;
+    for (const node of level.nodes) {
+      const dx = node.x - px;
+      const dy = node.y - py;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= NODE_RADIUS * 1.5) return node;
+    }
+    return null;
+  }
+
+  function getPairNodes(node) {
+    const level = window.currentLevelData;
+    if (!level || !level.nodes) return [];
+    return level.nodes.filter(n => n.pair === node.pair && n !== node);
+  }
+
+  function pathsIntersect(p1, p2, p3, p4) {
+    function ccw(A, B, C) {
+      return (C.y - A.y) * (B.x - A.x) > (B.y - A.y) * (C.x - A.x);
+    }
+    return ccw(p1, p3, p4) !== ccw(p2, p3, p4) && ccw(p1, p2, p3) !== ccw(p1, p2, p4);
+  }
+
+  function checkBridgeIntersects(newBridge) {
+    for (const bridge of bridges) {
+      if (pathsIntersect(
+        {x: newBridge.from.x, y: newBridge.from.y},
+        {x: newBridge.to.x, y: newBridge.to.y},
+        {x: bridge.from.x, y: bridge.from.y},
+        {x: bridge.to.x, y: bridge.to.y}
+      )) return true;
+    }
+    return false;
+  }
+
+  function tryConnect(node) {
+    if (!selectedNode || !node || selectedNode === node) return false;
+    if (selectedNode.color !== node.color) return false;
+    if (selectedNode.pair !== node.pair) return false;
+    if (selectedNode.connected || node.connected) return false;
+
+    const newBridge = {
+      from: {x: selectedNode.x, y: selectedNode.y},
+      to: {x: node.x, y: node.y},
+      color: selectedNode.color
+    };
+
+    if (checkBridgeIntersects(newBridge)) return false;
+
+    bridges.push(newBridge);
+    selectedNode.connected = true;
+    node.connected = true;
+    moveCount++;
+    return true;
+  }
+
+  function checkWin() {
+    const level = window.currentLevelData;
+    if (!level || !level.nodes) return false;
+    return level.nodes.every(n => n.connected);
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    ctx.fillStyle = '#0a0e1a';
+    ctx.fillRect(0, 0, W, H);
+
+    const level = window.currentLevelData;
+    if (!level || !level.nodes) return;
+
+    for (const bridge of bridges) {
+      ctx.strokeStyle = bridge.color;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = bridge.color;
+      ctx.beginPath();
+      ctx.moveTo(bridge.from.x, bridge.from.y);
+      ctx.lineTo(bridge.to.x, bridge.to.y);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    }
+
+    if (selectedNode && dragPoint) {
+      ctx.strokeStyle = selectedNode.color;
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(selectedNode.x, selectedNode.y);
+      ctx.lineTo(dragPoint.x, dragPoint.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    for (const node of level.nodes) {
+      ctx.fillStyle = node.color;
+      ctx.shadowBlur = node.connected ? 20 : 10;
+      ctx.shadowColor = node.color;
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, NODE_RADIUS, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      if (node.connected) {
+        ctx.fillStyle = 'rgba(255,255,255,0.8)';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('✓', node.x, node.y + 4);
+      }
+    }
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '18px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`Level: ${currentLevel + 1}/${LEVELS.length}`, 20, 30);
+    ctx.fillText(`Moves: ${moveCount}/${maxMoves}`, 20, 55);
+
+    if (gameState === 'won') {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 36px sans-serif';
+      ctx.fillText('Level Complete!', W / 2, H / 2 - 30);
+      ctx.font = '20px sans-serif';
+      ctx.fillText(`Moves: ${moveCount}/${maxMoves}`, W / 2, H / 2 + 10);
+      ctx.fillText('Click to continue', W / 2, H / 2 + 50);
+    } else if (gameState === 'lost') {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#ff6b8b';
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 36px sans-serif';
+      ctx.fillText('Moves Exhausted', W / 2, H / 2 - 30);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '20px sans-serif';
+      ctx.fillText('Click to retry', W / 2, H / 2 + 30);
+    }
+  }
+
+  function gameLoop() {
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+  gameLoop();
+
+  let isDragging = false;
+
+  canvas.addEventListener('mousedown', (e) => {
+    if (gameState !== 'playing') {
+      if (gameState === 'won') {
+        currentLevel++;
+        if (currentLevel >= LEVELS.length) {
+          currentLevel = 0;
+        }
+        loadLevel(currentLevel);
+      } else if (gameState === 'lost') {
+        loadLevel(currentLevel);
+      }
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const node = getNodeAtPos(px, py);
+    if (node && !node.connected) {
+      selectedNode = node;
+      isDragging = true;
+      dragPoint = {x: px, y: py};
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    if (!isDragging || !selectedNode || gameState !== 'playing') return;
+    const rect = canvas.getBoundingClientRect();
+    dragPoint = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    };
+  });
+
+  canvas.addEventListener('mouseup', (e) => {
+    if (!isDragging || !selectedNode || gameState !== 'playing') {
+      isDragging = false;
+      selectedNode = null;
+      dragPoint = null;
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+    const node = getNodeAtPos(px, py);
+    if (node && !node.connected && tryConnect(node)) {
+      selectedNode = null;
+      dragPoint = null;
+      isDragging = false;
+      if (checkWin()) {
+        gameState = 'won';
+      }
+    } else {
+      selectedNode = null;
+      dragPoint = null;
+    }
+    isDragging = false;
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    isDragging = false;
+    selectedNode = null;
+    dragPoint = null;
+  });
+
+  canvas.addEventListener('click', (e) => {
+    if (gameState === 'won' || gameState === 'lost') {
+      if (gameState === 'won') {
+        currentLevel++;
+        if (currentLevel >= LEVELS.length) {
+          currentLevel = 0;
+        }
+        loadLevel(currentLevel);
+      } else if (gameState === 'lost') {
+        loadLevel(currentLevel);
+      }
+    }
+  });
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    if (gameState !== 'playing') {
+      if (gameState === 'won') {
+        currentLevel++;
+        if (currentLevel >= LEVELS.length) {
+          currentLevel = 0;
+        }
+        loadLevel(currentLevel);
+      } else if (gameState === 'lost') {
+        loadLevel(currentLevel);
+      }
+      return;
+    }
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const px = touch.clientX - rect.left;
+    const py = touch.clientY - rect.top;
+    const node = getNodeAtPos(px, py);
+    if (node && !node.connected) {
+      selectedNode = node;
+      isDragging = true;
+      dragPoint = {x: px, y: py};
+    }
+  });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (!isDragging || !selectedNode || gameState !== 'playing') return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    dragPoint = {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    };
+  });
+
+  canvas.addEventListener('touchend', (e) => {
+    if (!isDragging || !selectedNode || gameState !== 'playing') {
+      isDragging = false;
+      selectedNode = null;
+      dragPoint = null;
+      return;
+    }
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    const rect = canvas.getBoundingClientRect();
+    const px = touch.clientX - rect.left;
+    const py = touch.clientY - rect.top;
+    const node = getNodeAtPos(px, py);
+    if (node && !node.connected && tryConnect(node)) {
+      selectedNode = null;
+      dragPoint = null;
+      isDragging = false;
+      if (checkWin()) {
+        gameState = 'won';
+      }
+    } else {
+      selectedNode = null;
+      dragPoint = null;
+    }
+    isDragging = false;
+  });
+
+  init();
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-29-lumen-drift";
+  var RELEASE = "c7f09d5a4443be50e68b13977985c505467a3393";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

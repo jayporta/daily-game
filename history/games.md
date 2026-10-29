@@ -2,15 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-10-29 — generation failed, previous game kept
+## 2026-10-29 — Lumen Drift
 
+- genre: puzzle
+- theme: A tranquil void where soft geometric constellations pulse with gentle light, waiting to be connected by drifting energy threads that bloom into bridges of pure illumination.
+- mechanics: Tap to select a glowing node, then drag to draw a path to a matching colored node, Paths become permanent luminous bridges that cannot cross each other, Complete all node pairs in each level to advance, Hand-authored constellation layouts with light procedural color variation, Limited moves per level with move counter visible
 - model: poolside/laguna-s-2.1:free
-- attempts: 5
-- attempt 1 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter stream carried no content
-- attempt 2 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
-- attempt 3 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 4 (nvidia/nemotron-3.5-lightning:free): could not extract bundle — missing-meta-block
-- attempt 5 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
+- attempts: 1
 
 ## 2026-10-28 — Garden Guardian
 

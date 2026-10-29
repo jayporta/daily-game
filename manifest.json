@@ -1,30 +1,18 @@
 {
-  "date": "2026-10-28",
-  "slug": "2026-10-28-garden-guardian",
-  "path": "games/archive/2026-10-28-garden-guardian/game.html",
-  "promptPath": "games/archive/2026-10-28-garden-guardian/prompt.txt",
-  "title": "Garden Guardian",
-  "genre": "growth-sim",
-  "genreLabel": "Growth Simulation",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-28T23:51:44.462Z",
-  "expiresAt": "2026-10-29T19:00:00.000Z",
+  "date": "2026-10-29",
+  "slug": "2026-10-29-lumen-drift",
+  "path": "games/archive/2026-10-29-lumen-drift/game.html",
+  "promptPath": "games/archive/2026-10-29-lumen-drift/prompt.txt",
+  "title": "Lumen Drift",
+  "genre": "puzzle",
+  "genreLabel": "Puzzle",
+  "model": "poolside/laguna-s-2.1:free",
+  "generatedAt": "2026-10-29T23:46:28.378Z",
+  "expiresAt": "2026-10-30T19:00:00.000Z",
   "controls": [
     {
-      "action": "Plant seed",
-      "key": "Click"
-    },
-    {
-      "action": "Add water",
-      "key": "W"
-    },
-    {
-      "action": "Add sunlight",
-      "key": "S"
-    },
-    {
-      "action": "Restart",
-      "key": "R"
+      "action": "Select and connect matching nodes",
+      "key": "Mouse drag / touch drag"
     }
   ]
 }

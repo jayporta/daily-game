@@ -1,0 +1,18 @@
+{
+  "title": "Lumen Drift",
+  "genre": "puzzle",
+  "theme": "A tranquil void where soft geometric constellations pulse with gentle light, waiting to be connected by drifting energy threads that bloom into bridges of pure illumination.",
+  "mechanics": [
+    "Tap to select a glowing node, then drag to draw a path to a matching colored node",
+    "Paths become permanent luminous bridges that cannot cross each other",
+    "Complete all node pairs in each level to advance",
+    "Hand-authored constellation layouts with light procedural color variation",
+    "Limited moves per level with move counter visible"
+  ],
+  "controls": [
+    {
+      "action": "Select and connect matching nodes",
+      "key": "Mouse drag / touch drag"
+    }
+  ]
+}
