@@ -12,7 +12,7 @@ Generated automatically — do not edit by hand.
 - attempt 4 (thinkingmachines/inkling:free): generation call failed — OpenRouter stream carried no content
 - attempt 5 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content
 - attempt 6 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content
-- attempt 7 (poolside/laguna-s-2.1:free): could not extract bundle — missing-meta-block
+- attempt 7 (poolside/laguna-s-2.1:free): generation call failed — OpenRouter stream carried no content
 
 ## 2026-10-29 — Lumen Drift
 
