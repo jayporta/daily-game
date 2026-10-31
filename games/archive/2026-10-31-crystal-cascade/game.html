@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Crystal Cascade</title>
+<style>
+:root {
+  --tile-size: clamp(40px, 5vw, 80px);
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
+  font-family: Arial, sans-serif;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+#ui {
+  margin: 10px;
+  font-size: 1.2em;
+  text-align: center;
+}
+#message {
+  margin-top: 10px;
+  font-weight: bold;
+}
+.board {
+  display: grid;
+  gap: 2px;
+  margin: 20px auto;
+}
+.tile {
+  width: var(--tile-size);
+  height: var(--tile-size);
+  border: 1px solid #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--tile-size) * 0.6);
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+}
+.tile.selected {
+  outline: 3px solid #ffeb3b;
+}
+.restart-btn {
+  margin-top: 20px;
+  padding: 10px 20px;
+  font-size: 1em;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+<div id="ui">
+  <div>Moves: <span id="moves">20</span></div>
+  <div>Score: <span id="score">0</span></div>
+  <div id="message"></div>
+</div>
+<div class="board"></div>
+
+<script>
+const COLS = 6;
+const ROWS = 6;
+const SHAPES = ['○','■','▲','★','♦'];
+const COLORS = ['#ff6b6b','#4ecdc4','#45b7d1','#f9c80e','#6c5ce7','#00b894'];
+
+let board = [];
+let selectedTile = null;
+let movesLeft = 20;
+let score = 0;
+let gameOver = false;
+
+const boardEl = document.querySelector('.board');
+const movesEl = document.getElementById('moves');
+const scoreEl = document.getElementById('score');
+const messageEl = document.getElementById('message');
+
+function randomShape() { return SHAPES[Math.floor(Math.random() * SHAPES.length)]; }
+function randomColor() { return COLORS[Math.floor(Math.random() * COLORS.length)]; }
+function createTile() { return { shape: randomShape(), color: randomColor() }; }
+
+function initBoard() {
+  board = [];
+  for (let r = 0; r < ROWS; r++) {
+    board[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      board[r][c] = createTile();
+    }
+  }
+  renderBoard();
+}
+
+function renderBoard() {
+  boardEl.innerHTML = '';
+  boardEl.style.gridTemplateColumns = `repeat(${COLS}, var(--tile-size))`;
+  boardEl.style.gridTemplateRows = `repeat(${ROWS}, var(--tile-size))`;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const data = board[r][c];
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.dataset.r = r;
+      tile.dataset.c = c;
+      tile.style.backgroundColor = data.color;
+      tile.textContent = data.shape;
+      tile.addEventListener('click', onTileClick);
+      boardEl.appendChild(tile);
+    }
+  }
+}
+
+function onTileClick(e) {
+  if (gameOver) return;
+  const tile = e.currentTarget;
+  const r = parseInt(tile.dataset.r);
+  const c = parseInt(tile.dataset.c);
+  if (!selectedTile) {
+    selectedTile = { r, c, el: tile };
+    tile.classList.add('selected');
+    return;
+  }
+  if (selectedTile.r === r && selectedTile.c === c) {
+    selectedTile.el.classList.remove('selected');
+    selectedTile = null;
+    return;
+  }
+  const dr = Math.abs(selectedTile.r - r);
+  const dc = Math.abs(selectedTile.c - c);
+  if (dr + dc !== 1) {
+    selectedTile.el.classList.remove('selected');
+    selectedTile = null;
+    return;
+  }
+  swapTiles(selectedTile.r, selectedTile.c, r, c);
+  renderSwapped(selectedTile.el, tile);
+  selectedTile.el.classList.remove('selected');
+  selectedTile = null;
+  processMatches();
+}
+
+function swapTiles(r1, c1, r2, c2) {
+  const tmp = board[r1][c1];
+  board[r1][c1] = board[r2][c2];
+  board[r2][c2] = tmp;
+  movesLeft--;
+  updateMovesDisplay();
+}
+
+function renderSwapped(tile1, tile2) {
+  const r1 = parseInt(tile1.dataset.r);
+  const c1 = parseInt(tile1.dataset.c);
+  const r2 = parseInt(tile2.dataset.r);
+  const c2 = parseInt(tile2.dataset.c);
+  tile1.style.backgroundColor = board[r1][c1].color;
+  tile1.textContent = board[r1][c1].shape;
+  tile2.style.backgroundColor = board[r2][c2].color;
+  tile2.textContent = board[r2][c2].shape;
+}
+
+function findMatches() {
+  const matchesSet = new Set();
+  // rows
+  for (let r = 0; r < ROWS; r++) {
+    let seq = [];
+    for (let c = 0; c < COLS; c++) {
+      const cell = board[r][c];
+      if (!cell) { seq = []; continue; }
+      if (seq.length === 0) seq = [{r, c}];
+      else {
+        const last = seq[seq.length - 1];
+        if (board[last.r][last.c].shape === cell.shape) {
+          seq.push({r, c});
+        } else {
+          if (seq.length >= 3) seq.forEach(p => matchesSet.add(`${p.r},${p.c}`));
+          seq = [{r, c}];
+        }
+      }
+    }
+    if (seq.length >= 3) seq.forEach(p => matchesSet.add(`${p.r},${p.c}`));
+  }
+  // columns
+  for (let c = 0; c < COLS; c++) {
+    let seq = [];
+    for (let r = 0; r < ROWS; r++) {
+      const cell = board[r][c];
+      if (!cell) { seq = []; continue; }
+      if (seq.length === 0) seq = [{r, c}];
+      else {
+        const last = seq[seq.length - 1];
+        if (board[last.r][last.c].shape === cell.shape) {
+          seq.push({r, c});
+        } else {
+          if (seq.length >= 3) seq.forEach(p => matchesSet.add(`${p.r},${p.c}`));
+          seq = [{r, c}];
+        }
+      }
+    }
+    if (seq.length >= 3) seq.forEach(p => matchesSet.add(`${p.r},${p.c}`));
+  }
+  const result = [];
+  matchesSet.forEach(str => {
+    const [r, c] = str.split(',').map(Number);
+    result.push({r, c});
+  });
+  return result;
+}
+
+function processMatches() {
+  const matches = findMatches();
+  if (matches.length === 0) {
+    checkGameState();
+    return;
+  }
+  matches.forEach(p => {
+    board[p.r][p.c] = null;
+    score += 10;
+  });
+  updateScoreDisplay();
+  gravity();
+  setTimeout(() => {
+    const newMatches = findMatches();
+    if (newMatches.length > 0) {
+      newMatches.forEach(p => {
+        board[p.r][p.c] = null;
+        score += 10;
+      });
+      updateScoreDisplay();
+      gravity();
+      setTimeout(() => processMatches(), 200);
+    } else {
+      checkGameState();
+    }
+  }, 200);
+}
+
+function gravity() {
+  for (let c = 0; c < COLS; c++) {
+    const column = [];
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (board[r][c] != null) column.push(board[r][c]);
+      else column.push(null);
+    }
+    let idx = 0;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (column[idx] != null) {
+        board[r][c] = column[idx];
+        idx++;
+      } else {
+        board[r][c] = null;
+      }
+    }
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (board[r][c] == null) {
+        board[r][c] = createTile();
+      }
+    }
+  }
+  renderBoard();
+}
+
+function checkGameState() {
+  let empty = true;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (board[r][c] != null) { empty = false; break; }
+    }
+    if (!empty) break;
+  }
+  if (empty) {
+    gameOver = true;
+    messageEl.textContent = `You cleared the board! Score: ${score}`;
+    showRestartButton();
+    return;
+  }
+  if (movesLeft <= 0) {
+    gameOver = true;
+    messageEl.textContent = `Game Over! Score: ${score}`;
+    showRestartButton();
+    return;
+  }
+}
+
+function updateMovesDisplay() { movesEl.textContent = movesLeft; }
+function updateScoreDisplay() { scoreEl.textContent = score; }
+
+function showRestartButton() {
+  const btn = document.createElement('button');
+  btn.textContent = 'Play Again';
+  btn.className = 'restart-btn';
+  btn.addEventListener('click', () => { location.reload(); });
+  document.body.appendChild(btn);
+}
+
+// Initialize
+initBoard();
+updateMovesDisplay();
+updateScoreDisplay();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-10-31-crystal-cascade";
+  var RELEASE = "75f5e854daa934a223518491df8c5552ad73d53b";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

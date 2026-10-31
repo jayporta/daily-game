@@ -12,11 +12,6 @@
       "provider": "openrouter"
     },
     {
-      "id": "poolside/laguna-s-2.1:free",
-      "active": true,
-      "provider": "openrouter"
-    },
-    {
       "id": "dots-studio/dots-3-note-preview:free",
       "active": true,
       "provider": "openrouter"
@@ -33,6 +28,11 @@
     },
     {
       "id": "thinkingmachines/inkling:free",
+      "active": true,
+      "provider": "openrouter"
+    },
+    {
+      "id": "recursive/flint-v1.0:free",
       "active": true,
       "provider": "openrouter"
     }

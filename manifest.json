@@ -1,18 +1,18 @@
 {
-  "date": "2026-10-29",
-  "slug": "2026-10-29-lumen-drift",
-  "path": "games/archive/2026-10-29-lumen-drift/game.html",
-  "promptPath": "games/archive/2026-10-29-lumen-drift/prompt.txt",
-  "title": "Lumen Drift",
-  "genre": "puzzle",
-  "genreLabel": "Puzzle",
-  "model": "poolside/laguna-s-2.1:free",
-  "generatedAt": "2026-10-29T23:46:28.378Z",
-  "expiresAt": "2026-10-30T19:00:00.000Z",
+  "date": "2026-10-31",
+  "slug": "2026-10-31-crystal-cascade",
+  "path": "games/archive/2026-10-31-crystal-cascade/game.html",
+  "promptPath": "games/archive/2026-10-31-crystal-cascade/prompt.txt",
+  "title": "Crystal Cascade",
+  "genre": "tile-matching",
+  "genreLabel": "Tile Matching",
+  "model": "cohere/north-mini-code:free",
+  "generatedAt": "2026-10-31T19:01:34.690Z",
+  "expiresAt": "2026-11-01T19:00:00.000Z",
   "controls": [
     {
-      "action": "Select and connect matching nodes",
-      "key": "Mouse drag / touch drag"
+      "action": "Swap Tiles",
+      "key": "click"
     }
   ]
 }

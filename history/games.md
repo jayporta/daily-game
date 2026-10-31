@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-10-31 — Crystal Cascade
+
+- genre: tile-matching
+- theme: A whimsical realm of floating crystal fruits that change colors, requiring the player to match groups of three or more crystals to clear the board and keep the garden thriving.
+- mechanics: Match three or more tiles to clear them, Swap adjacent tiles to form patterns, Limited moves per level with move counter, Hand-authored level layouts with procedural color variation
+- model: cohere/north-mini-code:free
+- attempts: 6
+
 ## 2026-10-30 — generation failed, previous game kept
 
 - model: dots-studio/dots-3-note-preview:free
