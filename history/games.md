@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Grid-based movement, Collect power cores, Reach exit to advance, Randomized key positions per level
 - model: nvidia/nemotron-3.5-lightning:free
 - attempts: 4
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-10-31 — Crystal Cascade
 

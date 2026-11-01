@@ -1532,6 +1532,10 @@
       "thinkingmachines/inkling:free",
       "recursive/flint-v1.0:free"
     ],
-    "quotaAffected": true
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
   }
 ]
