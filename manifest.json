@@ -1,18 +1,30 @@
 {
-  "date": "2026-10-31",
-  "slug": "2026-10-31-crystal-cascade",
-  "path": "games/archive/2026-10-31-crystal-cascade/game.html",
-  "promptPath": "games/archive/2026-10-31-crystal-cascade/prompt.txt",
-  "title": "Crystal Cascade",
-  "genre": "tile-matching",
-  "genreLabel": "Tile Matching",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-10-31T19:01:34.690Z",
-  "expiresAt": "2026-11-01T19:00:00.000Z",
+  "date": "2026-11-01",
+  "slug": "2026-11-01-neon-keyhunt",
+  "path": "games/archive/2026-11-01-neon-keyhunt/game.html",
+  "promptPath": "games/archive/2026-11-01-neon-keyhunt/prompt.txt",
+  "title": "Neon Keyhunt",
+  "genre": "maze-adventure",
+  "genreLabel": "Maze Adventure",
+  "model": "nvidia/nemotron-3.5-lightning:free",
+  "generatedAt": "2026-11-01T20:01:15.723Z",
+  "expiresAt": "2026-11-02T19:00:00.000Z",
   "controls": [
     {
-      "action": "Swap Tiles",
-      "key": "click"
+      "action": "Move robot up",
+      "key": "ArrowUp"
+    },
+    {
+      "action": "Move robot down",
+      "key": "ArrowDown"
+    },
+    {
+      "action": "Move robot left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "Move robot right",
+      "key": "ArrowRight"
     }
   ]
 }

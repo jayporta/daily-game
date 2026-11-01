@@ -1501,5 +1501,37 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-11-01",
+    "status": "published",
+    "model": "nvidia/nemotron-3.5-lightning:free",
+    "slug": "2026-11-01-neon-keyhunt",
+    "genre": "maze-adventure",
+    "theme": "A small neon robot navigates a shifting maze to collect power cores and reach the exit",
+    "mechanics": [
+      "Grid-based movement",
+      "Collect power cores",
+      "Reach exit to advance",
+      "Randomized key positions per level"
+    ],
+    "title": "Neon Keyhunt",
+    "attempts": 4,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-call",
+      "extract",
+      "generation-call",
+      "generation-failover",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "thinkingmachines/inkling-small:free",
+      "thinkingmachines/inkling:free",
+      "recursive/flint-v1.0:free"
+    ],
+    "quotaAffected": true
   }
 ]

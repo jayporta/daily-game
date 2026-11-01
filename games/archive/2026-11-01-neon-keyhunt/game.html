@@ -1,0 +1,399 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+  <meta charset="utf-8">
+  <title>Neon Keyhunt</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #0a0a1a; }
+    canvas { width: 100%; height: 100%; display: block; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    const MAZE_WIDTH = 15;
+    const MAZE_HEIGHT = 8;
+    const GRID_SIZE = 40;
+    
+    let canvas, ctx;
+    let player = { col: 1, row: 1 };
+    let keys = [];
+    let exit = { col: 0, row: 0 };
+    let collectedKeys = 0;
+    const TOTAL_KEYS = 3;
+    let maze = [];
+    let level = 1;
+    const MAX_LEVELS = 5;
+    
+    const mazePatterns = [
+      [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,0,0,1,0,1,1,1,1,0,1,1,0,1],
+        [1,0,1,0,0,0,0,0,0,1,0,0,0,0,1],
+        [1,1,1,1,1,1,1,1,0,1,1,1,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,0,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      ],
+      [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,1,0,0,0,1,0,0,0,0,1,0,0,1],
+        [1,0,1,1,1,0,1,0,1,1,0,1,0,1,1],
+        [1,0,0,0,0,0,1,0,0,0,0,1,0,0,1],
+        [1,1,1,1,1,0,1,1,1,1,0,1,1,0,1],
+        [1,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+        [1,0,1,1,1,1,1,1,0,1,1,1,1,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      ],
+      [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,0,0,1,0,0,0,1,0,0,0,1,0,1],
+        [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1],
+        [1,0,1,0,0,0,0,0,0,0,1,0,0,0,1],
+        [1,1,1,1,1,0,1,1,1,0,1,1,1,0,1],
+        [1,0,0,0,0,0,0,0,1,0,0,0,1,0,1],
+        [1,1,1,1,1,1,1,0,1,1,1,1,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      ],
+      [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1],
+        [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1],
+        [1,0,0,0,0,0,0,0,1,0,0,0,0,0,1],
+        [1,1,1,1,1,1,1,0,1,1,1,1,1,0,1],
+        [1,0,0,0,0,0,1,0,0,0,1,0,0,0,1],
+        [1,0,1,1,1,0,1,1,1,1,1,1,1,0,1],
+        [1,1,1,1,1,0,0,0,0,0,0,0,1,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      ],
+      [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1],
+        [1,0,1,0,0,0,0,0,1,0,0,0,1,0,1],
+        [1,0,1,1,1,1,1,1,1,0,1,1,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      ],
+    ];
+    
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    
+    function getGridCol(x) {
+      return Math.max(0, Math.min(MAZE_WIDTH - 1, Math.floor(x / GRID_SIZE)));
+    }
+    
+    function getGridRow(y) {
+      return Math.max(0, Math.min(MAZE_HEIGHT - 1, Math.floor(y / GRID_SIZE)));
+    }
+    
+    function isWall(col, row) {
+      if (col < 0 || col >= MAZE_WIDTH || row < 0 || row >= MAZE_HEIGHT) return true;
+      return maze[row][col] === 1;
+    }
+    
+    function isValidPosition(col, row) {
+      if (col < 0 || col >= MAZE_WIDTH || row < 0 || row >= MAZE_HEIGHT) return false;
+      if (isWall(col, row)) return false;
+      return true;
+    }
+    
+    function findEmptyPosition(excludeCol, excludeRow) {
+      const candidates = [];
+      for (let r = 0; r < MAZE_HEIGHT; r++) {
+        for (let c = 0; c < MAZE_WIDTH; c++) {
+          if (c !== excludeCol || r !== excludeRow) {
+            if (maze[r][c] === 0) {
+              candidates.push({ col: c, row: r });
+            }
+          }
+        }
+      }
+      if (candidates.length === 0) return null;
+      const idx = Math.floor(Math.random() * candidates.length);
+      return candidates[idx];
+    }
+    
+    function placeKeys() {
+      keys = [];
+      collectedKeys = 0;
+      let placed = 0;
+      while (placed < TOTAL_KEYS) {
+        const pos = findEmptyPosition(player.col, player.row);
+        if (pos === null) break;
+        let overlap = false;
+        for (let k = 0; k < keys.length; k++) {
+          if (keys[k].col === pos.col && keys[k].row === pos.row) {
+            overlap = true;
+            break;
+          }
+        }
+        if (!overlap) {
+          keys.push({ col: pos.col, row: pos.row });
+          placed++;
+        }
+      }
+    }
+    
+    function placeExit() {
+      let attempts = 0;
+      while (attempts < 100) {
+        const col = Math.floor(Math.random() * (MAZE_WIDTH - 2)) + 1;
+        const row = Math.floor(Math.random() * (MAZE_HEIGHT - 2)) + 1;
+        if (!isWall(col, row)) {
+          let onKey = false;
+          for (let k = 0; k < keys.length; k++) {
+            if (keys[k].col === col && keys[k].row === row) {
+              onKey = true;
+              break;
+            }
+          }
+          if (!onKey) {
+            exit = { col: col, row: row };
+            return;
+          }
+        }
+        attempts++;
+      }
+      exit = { col: MAZE_WIDTH - 2, row: 1 };
+    }
+    
+    function checkWin() {
+      if (collectedKeys >= TOTAL_KEYS) {
+        let atExit = false;
+        for (let k = 0; k < keys.length; k++) {
+          if (keys[k] !== null && player.col === keys[k].col && player.row === keys[k].row) {
+            // already collected
+          }
+        }
+        if (player.col === exit.col && player.row === exit.row) {
+          return true;
+        }
+      }
+      return false;
+    }
+    
+    function handleKeyDown(e) {
+      let newCol = player.col;
+      let newRow = player.row;
+      
+      if (e.key === 'ArrowUp') newRow--;
+      else if (e.key === 'ArrowDown') newRow++;
+      else if (e.key === 'ArrowLeft') newCol--;
+      else if (e.key === 'ArrowRight') newCol++;
+      
+      if (isValidPosition(newCol, newRow)) {
+        player.col = newCol;
+        player.row = newRow;
+        checkCollection();
+        checkWin();
+      }
+    }
+    
+    function checkCollection() {
+      for (let k = 0; k < keys.length; k++) {
+        if (keys[k] !== null && player.col === keys[k].col && player.row === keys[k].row) {
+          collectedKeys++;
+          keys[k] = null;
+          break;
+        }
+      }
+      placeExit();
+    }
+    
+    function drawMaze() {
+      for (let r = 0; r < MAZE_HEIGHT; r++) {
+        for (let c = 0; c < MAZE_WIDTH; c++) {
+          if (maze[r][c] === 1) {
+            ctx.fillStyle = '#1a0a2e';
+            ctx.fillRect(c * GRID_SIZE, r * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+            ctx.fillStyle = '#2a1a4e';
+            ctx.fillRect(c * GRID_SIZE + 2, r * GRID_SIZE + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+          }
+        }
+      }
+    }
+    
+    function drawKeys() {
+      for (let k = 0; k < keys.length; k++) {
+        if (keys[k] !== null) {
+          const gradient = ctx.createRadialGradient(
+            keys[k].col * GRID_SIZE + GRID_SIZE / 2,
+            keys[k].row * GRID_SIZE + GRID_SIZE / 2,
+            0,
+            keys[k].col * GRID_SIZE + GRID_SIZE / 2,
+            keys[k].row * GRID_SIZE + GRID_SIZE / 2,
+            GRID_SIZE / 2
+          );
+          gradient.addColorStop(0, '#ff1a1a');
+          gradient.addColorStop(0.5, '#ff5a5a');
+          gradient.addColorStop(1, '#ff8888');
+          ctx.fillStyle = gradient;
+          ctx.beginPath();
+          const cx = keys[k].col * GRID_SIZE + GRID_SIZE / 2;
+          const cy = keys[k].row * GRID_SIZE + GRID_SIZE / 2;
+          const radius = Math.max(1, GRID_SIZE / 2 - 4);
+          ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+    
+    function drawExit() {
+      const gradient = ctx.createLinearGradient(
+        exit.col * GRID_SIZE,
+        exit.row * GRID_SIZE,
+        exit.col * GRID_SIZE + GRID_SIZE,
+        exit.row * GRID_SIZE + GRID_SIZE
+      );
+      gradient.addColorStop(0, '#00ff88');
+      gradient.addColorStop(0.5, '#00aa66');
+      gradient.addColorStop(1, '#006644');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(exit.col * GRID_SIZE, exit.row * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold ' + Math.max(1, GRID_SIZE - 10) + 'px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('EXIT', exit.col * GRID_SIZE + GRID_SIZE / 2, exit.row * GRID_SIZE + GRID_SIZE / 2);
+    }
+    
+    function drawPlayer() {
+      ctx.fillStyle = '#3a88ff';
+      ctx.beginPath();
+      const x = player.col * GRID_SIZE + GRID_SIZE / 2;
+      const y = player.row * GRID_SIZE + GRID_SIZE / 2;
+      const size = Math.max(1, GRID_SIZE / 2 - 6);
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold ' + Math.max(1, GRID_SIZE / 3) + 'px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ROBO', x - 12, y + 12);
+    }
+    
+    function drawUI() {
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillText('Level: ' + level, 10, 25);
+      ctx.fillText('Keys: ' + collectedKeys + '/' + TOTAL_KEYS, 10, 45);
+    }
+    
+    function draw() {
+      ctx.fillStyle = '#0a0a1a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      drawMaze();
+      drawKeys();
+      drawExit();
+      drawPlayer();
+      drawUI();
+    }
+    
+    function nextLevel() {
+      level++;
+      if (level > MAX_LEVELS) level = 1;
+      maze = mazePatterns[level - 1] || mazePatterns[0];
+      player.col = 1;
+      player.row = 1;
+      placeKeys();
+      placeExit();
+    }
+    
+    function gameLoop() {
+      draw();
+      requestAnimationFrame(gameLoop);
+    }
+    
+    function init() {
+      canvas = document.getElementById('gameCanvas');
+      if (!canvas) return;
+      ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      
+      resizeCanvas();
+      window.addEventListener('resize', resizeCanvas);
+      
+      maze = mazePatterns[0] || [];
+      if (maze.length === 0) {
+        maze = [
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+          [1,0,0,0,1,0,1,1,1,1,0,1,1,0,1],
+          [1,0,1,0,0,0,0,0,0,1,0,0,0,0,1],
+          [1,1,1,1,1,1,1,1,0,1,1,1,1,0,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+          [1,1,1,1,1,1,1,1,1,1,1,0,1,0,1],
+          [1,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+          [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        ];
+      }
+      
+      player.col = 1;
+      player.row = 1;
+      placeKeys();
+      placeExit();
+      
+      window.removeEventListener('keydown', handleKeyDown);
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    
+    init();
+    gameLoop();
+  </script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-01-neon-keyhunt";
+  var RELEASE = "a094f2f69fa2acc007afcc8fa216dd91fb53a53b";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

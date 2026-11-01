@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-01 — Neon Keyhunt
+
+- genre: maze-adventure
+- theme: A small neon robot navigates a shifting maze to collect power cores and reach the exit
+- mechanics: Grid-based movement, Collect power cores, Reach exit to advance, Randomized key positions per level
+- model: nvidia/nemotron-3.5-lightning:free
+- attempts: 4
+
 ## 2026-10-31 — Crystal Cascade
 
 - genre: tile-matching
