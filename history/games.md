@@ -2,6 +2,18 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-02 — generation failed, previous game kept
+
+- model: cohere/north-mini-code:free
+- attempts: 7
+- attempt 1 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
+- attempt 2 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
+- attempt 3 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+- attempt 4 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter request failed: 503 Provider returned error
+- attempt 5 (thinkingmachines/inkling:free): generation call failed — OpenRouter stream carried no content
+- attempt 6 (recursive/flint-v1.0:free): generation call failed — OpenRouter stream carried no content
+- attempt 7 (nvidia/nemotron-3.5-lightning:free): could not extract bundle — missing-meta-block (response truncated at the output cap)
+
 ## 2026-11-01 — Neon Keyhunt
 
 - genre: maze-adventure
