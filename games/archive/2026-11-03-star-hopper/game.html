@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<title>Star Hopper</title>
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#87CEEB; }
+canvas { display:block; width:100%; height:100%; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const WORLD_WIDTH = 1000;
+const WORLD_HEIGHT = 600;
+const PLAYER_SIZE = WORLD_WIDTH * 0.04; // 40px
+const PLAYER_SPEED = 5;
+const JUMP_POWER = -12;
+const GRAVITY = 0.6;
+
+let w = 0, h = 0;
+let scale = 1;
+let offsetY = 0;
+
+const levelData = [
+  {
+    platforms: [
+      {x:0, y:480, w:200, h:20},
+      {x:250, y:430, w:150, h:20},
+      {x:500, y:380, w:200, h:20},
+      {x:750, y:330, w:150, h:20}
+    ],
+    clouds: [
+      {x:100, y:300, w:80, h:40},
+      {x:400, y:250, w:120, h:50}
+    ],
+    stars: [
+      {x:50, y:460, r:8},
+      {x:300, y:410, r:8},
+      {x:600, y:360, r:8}
+    ],
+    flag: {x:800, y:320, w:30, h:60},
+    startX:10, startY:460
+  },
+  {
+    platforms: [
+      {x:0, y:430, w:180, h:20},
+      {x:250, y:380, w:180, h:20},
+      {x:500, y:330, w:180, h:20},
+      {x:750, y:280, w:180, h:20}
+    ],
+    clouds: [
+      {x:150, y:320, w:100, h:45},
+      {x:600, y:270, w:80, h:55}
+    ],
+    stars: [
+      {x:50, y:420, r:8},
+      {x:350, y:370, r:8},
+      {x:650, y:320, r:8}
+    ],
+    flag: {x:850, y:270, w:30, h:80},
+    startX:10, startY:420
+  },
+  {
+    platforms: [
+      {x:0, y:380, w:200, h:20},
+      {x:300, y:330, w:200, h:20},
+      {x:600, y:280, w:200, h:20},
+      {x:900, y:230, w:200, h:20}
+    ],
+    clouds: [
+      {x:200, y:240, w:120, h:60},
+      {x:800, y:190, w:100, h:70}
+    ],
+    stars: [
+      {x:50, y:360, r:8},
+      {x:400, y:310, r:8},
+      {x:750, y:260, r:8}
+    ],
+    flag: {x:1000, y:190, w:30, h:100},
+    startX:10, startY:360
+  }
+];
+
+let keys = { left:false, right:false, up:false, r:false };
+
+window.addEventListener('keydown', e => {
+  switch(e.key){
+    case 'ArrowLeft': keys.left = true; break;
+    case 'ArrowRight': keys.right = true; break;
+    case ' ': keys.up = true; e.preventDefault(); break;
+    case 'r': case 'R': keys.r = true; break;
+  }
+});
+window.addEventListener('keyup', e => {
+  switch(e.key){
+    case 'ArrowLeft': keys.left = false; break;
+    case 'ArrowRight': keys.right = false; break;
+    case ' ': keys.up = false; break;
+    case 'r': case 'R': keys.r = false; break;
+  }
+});
+
+function resize(){
+  const container = canvas.parentElement;
+  w = canvas.width = container.clientWidth;
+  h = canvas.height = container.clientHeight;
+  // scale to fill width, center vertically
+  scale = w / WORLD_WIDTH;
+  offsetY = (h - WORLD_HEIGHT * scale) / 2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+let player = { x:0, y:0, width:PLAYER_SIZE, height:PLAYER_SIZE, vx:0, vy:0, onGround:false };
+let stars = [];
+let currentLevel = null;
+let currentLevelIndex = 0;
+let score = 0;
+let state = 'playing'; // playing, levelComplete, won
+
+function resetLevel(levelDef){
+  currentLevel = levelDef;
+  player.x = levelDef.startX;
+  player.y = levelDef.startY;
+  player.vx = 0;
+  player.vy = 0;
+  player.onGround = false;
+  stars = levelDef.stars.map(s => ({...s}));
+  state = 'playing';
+  score = 0;
+}
+
+function drawStar(x, y, r, fill=true){
+  ctx.beginPath();
+  const spikes = 5;
+  const step = Math.PI / spikes;
+  const outerR = r;
+  const innerR = r * 0.5;
+  let rotation = Math.PI * 1.5;
+  let px = x + outerR * Math.cos(rotation);
+  let py = y + outerR * Math.sin(rotation);
+  ctx.moveTo(px, py);
+  for(let i=0;i<2*spikes;i++){
+    rotation += step;
+    const radius = (i%2===0) ? outerR : innerR;
+    const nx = x + radius * Math.cos(rotation);
+    const ny = y + radius * Math.sin(rotation);
+    ctx.lineTo(nx, ny);
+  }
+  ctx.closePath();
+  if(fill) ctx.fillStyle = '#FFD700';
+  else ctx.fillStyle = '#FFA500';
+  ctx.fill();
+  ctx.strokeStyle = '#B8860B';
+  ctx.stroke();
+}
+
+function drawPlatform(x, y, w, h){
+  ctx.fillStyle = '#8B4513';
+  ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillRect(x, y, w, h/2);
+}
+
+function drawStarCollectible(x, y, r){
+  ctx.fillStyle = '#FFEB3B';
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#FFF';
+  ctx.beginPath();
+  ctx.arc(x + r*0.3, y - r*0.3, r*0.2, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawFlag(x, y, w, h){
+  ctx.fillStyle = '#A0522D';
+  ctx.fillRect(x, y+h, w, 20);
+  ctx.fillStyle = '#FF4444';
+  ctx.fillRect(x, y, w, h);
+}
+
+function drawBackground(){
+  const gradient = ctx.createLinearGradient(0,0,w,h);
+  gradient.addColorStop(0, '#87CEEB');
+  gradient.addColorStop(1, '#E0F7FA');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0,0,w,h);
+}
+
+function drawUI(){
+  ctx.fillStyle = '#000';
+  ctx.font = '20px Arial';
+  ctx.fillText(`Level: ${currentLevelIndex+1}`, 10, 30);
+  ctx.fillText(`Score: ${score}`, 10, 60);
+}
+
+function update(){
+  if(state !== 'playing') {
+    if(state === 'won' && keys.r){
+      currentLevelIndex = 0;
+      resetLevel(levelData[0]);
+    }
+    return;
+  }
+
+  // horizontal movement
+  if(keys.left) player.vx = -PLAYER_SPEED;
+  else if(keys.right) player.vx = PLAYER_SPEED;
+  else player.vx = 0;
+
+  // jump
+  if(keys.up && player.onGround){
+    player.vy = JUMP_POWER;
+    player.onGround = false;
+  }
+
+  // apply gravity
+  player.vy += GRAVITY;
+  player.x += player.vx;
+  player.y += player.vy;
+
+  // platform collision
+  player.onGround = false;
+  for(const p of currentLevel.platforms){
+    // bottom collision
+    if(player.y + player.height > p.y && player.vy > 0){
+      if(player.x + player.width > p.x && player.x < p.x + p.w){
+        player.y = p.y - player.height;
+        player.vy = 0;
+        player.onGround = true;
+      }
+    }
+    // side collisions
+    if(player.x + player.width > p.x && player.x < p.x + p.w){
+      if(player.y < p.y + p.h && player.y + player.height > p.y){
+        if(player.vx > 0){
+          player.x = p.x - player.width;
+        }else if(player.vx < 0){
+          player.x = p.x + p.w;
+        }
+      }
+    }
+  }
+
+  // cloud collision (obstacle)
+  for(const c of currentLevel.clouds){
+    if(player.x + player.width > c.x && player.x < c.x + c.w &&
+       player.y + player.height > c.y && player.y < c.y + c.h){
+      resetLevel(currentLevel);
+      return;
+    }
+  }
+
+  // star collection
+  for(let i=0;i<stars.length;i++){
+    const s = stars[i];
+    const dx = (player.x + player.width/2) - (s.x + s.r);
+    const dy = (player.y + player.height/2) - (s.y + s.r);
+    if(Math.sqrt(dx*dx + dy*dy) < (player.width/2 + s.r)){
+      stars.splice(i,1);
+      score += 10;
+      i--;
+    }
+  }
+
+  // flag detection
+  const f = currentLevel.flag;
+  if(player.x + player.width > f.x && player.x < f.x + f.w &&
+     player.y + player.height > f.y && player.y < f.y + f.h){
+    state = 'levelComplete';
+    setTimeout(()=>{
+      if(currentLevelIndex < levelData.length-1){
+        currentLevelIndex++;
+        resetLevel(levelData[currentLevelIndex]);
+      }else{
+        state = 'won';
+      }
+    }, 1500);
+    return;
+  }
+
+  // fall off
+  if(player.y > WORLD_HEIGHT){
+    resetLevel(currentLevel);
+    return;
+  }
+
+  // horizontal bounds
+  if(player.x < 0) player.x = 0;
+  if(player.x + player.width > WORLD_WIDTH) player.x = WORLD_WIDTH - player.width;
+}
+
+function draw(){
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,w,h);
+  drawBackground();
+
+  // world transform
+  ctx.save();
+  ctx.scale(scale, scale);
+  ctx.translate(0, offsetY);
+
+  for(const p of currentLevel.platforms){
+    drawPlatform(p.x, p.y, p.w, p.h);
+  }
+
+  for(const c of currentLevel.clouds){
+    ctx.fillStyle = '#FFF';
+    ctx.fillRect(c.x, c.y, c.w, c.h);
+    ctx.fillStyle = '#E0E0E0';
+    ctx.fillRect(c.x+5, c.y+5, c.w-10, c.h-10);
+  }
+
+  for(const s of stars){
+    drawStarCollectible(s.x, s.y, s.r);
+  }
+
+  drawFlag(currentLevel.flag.x, currentLevel.flag.y, currentLevel.flag.w, currentLevel.flag.h);
+
+  // draw player star
+  ctx.fillStyle = '#FFD700';
+  ctx.beginPath();
+  const spikes = 5;
+  const step = Math.PI / spikes;
+  const outerR = player.width/2;
+  const innerR = outerR * 0.5;
+  let rotation = Math.PI * 1.5;
+  let px = player.x + outerR * Math.cos(rotation);
+  let py = player.y + outerR * Math.sin(rotation);
+  ctx.moveTo(px, py);
+  for(let i=0;i<2*spikes;i++){
+    rotation += step;
+    const radius = (i%2===0) ? outerR : innerR;
+    const nx = player.x + radius * Math.cos(rotation);
+    const ny = player.y + radius * Math.sin(rotation);
+    ctx.lineTo(nx, ny);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#B8860B';
+  ctx.stroke();
+
+  ctx.restore(); // undo world transform
+
+  // UI in screen coordinates
+  drawUI();
+
+  // state overlays
+  if(state === 'levelComplete'){
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.font = '30px Arial';
+    ctx.fillText('Level Complete!', w/2-100, h/2);
+  }else if(state === 'won'){
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.font = '36px Arial';
+    ctx.fillText('You Win!', w/2-80, h/2);
+    ctx.font = '20px Arial';
+    ctx.fillText('Press R to Restart', w/2-80, h/2+40);
+  }
+
+  ctx.restore();
+}
+
+function gameLoop(){
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// start game
+resetLevel(levelData[0]);
+gameLoop();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-03-star-hopper";
+  var RELEASE = "eb7e34ea19d63b7471d8fe49b6963d2b696231e5";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

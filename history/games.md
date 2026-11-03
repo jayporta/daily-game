@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-03 — Star Hopper
+
+- genre: platformer
+- theme: A curious star creature hops across floating platforms in a whimsical sky, collecting twinkling stardust while avoiding mischievous cloud obstacles.
+- mechanics: Jump between floating platforms, Avoid drifting cloud obstacles, Collect twinkling stardust, Reach the flag to complete each level
+- model: cohere/north-mini-code:free
+- attempts: 1
+
 ## 2026-11-02 — generation failed, previous game kept
 
 - model: cohere/north-mini-code:free
