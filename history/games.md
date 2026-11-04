@@ -2,6 +2,18 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-04 — generation failed, previous game kept
+
+- model: dots-studio/dots-3-note-preview:free
+- attempts: 7
+- attempt 1 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
+- attempt 2 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+- attempt 3 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter stream carried no content
+- attempt 4 (thinkingmachines/inkling:free): generation call failed — OpenRouter stream carried no content
+- attempt 5 (recursive/flint-v1.0:free): generation call failed — OpenRouter stream carried no content
+- attempt 6 (nvidia/nemotron-3.5-lightning:free): could not extract bundle — missing-meta-block
+- attempt 7 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content
+
 ## 2026-11-03 — Star Hopper
 
 - genre: platformer
@@ -9,9 +21,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Jump between floating platforms, Avoid drifting cloud obstacles, Collect twinkling stardust, Reach the flag to complete each level
 - model: cohere/north-mini-code:free
 - attempts: 1
-- reactions: 0
+- reactions: -1
 - likes: 0
-- dislikes: 0
+- dislikes: 1
+- disliked for: gameplay-broken: 1, controls-unclear: 1
 
 ## 2026-11-02 — generation failed, previous game kept
 
