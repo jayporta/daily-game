@@ -1,0 +1,29 @@
+{
+  "title": "Crystal Guard",
+  "genre": "tower-defense",
+  "theme": "A whimsical magical forest where floating crystal towers defend against swarms of colorful particles.",
+  "mechanics": [
+    "Place towers along a path to block invaders",
+    "Upgrade towers to increase damage and range",
+    "Survive waves of enemies",
+    "Manage resources to buy and upgrade towers"
+  ],
+  "controls": [
+    {
+      "action": "Place selected tower",
+      "key": "Left Click"
+    },
+    {
+      "action": "Select Archer Tower",
+      "key": "1"
+    },
+    {
+      "action": "Select Mage Tower",
+      "key": "2"
+    },
+    {
+      "action": "Start next wave",
+      "key": "Space"
+    }
+  ]
+}

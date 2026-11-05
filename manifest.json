@@ -1,22 +1,30 @@
 {
-  "date": "2026-11-03",
-  "slug": "2026-11-03-star-hopper",
-  "path": "games/archive/2026-11-03-star-hopper/game.html",
-  "promptPath": "games/archive/2026-11-03-star-hopper/prompt.txt",
-  "title": "Star Hopper",
-  "genre": "platformer",
-  "genreLabel": "Platformer",
+  "date": "2026-11-04",
+  "slug": "2026-11-04-crystal-guard",
+  "path": "games/archive/2026-11-04-crystal-guard/game.html",
+  "promptPath": "games/archive/2026-11-04-crystal-guard/prompt.txt",
+  "title": "Crystal Guard",
+  "genre": "tower-defense",
+  "genreLabel": "Tower Defense",
   "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-11-03T20:03:51.086Z",
-  "expiresAt": "2026-11-04T19:00:00.000Z",
+  "generatedAt": "2026-11-05T00:42:58.134Z",
+  "expiresAt": "2026-11-05T19:00:00.000Z",
   "controls": [
     {
-      "action": "move left",
-      "key": "ArrowLeft"
+      "action": "Place selected tower",
+      "key": "Left Click"
     },
     {
-      "action": "move right",
-      "key": "ArrowRight"
+      "action": "Select Archer Tower",
+      "key": "1"
+    },
+    {
+      "action": "Select Mage Tower",
+      "key": "2"
+    },
+    {
+      "action": "Start next wave",
+      "key": "Space"
     }
   ]
 }

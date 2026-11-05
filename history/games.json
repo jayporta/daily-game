@@ -1597,35 +1597,36 @@
   },
   {
     "date": "2026-11-04",
-    "status": "failed_kept_previous",
-    "model": "dots-studio/dots-3-note-preview:free",
-    "attempts": 7,
-    "failureReasons": [
-      "attempt 1 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content",
-      "attempt 2 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block",
-      "attempt 3 (thinkingmachines/inkling-small:free): generation call failed — OpenRouter stream carried no content",
-      "attempt 4 (thinkingmachines/inkling:free): generation call failed — OpenRouter stream carried no content",
-      "attempt 5 (recursive/flint-v1.0:free): generation call failed — OpenRouter stream carried no content",
-      "attempt 6 (nvidia/nemotron-3.5-lightning:free): could not extract bundle — missing-meta-block",
-      "attempt 7 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content"
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-11-04-crystal-guard",
+    "genre": "tower-defense",
+    "theme": "A whimsical magical forest where floating crystal towers defend against swarms of colorful particles.",
+    "mechanics": [
+      "Place towers along a path to block invaders",
+      "Upgrade towers to increase damage and range",
+      "Survive waves of enemies",
+      "Manage resources to buy and upgrade towers"
     ],
+    "title": "Crystal Guard",
+    "attempts": 7,
+    "canvasDrawn": true,
     "failureKinds": [
-      "generation-call",
+      "extract",
       "extract",
       "generation-call",
-      "generation-call",
-      "generation-call",
+      "unknown-genre",
       "extract",
       "generation-call"
     ],
     "attemptModels": [
       "dots-studio/dots-3-note-preview:free",
       "nvidia/nemotron-3-ultra-550b-a55b:free",
-      "thinkingmachines/inkling-small:free",
-      "thinkingmachines/inkling:free",
       "recursive/flint-v1.0:free",
-      "nvidia/nemotron-3.5-lightning:free",
-      "cohere/north-mini-code:free"
-    ]
+      "xingchen-agi/xing4.0-29b-a4b:free",
+      "nvidia/nemotron-3.5-super-vl:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
+    "quotaAffected": true
   }
 ]
