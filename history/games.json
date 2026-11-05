@@ -1627,6 +1627,43 @@
       "nvidia/nemotron-3.5-super-vl:free",
       "nvidia/nemotron-3.5-lightning:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-11-05",
+    "status": "failed_kept_previous",
+    "model": "dots-studio/dots-3-note-preview:free",
+    "attempts": 6,
+    "failureReasons": [
+      "attempt 1 (dots-studio/dots-3-note-preview:free): moderation rejected — banned terms present: human",
+      "attempt 2 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block",
+      "attempt 3 (recursive/flint-v1.0:free): smoke test failed — uncaught JS error: Failed to execute 'write' on 'Document': Identifier 'dx' has already been declared",
+      "attempt 4 (nvidia/nemotron-3.5-super-vl:free): could not extract bundle — missing-meta-block",
+      "attempt 5 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content",
+      "attempt 6 (cohere/north-mini-code:free): smoke test failed — uncaught JS error: ρηση is not defined"
+    ],
+    "failureKinds": [
+      "moderation",
+      "extract",
+      "smoke-js-error",
+      "generation-failover",
+      "extract",
+      "generation-call",
+      "smoke-js-error"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "recursive/flint-v1.0:free",
+      "xingchen-agi/xing4.0-29b-a4b:free",
+      "nvidia/nemotron-3.5-super-vl:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free"
+    ],
     "quotaAffected": true
   }
 ]

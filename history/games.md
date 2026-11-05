@@ -2,6 +2,17 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-05 — generation failed, previous game kept
+
+- model: dots-studio/dots-3-note-preview:free
+- attempts: 6
+- attempt 1 (dots-studio/dots-3-note-preview:free): moderation rejected — banned terms present: human
+- attempt 2 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+- attempt 3 (recursive/flint-v1.0:free): smoke test failed — uncaught JS error: Failed to execute 'write' on 'Document': Identifier 'dx' has already been declared
+- attempt 4 (nvidia/nemotron-3.5-super-vl:free): could not extract bundle — missing-meta-block
+- attempt 5 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content
+- attempt 6 (cohere/north-mini-code:free): smoke test failed — uncaught JS error: ρηση is not defined
+
 ## 2026-11-04 — Crystal Guard
 
 - genre: tower-defense
@@ -9,6 +20,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Place towers along a path to block invaders, Upgrade towers to increase damage and range, Survive waves of enemies, Manage resources to buy and upgrade towers
 - model: cohere/north-mini-code:free
 - attempts: 7
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-03 — Star Hopper
 
