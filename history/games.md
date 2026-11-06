@@ -2,6 +2,17 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-06 — generation failed, previous game kept
+
+- model: nvidia/nemotron-3-ultra-550b-a55b:free
+- attempts: 6
+- attempt 1 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+- attempt 2 (recursive/flint-v1.0:free): smoke test failed — uncaught JS error: canvas.getContext is not a function
+- attempt 3 (nvidia/nemotron-3.5-super-vl:free): could not extract bundle — missing-html-block (response truncated at the output cap)
+- attempt 4 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content
+- attempt 5 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content
+- attempt 6 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
+
 ## 2026-11-05 — Starlight Glide
 
 - genre: endless-runner
@@ -9,6 +20,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Auto-scrolling endless runner with three lanes, Move up and down between lanes to dodge obstacles, Collect starlight crystals for points and speed boosts, Speed increases over time, spawning accelerates, Crash into an obstacle to end the game
 - model: dots-studio/dots-3-note-preview:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-04 — Crystal Guard
 
