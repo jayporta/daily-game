@@ -1,30 +1,26 @@
 {
-  "date": "2026-11-04",
-  "slug": "2026-11-04-crystal-guard",
-  "path": "games/archive/2026-11-04-crystal-guard/game.html",
-  "promptPath": "games/archive/2026-11-04-crystal-guard/prompt.txt",
-  "title": "Crystal Guard",
-  "genre": "tower-defense",
-  "genreLabel": "Tower Defense",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-11-05T00:42:58.134Z",
-  "expiresAt": "2026-11-05T19:00:00.000Z",
+  "date": "2026-11-05",
+  "slug": "2026-11-05-starlight-glide",
+  "path": "games/archive/2026-11-05-starlight-glide/game.html",
+  "promptPath": "games/archive/2026-11-05-starlight-glide/prompt.txt",
+  "title": "Starlight Glide",
+  "genre": "endless-runner",
+  "genreLabel": "Endless Runner",
+  "model": "dots-studio/dots-3-note-preview:free",
+  "generatedAt": "2026-11-06T00:44:31.954Z",
+  "expiresAt": "2026-11-06T19:00:00.000Z",
   "controls": [
     {
-      "action": "Place selected tower",
-      "key": "Left Click"
+      "action": "Move up one lane",
+      "key": "Arrow Up / W"
     },
     {
-      "action": "Select Archer Tower",
-      "key": "1"
+      "action": "Move down one lane",
+      "key": "Arrow Down / S"
     },
     {
-      "action": "Select Mage Tower",
-      "key": "2"
-    },
-    {
-      "action": "Start next wave",
-      "key": "Space"
+      "action": "Jump to a lane by clicking or touching",
+      "key": "Click / Touch on target lane"
     }
   ]
 }

@@ -1,0 +1,26 @@
+{
+  "title": "Starlight Glide",
+  "genre": "endless-runner",
+  "theme": "A luminous moth-like creature glides through a starlit canyon, collecting glowing starlight crystals while dodging falling rocks and shadow tendrils.",
+  "mechanics": [
+    "Auto-scrolling endless runner with three lanes",
+    "Move up and down between lanes to dodge obstacles",
+    "Collect starlight crystals for points and speed boosts",
+    "Speed increases over time, spawning accelerates",
+    "Crash into an obstacle to end the game"
+  ],
+  "controls": [
+    {
+      "action": "Move up one lane",
+      "key": "Arrow Up / W"
+    },
+    {
+      "action": "Move down one lane",
+      "key": "Arrow Down / S"
+    },
+    {
+      "action": "Jump to a lane by clicking or touching",
+      "key": "Click / Touch on target lane"
+    }
+  ]
+}

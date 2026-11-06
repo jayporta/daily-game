@@ -2,16 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-11-05 — generation failed, previous game kept
+## 2026-11-05 — Starlight Glide
 
+- genre: endless-runner
+- theme: A luminous moth-like creature glides through a starlit canyon, collecting glowing starlight crystals while dodging falling rocks and shadow tendrils.
+- mechanics: Auto-scrolling endless runner with three lanes, Move up and down between lanes to dodge obstacles, Collect starlight crystals for points and speed boosts, Speed increases over time, spawning accelerates, Crash into an obstacle to end the game
 - model: dots-studio/dots-3-note-preview:free
-- attempts: 6
-- attempt 1 (dots-studio/dots-3-note-preview:free): moderation rejected — banned terms present: human
-- attempt 2 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 3 (recursive/flint-v1.0:free): smoke test failed — uncaught JS error: Failed to execute 'write' on 'Document': Identifier 'dx' has already been declared
-- attempt 4 (nvidia/nemotron-3.5-super-vl:free): could not extract bundle — missing-meta-block
-- attempt 5 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content
-- attempt 6 (cohere/north-mini-code:free): smoke test failed — uncaught JS error: ρηση is not defined
+- attempts: 1
 
 ## 2026-11-04 — Crystal Guard
 

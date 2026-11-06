@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #0a0a2e;
+    overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+  #score {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: clamp(20px, 4vw, 32px);
+    font-weight: bold;
+    color: #ffd700;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    pointer-events: none;
+    user-select: none;
+  }
+  #overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10, 10, 46, 0.88);
+    color: #fff;
+    text-align: center;
+    pointer-events: auto;
+    backdrop-filter: blur(2px);
+  }
+  #overlay h1 {
+    font-size: clamp(32px, 7vw, 48px);
+    margin: 0 0 10px 0;
+    color: #ffd700;
+    text-shadow: 0 0 24px rgba(255, 215, 0, 0.4);
+    letter-spacing: 2px;
+  }
+  #overlay p {
+    font-size: clamp(14px, 2.5vw, 18px);
+    margin: 5px 0;
+    color: #c8d0e8;
+    max-width: 80%;
+    line-height: 1.5;
+  }
+  #overlay .stats {
+    margin: 12px 0;
+    font-size: clamp(16px, 3vw, 22px);
+    color: #ffd700;
+    font-weight: bold;
+  }
+  #overlay button {
+    margin-top: 22px;
+    padding: clamp(10px, 2vw, 14px) clamp(24px, 5vw, 40px);
+    font-size: clamp(16px, 3vw, 20px);
+    background: #ffd700;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #0a0a2e;
+    font-weight: bold;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 4px 16px rgba(255, 215, 0, 0.3);
+  }
+  #overlay button:hover {
+    transform: scale(1.06);
+    box-shadow: 0 6px 24px rgba(255, 215, 0, 0.45);
+  }
+  #overlay button:active {
+    transform: scale(0.98);
+  }
+  .hidden {
+    display: none !important;
+  }
+</style>
+</head>
+<body>
+<div id="game-container">
+  <canvas id="game"></canvas>
+  <div id="score">0</div>
+  <div id="overlay">
+    <h1>Starlight Glide</h1>
+    <p>A luminous moth-creature glides through a starlit canyon.</p>
+    <p>Collect glowing starlight crystals &middot; Dodge falling rocks &amp; shadow tendrils.</p>
+    <p><b>Controls:</b> Arrow Keys / WASD to move &nbsp;|&nbsp; Click or Touch a lane to glide there</p>
+    <button id="start-btn">Start Glide</button>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ============================================================
+  //  Canvas setup
+  // ============================================================
+  const canvas  = document.getElementById('game');
+  const ctx     = canvas.getContext('2d');
+  const container = document.getElementById('game-container');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('start-btn');
+  const scoreEl = document.getElementById('score');
+
+  let W = 0, H = 0;
+
+  function resize() {
+    W = container.clientWidth;
+    H = container.clientHeight;
+    canvas.width  = W;
+    canvas.height = H;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ============================================================
+  //  Game constants
+  // ============================================================
+  const LANE_COUNT  = 3;
+  const LANE_TOP    = 0.18;   // fraction of H for first lane
+  const LANE_BOTTOM = 0.82;   // fraction of H for last lane
+  const LANE_GAP    = (LANE_BOTTOM - LANE_TOP) / (LANE_COUNT - 1);
+
+  function laneY(i) { return H * (LANE_TOP + i * LANE_GAP); }
+
+  const PLAYER_X_FRAC = 0.12;  // fraction of W where the creature flies
+
+  // ============================================================
+  //  Audio  (tiny Web Audio synth — no files, no network)
+  // ============================================================
+  let audioCtx = null;
+  function ensureAudio() {
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+      catch(e) { audioCtx = null; }
+    }
+  }
+  function blip(freq, dur, type, vol) {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    gain.gain.setValueAtTime(vol || 0.1, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + dur);
+  }
+  function collectSound() { blip(880, 0.12, 'sine', 0.12); blip(1320, 0.1, 'sine', 0.08); }
+  function crashSound()  { blip(180, 0.25, 'sawtooth', 0.18); blip(90, 0.4, 'square', 0.12); }
+  function startSound()  { blip(523, 0.12, 'sine', 0.1); blip(659, 0.12, 'sine', 0.1); blip(784, 0.16, 'sine', 0.12); }
+
+  // ============================================================
+  //  Game state
+  // ============================================================
+  let state       = 'menu';     // 'menu' | 'playing' | 'gameover'
+  let playerLane  = 1;
+  let obstacles   = [];
+  let crystals    = [];
+  let particles   = [];
+  let stars       = [];
+  let score       = 0;
+  let speed       = 2;
+  let baseSpeed   = 2;
+  let spawnTimer  = 0;
+  let spawnInterval = 90;
+  let distance    = 0;
+  let lastTime    = 0;
+
+  // Build starfield
+  for (let i = 0; i < 100; i++) {
+    stars.push({
+      x: Math.random(),
+      y: Math.random(),
+      r: Math.random() * 1.6 + 0.2,
+      tw: Math.random() * Math.PI * 2,
+      sp: Math.random() * 0.015 + 0.004,
+      // parallax depth 0..1 (0 = near, 1 = far)
+      d: Math.random()
+    });
+  }
+
+  // ============================================================
+  //  Particles
+  // ============================================================
+  function spawnParticles(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x, y,
+        vx: (Math.random() - 0.5) * 5,
+        vy: (Math.random() - 0.5) * 5,
+        life: 1.0,
+        decay: Math.random() * 0.04 + 0.02,
+        color,
+        size: Math.random() * 3 + 1
+      });
+    }
+  }
+
+  // ============================================================
+  //  Spawning
+  // ============================================================
+  function spawn() {
+    const roll = Math.random();
+    // Decide which lanes get what
+    const obstacleLanes = new Set();
+    const crystalLanes  = new Set();
+
+    if (roll < 0.45) {
+      // obstacle only
+      obstacleLanes.add(Math.floor(Math.random() * LANE_COUNT));
+    } else if (roll < 0.80) {
+      // crystal only
+      crystalLanes.add(Math.floor(Math.random() * LANE_COUNT));
+    } else {
+      // both, in different lanes
+      const o = Math.floor(Math.random() * LANE_COUNT);
+      let c = Math.floor(Math.random() * LANE_COUNT);
+      if (c === o) c = (c + 1) % LANE_COUNT;
+      obstacleLanes.add(o);
+      crystalLanes.add(c);
+    }
+
+    for (const lane of obstacleLanes) {
+      obstacles.push({
+        lane,
+        x: W + 30,
+        type: Math.random() < 0.55 ? 'rock' : 'shadow',
+        w: 34,
+        h: 34,
+        rot: Math.random() * Math.PI * 2,
+        rotSp: (Math.random() - 0.5) * 0.04
+      });
+    }
+    for (const lane of crystalLanes) {
+      crystals.push({
+        lane,
+        x: W + 50,
+        pulse: Math.random() * Math.PI * 2,
+        collected: false
+      });
+    }
+  }
+
+  // ============================================================
+  //  Input
+  // ============================================================
+  function movePlayer(dir) {
+    const n = playerLane + dir;
+    if (n >= 0 && n < LANE_COUNT) playerLane = n;
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (state !== 'playing') return;
+    if (e.key === 'ArrowUp'   || e.key === 'w' || e.key === 'W') { movePlayer(-1); e.preventDefault(); }
+    else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') { movePlayer(1);  e.preventDefault(); }
+  });
+
+  function laneFromY(clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const frac = (clientY - rect.top) / rect.height;
+    const f = (frac - LANE_TOP) / LANE_GAP;
+    const lane = Math.round(f);
+    if (lane >= 0 && lane < LANE_COUNT) playerLane = lane;
+  }
+
+  canvas.addEventListener('click', function(e) {
+    if (state === 'menu' || state === 'gameover') { startGame(); return; }
+    if (state !== 'playing') return;
+    ensureAudio();
+    laneFromY(e.clientY);
+  });
+
+  canvas.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    if (state === 'menu' || state === 'gameover') { startGame(); return; }
+    if (state !== 'playing') return;
+    ensureAudio();
+    const t = e.touches[0];
+    laneFromY(t.clientY);
+  }, { passive: false });
+
+  startBtn.addEventListener('click', function() { ensureAudio(); startGame(); });
+
+  // ============================================================
+  //  Game lifecycle
+  // ============================================================
+  function startGame() {
+    ensureAudio();
+    startSound();
+    state        = 'playing';
+    playerLane   = 1;
+    obstacles    = [];
+    crystals     = [];
+    particles    = [];
+    score        = 0;
+    speed        = baseSpeed;
+    spawnTimer   = 0;
+    spawnInterval = 90;
+    distance     = 0;
+    overlay.classList.add('hidden');
+    scoreEl.textContent = '0';
+  }
+
+  function gameOver() {
+    crashSound();
+    const px = W * PLAYER_X_FRAC;
+    const py = laneY(playerLane);
+    spawnParticles(px, py, '#ff6b6b', 24);
+    state = 'gameover';
+    overlay.querySelector('h1').textContent = 'Game Over';
+    overlay.querySelectorAll('p')[0].textContent = 'The canyon claimed the glider.';
+    overlay.querySelectorAll('p')[1].innerHTML =
+      '<span class="stats">' + score + ' crystals</span> collected';
+    overlay.querySelectorAll('p')[2].innerHTML =
+      '<span class="stats">' + speed.toFixed(1) + 'x</span> max speed';
+    overlay.querySelectorAll('p')[3].textContent = 'Arrow Keys / WASD or click a lane to move';
+    overlay.querySelector('button').textContent = 'Glide Again';
+    overlay.classList.remove('hidden');
+  }
+
+  // ============================================================
+  //  Update
+  // ============================================================
+  function update(dt) {
+    // Parallax stars even on menu / gameover
+    for (const s of stars) s.tw += s.sp;
+
+    if (state !== 'playing') return;
+
+    // Difficulty ramp
+    speed = baseSpeed + distance * 0.00045;
+    spawnInterval = Math.max(38, 90 - distance * 0.0018);
+    distance += speed * (dt / 16.67);
+
+    // Spawn
+    spawnTimer++;
+    if (spawnTimer >= spawnInterval) {
+      spawnTimer = 0;
+      spawn();
+    }
+
+    // Move obstacles
+    for (const o of obstacles) { o.x -= speed; o.rot += o.rotSp; }
+    obstacles = obstacles.filter(o => o.x + o.w > -10);
+
+    // Move crystals
+    for (const c of crystals) { c.x -= speed; c.pulse += 0.1; }
+    crystals = crystals.filter(c => c.x + 20 > -10);
+
+    // Particles
+    for (const p of particles) {
+      p.x += p.vx; p.y += p.vy;
+      p.vx *= 0.96; p.vy *= 0.96;
+      p.life -= p.decay;
+    }
+    particles = particles.filter(p => p.life > 0);
+
+    // Collisions — obstacles
+    const px = W * PLAYER_X_FRAC;
+    const py = laneY(playerLane);
+    const pR = 20;
+
+    for (const o of obstacles) {
+      const oy = laneY(o.lane);
+      const dx = o.x - px, dy = oy - py;
+      if (Math.sqrt(dx * dx + dy * dy) < pR + o.w * 0.45) {
+        spawnParticles(o.x, oy, '#8b0000', 18);
+        gameOver();
+        return;
+      }
+    }
+
+    // Collection — crystals
+    for (const c of crystals) {
+      if (c.collected) continue;
+      const cy = laneY(c.lane);
+      const dx = c.x - px, dy = cy - py;
+      if (Math.sqrt(dx * dx + dy * dy) < pR + 14) {
+        c.collected = true;
+        score += 10;
+        scoreEl.textContent = score;
+        spawnParticles(c.x, cy, '#ffd700', 14);
+        collectSound();
+        speed = Math.min(speed + 0.06, 9);
+      }
+    }
+    crystals = crystals.filter(c => !c.collected);
+  }
+
+  // ============================================================
+  //  Draw
+  // ============================================================
+  function draw() {
+    // Sky
+    ctx.fillStyle = '#0a0a2e';
+    ctx.fillRect(0, 0, W, H);
+
+    // Stars (parallax by depth)
+    for (const s of stars) {
+      const a = 0.25 + Math.sin(s.tw) * 0.25 + 0.3;
+      ctx.fillStyle = 'rgba(255,255,255,' + a + ')';
+      ctx.beginPath();
+      ctx.arc(s.x * W * (0.5 + s.d * 0.5), s.y * H, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Distant canyon walls (subtle gradient bands)
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0,   'rgba(30,20,60,0.5)');
+    g.addColorStop(0.5, 'rgba(15,10,40,0.3)');
+    g.addColorStop(1,   'rgba(30,20,60,0.5)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // Lane guides
+    for (let i = 0; i <= LANE_COUNT; i++) {
+      const y = laneY(i);
+      ctx.strokeStyle = 'rgba(255,215,0,0.12)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([8, 16]);
+      ctx.beginPath();
+      ctx.moveTo(0, y); ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    if (state === 'playing' || state === 'gameover') {
+      // ---- Obstacles ----
+      for (const o of obstacles) {
+        const oy = laneY(o.lane);
+        ctx.save();
+        ctx.translate(o.x, oy);
+        ctx.rotate(o.rot);
+
+        if (o.type === 'rock') {
+          // Jagged rock polygon
+          ctx.fillStyle = '#6b5b4a';
+          ctx.beginPath();
+          ctx.moveTo(0, -o.h*0.6);
+          ctx.lineTo(o.w*0.5, -o.h*0.15);
+          ctx.lineTo(o.w*0.4, o.h*0.5);
+          ctx.lineTo(-o.w*0.4, o.h*0.5);
+          ctx.lineTo(-o.w*0.5, -o.h*0.15);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#4a3a2a';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          // Highlight
+          ctx.fillStyle = 'rgba(255,255,255,0.12)';
+          ctx.beginPath();
+          ctx.moveTo(-o.w*0.3, -o.h*0.4);
+          ctx.lineTo(o.w*0.2, -o.h*0.1);
+          ctx.lineTo(0, o.h*0.2);
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          // Shadow tendril — wavy ribbon
+          ctx.strokeStyle = '#2a0a4a';
+          ctx.lineWidth = o.w * 0.35;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(0, -o.h*0.6);
+          ctx.quadraticCurveTo(o.w*0.35, 0, 0, o.h*0.6);
+          ctx.stroke();
+          ctx.strokeStyle = '#4a1a6a';
+          ctx.lineWidth = o.w * 0.12;
+          ctx.beginPath();
+          ctx.moveTo(0, -o.h*0.6);
+          ctx.quadraticCurveTo(-o.w*0.25, 0, 0, o.h*0.6);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // ---- Crystals ----
+      for (const c of crystals) {
+        if (c.collected) continue;
+        const cy = laneY(c.lane);
+        const pulse = Math.sin(c.pulse) * 3;
+        const cx = c.x;
+
+        // Glow halo
+        const rg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 22 + pulse);
+        rg.addColorStop(0, 'rgba(255,215,0,0.55)');
+        rg.addColorStop(1, 'rgba(255,215,0,0)');
+        ctx.fillStyle = rg;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 22 + pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Diamond body
+        ctx.save();
+        ctx.translate(cx, cy);
+        const sz = 11 + pulse * 0.3;
+        ctx.fillStyle = '#ffd700';
+        ctx.strokeStyle = '#ffeb3b';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -sz);
+        ctx.lineTo(sz * 0.8, 0);
+        ctx.lineTo(0, sz);
+        ctx.lineTo(-sz * 0.8, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Inner facet
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.beginPath();
+        ctx.moveTo(-sz*0.3, -sz*0.3);
+        ctx.lineTo(sz*0.3, -sz*0.3);
+        ctx.lineTo(0, sz*0.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      // ---- Player ----
+      const px = W * PLAYER_X_FRAC;
+      const py = laneY(playerLane);
+      const wingBeat = Math.sin(performance.now() * 0.008) * 2.5;
+
+      // Glow
+      const pg = ctx.createRadialGradient(px, py, 0, px, py, 34);
+      pg.addColorStop(0, 'rgba(120,200,255,0.5)');
+      pg.addColorStop(1, 'rgba(120,200,255,0)');
+      ctx.fillStyle = pg;
+      ctx.beginPath();
+      ctx.arc(px, py, 34, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.translate(px, py);
+
+      // Wings
+      ctx.fillStyle = 'rgba(160,210,255,0.75)';
+      ctx.strokeStyle = 'rgba(210,235,255,0.85)';
+      ctx.lineWidth = 1.5;
+
+      // Left wing
+      ctx.beginPath();
+      ctx.ellipse(-13, -5 + wingBeat, 11, 15, -0.35, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+      // Right wing
+      ctx.beginPath();
+      ctx.ellipse(13, -5 + wingBeat, 11, 15, 0.35, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+
+      // Body
+      ctx.fillStyle = '#a8d8ff';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 6, 11, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#cce4ff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Antennae
+      ctx.strokeStyle = '#cce4ff';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-3, -9); ctx.lineTo(-7, -16);
+      ctx.moveTo(3, -9);  ctx.lineTo(7, -16);
+      ctx.stroke();
+
+      // Eyes
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(-2, -5, 1.6, 0, Math.PI * 2); ctx.arc(2, -5, 1.6, 0, Math.PI * 2); ctx.fill();
+
+      ctx.restore();
+    }
+
+    // ---- Particles ----
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  // ============================================================
+  //  Game loop
+  // ============================================================
+  function loop(ts) {
+    if (!lastTime) lastTime = ts;
+    const dt = Math.min(ts - lastTime, 50);  // clamp tab-switch spikes
+    lastTime = ts;
+
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-05-starlight-glide";
+  var RELEASE = "018bd03d22702a0d80d7ce86bc608e4b80b37d85";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
