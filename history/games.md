@@ -2,16 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-11-06 — generation failed, previous game kept
+## 2026-11-06 — Spark Dash
 
-- model: nvidia/nemotron-3-ultra-550b-a55b:free
-- attempts: 6
-- attempt 1 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 2 (recursive/flint-v1.0:free): smoke test failed — uncaught JS error: canvas.getContext is not a function
-- attempt 3 (nvidia/nemotron-3.5-super-vl:free): could not extract bundle — missing-html-block (response truncated at the output cap)
-- attempt 4 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content
-- attempt 5 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content
-- attempt 6 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content
+- genre: racing
+- theme: A small luminous orb races along a scrolling track, dodging falling rocks and collecting starlight crystals while a clock ticks down.
+- mechanics: Auto-scrolling track with forward momentum, Steer left/right to dodge rocks and collect crystals, Countdown timer creates urgency, Collect 15 crystals before time runs out to win, Crash into a rock ends the run
+- model: xingchen-agi/xing4.0-29b-a4b:free
+- attempts: 3
 
 ## 2026-11-05 — Starlight Glide
 

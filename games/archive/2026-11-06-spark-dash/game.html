@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Spark Dash</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0a18; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(function(){
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0, dpr = 1;
+  
+  // Game state
+  let state = 'start'; // start, playing, over, win
+  let score = 0;
+  let crystals = 0;
+  let timeLeft = 30;
+  let bestScore = 0;
+  
+  // Player
+  let player = { x: 0, y: 0, w: 24, h: 24, speed: 0 };
+  
+  // World
+  let obstacles = [];
+  let pickups = [];
+  let trackOffset = 0;
+  let scrollSpeed = 3;
+  
+  // Input
+  let keys = {};
+  let mouseDown = false;
+  let mouseX = 0, mouseY = 0;
+  let touchActive = false;
+  
+  function resize() {
+    dpr = window.devicePixelRatio || 1;
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  
+  function reset() {
+    state = 'playing';
+    score = 0;
+    crystals = 0;
+    timeLeft = 30;
+    player.x = W / 2;
+    player.y = H - 80;
+    player.speed = 0;
+    obstacles = [];
+    pickups = [];
+    trackOffset = 0;
+    scrollSpeed = 3;
+    spawnObstacles();
+    spawnPickups();
+  }
+  
+  function spawnObstacles() {
+    obstacles = [];
+    for (let i = 0; i < 8; i++) {
+      obstacles.push({
+        x: Math.random() * W,
+        y: -Math.random() * H * 2 - 100,
+        r: 18 + Math.random() * 14,
+        rot: 0
+      });
+    }
+  }
+  
+  function spawnPickups() {
+    pickups = [];
+    for (let i = 0; i < 6; i++) {
+      pickups.push({
+        x: Math.random() * W,
+        y: -Math.random() * H * 2 - 100,
+        r: 12,
+        collected: false,
+        pulse: Math.random() * Math.PI * 2
+      });
+    }
+  }
+  
+  window.addEventListener('resize', resize);
+  window.addEventListener('keydown', function(e){
+    keys[e.key] = true;
+    if (e.key === ' ' || e.key === 'ArrowUp') e.preventDefault();
+  });
+  window.addEventListener('keyup', function(e){
+    keys[e.key] = false;
+  });
+  
+  canvas.addEventListener('mousedown', function(e){
+    mouseDown = true;
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+  canvas.addEventListener('mousemove', function(e){
+    if (mouseDown) {
+      player.x += (e.clientX - mouseX) * 0.15;
+      mouseX = e.clientX;
+      mouseY = e.clientY;
+    }
+  });
+  canvas.addEventListener('mouseup', function(){ mouseDown = false; });
+  
+  canvas.addEventListener('touchstart', function(e){
+    e.preventDefault();
+    touchActive = true;
+    mouseDown = true;
+    mouseX = e.touches[0].clientX;
+    mouseY = e.touches[0].clientY;
+  }, {passive:false});
+  canvas.addEventListener('touchmove', function(e){
+    e.preventDefault();
+    if (touchActive && e.touches.length > 0) {
+      player.x += (e.touches[0].clientX - mouseX) * 0.15;
+      mouseX = e.touches[0].clientX;
+      mouseY = e.touches[0].clientY;
+    }
+  }, {passive:false});
+  canvas.addEventListener('touchend', function(){ touchActive = false; mouseDown = false; });
+  
+  function update(dt) {
+    if (state !== 'playing') return;
+    
+    // Timer
+    timeLeft -= dt;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      state = 'over';
+      return;
+    }
+    
+    // Player movement
+    let targetX = player.x;
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) targetX -= 8;
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) targetX += 8;
+    if (mouseDown) {
+      targetX = mouseX;
+    }
+    player.x += (targetX - player.x) * 0.2;
+    player.x = Math.max(player.w/2, Math.min(W - player.w/2, player.x));
+    
+    // Scroll world
+    trackOffset += scrollSpeed;
+    
+    // Update obstacles
+    for (let i = 0; i < obstacles.length; i++) {
+      var o = obstacles[i];
+      o.y += scrollSpeed;
+      o.rot += 0.03;
+      if (o.y > H + 50) {
+        obstacles.splice(i, 1);
+        i--;
+        continue;
+      }
+      // Collision
+      var dx = o.x - player.x;
+      var dy = o.y - player.y;
+      var dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < o.r + player.w/2) {
+        state = 'over';
+        return;
+      }
+    }
+    
+    // Update pickups
+    for (let i = 0; i < pickups.length; i++) {
+      var p = pickups[i];
+      p.y += scrollSpeed;
+      p.pulse += 0.05;
+      if (p.collected) continue;
+      var dx = p.x - player.x;
+      var dy = p.y - player.y;
+      var dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < p.r + player.w/2) {
+        p.collected = true;
+        crystals++;
+        score += 10;
+      }
+      if (p.y > H + 50) {
+        pickups.splice(i, 1);
+        i--;
+      }
+    }
+    
+    // Respawn pickups if needed
+    while (pickups.length < 6) {
+      pickups.push({
+        x: Math.random() * W,
+        y: -20,
+        r: 12,
+        collected: false,
+        pulse: Math.random() * Math.PI * 2
+      });
+    }
+    
+    // Respawn obstacles if needed
+    while (obstacles.length < 8) {
+      obstacles.push({
+        x: Math.random() * W,
+        y: -20,
+        r: 18 + Math.random() * 14,
+        rot: 0
+      });
+    }
+    
+    // Win condition: collect 15 crystals before time runs out
+    if (crystals >= 15) {
+      state = 'win';
+    }
+  }
+  
+  function draw() {
+    ctx.fillStyle = '#0a0a18';
+    ctx.fillRect(0, 0, W, H);
+    
+    // Track lines
+    ctx.strokeStyle = 'rgba(80, 120, 200, 0.3)';
+    ctx.lineWidth = 2;
+    for (let y = 0; y < H; y += 40) {
+      var ly = ((y + trackOffset) % H + H) % H;
+      ctx.beginPath();
+      ctx.moveTo(0, ly);
+      ctx.lineTo(W, ly);
+      ctx.stroke();
+    }
+    
+    // Obstacles (rocks)
+    for (let i = 0; i < obstacles.length; i++) {
+      var o = obstacles[i];
+      ctx.save();
+      ctx.translate(o.x, o.y);
+      ctx.rotate(o.rot);
+      ctx.fillStyle = '#5a4a3a';
+      ctx.strokeStyle = '#3a2a1a';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      // Draw a polygonal rock
+      var sides = 6;
+      for (var s = 0; s < sides; s++) {
+        var angle = (s / sides) * Math.PI * 2;
+        var px = Math.cos(angle) * o.r;
+        var py = Math.sin(angle) * o.r;
+        if (s === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+    
+    // Pickups (starlight crystals)
+    for (let i = 0; i < pickups.length; i++) {
+      var p = pickups[i];
+      if (p.collected) continue;
+      var pulse = Math.sin(p.pulse) * 3 + 12;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.pulse * 0.5);
+      // Draw crystal
+      ctx.fillStyle = '#ffdd44';
+      ctx.strokeStyle = '#ffaa00';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (var s = 0; s < 6; s++) {
+        var angle = (s / 6) * Math.PI * 2;
+        var px = Math.cos(angle) * pulse;
+        var py = Math.sin(angle) * pulse;
+        if (s === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+    
+    // Player (glowing orb)
+    ctx.save();
+    ctx.translate(player.x, player.y);
+    // Glow
+    var grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 30);
+    grad.addColorStop(0, 'rgba(100, 200, 255, 0.8)');
+    grad.addColorStop(1, 'rgba(100, 200, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(0, 0, 30, 0, Math.PI * 2);
+    ctx.fill();
+    // Core
+    ctx.fillStyle = '#aaddff';
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(-3, -3, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    
+    // UI
+    drawUI();
+    
+    // Overlay screens
+    if (state === 'start') drawStart();
+    if (state === 'over') drawOver();
+    if (state === 'win') drawWin();
+  }
+  
+  function drawUI() {
+    // Timer bar
+    var barW = 200;
+    var barH = 12;
+    var bx = (W - barW) / 2;
+    var by = 20;
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(bx, by, barW, barH);
+    var ratio = timeLeft / 30;
+    ctx.fillStyle = ratio > 0.3 ? '#44dd88' : '#dd4444';
+    ctx.fillRect(bx, by, barW * ratio, barH);
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, barW, barH);
+    
+    // Crystal count
+    ctx.fillStyle = '#ffdd44';
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('★ ' + crystals + ' / 15', W / 2, by + 35);
+    
+    // Score
+    ctx.fillStyle = '#aaddff';
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText('Score: ' + score, W - 20, 30);
+  }
+  
+  function drawStart() {
+    ctx.fillStyle = 'rgba(10,10,24,0.85)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#aaddff';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('SPARK DASH', W / 2, H / 2 - 80);
+    ctx.fillStyle = '#ffdd44';
+    ctx.font = '18px monospace';
+    ctx.fillText('Avoid rocks. Collect crystals. Beat the clock!', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#88aacc';
+    ctx.font = '16px monospace';
+    ctx.fillText('← → or drag to steer', W / 2, H / 2 + 10);
+    ctx.fillText('Collect 15 crystals in 30 seconds to win', W / 2, H / 2 + 35);
+    
+    ctx.fillStyle = '#44dd88';
+    ctx.font = 'bold 24px monospace';
+    ctx.fillText('Press SPACE to start', W / 2, H / 2 + 80);
+  }
+  
+  function drawOver() {
+    ctx.fillStyle = 'rgba(10,10,24,0.8)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ff6666';
+    ctx.font = 'bold 40px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('CRASHED!', W / 2, H / 2 - 40);
+    ctx.fillStyle = '#aaddff';
+    ctx.font = '20px monospace';
+    ctx.fillText('Score: ' + score + '   Crystals: ' + crystals, W / 2, H / 2 + 10);
+    ctx.fillStyle = '#88aacc';
+    ctx.font = '18px monospace';
+    ctx.fillText('Press SPACE to try again', W / 2, H / 2 + 50);
+  }
+  
+  function drawWin() {
+    ctx.fillStyle = 'rgba(10,10,24,0.8)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#44dd88';
+    ctx.font = 'bold 40px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('CLEARED!', W / 2, H / 2 - 40);
+    ctx.fillStyle = '#ffdd44';
+    ctx.font = '20px monospace';
+    ctx.fillText('Score: ' + score + '   Crystals: ' + crystals, W / 2, H / 2 + 10);
+    ctx.fillStyle = '#88aacc';
+    ctx.font = '18px monospace';
+    ctx.fillText('Press SPACE to play again', W / 2, H / 2 + 50);
+  }
+  
+  // Input handling for start/restart
+  function handleAction() {
+    if (state === 'start' || state === 'over' || state === 'win') {
+      reset();
+    }
+  }
+  
+  // Check space key
+  window.addEventListener('keydown', function(e){
+    if (e.key === ' ') {
+      handleAction();
+      e.preventDefault();
+    }
+  });
+  
+  // Game loop
+  var lastTime = 0;
+  function loop(time) {
+    var dt = (time - lastTime) / 1000;
+    lastTime = time;
+    if (dt > 0.1) dt = 0.1;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  
+  resize();
+  player.x = W / 2;
+  player.y = H - 80;
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-06-spark-dash";
+  var RELEASE = "05efc2e764ffda8ced7ef60e706d5323e6a86290";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

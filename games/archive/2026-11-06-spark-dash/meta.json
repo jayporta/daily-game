@@ -1,0 +1,26 @@
+{
+  "title": "Spark Dash",
+  "genre": "racing",
+  "theme": "A small luminous orb races along a scrolling track, dodging falling rocks and collecting starlight crystals while a clock ticks down.",
+  "mechanics": [
+    "Auto-scrolling track with forward momentum",
+    "Steer left/right to dodge rocks and collect crystals",
+    "Countdown timer creates urgency",
+    "Collect 15 crystals before time runs out to win",
+    "Crash into a rock ends the run"
+  ],
+  "controls": [
+    {
+      "action": "Steer left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "Steer right",
+      "key": "ArrowRight"
+    },
+    {
+      "action": "Start/restart",
+      "key": "Space"
+    }
+  ]
+}
