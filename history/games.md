@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Notes travel down four lanes toward a hit line at the bottom, Tap or press 1-4 when a note crosses the hit line, Timing windows award Perfect, Good, or Miss judgments, Complete authored levels to brighten the reef and raise your score, Missing notes breaks your combo but does not end the run
 - model: nvidia/nemotron-3.5-super-vl:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-06 — Spark Dash
 
