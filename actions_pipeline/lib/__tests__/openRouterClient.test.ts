@@ -247,6 +247,21 @@ test('real client throws when the stream carries no content', async () => {
   );
 });
 
+test('an empty stream reports its frame count, delta keys and stop reason', async () => {
+  const client = createOpenRouterClient({
+    apiKey: 'test-key',
+    fetchImpl: streaming([
+      { choices: [{ delta: { role: 'assistant', content: '' } }] },
+      { choices: [{ delta: { reasoning: 'thinking', x_private: 'hidden' } }] },
+      { choices: [{ delta: {}, finish_reason: 'length' }] },
+    ]),
+  });
+  await assert.rejects(
+    () => client.complete({ model: 'm', messages: [], temperature: 0.7 }),
+    /no content \(3 frames, delta keys: role, content, reasoning, stop: truncated\)$/,
+  );
+});
+
 // The error text is stored in history/games.json, which is public, and is
 // shown to the model that rewrites the lessons note. OpenRouter's error
 // envelope carries the account's user_id, which belongs in neither.

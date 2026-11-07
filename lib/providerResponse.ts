@@ -31,6 +31,34 @@ export function firstChoiceDelta(data: unknown): string | null {
 }
 
 /**
+ * Delta fields worth naming when a stream carries no text, so a model that
+ * streams its answer under `reasoning` reads differently from one that
+ * streams nothing. A closed list: provider-chosen key names never reach
+ * history or the lessons prompt.
+ */
+const REPORTABLE_DELTA_KEYS: readonly string[] = [
+  'role',
+  'content',
+  'reasoning',
+  'reasoning_content',
+  'reasoning_details',
+  'refusal',
+  'tool_calls',
+];
+
+/**
+ * The {@link REPORTABLE_DELTA_KEYS} present on `choices[0].delta`.
+ *
+ * @returns Those keys in list order; empty for a frame with no delta.
+ */
+export function reportableDeltaKeys(data: unknown): string[] {
+  const choice: unknown = arrayAt(data, 'choices')?.[0];
+  const delta = recordAt(choice, 'delta');
+  if (delta === null) return [];
+  return REPORTABLE_DELTA_KEYS.filter((key) => key in delta);
+}
+
+/**
  * `choices[0].finish_reason` from an OpenAI-shaped response — the
  * non-streaming counterpart to reading it off a stream's final frame.
  */
