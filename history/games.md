@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-07 — Lumen Reef
+
+- genre: rhythm
+- theme: A small glowing jellyfish drifts in a dark reef as currents of light flow down four lanes. The player taps each current when its light reaches the reef, keeping the bioluminescence bright.
+- mechanics: Notes travel down four lanes toward a hit line at the bottom, Tap or press 1-4 when a note crosses the hit line, Timing windows award Perfect, Good, or Miss judgments, Complete authored levels to brighten the reef and raise your score, Missing notes breaks your combo but does not end the run
+- model: nvidia/nemotron-3.5-super-vl:free
+- attempts: 1
+
 ## 2026-11-06 — Spark Dash
 
 - genre: racing
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Auto-scrolling track with forward momentum, Steer left/right to dodge rocks and collect crystals, Countdown timer creates urgency, Collect 15 crystals before time runs out to win, Crash into a rock ends the run
 - model: xingchen-agi/xing4.0-29b-a4b:free
 - attempts: 3
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-05 — Starlight Glide
 

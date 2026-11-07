@@ -1,26 +1,34 @@
 {
-  "date": "2026-11-06",
-  "slug": "2026-11-06-spark-dash",
-  "path": "games/archive/2026-11-06-spark-dash/game.html",
-  "promptPath": "games/archive/2026-11-06-spark-dash/prompt.txt",
-  "title": "Spark Dash",
-  "genre": "racing",
-  "genreLabel": "Racing",
-  "model": "xingchen-agi/xing4.0-29b-a4b:free",
-  "generatedAt": "2026-11-06T23:56:58.210Z",
-  "expiresAt": "2026-11-07T19:00:00.000Z",
+  "date": "2026-11-07",
+  "slug": "2026-11-07-lumen-reef",
+  "path": "games/archive/2026-11-07-lumen-reef/game.html",
+  "promptPath": "games/archive/2026-11-07-lumen-reef/prompt.txt",
+  "title": "Lumen Reef",
+  "genre": "rhythm",
+  "genreLabel": "Rhythm",
+  "model": "nvidia/nemotron-3.5-super-vl:free",
+  "generatedAt": "2026-11-07T20:01:32.444Z",
+  "expiresAt": "2026-11-08T19:00:00.000Z",
   "controls": [
     {
-      "action": "Steer left",
-      "key": "ArrowLeft"
+      "action": "Hit lane 1",
+      "key": "1 or click/tap lane 1"
     },
     {
-      "action": "Steer right",
-      "key": "ArrowRight"
+      "action": "Hit lane 2",
+      "key": "2 or click/tap lane 2"
     },
     {
-      "action": "Start/restart",
-      "key": "Space"
+      "action": "Hit lane 3",
+      "key": "3 or click/tap lane 3"
+    },
+    {
+      "action": "Hit lane 4",
+      "key": "4 or click/tap lane 4"
+    },
+    {
+      "action": "Start or advance",
+      "key": "Click button, or press Enter/Space"
     }
   ]
 }
