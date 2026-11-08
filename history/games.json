@@ -1712,24 +1712,28 @@
   },
   {
     "date": "2026-11-08",
-    "status": "failed_kept_previous",
-    "model": "nvidia/nemotron-3.5-lightning:free",
-    "attempts": 6,
-    "failureReasons": [
-      "attempt 1 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content (14063 frames, delta keys: role, content, reasoning, reasoning_details, stop: truncated)",
-      "attempt 2 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content (8992 frames, delta keys: role, content, reasoning, reasoning_details, stop: complete)",
-      "attempt 3 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content (5654 frames, delta keys: role, content, reasoning, reasoning_details, stop: truncated)",
-      "attempt 4 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block",
-      "attempt 5 (recursive/flint-v1.0:free): could not extract bundle — missing-html-block",
-      "attempt 6 (nvidia/nemotron-3.5-super-vl:free): could not extract bundle — missing-html-block (response truncated at the output cap)"
+    "status": "published",
+    "model": "nvidia/nemotron-3.5-super-vl:free",
+    "slug": "2026-11-08-seed-slinger",
+    "genre": "physics-sandbox",
+    "theme": "A small luminous seed drifts through a calm sky garden. The player aims and launches the seed toward a blooming flower target, using bounce crystals and wind zones to guide its path while collecting dewdrops.",
+    "mechanics": [
+      "Pull back on the seed to set aim and launch power, then release to fire",
+      "Gravity pulls the seed downward in an arc",
+      "Bounce off crystal walls with damping",
+      "Wind zones gently push the seed sideways",
+      "Collect floating dewdrops for bonus points",
+      "Reach the flower to complete the level; missing lets you retry instantly"
     ],
+    "title": "Seed Slinger",
+    "attempts": 7,
+    "canvasDrawn": true,
     "failureKinds": [
-      "generation-call",
-      "generation-call",
+      "extract",
+      "smoke-js-error",
       "generation-call",
       "extract",
       "extract",
-      "generation-failover",
       "extract"
     ],
     "attemptModels": [
@@ -1738,8 +1742,8 @@
       "dots-studio/dots-3-note-preview:free",
       "nvidia/nemotron-3-ultra-550b-a55b:free",
       "recursive/flint-v1.0:free",
-      "xingchen-agi/xing4.0-29b-a4b:free",
-      "nvidia/nemotron-3.5-super-vl:free"
-    ]
+      "xingchen-agi/xing4.0-29b-a4b:free"
+    ],
+    "quotaAffected": true
   }
 ]

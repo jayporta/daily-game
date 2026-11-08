@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seed Slinger</title>
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #05070f;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+#hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: #e0eaff;
+  pointer-events: none;
+  user-select: none;
+  font-size: 16px;
+}
+#overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(5, 7, 15, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #e0eaff;
+  pointer-events: auto;
+}
+#overlay.hidden {
+  display: none;
+}
+#overlayTitle {
+  font-size: 28px;
+  font-weight: bold;
+  margin-bottom: 6px;
+  letter-spacing: 2px;
+}
+#overlayMsg {
+  font-size: 18px;
+  margin: 10px 0;
+}
+#overlayBtn {
+  margin-top: 16px;
+  padding: 10px 26px;
+  background: #00d9ff;
+  color: #05070f;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+#overlayBtn:hover {
+  background: #33efff;
+}
+#overlayHint {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #88aabb;
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">Level <span id="levelText">1</span> / <span id="levelTotal">5</span> &nbsp;|&nbsp; Dew: <span id="dewText">0</span>/<span id="dewTotal">0</span></div>
+<div id="overlay">
+  <div id="overlayTitle">Seed Slinger</div>
+  <div id="overlayMsg">Guide the luminous seed to the bloom.</div>
+  <button id="overlayBtn" class="button">Start</button>
+  <div id="overlayHint" class="hint">Drag the seed back to aim and set power. Release to launch.</div>
+</div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const hudLevel = document.getElementById('levelText');
+const hudTotal = document.getElementById('levelTotal');
+const hudDew = document.getElementById('dewText');
+const hudDewTotal = document.getElementById('dewTotal');
+const overlay = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlayTitle');
+const overlayMsg = document.getElementById('overlayMsg');
+const overlayBtn = document.getElementById('overlayBtn');
+const overlayHint = document.getElementById('overlayHint');
+
+let W, H;
+function resize() {
+  W = canvas.width = canvas.clientWidth;
+  H = canvas.height = canvas.clientHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const LEVELS = [
+  {
+    seed: [80, H - 120],
+    target: [W - 140, 140],
+    crystals: [{x: W * 0.5, y: H * 0.5, r: 22}],
+    winds: [],
+    dew: [{x: W * 0.35, y: H * 0.55, r: 5}, {x: W * 0.55, y: H * 0.45, r: 5}]
+  },
+  {
+    seed: [80, H - 120],
+    target: [W - 140, 120],
+    crystals: [{x: W * 0.35, y: H * 0.6, r: 20}, {x: W * 0.65, y: H * 0.35, r: 20}],
+    winds: [{x: W * 0.5, y: H * 0.5, r: 90, vx: 0.4, vy: 0}],
+    dew: [{x: W * 0.3, y: H * 0.4, r: 5}, {x: W * 0.7, y: H * 0.5, r: 5}, {x: W * 0.5, y: H * 0.2, r: 5}]
+  },
+  {
+    seed: [120, H - 100],
+    target: [W - 160, 160],
+    crystals: [{x: W * 0.25, y: H * 0.35, r: 18}, {x: W * 0.5, y: H * 0.55, r: 18}, {x: W * 0.75, y: H * 0.25, r: 18}],
+    winds: [],
+    dew: [{x: W * 0.2, y: H * 0.5, r: 5}, {x: W * 0.5, y: H * 0.3, r: 5}, {x: W * 0.8, y: H * 0.45, r: 5}]
+  },
+  {
+    seed: [100, H - 140],
+    target: [W - 120, 100],
+    crystals: [{x: W * 0.4, y: H * 0.7, r: 25}, {x: W * 0.6, y: H * 0.4, r: 25}],
+    winds: [{x: W * 0.3, y: H * 0.5, r: 110, vx: -0.5, vy: 0}, {x: W * 0.7, y: H * 0.5, r: 110, vx: 0.5, vy: 0}],
+    dew: [{x: W * 0.3, y: H * 0.3, r: 5}, {x: W * 0.5, y: H * 0.6, r: 5}, {x: W * 0.7, y: H * 0.2, r: 5}]
+  },
+  {
+    seed: [150, H - 110],
+    target: [W - 180, 180],
+    crystals: [{x: W * 0.3, y: H * 0.5, r: 15}, {x: W * 0.5, y: H * 0.5, r: 15}, {x: W * 0.7, y: H * 0.5, r: 15}],
+    winds: [{x: W * 0.5, y: H * 0.3, r: 130, vx: 0, vy: 0.6}],
+    dew: [{x: W * 0.25, y: H * 0.25, r: 5}, {x: W * 0.75, y: H * 0.25, r: 5}, {x: W * 0.25, y: H * 0.75, r: 5}, {x: W * 0.75, y: H * 0.75, r: 5}]
+  }
+];
+
+let levelIndex = 0;
+let dewCollected = 0;
+let dewNeeded = 0;
+let state = 'menu';
+let seed = {x: 0, y: 0, vx: 0, vy: 0, r: 9, launched: false};
+let target = {x: 0, y: 0, r: 18};
+let crystals = [];
+let winds = [];
+let dew = [];
+let trail = [];
+let dragStart = null;
+let dragCurrent = null;
+const maxDrag = 160;
+const powerScale = 0.09;
+const gravity = 0.18;
+const damping = 0.55;
+let idleFrames = 0;
+
+function loadLevel(i) {
+  const L = LEVELS[i];
+  levelIndex = i;
+  state = 'aiming';
+  seed.x = L.seed[0];
+  seed.y = L.seed[1];
+  seed.vx = 0;
+  seed.vy = 0;
+  seed.launched = false;
+  target.x = L.target[0];
+  target.y = L.target[1];
+  crystals = L.crystals.map(c => ({x: c.x, y: c.y, r: c.r}));
+  winds = L.winds.map(w => ({x: w.x, y: w.y, r: w.r, vx: w.vx || 0, vy: w.vy || 0}));
+  dew = L.dew.map(d => ({x: d.x, y: d.y, r: d.r, collected: false}));
+  dewCollected = 0;
+  dewNeeded = dew.length;
+  trail = [];
+  dragStart = null;
+  dragCurrent = null;
+  idleFrames = 0;
+  updateHud();
+  overlay.classList.add('hidden');
+}
+
+function updateHud() {
+  hudLevel.textContent = (levelIndex + 1).toString();
+  hudTotal.textContent = LEVELS.length.toString();
+  hudDew.textContent = dewCollected.toString();
+  hudDewTotal.textContent = dewNeeded.toString();
+}
+
+function dist(x1, y1, x2, y2) {
+  return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2);
+}
+
+function resetLevel() {
+  loadLevel(levelIndex);
+}
+
+function showSuccess() {
+  overlayTitle.textContent = 'Bloom Reached';
+  overlayMsg.textContent = 'Dew: ' + dewCollected + '/' + dewNeeded;
+  if (levelIndex + 1 < LEVELS.length) {
+    overlayBtn.textContent = 'Next Level';
+    overlayBtn.onclick = function() { loadLevel(levelIndex + 1); };
+  } else {
+    overlayBtn.textContent = 'Play Again';
+    overlayBtn.onclick = function() { loadLevel(0); };
+  }
+  overlayHint.textContent = '';
+  overlay.classList.remove('hidden');
+}
+
+function showMiss() {
+  overlayTitle.textContent = 'Drifted Away';
+  overlayMsg.textContent = 'The seed did not reach the bloom.';
+  overlayBtn.textContent = 'Try Again';
+  overlayBtn.onclick = resetLevel;
+  overlayHint.textContent = 'Drag farther for more power.';
+  overlay.classList.remove('hidden');
+}
+
+function showMenu() {
+  overlayTitle.textContent = 'Seed Slinger';
+  overlayMsg.textContent = 'Guide the luminous seed to the bloom.';
+  overlayBtn.textContent = 'Start';
+  overlayBtn.onclick = function() { loadLevel(0); };
+  overlayHint.textContent = 'Drag the seed back to aim and set power. Release to launch.';
+  overlay.classList.remove('hidden');
+}
+
+function update() {
+  if (state === 'flying') {
+    seed.vy += gravity;
+    for (let w of winds) {
+      let d = dist(seed.x, seed.y, w.x, w.y);
+      if (d < w.r) {
+        let strength = 1 - d / w.r;
+        seed.vx += w.vx * strength * 0.05;
+        seed.vy += w.vy * strength * 0.05;
+      }
+    }
+    seed.x += seed.vx;
+    seed.y += seed.vy;
+
+    trail.push({x: seed.x, y: seed.y, life: 1});
+    if (trail.length > 24) trail.shift();
+
+    if (seed.x - seed.r < 0) {
+      seed.x = seed.r;
+      seed.vx *= -damping;
+    } else if (seed.x + seed.r > W) {
+      seed.x = W - seed.r;
+      seed.vx *= -damping;
+    }
+    if (seed.y - seed.r < 0) {
+      seed.y = seed.r;
+      seed.vy *= -damping;
+    } else if (seed.y + seed.r > H) {
+      state = 'missed';
+      showMiss();
+      return;
+    }
+
+    for (let c of crystals) {
+      let d = dist(seed.x, seed.y, c.x, c.y);
+      if (d < c.r + seed.r) {
+        let nx = (seed.x - c.x) / d;
+        let ny = (seed.y - c.y) / d;
+        seed.x = c.x + nx * (c.r + seed.r);
+        seed.y = c.y + ny * (c.r + seed.r);
+        let dot = seed.vx * nx + seed.vy * ny;
+        seed.vx = (seed.vx - 2 * dot * nx) * damping;
+        seed.vy = (seed.vy - 2 * dot * ny) * damping;
+      }
+    }
+
+    for (let d of dew) {
+      if (!d.collected && dist(seed.x, seed.y, d.x, d.y) < seed.r + d.r) {
+        d.collected = true;
+        dewCollected++;
+        updateHud();
+      }
+    }
+
+    if (dist(seed.x, seed.y, target.x, target.y) < seed.r + target.r) {
+      state = 'success';
+      showSuccess();
+      return;
+    }
+
+    if (Math.abs(seed.vx) < 0.05 && Math.abs(seed.vy) < 0.05) {
+      idleFrames++;
+      if (idleFrames > 120) {
+        state = 'missed';
+        showMiss();
+      }
+    } else {
+      idleFrames = 0;
+    }
+  }
+}
+
+canvas.addEventListener('mousedown', function(e) {
+  if (state !== 'aiming') return;
+  dragStart = {x: e.clientX, y: e.clientY};
+  dragCurrent = {x: e.clientX, y: e.clientY};
+});
+
+window.addEventListener('mousemove', function(e) {
+  if (dragStart && state === 'aiming') {
+    dragCurrent = {x: e.clientX, y: e.clientY};
+  }
+});
+
+window.addEventListener('mouseup', function() {
+  if (!dragStart || state !== 'aiming') return;
+  let dx = dragStart.x - dragCurrent.x;
+  let dy = dragStart.y - dragCurrent.y;
+  let dragDist = Math.sqrt(dx * dx + dy * dy);
+  if (dragDist > 8) {
+    let angle = Math.atan2(dy, dx);
+    let clamped = Math.min(dragDist, maxDrag);
+    seed.vx = Math.cos(angle) * clamped * powerScale;
+    seed.vy = Math.sin(angle) * clamped * powerScale;
+    state = 'flying';
+  }
+  dragStart = null;
+  dragCurrent = null;
+});
+
+window.addEventListener('keydown', function(e) {
+  if (e.key === 'r' || e.key === 'R') {
+    if (state === 'flying' || state === 'missed') resetLevel();
+  }
+  if (e.key === ' ' || e.key === 'Enter') {
+    if (state === 'menu') {
+      loadLevel(0);
+    } else if (state === 'success') {
+      if (levelIndex + 1 < LEVELS.length) loadLevel(levelIndex + 1); else loadLevel(0);
+    } else if (state === 'missed') {
+      resetLevel();
+    }
+  }
+});
+
+function draw() {
+  ctx.fillStyle = '#05070f';
+  ctx.fillRect(0, 0, W, H);
+
+  for (let i = 0; i < 50; i++) {
+    let x = (i * 137) % W;
+    let y = (i * 73) % H;
+    let size = 1 + (i % 3);
+    ctx.fillStyle = 'rgba(120, 140, 200, ' + (0.3 + (i % 5) * 0.1) + ')';
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  for (let w of winds) {
+    let grad = ctx.createRadialGradient(w.x, w.y, 0, w.x, w.y, w.r);
+    grad.addColorStop(0, 'rgba(0, 200, 255, 0.08)');
+    grad.addColorStop(1, 'rgba(0, 200, 255, 0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(w.x, w.y, w.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0, 200, 255, 0.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(w.x - 12, w.y);
+    ctx.lineTo(w.x + 12, w.y);
+    ctx.moveTo(w.x + 8, w.y - 4);
+    ctx.lineTo(w.x + 12, w.y);
+    ctx.lineTo(w.x + 8, w.y + 4);
+    ctx.stroke();
+  }
+
+  for (let c of crystals) {
+    ctx.fillStyle = '#ff00ff';
+    ctx.shadowColor = '#ff00ff';
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, c.r * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  for (let d of dew) {
+    if (d.collected) continue;
+    ctx.fillStyle = '#00ffff';
+    ctx.shadowColor = '#00ffff';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  let pulse = 1 + Math.sin(Date.now() * 0.005) * 0.1;
+  ctx.fillStyle = '#ff6bff';
+  ctx.shadowColor = '#ff6bff';
+  ctx.shadowBlur = 15;
+  ctx.beginPath();
+  ctx.arc(target.x, target.y, target.r * pulse, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(target.x, target.y, target.r * 0.3 * pulse, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  for (let i = 0; i < trail.length; i++) {
+    let t = trail[i];
+    let alpha = (i / trail.length) * 0.5;
+    ctx.fillStyle = 'rgba(0, 255, 255, ' + alpha + ')';
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, seed.r * 0.5 * (i / trail.length), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = '#00ffff';
+  ctx.shadowColor = '#00ffff';
+  ctx.shadowBlur = 14;
+  ctx.beginPath();
+  ctx.arc(seed.x, seed.y, seed.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  if (dragStart && state === 'aiming') {
+    let dx = dragStart.x - dragCurrent.x;
+    let dy = dragStart.y - dragCurrent.y;
+    let len = Math.sqrt(dx * dx + dy * dy);
+    if (len > 0) {
+      let angle = Math.atan2(dy, dx);
+      let drawLen = Math.min(len, maxDrag);
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(seed.x, seed.y);
+      ctx.lineTo(seed.x + Math.cos(angle) * drawLen, seed.y + Math.sin(angle) * drawLen);
+      ctx.stroke();
+      for (let i = 10; i <= drawLen; i += 20) {
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath();
+        ctx.arc(seed.x + Math.cos(angle) * i, seed.y + Math.sin(angle) * i, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+showMenu();
+loop();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-08-seed-slinger";
+  var RELEASE = "52a5c946210bac040c03684777ade5afff98f16e";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

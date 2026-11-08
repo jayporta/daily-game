@@ -1,34 +1,30 @@
 {
-  "date": "2026-11-07",
-  "slug": "2026-11-07-lumen-reef",
-  "path": "games/archive/2026-11-07-lumen-reef/game.html",
-  "promptPath": "games/archive/2026-11-07-lumen-reef/prompt.txt",
-  "title": "Lumen Reef",
-  "genre": "rhythm",
-  "genreLabel": "Rhythm",
+  "date": "2026-11-08",
+  "slug": "2026-11-08-seed-slinger",
+  "path": "games/archive/2026-11-08-seed-slinger/game.html",
+  "promptPath": "games/archive/2026-11-08-seed-slinger/prompt.txt",
+  "title": "Seed Slinger",
+  "genre": "physics-sandbox",
+  "genreLabel": "Physics Sandbox",
   "model": "nvidia/nemotron-3.5-super-vl:free",
-  "generatedAt": "2026-11-07T20:01:32.444Z",
-  "expiresAt": "2026-11-08T19:00:00.000Z",
+  "generatedAt": "2026-11-08T23:24:56.555Z",
+  "expiresAt": "2026-11-09T19:00:00.000Z",
   "controls": [
     {
-      "action": "Hit lane 1",
-      "key": "1 or click/tap lane 1"
+      "action": "Aim and set launch power by dragging on ",
+      "key": "Mouse drag"
     },
     {
-      "action": "Hit lane 2",
-      "key": "2 or click/tap lane 2"
+      "action": "Launch the seed",
+      "key": "Mouse release"
     },
     {
-      "action": "Hit lane 3",
-      "key": "3 or click/tap lane 3"
+      "action": "Reset the current level",
+      "key": "R key"
     },
     {
-      "action": "Hit lane 4",
-      "key": "4 or click/tap lane 4"
-    },
-    {
-      "action": "Start or advance",
-      "key": "Click button, or press Enter/Space"
+      "action": "Start, advance, or retry",
+      "key": "Space or click"
     }
   ]
 }

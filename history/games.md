@@ -2,16 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-11-08 — generation failed, previous game kept
+## 2026-11-08 — Seed Slinger
 
-- model: nvidia/nemotron-3.5-lightning:free
-- attempts: 6
-- attempt 1 (nvidia/nemotron-3.5-lightning:free): generation call failed — OpenRouter stream carried no content (14063 frames, delta keys: role, content, reasoning, reasoning_details, stop: truncated)
-- attempt 2 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content (8992 frames, delta keys: role, content, reasoning, reasoning_details, stop: complete)
-- attempt 3 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream carried no content (5654 frames, delta keys: role, content, reasoning, reasoning_details, stop: truncated)
-- attempt 4 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 5 (recursive/flint-v1.0:free): could not extract bundle — missing-html-block
-- attempt 6 (nvidia/nemotron-3.5-super-vl:free): could not extract bundle — missing-html-block (response truncated at the output cap)
+- genre: physics-sandbox
+- theme: A small luminous seed drifts through a calm sky garden. The player aims and launches the seed toward a blooming flower target, using bounce crystals and wind zones to guide its path while collecting dewdrops.
+- mechanics: Pull back on the seed to set aim and launch power, then release to fire, Gravity pulls the seed downward in an arc, Bounce off crystal walls with damping, Wind zones gently push the seed sideways, Collect floating dewdrops for bonus points, Reach the flower to complete the level; missing lets you retry instantly
+- model: nvidia/nemotron-3.5-super-vl:free
+- attempts: 7
 
 ## 2026-11-07 — Lumen Reef
 

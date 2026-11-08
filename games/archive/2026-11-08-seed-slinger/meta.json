@@ -1,0 +1,31 @@
+{
+  "title": "Seed Slinger",
+  "genre": "physics-sandbox",
+  "theme": "A small luminous seed drifts through a calm sky garden. The player aims and launches the seed toward a blooming flower target, using bounce crystals and wind zones to guide its path while collecting dewdrops.",
+  "mechanics": [
+    "Pull back on the seed to set aim and launch power, then release to fire",
+    "Gravity pulls the seed downward in an arc",
+    "Bounce off crystal walls with damping",
+    "Wind zones gently push the seed sideways",
+    "Collect floating dewdrops for bonus points",
+    "Reach the flower to complete the level; missing lets you retry instantly"
+  ],
+  "controls": [
+    {
+      "action": "Aim and set launch power by dragging on ",
+      "key": "Mouse drag"
+    },
+    {
+      "action": "Launch the seed",
+      "key": "Mouse release"
+    },
+    {
+      "action": "Reset the current level",
+      "key": "R key"
+    },
+    {
+      "action": "Start, advance, or retry",
+      "key": "Space or click"
+    }
+  ]
+}
