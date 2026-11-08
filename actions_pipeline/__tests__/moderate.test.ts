@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadGuardrails } from '#actions_pipeline/lib/config/guardrails.ts';
 import {
+  OPENROUTER_BRIEF_OUTPUT_TOKENS,
   OPENROUTER_TIMEOUT_MS,
   type OpenRouterClient,
   OpenRouterHttpError,
@@ -495,4 +496,24 @@ test('moderation asks for a shorter deadline than a generation gets', async () =
     requestedTimeoutMs !== undefined && requestedTimeoutMs < OPENROUTER_TIMEOUT_MS,
     `moderation would inherit the ${OPENROUTER_TIMEOUT_MS}ms generation cap`,
   );
+});
+
+// The moderation model allows fewer output tokens than a generation asks for.
+test('moderation asks for the brief output cap, not the generation cap', async () => {
+  let requestedMaxOutputTokens: number | undefined;
+  const client: OpenRouterClient = {
+    async complete(request) {
+      requestedMaxOutputTokens = request.maxOutputTokens;
+      return { text: 'PASS', stop: 'complete', model: request.model };
+    },
+  };
+
+  await aiModerationCheck(client, {
+    model: 'moderator',
+    guardrailsText: GUARDRAILS,
+    meta: CLEAN_META,
+    html: '<div></div>',
+  });
+
+  assert.equal(requestedMaxOutputTokens, OPENROUTER_BRIEF_OUTPUT_TOKENS);
 });

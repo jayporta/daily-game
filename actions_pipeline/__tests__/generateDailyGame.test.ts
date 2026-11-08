@@ -810,6 +810,18 @@ test('moderation requests carry no generation fallbacks', async () => {
   for (const request of moderationRequests) assert.equal(request.fallbackModels, undefined);
 });
 
+// A generation takes the client's default cap; only the brief calls override it.
+test('generation requests leave the output cap at the client default', async () => {
+  const seen: CompletionRequest[] = [];
+  await generateDailyGame({
+    ...baseParams(),
+    client: failingOver((request) => request.model, [loadFixture('goodMaze')], seen),
+  });
+
+  assert.ok(seen.length > 0, 'the generation call should have been made');
+  for (const request of seen) assert.equal(request.maxOutputTokens, undefined);
+});
+
 test('a game served by a fallback is recorded under the fallback, and the primary as failed over', async () => {
   const result = await generateDailyGame({
     ...baseParams(),

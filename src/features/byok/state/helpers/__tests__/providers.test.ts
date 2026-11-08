@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { ByokProvider } from '#lib/byokConfigTypes.ts';
+import { OPENROUTER_MAX_OUTPUT_TOKENS } from '#lib/providerResponse.ts';
 import {
   type ByokCompletionResult,
   type ByokRequest,
@@ -492,10 +493,10 @@ test('reasoning providers get an output cap with room to think as well as answer
   }
 });
 
-test('OpenRouter keeps the smaller cap its free models accept', async () => {
+test('OpenRouter requests the cap shared with the daily pipeline', async () => {
   const { fetchImpl, calls } = capturingFetch(streamOf('openrouter', ['x']));
 
   await completeByok(baseRequest({ provider: 'openrouter' }), { fetchImpl });
 
-  assert.equal(JSON.parse(String(calls[0]?.[1]?.body)).max_tokens, 16000);
+  assert.equal(JSON.parse(String(calls[0]?.[1]?.body)).max_tokens, OPENROUTER_MAX_OUTPUT_TOKENS);
 });

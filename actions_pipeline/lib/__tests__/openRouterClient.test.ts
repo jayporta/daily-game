@@ -4,6 +4,7 @@ import { createMockOpenRouterClient } from '#actions_pipeline/lib/openRouterClie
 import {
   createOpenRouterClient,
   isQuotaFailure,
+  OPENROUTER_BRIEF_OUTPUT_TOKENS,
   OpenRouterHttpError,
 } from '#actions_pipeline/lib/openRouterClient.ts';
 import {
@@ -13,6 +14,7 @@ import {
   stallsMidStream,
   streamsSlowly,
 } from '#actions_pipeline/lib/testFixtures.ts';
+import { OPENROUTER_MAX_OUTPUT_TOKENS } from '#lib/providerResponse.ts';
 
 /** A `fetch` answering every request with the same stream of frames. */
 function streaming(frames: readonly unknown[]): typeof fetch {
@@ -66,7 +68,18 @@ test('real client shapes the request correctly and joins the streamed fragments'
   const body = JSON.parse(String(capturedInit?.body));
   assert.equal(body.model, 'a/model:free');
   assert.equal(body.temperature, 0.9);
-  assert.equal(body.max_tokens, 16000);
+  assert.equal(body.max_tokens, OPENROUTER_MAX_OUTPUT_TOKENS);
+});
+
+// The one place the literal is pinned: every other test reads the constant.
+test('the default output cap is 48000 tokens', () => {
+  assert.equal(OPENROUTER_MAX_OUTPUT_TOKENS, 48000);
+});
+
+// google/gemma-4-31b-it:free, the moderation model, allows 32768.
+test('the brief output cap fits the smallest moderation model', () => {
+  assert.ok(OPENROUTER_BRIEF_OUTPUT_TOKENS <= 32_768);
+  assert.ok(OPENROUTER_BRIEF_OUTPUT_TOKENS < OPENROUTER_MAX_OUTPUT_TOKENS);
 });
 
 // Not a preference: a request without it answers with one JSON document and
@@ -99,6 +112,17 @@ async function sentBody(
   await client.complete(request);
   return body;
 }
+
+test('a per-call output cap replaces the default in the request body', async () => {
+  const body = await sentBody({
+    model: 'a/primary:free',
+    messages: [],
+    temperature: 0.7,
+    maxOutputTokens: OPENROUTER_BRIEF_OUTPUT_TOKENS,
+  });
+
+  assert.equal(body.max_tokens, OPENROUTER_BRIEF_OUTPUT_TOKENS);
+});
 
 test('fallback models are sent as an ordered `models` list with no `model` key', async () => {
   const body = await sentBody({

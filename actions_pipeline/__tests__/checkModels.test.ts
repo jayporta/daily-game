@@ -192,6 +192,44 @@ test('a candidate too small to hold a game is passed over', async (t) => {
   );
 });
 
+// A model capped below the 48,000 tokens a generation requests can refuse
+// the request outright; 32,768 is the moderation model's own cap.
+test('a candidate capped below what generation requests is passed over', async (t) => {
+  const root = scratchRoot(t, CONFIG);
+
+  await checkModels({
+    root,
+    fetchImpl: catalog([
+      entry('b/model:free'),
+      entry('mod/model:free'),
+      entry('short/model:free', 32_768),
+    ]),
+  });
+
+  assert.deepEqual(
+    readConfig(root).models.map((m) => m.id),
+    ['b/model:free'],
+  );
+});
+
+test('a candidate capped exactly at what generation requests is taken', async (t) => {
+  const root = scratchRoot(t, CONFIG);
+
+  await checkModels({
+    root,
+    fetchImpl: catalog([
+      entry('b/model:free'),
+      entry('mod/model:free'),
+      entry('exact/model:free', 48_000),
+    ]),
+  });
+
+  assert.deepEqual(
+    readConfig(root).models.map((m) => m.id),
+    ['b/model:free', 'exact/model:free'],
+  );
+});
+
 test('a candidate that does not answer in text is passed over', async (t) => {
   const root = scratchRoot(t, CONFIG);
 
