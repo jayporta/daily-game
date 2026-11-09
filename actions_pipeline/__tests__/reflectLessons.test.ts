@@ -13,6 +13,7 @@ import { EMPTY_SUMMARY } from '#actions_pipeline/lib/historyStore.ts';
 import { buildLessonsMessages, isLessonsRequest } from '#actions_pipeline/lib/lessonsPrompt.ts';
 import { createMockOpenRouterClient } from '#actions_pipeline/lib/openRouterClient.mock.ts';
 import {
+  OPENROUTER_BRIEF_OUTPUT_TOKENS,
   OPENROUTER_TIMEOUT_MS,
   type OpenRouterClient,
 } from '#actions_pipeline/lib/openRouterClient.ts';
@@ -295,4 +296,20 @@ test('reflection asks for a shorter deadline than a generation gets', async () =
     requestedTimeoutMs !== undefined && requestedTimeoutMs < OPENROUTER_TIMEOUT_MS,
     `reflection would inherit the ${OPENROUTER_TIMEOUT_MS}ms generation cap`,
   );
+});
+
+// Reflection runs on the moderation model, which allows fewer output tokens
+// than a generation asks for.
+test('reflection asks for the brief output cap, not the generation cap', async () => {
+  let requestedMaxOutputTokens: number | undefined;
+  const client: OpenRouterClient = {
+    async complete(request) {
+      requestedMaxOutputTokens = request.maxOutputTokens;
+      return { text: 'Guard every lookup.', stop: 'complete', model: request.model };
+    },
+  };
+
+  await rewriteLessons(client, { model: 'reflector', summary: EMPTY_SUMMARY, aging: [] });
+
+  assert.equal(requestedMaxOutputTokens, OPENROUTER_BRIEF_OUTPUT_TOKENS);
 });

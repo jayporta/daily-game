@@ -27,22 +27,27 @@ import {
   readHotWindow,
 } from '#actions_pipeline/lib/historyStore.ts';
 import { writeJson } from '#actions_pipeline/lib/jsonFile.ts';
+import { OPENROUTER_BRIEF_OUTPUT_TOKENS } from '#actions_pipeline/lib/openRouterClient.ts';
 import { createPaths, paths as defaultPaths } from '#actions_pipeline/lib/paths.ts';
 import { isStringArray } from '#actions_pipeline/lib/validation.ts';
 import { splitAging } from '#actions_pipeline/rollupHistory.ts';
 import { isRecord } from '#lib/guards.ts';
+import { OPENROUTER_MAX_OUTPUT_TOKENS } from '#lib/providerResponse.ts';
 
 export const CATALOG_URL = 'https://openrouter.ai/api/v1/models';
 
 /**
- * The smallest output a replacement may be capped at.
+ * The smallest output a rotation replacement may be capped at: the cap
+ * generation requests, {@link OPENROUTER_MAX_OUTPUT_TOKENS}. A moderator
+ * replacement only needs {@link OPENROUTER_BRIEF_OUTPUT_TOKENS}.
  *
- * A complete HTML game runs to roughly 8-20k tokens, so anything at the 8k
- * tier truncates mid-bundle and loses its closing fence, which the extractor
- * can only report as a missing block. It also keeps classifier models, which
- * cluster at that cap, out of a rotation meant to write games.
+ * A model capped lower can refuse the request outright, and a reasoning model
+ * spends the same budget on thinking and answering, so a smaller one can
+ * truncate mid-bundle and lose its closing fence, which the extractor can
+ * only report as a missing block. It also keeps classifier models, which
+ * cluster at low caps, out of a rotation meant to write games.
  */
-export const MIN_OUTPUT_TOKENS = 16_384;
+export const MIN_OUTPUT_TOKENS = OPENROUTER_MAX_OUTPUT_TOKENS;
 
 /**
  * Distinct hot-window days of evidence a model needs before its reliability
@@ -294,22 +299,25 @@ export function unreliableModelIds(entries: readonly HistoryGameEntry[]): Readon
 }
 
 /**
- * Free text-only models big enough to write a game, best first.
+ * Free text-only models allowing at least `minOutputTokens`, best first.
  *
  * Filtered on the `:free` id suffix rather than on price: some zero-priced
  * entries are audio models or router aliases, which the suffix excludes.
  * Ordered by output cap, then by id so a run is repeatable.
+ *
+ * @param minOutputTokens The output cap the replacement's own calls request.
  */
 export function replacementCandidates(
   usable: readonly CatalogModel[],
   configured: ReadonlySet<string>,
+  minOutputTokens: number,
 ): readonly CatalogModel[] {
   return usable
     .filter(
       (model) =>
         model.id.endsWith(':free') &&
         !configured.has(model.id) &&
-        model.maxOutputTokens >= MIN_OUTPUT_TOKENS &&
+        model.maxOutputTokens >= minOutputTokens &&
         model.outputModalities.length === 1 &&
         model.outputModalities[0] === 'text',
     )
@@ -377,14 +385,16 @@ export async function checkModels({
     config.moderationModel,
     ...unreliable,
   ]);
-  const candidates = replacementCandidates(usable, configured);
 
   // One replacement per active model lost — delisted or unreliable — so a
   // disappearance is made good rather than used as licence to grow the
   // rotation.
   const activeLost = removedEntries.filter((entry) => entry.active).length;
-  const chosen = candidates.slice(0, activeLost);
-  const moderationReplacement = moderationDead ? (candidates[activeLost] ?? null) : null;
+  const chosen = replacementCandidates(usable, configured, MIN_OUTPUT_TOKENS).slice(0, activeLost);
+  const taken = new Set([...configured, ...chosen.map((model) => model.id)]);
+  const moderationReplacement = moderationDead
+    ? (replacementCandidates(usable, taken, OPENROUTER_BRIEF_OUTPUT_TOKENS)[0] ?? null)
+    : null;
 
   // A rotation pruned around a moderator that is still gone reads as repaired
   // while every attempt keeps failing closed against an unreachable one.

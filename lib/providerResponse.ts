@@ -111,19 +111,17 @@ export function classifyStopReason(raw: string | null): ProviderStopReason | nul
 }
 
 /**
- * Output cap sent on every OpenRouter request, browser and pipeline alike.
+ * Output cap for an OpenRouter request that writes a whole game, in the
+ * browser's BYOK path and the daily pipeline alike.
  *
- * OpenRouter fronts small free models, some of which apply their own low
- * default when asked for none at all, or spend part of a larger one on
- * reasoning before ever reaching the two fenced blocks the prompt asks for.
- * A request with no cap leaves that decision to the provider, and a
- * provider whose default lands short of a full game silently truncates
- * mid-document rather than erroring — the exact shape of both the BYOK
- * Gemini truncation and the daily pipeline's `missing-html-block` failures.
+ * Reasoning and answer share this one budget, so a model that exhausts it
+ * while still reasoning streams no content at all and the request fails with
+ * nothing to extract. `MIN_OUTPUT_TOKENS` in `actions_pipeline/checkModels.ts`
+ * holds rotation replacements to models that allow at least this many.
  * One constant, so `src/features/byok/state/helpers/providers.ts` and
  * `actions_pipeline/lib/openRouterClient.ts` can never drift apart on it.
  */
-export const OPENROUTER_MAX_OUTPUT_TOKENS = 16000;
+export const OPENROUTER_MAX_OUTPUT_TOKENS = 48000;
 
 /**
  * The human-readable part of a failed response, truncated.

@@ -64,6 +64,16 @@ export interface CompletionRequest {
    * whatever the call is for.
    */
   readonly timeoutMs?: number;
+  /**
+   * Output cap for this one call, overriding {@link OPENROUTER_MAX_OUTPUT_TOKENS}.
+   *
+   * @remarks
+   * For a call that is not a generation. The default is sized for a model
+   * writing a whole game, and some models used for a verdict or a note allow
+   * fewer output tokens than that, so a request asking for the default can be
+   * refused outright. See {@link OPENROUTER_BRIEF_OUTPUT_TOKENS}.
+   */
+  readonly maxOutputTokens?: number;
 }
 
 /** What a completed call produced. */
@@ -140,6 +150,16 @@ export const OPENROUTER_IDLE_TIMEOUT_MS = 60_000;
  * this whenever the rotation in `config/models.json` grows.
  */
 export const OPENROUTER_TIMEOUT_MS = 540_000;
+
+/**
+ * Output cap for a call that is not writing a game, such as a moderation
+ * verdict or a lessons note.
+ *
+ * @remarks
+ * Small enough for every moderation model, including one capped at 32,768
+ * output tokens, and still roomy for a model that reasons before it answers.
+ */
+export const OPENROUTER_BRIEF_OUTPUT_TOKENS = 16000;
 
 /** Construction options for {@link createOpenRouterClient}. */
 export interface CreateOpenRouterClientOptions {
@@ -297,6 +317,7 @@ export function createOpenRouterClient({
       messages,
       temperature,
       timeoutMs: requestTimeoutMs,
+      maxOutputTokens = OPENROUTER_MAX_OUTPUT_TOKENS,
     }: CompletionRequest): Promise<CompletionResult> {
       const deadlines = createDeadlines(idleTimeoutMs, requestTimeoutMs ?? timeoutMs);
       try {
@@ -311,7 +332,7 @@ export function createOpenRouterClient({
             ...(fallbackModels.length > 0 ? { models: [model, ...fallbackModels] } : { model }),
             messages,
             temperature,
-            max_tokens: OPENROUTER_MAX_OUTPUT_TOKENS,
+            max_tokens: maxOutputTokens,
             stream: true,
           }),
         });

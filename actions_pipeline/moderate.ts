@@ -9,6 +9,7 @@
 import {
   type ChatMessage,
   isQuotaFailure,
+  OPENROUTER_BRIEF_OUTPUT_TOKENS,
   type OpenRouterClient,
 } from '#actions_pipeline/lib/openRouterClient.ts';
 import { untrustedBlock } from '#actions_pipeline/lib/untrustedBlock.ts';
@@ -306,6 +307,7 @@ export async function aiModerationCheck(
       messages: buildModerationMessages(guardrailsText, meta, html),
       temperature: 0,
       timeoutMs: MODERATION_TIMEOUT_MS,
+      maxOutputTokens: OPENROUTER_BRIEF_OUTPUT_TOKENS,
     }));
   } catch (error) {
     // An unreachable moderator is not permission to publish.

@@ -12,7 +12,10 @@ import type { HistoryGameEntry, HistorySummary } from '#actions_pipeline/lib/his
 import { readHotWindow, readSummary } from '#actions_pipeline/lib/historyStore.ts';
 import { writeJson } from '#actions_pipeline/lib/jsonFile.ts';
 import { buildLessonsMessages, MAX_LESSONS_LENGTH } from '#actions_pipeline/lib/lessonsPrompt.ts';
-import type { OpenRouterClient } from '#actions_pipeline/lib/openRouterClient.ts';
+import {
+  OPENROUTER_BRIEF_OUTPUT_TOKENS,
+  type OpenRouterClient,
+} from '#actions_pipeline/lib/openRouterClient.ts';
 import { createPaths, paths as defaultPaths } from '#actions_pipeline/lib/paths.ts';
 import { errorMessage } from '#lib/errors.ts';
 
@@ -50,6 +53,7 @@ export async function rewriteLessons(
       messages: buildLessonsMessages(summary, aging),
       temperature: 0.3,
       timeoutMs: REFLECTION_TIMEOUT_MS,
+      maxOutputTokens: OPENROUTER_BRIEF_OUTPUT_TOKENS,
     }));
   } catch {
     return null;

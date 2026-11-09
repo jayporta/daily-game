@@ -134,10 +134,8 @@ export interface ByokFetchOptions {
  * output tokens, so the three direct providers get room for both, within
  * every catalogue model's documented maximum output.
  *
- * OpenRouter keeps the smaller cap, shared with the daily pipeline's own
- * OpenRouter client as {@link OPENROUTER_MAX_OUTPUT_TOKENS}: it fronts small
- * free models that may refuse a request asking for more than they can
- * produce.
+ * OpenRouter uses {@link OPENROUTER_MAX_OUTPUT_TOKENS}, shared with the daily
+ * pipeline's own OpenRouter client.
  */
 const MAX_OUTPUT_TOKENS: Record<ByokProvider, number> = {
   openrouter: OPENROUTER_MAX_OUTPUT_TOKENS,
