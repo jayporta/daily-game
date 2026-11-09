@@ -230,6 +230,59 @@ test('a candidate capped exactly at what generation requests is taken', async (t
   );
 });
 
+// Moderation requests 16,000 tokens, so a model too small to write a game can
+// still moderate, and refusing it would also abandon the generator repair.
+test('a model too small to generate can still replace the moderator', async (t) => {
+  const root = scratchRoot(t, CONFIG);
+
+  const result = await checkModels({
+    root,
+    fetchImpl: catalog([
+      entry('b/model:free'),
+      entry('big/model:free'),
+      entry('short/model:free', 32_768),
+    ]),
+  });
+
+  assert.equal(result.status, 'updated');
+  const written = readConfig(root);
+  assert.deepEqual(
+    written.models.map((m) => m.id),
+    ['b/model:free', 'big/model:free'],
+  );
+  assert.equal(written.moderationModel, 'short/model:free');
+});
+
+test('a moderator candidate capped exactly at what moderation requests is taken', async (t) => {
+  const root = scratchRoot(t, CONFIG);
+
+  await checkModels({
+    root,
+    fetchImpl: catalog([
+      entry('a/model:free'),
+      entry('b/model:free'),
+      entry('exact/model:free', 16_000),
+    ]),
+  });
+
+  assert.equal(readConfig(root).moderationModel, 'exact/model:free');
+});
+
+test('a moderator candidate capped below what moderation requests is passed over', async (t) => {
+  const root = scratchRoot(t, CONFIG);
+
+  const result = await checkModels({
+    root,
+    fetchImpl: catalog([
+      entry('a/model:free'),
+      entry('b/model:free'),
+      entry('short/model:free', 15_999),
+    ]),
+  });
+
+  assert.equal(result.status, 'refused');
+});
+
 test('a candidate that does not answer in text is passed over', async (t) => {
   const root = scratchRoot(t, CONFIG);
 
