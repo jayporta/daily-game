@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-09 — Crystal Cascade
+
+- genre: puzzle
+- theme: A whimsical realm of floating crystal fruits that change colors, requiring the player to rearrange tiles to match a target pattern and keep the garden thriving.
+- mechanics: Match three or more tiles to clear them, Swap adjacent tiles to form patterns, Limited moves per level with move counter, Hand-authored level layouts with procedural color variation
+- model: cohere/north-mini-code:free
+- attempts: 2
+
 ## 2026-11-08 — Seed Slinger
 
 - genre: physics-sandbox
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Pull back on the seed to set aim and launch power, then release to fire, Gravity pulls the seed downward in an arc, Bounce off crystal walls with damping, Wind zones gently push the seed sideways, Collect floating dewdrops for bonus points, Reach the flower to complete the level; missing lets you retry instantly
 - model: nvidia/nemotron-3.5-super-vl:free
 - attempts: 7
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-07 — Lumen Reef
 

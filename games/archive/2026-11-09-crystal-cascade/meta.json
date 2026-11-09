@@ -1,0 +1,33 @@
+{
+  "title": "Crystal Cascade",
+  "genre": "puzzle",
+  "theme": "A whimsical realm of floating crystal fruits that change colors, requiring the player to rearrange tiles to match a target pattern and keep the garden thriving.",
+  "mechanics": [
+    "Match three or more tiles to clear them",
+    "Swap adjacent tiles to form patterns",
+    "Limited moves per level with move counter",
+    "Hand-authored level layouts with procedural color variation"
+  ],
+  "controls": [
+    {
+      "action": "move selection up",
+      "key": "ArrowUp"
+    },
+    {
+      "action": "move selection down",
+      "key": "ArrowDown"
+    },
+    {
+      "action": "move selection left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "move selection right",
+      "key": "ArrowRight"
+    },
+    {
+      "action": "restart level",
+      "key": "r"
+    }
+  ]
+}

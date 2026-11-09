@@ -1744,6 +1744,34 @@
       "recursive/flint-v1.0:free",
       "xingchen-agi/xing4.0-29b-a4b:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
+  },
+  {
+    "date": "2026-11-09",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-11-09-crystal-cascade",
+    "genre": "puzzle",
+    "theme": "A whimsical realm of floating crystal fruits that change colors, requiring the player to rearrange tiles to match a target pattern and keep the garden thriving.",
+    "mechanics": [
+      "Match three or more tiles to clear them",
+      "Swap adjacent tiles to form patterns",
+      "Limited moves per level with move counter",
+      "Hand-authored level layouts with procedural color variation"
+    ],
+    "title": "Crystal Cascade",
+    "attempts": 2,
+    "canvasDrawn": false,
+    "failureKinds": [
+      "extract"
+    ],
+    "attemptModels": [
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
     "quotaAffected": true
   }
 ]
