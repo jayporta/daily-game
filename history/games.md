@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Match three or more tiles to clear them, Swap adjacent tiles to form patterns, Limited moves per level with move counter, Hand-authored level layouts with procedural color variation
 - model: cohere/north-mini-code:free
 - attempts: 2
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-08 — Seed Slinger
 
