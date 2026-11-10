@@ -1,0 +1,320 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0b1020; }
+#game { position:fixed; inset:0; display:block; width:100%; height:100%; touch-action: manipulation; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+'use strict';
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = 0;
+let H = 0;
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.round(rect.width * dpr));
+  canvas.height = Math.max(1, Math.round(rect.height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  W = rect.width;
+  H = rect.height;
+}
+window.addEventListener('resize', resize);
+resize();
+const state = {
+  water: 100,
+  score: 0,
+  blooms: 0,
+  win: false,
+  time: 0,
+  spawnTimer: 0,
+  seeds: [
+    { x: 0.28, y: 0.38, growth: 0 },
+    { x: 0.5, y: 0.62, growth: 0 },
+    { x: 0.72, y: 0.38, growth: 0 }
+  ],
+  dews: []
+};
+function resetGame() {
+  state.water = 100;
+  state.score = 0;
+  state.blooms = 0;
+  state.win = false;
+  state.time = 0;
+  state.spawnTimer = 0;
+  state.seeds.forEach(s => { s.growth = 0; });
+  state.dews = [];
+}
+resetGame();
+let lastTime = performance.now();
+function loop(t) {
+  const now = t || performance.now();
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+function update(dt) {
+  if (state.win) return;
+  state.time += dt;
+  state.water = Math.min(100, state.water + dt * 2.5);
+  state.spawnTimer -= dt;
+  if (state.spawnTimer <= 0) {
+    state.spawnTimer = 2 + Math.random() * 2;
+    state.dews.push({ x: 0.2 + Math.random() * 0.6, y: 0.2 + Math.random() * 0.6, r: 6, life: 8 });
+  }
+  for (let i = state.dews.length - 1; i >= 0; i--) {
+    state.dews[i].life -= dt;
+    if (state.dews[i].life <= 0) {
+      state.dews.splice(i, 1);
+    }
+  }
+  let allBloomed = true;
+  for (const s of state.seeds) {
+    if (s.growth < 1) allBloomed = false;
+  }
+  if (allBloomed) {
+    state.win = true;
+    state.blooms = state.seeds.length;
+    state.score += 50;
+  }
+}
+function gardenRect() {
+  const m = Math.min(W, H) * 0.08;
+  return { x: m, y: m, w: W - m * 2, h: H - m * 2 };
+}
+function stageOf(g) {
+  if (g >= 1) return 'bloom';
+  if (g >= 0.9) return 'bud';
+  if (g >= 0.75) return 'leaf';
+  if (g >= 0.5) return 'stem';
+  if (g >= 0.25) return 'sprout';
+  return 'sleep';
+}
+function drawSeed(s, g) {
+  const sx = g.x + s.x * g.w;
+  const sy = g.y + s.y * g.h;
+  const stage = stageOf(s.growth);
+  const stemH = 6 + s.growth * 46;
+  ctx.fillStyle = '#33242a';
+  ctx.beginPath();
+  ctx.arc(sx, sy, 9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#5f7f52';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy);
+  ctx.lineTo(sx, sy - stemH);
+  ctx.stroke();
+  ctx.strokeStyle = '#7ba05b';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  if (stage !== 'sleep') {
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - Math.min(stemH * 0.5, 10));
+    ctx.quadraticCurveTo(sx - 8, sy - Math.min(stemH * 0.6, 14), sx - 12, sy - Math.min(stemH * 0.8, 18));
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(sx, sy - Math.min(stemH * 0.5, 10));
+    ctx.quadraticCurveTo(sx + 8, sy - Math.min(stemH * 0.6, 14), sx + 12, sy - Math.min(stemH * 0.8, 18));
+    ctx.stroke();
+  }
+  if (stage === 'sprout') {
+    ctx.fillStyle = '#9dc183';
+    ctx.beginPath();
+    ctx.arc(sx, sy - stemH - 2, 5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (stage === 'stem') {
+    ctx.fillStyle = '#7ba05b';
+    ctx.beginPath();
+    ctx.ellipse(sx + 10, sy - stemH * 0.6, 8, 4, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (stage === 'leaf') {
+    ctx.fillStyle = '#6a9a52';
+    ctx.beginPath();
+    ctx.ellipse(sx + 14, sy - stemH * 0.7, 12, 6, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (stage === 'bud') {
+    ctx.fillStyle = '#d9a05b';
+    ctx.beginPath();
+    ctx.arc(sx, sy - stemH - 8, 8, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (stage === 'bloom') {
+    const fy = sy - stemH - 14;
+    ctx.fillStyle = '#ffdf8a';
+    for (let i = 0; i < 6; i++) {
+      const ang = (i / 6) * Math.PI * 2;
+      const px = sx + Math.cos(ang) * 11;
+      const py = fy + Math.sin(ang) * 11;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(ang);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 6, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.fillStyle = '#fff3c4';
+    ctx.beginPath();
+    ctx.arc(sx, fy, 6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+function draw() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0b1020');
+  grad.addColorStop(1, '#101a2e');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  const g = gardenRect();
+  ctx.fillStyle = '#1a2f22';
+  ctx.fillRect(g.x, g.y, g.w, g.h);
+  for (const d of state.dews) {
+    const dx = g.x + d.x * g.w;
+    const dy = g.y + d.y * g.h;
+    const glow = ctx.createRadialGradient(dx, dy, 0, dx, dy, d.r * 3);
+    glow.addColorStop(0, 'rgba(160,220,255,0.9)');
+    glow.addColorStop(1, 'rgba(160,220,255,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(dx, dy, d.r * 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#cfeaff';
+    ctx.beginPath();
+    ctx.arc(dx, dy, d.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (const s of state.seeds) {
+    drawSeed(s, g);
+  }
+  const bw = Math.min(300, W * 0.4);
+  const bx = (W - bw) / 2;
+  const by = 16;
+  const bh = 18;
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.fillRect(bx, by, bw, bh);
+  ctx.fillStyle = '#5fd0ff';
+  const w = (state.water / 100) * bw;
+  ctx.fillRect(bx, by, w, bh);
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.strokeRect(bx, by, bw, bh);
+  ctx.fillStyle = '#e8f4ff';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Water', bx + bw / 2, by + bh + 16);
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.font = '14px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('Blooms: ' + state.blooms + '/' + state.seeds.length, 16, 36);
+  ctx.textAlign = 'right';
+  ctx.fillText('Score: ' + Math.floor(state.score), W - 16, 36);
+  if (state.win) {
+    ctx.fillStyle = 'rgba(5,8,15,0.75)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ffdf8a';
+    ctx.textAlign = 'center';
+    ctx.font = 'bold 36px monospace';
+    ctx.fillText('Garden Bloomed!', W / 2, H / 2 - 20);
+    ctx.font = '18px monospace';
+    ctx.fillStyle = '#e8f4ff';
+    ctx.fillText('Score: ' + Math.floor(state.score), W / 2, H / 2 + 20);
+    ctx.font = '16px monospace';
+    ctx.fillStyle = '#9fe8b1';
+    ctx.fillText('Tap or click to grow a new garden', W / 2, H / 2 + 50);
+  }
+}
+function pointerPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+function handlePointer(e) {
+  if (state.win) {
+    resetGame();
+    return;
+  }
+  const p = pointerPos(e);
+  const g = gardenRect();
+  const fx = (p.x - g.x) / g.w;
+  const fy = (p.y - g.y) / g.h;
+  if (fx < 0 || fx > 1 || fy < 0 || fy > 1) return;
+  for (let i = state.dews.length - 1; i >= 0; i--) {
+    const d = state.dews[i];
+    const dist = Math.hypot(fx - d.x, fy - d.y) * Math.max(g.w, g.h);
+    if (dist < d.r + 10) {
+      state.dews.splice(i, 1);
+      state.water = Math.min(100, state.water + 20);
+      state.score += 10;
+      return;
+    }
+  }
+  for (const s of state.seeds) {
+    if (Math.abs(fx - s.x) < 0.1 && Math.abs(fy - s.y) < 0.1) {
+      if (state.water >= 25) {
+        state.water -= 25;
+        s.growth = Math.min(1, s.growth + 0.25);
+        state.score += 5;
+      }
+      return;
+    }
+  }
+}
+canvas.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  handlePointer(e);
+});
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-10-glowroot-garden";
+  var RELEASE = "7d56f9fe3bb4a9ca4396385d5488836f72f5dfd8";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

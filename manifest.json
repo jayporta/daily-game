@@ -1,34 +1,18 @@
 {
-  "date": "2026-11-09",
-  "slug": "2026-11-09-crystal-cascade",
-  "path": "games/archive/2026-11-09-crystal-cascade/game.html",
-  "promptPath": "games/archive/2026-11-09-crystal-cascade/prompt.txt",
-  "title": "Crystal Cascade",
-  "genre": "puzzle",
-  "genreLabel": "Puzzle",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-11-09T20:01:20.799Z",
-  "expiresAt": "2026-11-10T19:00:00.000Z",
+  "date": "2026-11-10",
+  "slug": "2026-11-10-glowroot-garden",
+  "path": "games/archive/2026-11-10-glowroot-garden/game.html",
+  "promptPath": "games/archive/2026-11-10-glowroot-garden/prompt.txt",
+  "title": "Glowroot Garden",
+  "genre": "growth-sim",
+  "genreLabel": "Growth Simulation",
+  "model": "recursive/flint-v1.0:free",
+  "generatedAt": "2026-11-10T20:01:45.354Z",
+  "expiresAt": "2026-11-11T19:00:00.000Z",
   "controls": [
     {
-      "action": "move selection up",
-      "key": "ArrowUp"
-    },
-    {
-      "action": "move selection down",
-      "key": "ArrowDown"
-    },
-    {
-      "action": "move selection left",
-      "key": "ArrowLeft"
-    },
-    {
-      "action": "move selection right",
-      "key": "ArrowRight"
-    },
-    {
-      "action": "restart level",
-      "key": "r"
+      "action": "Water a seedling or collect a dew drop",
+      "key": "Tap / Click"
     }
   ]
 }

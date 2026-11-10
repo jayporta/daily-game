@@ -1777,5 +1777,32 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-11-10",
+    "status": "published",
+    "model": "recursive/flint-v1.0:free",
+    "slug": "2026-11-10-glowroot-garden",
+    "genre": "growth-sim",
+    "theme": "A tiny bioluminescent root garden wakes in a mossy hollow; nurture three seeds to full bloom.",
+    "mechanics": [
+      "Tap or click to water seedlings",
+      "Collect dew drops to refill water",
+      "Watch seeds grow through life stages",
+      "Manage limited water over time",
+      "Grow all three seeds to full bloom"
+    ],
+    "title": "Glowroot Garden",
+    "attempts": 3,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "extract",
+      "extract"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free"
+    ],
+    "quotaAffected": true
   }
 ]

@@ -1,0 +1,18 @@
+{
+  "title": "Glowroot Garden",
+  "genre": "growth-sim",
+  "theme": "A tiny bioluminescent root garden wakes in a mossy hollow; nurture three seeds to full bloom.",
+  "mechanics": [
+    "Tap or click to water seedlings",
+    "Collect dew drops to refill water",
+    "Watch seeds grow through life stages",
+    "Manage limited water over time",
+    "Grow all three seeds to full bloom"
+  ],
+  "controls": [
+    {
+      "action": "Water a seedling or collect a dew drop",
+      "key": "Tap / Click"
+    }
+  ]
+}

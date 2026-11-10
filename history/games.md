@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-10 — Glowroot Garden
+
+- genre: growth-sim
+- theme: A tiny bioluminescent root garden wakes in a mossy hollow; nurture three seeds to full bloom.
+- mechanics: Tap or click to water seedlings, Collect dew drops to refill water, Watch seeds grow through life stages, Manage limited water over time, Grow all three seeds to full bloom
+- model: recursive/flint-v1.0:free
+- attempts: 3
+
 ## 2026-11-09 — Crystal Cascade
 
 - genre: puzzle
