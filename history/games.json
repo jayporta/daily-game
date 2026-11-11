@@ -1808,5 +1808,37 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-11-11",
+    "status": "failed_kept_previous",
+    "model": "nvidia/nemotron-3.5-super-vl:free",
+    "attempts": 5,
+    "failureReasons": [
+      "attempt 1 (nvidia/nemotron-3.5-lightning:free): smoke test failed — uncaught JS error: Failed to execute 'write' on 'Document': Unexpected identifier 'cx'",
+      "attempt 2 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block",
+      "attempt 3 (dots-studio/dots-3-note-preview:free): could not extract bundle — missing-html-block",
+      "attempt 4 (nvidia/nemotron-3-ultra-550b-a55b:free): generation call failed — OpenRouter stream carried no content (2 frames, delta keys: role, content, stop: complete)",
+      "attempt 5 (recursive/flint-v1.0:free): smoke test failed — uncaught JS error: Cannot read properties of undefined (reading 'r') | Cannot read properties of undefined (reading 'r')"
+    ],
+    "failureKinds": [
+      "generation-failover",
+      "generation-failover",
+      "smoke-js-error",
+      "extract",
+      "extract",
+      "generation-call",
+      "smoke-js-error"
+    ],
+    "attemptModels": [
+      "nvidia/nemotron-3.5-super-vl:free",
+      "thinkingmachines/inkling-2-small:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free",
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "recursive/flint-v1.0:free"
+    ],
+    "quotaAffected": true
   }
 ]
