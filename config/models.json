@@ -27,12 +27,12 @@
       "provider": "openrouter"
     },
     {
-      "id": "xingchen-agi/xing4.0-29b-a4b:free",
+      "id": "nvidia/nemotron-3.5-super-vl:free",
       "active": true,
       "provider": "openrouter"
     },
     {
-      "id": "nvidia/nemotron-3.5-super-vl:free",
+      "id": "thinkingmachines/inkling-2-small:free",
       "active": true,
       "provider": "openrouter"
     }

@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Tap or click to water seedlings, Collect dew drops to refill water, Watch seeds grow through life stages, Manage limited water over time, Grow all three seeds to full bloom
 - model: recursive/flint-v1.0:free
 - attempts: 3
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-09 — Crystal Cascade
 
