@@ -5,12 +5,13 @@ Generated automatically — do not edit by hand.
 ## 2026-11-11 — generation failed, previous game kept
 
 - model: nvidia/nemotron-3.5-super-vl:free
-- attempts: 5
-- attempt 1 (nvidia/nemotron-3.5-lightning:free): smoke test failed — uncaught JS error: Failed to execute 'write' on 'Document': Unexpected identifier 'cx'
-- attempt 2 (cohere/north-mini-code:free): could not extract bundle — missing-meta-block
-- attempt 3 (dots-studio/dots-3-note-preview:free): could not extract bundle — missing-html-block
-- attempt 4 (nvidia/nemotron-3-ultra-550b-a55b:free): generation call failed — OpenRouter stream carried no content (2 frames, delta keys: role, content, stop: complete)
-- attempt 5 (recursive/flint-v1.0:free): smoke test failed — uncaught JS error: Cannot read properties of undefined (reading 'r') | Cannot read properties of undefined (reading 'r')
+- attempts: 6
+- attempt 1 (nvidia/nemotron-3.5-super-vl:free): could not extract bundle — missing-meta-block
+- attempt 2 (nvidia/nemotron-3.5-lightning:free): could not extract bundle — missing-meta-block
+- attempt 3 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content (11199 frames, delta keys: role, content, reasoning, reasoning_details, stop: complete)
+- attempt 4 (dots-studio/dots-3-note-preview:free): could not extract bundle — missing-html-block (response truncated at the output cap)
+- attempt 5 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+- attempt 6 (recursive/flint-v1.0:free): could not extract bundle — missing-html-block
 
 ## 2026-11-10 — Glowroot Garden
 
