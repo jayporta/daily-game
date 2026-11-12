@@ -1,0 +1,21 @@
+{
+  "title": "Lantern Glow",
+  "genre": "growth-sim",
+  "theme": "A tiny clockwork firefly grows a glowing lantern in a mossy hollow.",
+  "mechanics": [
+    "Tap or click the firefly to send water to its shell",
+    "Collect drifting light motes for energy",
+    "Grow the firefly through four lantern stages",
+    "Reach the radiant bloom to win"
+  ],
+  "controls": [
+    {
+      "action": "Tap or click the firefly to water it",
+      "key": "Click or Tap"
+    },
+    {
+      "action": "Tap or click a light mote to collect ene",
+      "key": "Click or Tap"
+    }
+  ]
+}

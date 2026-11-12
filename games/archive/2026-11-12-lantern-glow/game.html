@@ -1,0 +1,222 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<style>
+html, body { margin: 0; height: 100%; background: #0b1020; overflow: hidden; }
+#game { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W = 0;
+let H = 0;
+let water = 0;
+let energy = 0;
+let stage = 0;
+let score = 0;
+let win = false;
+let time = 0;
+let firefly = { x: 0, y: 0, phase: 0 };
+let motes = [];
+let lastMoteTime = 0;
+const requirements = [ { w: 30, e: 15 }, { w: 50, e: 25 }, { w: 70, e: 35 }, { w: 90, e: 45 } ];
+
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, rect.width);
+  const h = Math.max(1, rect.height);
+  canvas.width = Math.floor(w);
+  canvas.height = Math.floor(h);
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  firefly.x = w / 2;
+  firefly.y = h * 0.6;
+  draw();
+}
+window.addEventListener('resize', resize);
+
+function draw() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0b1020');
+  grad.addColorStop(1, '#10251a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(46, 90, 50, 0.6)';
+  for (let i = 0; i < 12; i++) {
+    const x = (i * 97) % W;
+    const y = (i * 53) % H;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 40 + (i % 3) * 20, 15 + (i % 2) * 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const colors = ['#8a7a4f', '#7ee787', '#61dafb', '#e6e6fa'];
+  const col = colors[stage] || colors[3];
+  const fx = firefly.x;
+  const fy = firefly.y;
+  ctx.save();
+  ctx.globalAlpha = 0.4;
+  const glow = ctx.createRadialGradient(fx, fy, 0, fx, fy, 60);
+  glow.addColorStop(0, col);
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(fx, fy, 60, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  ctx.save();
+  ctx.translate(fx, fy);
+  const pulse = 1 + Math.sin(time * 0.05 + firefly.phase) * 0.1;
+  ctx.scale(pulse, pulse);
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.arc(0, 0, 14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  ctx.beginPath();
+  ctx.ellipse(-8, -6, 6, 10, -0.3, 0, Math.PI * 2);
+  ctx.ellipse(8, -6, 6, 10, 0.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 10, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  for (let i = 0; i < motes.length; i++) {
+    const m = motes[i];
+    ctx.fillStyle = '#fff';
+    ctx.globalAlpha = Math.max(0, Math.min(1, m.life));
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.arc(m.x, m.y, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(255,255,255,0.8)';
+  ctx.font = '16px monospace';
+  ctx.fillText('Score ' + score, 16, 30);
+  const req = stage < 4 ? requirements[stage] : { w: 0, e: 0 };
+  ctx.fillText('Water ' + Math.floor(water) + '/' + req.w, 16, 55);
+  ctx.fillText('Energy ' + Math.floor(energy) + '/' + req.e, 16, 80);
+  if (win) {
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.font = '30px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('BLOOM!', W / 2, H / 2);
+  }
+}
+
+function update() {
+  time += 0.016;
+  firefly.phase += 0.02;
+  firefly.y = H * 0.6 + Math.sin(time * 2) * 10;
+  if (motes.length < 5 && time - lastMoteTime > 1) {
+    lastMoteTime = time;
+    motes.push({ x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 0.5) * 10, life: 1 });
+  }
+  for (let i = motes.length - 1; i >= 0; i--) {
+    const m = motes[i];
+    m.x += m.vx;
+    m.y += m.vy;
+    m.life -= 0.01;
+    if (m.life <= 0 || m.x < -20 || m.x > W + 20 || m.y < -20 || m.y > H + 20) {
+      motes.splice(i, 1);
+    }
+  }
+  if (stage < 4) {
+    const req = requirements[stage];
+    if (water >= req.w && energy >= req.e) {
+      stage++;
+      water = 0;
+      energy = 0;
+      if (stage >= 4) win = true;
+    }
+  }
+}
+
+function handlePointer(e) {
+  if (win) return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  for (let i = motes.length - 1; i >= 0; i--) {
+    const m = motes[i];
+    const dx = x - m.x;
+    const dy = y - m.y;
+    if (dx * dx + dy * dy < 900) {
+      energy = Math.min(100, energy + 10);
+      score += 10;
+      motes.splice(i, 1);
+      break;
+    }
+  }
+  const dx = x - firefly.x;
+  const dy = y - firefly.y;
+  if (dx * dx + dy * dy < 1600) {
+    water = Math.min(100, water + 20);
+  }
+}
+canvas.addEventListener('pointerdown', handlePointer);
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+resize();
+loop();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-12-lantern-glow";
+  var RELEASE = "63ed9840022ea26aa0e42b7a864ac856fca5a23a";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

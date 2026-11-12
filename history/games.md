@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-12 — Lantern Glow
+
+- genre: growth-sim
+- theme: A tiny clockwork firefly grows a glowing lantern in a mossy hollow.
+- mechanics: Tap or click the firefly to send water to its shell, Collect drifting light motes for energy, Grow the firefly through four lantern stages, Reach the radiant bloom to win
+- model: recursive/flint-v1.0:free
+- attempts: 6
+
 ## 2026-11-11 — generation failed, previous game kept
 
 - model: nvidia/nemotron-3.5-super-vl:free

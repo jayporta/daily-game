@@ -1,18 +1,22 @@
 {
-  "date": "2026-11-10",
-  "slug": "2026-11-10-glowroot-garden",
-  "path": "games/archive/2026-11-10-glowroot-garden/game.html",
-  "promptPath": "games/archive/2026-11-10-glowroot-garden/prompt.txt",
-  "title": "Glowroot Garden",
+  "date": "2026-11-12",
+  "slug": "2026-11-12-lantern-glow",
+  "path": "games/archive/2026-11-12-lantern-glow/game.html",
+  "promptPath": "games/archive/2026-11-12-lantern-glow/prompt.txt",
+  "title": "Lantern Glow",
   "genre": "growth-sim",
   "genreLabel": "Growth Simulation",
   "model": "recursive/flint-v1.0:free",
-  "generatedAt": "2026-11-10T20:01:45.354Z",
-  "expiresAt": "2026-11-11T19:00:00.000Z",
+  "generatedAt": "2026-11-12T20:01:10.901Z",
+  "expiresAt": "2026-11-13T19:00:00.000Z",
   "controls": [
     {
-      "action": "Water a seedling or collect a dew drop",
-      "key": "Tap / Click"
+      "action": "Tap or click the firefly to water it",
+      "key": "Click or Tap"
+    },
+    {
+      "action": "Tap or click a light mote to collect ene",
+      "key": "Click or Tap"
     }
   ]
 }
