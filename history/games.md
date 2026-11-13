@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-13 — Prism Match
+
+- genre: tile-matching
+- theme: A colony of glowing crystal creatures in a deep cavern must be grouped by color to charge a beacon and open the way forward.
+- mechanics: Swap adjacent tiles to match three or more of the same color, Cleared tiles charge the beacon and new crystals fall into place, Reach the target charge before your moves run out, Progress through hand-authored levels with increasing targets
+- model: nvidia/nemotron-3.5-super-vl:free
+- attempts: 1
+
 ## 2026-11-12 — Lantern Glow
 
 - genre: growth-sim

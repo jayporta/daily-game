@@ -1,22 +1,22 @@
 {
-  "date": "2026-11-12",
-  "slug": "2026-11-12-lantern-glow",
-  "path": "games/archive/2026-11-12-lantern-glow/game.html",
-  "promptPath": "games/archive/2026-11-12-lantern-glow/prompt.txt",
-  "title": "Lantern Glow",
-  "genre": "growth-sim",
-  "genreLabel": "Growth Simulation",
-  "model": "recursive/flint-v1.0:free",
-  "generatedAt": "2026-11-12T20:01:10.901Z",
-  "expiresAt": "2026-11-13T19:00:00.000Z",
+  "date": "2026-11-13",
+  "slug": "2026-11-13-prism-match",
+  "path": "games/archive/2026-11-13-prism-match/game.html",
+  "promptPath": "games/archive/2026-11-13-prism-match/prompt.txt",
+  "title": "Prism Match",
+  "genre": "tile-matching",
+  "genreLabel": "Tile Matching",
+  "model": "nvidia/nemotron-3.5-super-vl:free",
+  "generatedAt": "2026-11-13T20:01:53.891Z",
+  "expiresAt": "2026-11-14T19:00:00.000Z",
   "controls": [
     {
-      "action": "Tap or click the firefly to water it",
-      "key": "Click or Tap"
+      "action": "Select a tile",
+      "key": "Click or tap a crystal tile"
     },
     {
-      "action": "Tap or click a light mote to collect ene",
-      "key": "Click or Tap"
+      "action": "Swap with adjacent tile",
+      "key": "Click or tap a neighboring tile"
     }
   ]
 }

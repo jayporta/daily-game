@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prism Match</title>
+<style>
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #070712; }
+canvas { display: block; width: 100%; height: 100%; }
+#ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; align-items: center; padding: 16px; }
+.hud { pointer-events: auto; background: rgba(25, 25, 45, 0.8); border: 2px solid #6c5ce7; border-radius: 10px; padding: 10px 20px; margin: 8px; color: #fff; font-family: system-ui, -apple-system, sans-serif; font-weight: 700; font-size: 16px; }
+#overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.55); display: none; flex-direction: column; justify-content: center; align-items: center; pointer-events: auto; }
+#overlayTitle { color: #fff; font-size: 34px; margin-bottom: 16px; font-family: system-ui, -apple-system, sans-serif; font-weight: 800; text-shadow: 0 0 12px #6c5ce7; }
+button { background: #6c5ce7; color: #fff; border: none; border-radius: 8px; padding: 12px 28px; font-size: 16px; font-weight: 700; cursor: pointer; box-shadow: 0 0 15px #6c5ce7; }
+button:hover { background: #8a7ae8; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui">
+  <div class="hud" id="scoreHud">Charge: 0</div>
+  <div class="hud" id="movesHud">Moves: 0 / 0</div>
+  <div class="hud" id="targetHud">Target: 0</div>
+</div>
+<div id="overlay">
+  <div id="overlayTitle">Level Complete</div>
+  <button id="overlayBtn">Next Level</button>
+</div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('scoreHud');
+const movesEl = document.getElementById('movesHud');
+const targetEl = document.getElementById('targetHud');
+const overlay = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlayTitle');
+const overlayBtn = document.getElementById('overlayBtn');
+
+const COLORS = ['#ff5555', '#55aaff', '#55ffaa', '#ffdd55', '#cc88ff'];
+const LEVELS = [
+  { target: 400, moves: 12 },
+  { target: 700, moves: 16 },
+  { target: 1100, moves: 20 },
+  { target: 1600, moves: 24 },
+  { target: 2200, moves: 28 }
+];
+
+let width, height, cols = 8, rows = 8, tileSize, offsetX, offsetY;
+let board = [];
+let selected = null;
+let score = 0, moves = 0, movesLimit = 0, targetScore = 0, level = 1;
+let lastTime = 0;
+
+function resize() {
+  width = canvas.clientWidth;
+  height = canvas.clientHeight;
+  canvas.width = width;
+  canvas.height = height;
+  tileSize = Math.min(width, height - 60) * 0.82 / Math.max(cols, rows);
+  offsetX = (width - cols * tileSize) / 2;
+  offsetY = (height - rows * tileSize) / 2 + 30;
+}
+
+function randomColor() {
+  return Math.floor(Math.random() * COLORS.length);
+}
+
+function createBoard() {
+  const b = [];
+  for (let r = 0; r < rows; r++) {
+    b[r] = [];
+    for (let c = 0; c < cols; c++) {
+      b[r][c] = randomColor();
+    }
+  }
+  return b;
+}
+
+function startLevel() {
+  const lvl = LEVELS[Math.min(level - 1, LEVELS.length - 1)];
+  targetScore = lvl.target;
+  movesLimit = lvl.moves;
+  score = 0;
+  moves = 0;
+  board = createBoard();
+  selected = null;
+  updateHud();
+  overlay.style.display = 'none';
+}
+
+function updateHud() {
+  if (scoreEl) scoreEl.textContent = 'Charge: ' + score;
+  if (movesEl) movesEl.textContent = 'Moves: ' + moves + ' / ' + movesLimit;
+  if (targetEl) targetEl.textContent = 'Target: ' + targetScore;
+}
+
+function getCell(x, y) {
+  const c = Math.floor((x - offsetX) / tileSize);
+  const r = Math.floor((y - offsetY) / tileSize);
+  if (c >= 0 && c < cols && r >= 0 && r < rows) return { r: r, c: c };
+  return null;
+}
+
+function isAdjacent(a, b) {
+  return Math.abs(a.r - b.r) + Math.abs(a.c - b.c) === 1;
+}
+
+function findMatches() {
+  const found = new Set();
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols - 2; c++) {
+      const v = board[r][c];
+      if (v !== null && board[r][c + 1] === v && board[r][c + 2] === v) {
+        found.add(r + ',' + c);
+        found.add(r + ',' + (c + 1));
+        found.add(r + ',' + (c + 2));
+      }
+    }
+  }
+  for (let c = 0; c < cols; c++) {
+    for (let r = 0; r < rows - 2; r++) {
+      const v = board[r][c];
+      if (v !== null && board[r + 1][c] === v && board[r + 2][c] === v) {
+        found.add(r + ',' + c);
+        found.add((r + 1) + ',' + c);
+        found.add((r + 2) + ',' + c);
+      }
+    }
+  }
+  return found;
+}
+
+function applyGravity() {
+  for (let c = 0; c < cols; c++) {
+    let writeRow = rows - 1;
+    for (let r = rows - 1; r >= 0; r--) {
+      if (board[r][c] !== null) {
+        board[writeRow][c] = board[r][c];
+        if (writeRow !== r) board[r][c] = null;
+        writeRow--;
+      }
+    }
+  }
+}
+
+function refillBoard() {
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (board[r][c] === null) {
+        board[r][c] = randomColor();
+      }
+    }
+  }
+}
+
+function processMatches() {
+  let safety = 0;
+  while (safety < 50) {
+    safety++;
+    const matches = findMatches();
+    if (matches.size === 0) break;
+    for (const key of matches) {
+      const parts = key.split(',').map(Number);
+      board[parts[0]][parts[1]] = null;
+    }
+    score += matches.size * 10;
+    applyGravity();
+    refillBoard();
+  }
+  moves++;
+  updateHud();
+  checkWin();
+}
+
+function checkWin() {
+  if (score >= targetScore) {
+    level++;
+    overlayTitle.textContent = 'Level Complete';
+    overlayBtn.textContent = 'Next Level';
+    overlay.style.display = 'flex';
+  } else if (moves >= movesLimit) {
+    overlayTitle.textContent = 'Out of Moves';
+    overlayBtn.textContent = 'Try Again';
+    overlay.style.display = 'flex';
+  }
+}
+
+function attemptSwap(a, b) {
+  const tmp = board[a.r][a.c];
+  board[a.r][a.c] = board[b.r][b.c];
+  board[b.r][b.c] = tmp;
+  const matches = findMatches();
+  if (matches.size > 0) {
+    processMatches();
+  } else {
+    const tmp2 = board[a.r][a.c];
+    board[a.r][a.c] = board[b.r][b.c];
+    board[b.r][b.c] = tmp2;
+  }
+  selected = null;
+}
+
+function drawTile(cx, cy, colorIndex, scale) {
+  const s = tileSize * 0.82 * scale;
+  const r = s / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.shadowColor = COLORS[colorIndex];
+  ctx.shadowBlur = 14;
+  const grad = ctx.createRadialGradient(0, 0, r * 0.25, 0, 0, r);
+  grad.addColorStop(0, '#ffffff');
+  grad.addColorStop(1, COLORS[colorIndex]);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  ctx.arc(-r * 0.28, -r * 0.28, r * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = 'rgba(108, 92, 231, 0.06)';
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = offsetX + c * tileSize + tileSize / 2;
+      const y = offsetY + r * tileSize + tileSize / 2;
+      ctx.beginPath();
+      ctx.arc(x, y, tileSize * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const v = board[r][c];
+      if (v === null) continue;
+      const x = offsetX + c * tileSize + tileSize / 2;
+      const y = offsetY + r * tileSize + tileSize / 2;
+      let scale = 1.0;
+      if (selected && selected.r === r && selected.c === c) scale = 1.12;
+      drawTile(x, y, v, scale);
+    }
+  }
+  ctx.strokeStyle = 'rgba(108, 92, 231, 0.35)';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(offsetX - 6, offsetY - 6, cols * tileSize + 12, rows * tileSize + 12);
+}
+
+function loop(now) {
+  lastTime = now;
+  draw();
+  requestAnimationFrame(loop);
+}
+
+canvas.addEventListener('mousedown', function (e) {
+  const cell = getCell(e.clientX, e.clientY);
+  if (!cell) return;
+  if (!selected) {
+    selected = cell;
+  } else {
+    if (isAdjacent(selected, cell)) {
+      attemptSwap(selected, cell);
+    } else {
+      selected = cell;
+    }
+  }
+});
+
+canvas.addEventListener('touchstart', function (e) {
+  const t = e.touches[0];
+  const cell = getCell(t.clientX, t.clientY);
+  if (!cell) return;
+  if (!selected) {
+    selected = cell;
+  } else {
+    if (isAdjacent(selected, cell)) {
+      attemptSwap(selected, cell);
+    } else {
+      selected = cell;
+    }
+  }
+});
+
+overlayBtn.addEventListener('click', function () {
+  startLevel();
+});
+
+resize();
+startLevel();
+requestAnimationFrame(loop);
+window.addEventListener('resize', resize);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-13-prism-match";
+  var RELEASE = "4cbd5a65cbc1bd338dbb76c3a425bda958af3423";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

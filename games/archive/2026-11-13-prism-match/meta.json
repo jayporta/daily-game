@@ -1,0 +1,21 @@
+{
+  "title": "Prism Match",
+  "genre": "tile-matching",
+  "theme": "A colony of glowing crystal creatures in a deep cavern must be grouped by color to charge a beacon and open the way forward.",
+  "mechanics": [
+    "Swap adjacent tiles to match three or more of the same color",
+    "Cleared tiles charge the beacon and new crystals fall into place",
+    "Reach the target charge before your moves run out",
+    "Progress through hand-authored levels with increasing targets"
+  ],
+  "controls": [
+    {
+      "action": "Select a tile",
+      "key": "Click or tap a crystal tile"
+    },
+    {
+      "action": "Swap with adjacent tile",
+      "key": "Click or tap a neighboring tile"
+    }
+  ]
+}
