@@ -2,16 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-11-14 — generation failed, previous game kept
+## 2026-11-14 — Crystal Runner
 
-- model: thinkingmachines/inkling-2-small:free
-- attempts: 6
-- attempt 1 (nvidia/nemotron-3.5-lightning:free): could not extract bundle — missing-meta-block
-- attempt 2 (cohere/north-mini-code:free): smoke test failed — uncaught JS error: Failed to execute 'write' on 'Document': Unexpected string
-- attempt 3 (dots-studio/dots-3-note-preview:free): smoke test failed — uncaught JS error: Cannot access 'game' before initialization
-- attempt 4 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 5 (recursive/flint-v1.0:free): could not extract bundle — missing-html-block
-- attempt 6 (nvidia/nemotron-3.5-super-vl:free): smoke test failed — uncaught JS error: Cannot access 'levels' before initialization
+- genre: maze-adventure
+- theme: A tiny glowing robot navigates a crystal cavern, collecting glowing crystal keys to open the way to the radiant exit.
+- mechanics: Navigate a shifting maze grid, Collect crystal keys, Reach the exit after all keys collected
+- model: cohere/north-mini-code:free
+- attempts: 2
 
 ## 2026-11-13 — Prism Match
 

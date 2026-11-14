@@ -1,0 +1,28 @@
+{
+  "title": "Crystal Runner",
+  "genre": "maze-adventure",
+  "theme": "A tiny glowing robot navigates a crystal cavern, collecting glowing crystal keys to open the way to the radiant exit.",
+  "mechanics": [
+    "Navigate a shifting maze grid",
+    "Collect crystal keys",
+    "Reach the exit after all keys collected"
+  ],
+  "controls": [
+    {
+      "action": "move up",
+      "key": "ArrowUp"
+    },
+    {
+      "action": "move down",
+      "key": "ArrowDown"
+    },
+    {
+      "action": "move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "move right",
+      "key": "ArrowRight"
+    }
+  ]
+}
