@@ -1,21 +1,27 @@
 {
   "genreCounts": {
-    "maze-adventure": 1,
-    "physics-sandbox": 1,
-    "growth-sim": 1,
-    "puzzle": 1,
-    "platformer": 1,
-    "tower-defense": 1,
-    "tile-matching": 1
+    "maze-adventure": 3,
+    "physics-sandbox": 2,
+    "growth-sim": 2,
+    "puzzle": 2,
+    "platformer": 2,
+    "tower-defense": 2,
+    "tile-matching": 2,
+    "endless-runner": 2,
+    "rhythm": 2,
+    "racing": 2
   },
   "genreLastUsed": {
-    "maze-adventure": "2026-08-30",
-    "physics-sandbox": "2026-09-02",
-    "growth-sim": "2026-09-04",
-    "puzzle": "2026-09-05",
-    "platformer": "2026-09-06",
-    "tower-defense": "2026-09-13",
-    "tile-matching": "2026-09-14"
+    "maze-adventure": "2026-09-25",
+    "physics-sandbox": "2026-09-20",
+    "growth-sim": "2026-09-21",
+    "puzzle": "2026-09-18",
+    "platformer": "2026-09-23",
+    "tower-defense": "2026-09-24",
+    "tile-matching": "2026-09-26",
+    "endless-runner": "2026-09-27",
+    "rhythm": "2026-09-29",
+    "racing": "2026-09-30"
   },
   "popularityLeaderboard": [
     {
@@ -28,6 +34,12 @@
       "slug": "2026-09-14-glowing-garden-match",
       "theme": "A magical garden of glowing flowers and plants that must be matched to restore the garden's light.",
       "mechanicsSummary": "Swap adjacent tiles to form matches of three or more identical flowers, Cleared tiles disappear and new tiles fall from above, Create chains by setting up cascading matches, Reach a target score to complete the level",
+      "popularityScore": 1
+    },
+    {
+      "slug": "2026-09-26-gem-gleam",
+      "theme": "A magical forest of glowing gems that must be aligned to restore light",
+      "mechanicsSummary": "Swap adjacent gems to create lines of three or more matching colors, Matched gems disappear and new gems fall, creating chain reactions, Reach the target score before time runs out",
       "popularityScore": 1
     },
     {
@@ -49,16 +61,28 @@
       "popularityScore": 0
     },
     {
-      "slug": "2026-09-02-elemental-stack",
-      "theme": "Elemental spirit creatures stack together to reach a floating beacon",
-      "mechanicsSummary": "Stack elemental shapes on platforms, Balance physics objects to reach the goal, Place creatures strategically across 5 levels",
-      "popularityScore": -1
+      "slug": "2026-09-15-crystal-runner",
+      "theme": "A floating crystal runner zips through a magical skyward canyon, collecting luminous orbs while dodging drifting obstacles.",
+      "mechanicsSummary": "Automatically scrolls forward, player jumps to avoid obstacles, Collect luminous orbs for points, Restart after collision",
+      "popularityScore": 0
     },
     {
-      "slug": "2026-09-13-storm-island-defender",
-      "theme": "A floating archipelago of colorful islands is besieged by chaotic storm clouds that drop disruptive lightning bolts. The player must place protective towers—wind turbines, water sprinklers, and luminous balloons—to intercept the bolts and preserve the islands' stability.",
-      "mechanicsSummary": "Place defensive towers along a path to block incoming threats, Upgrade towers to increase interception range and power, Survive multiple waves of lightning bolts without letting any hit the islands, Manage limited resources (energy crystals) to afford tower upgrades",
-      "popularityScore": -1
+      "slug": "2026-09-16-starlight-drifter",
+      "theme": "A constellation of glowing celestial fragments drifts through a velvet void, pulsing in time with a cosmic heartbeat. The player guides a drifting starseed to catch fragments as they appear.",
+      "mechanicsSummary": "Follow a repeating beat that sets the rhythm for fragment appearances, Catch glowing fragments by moving the starseed into their pulse zones, Missed fragments dim the starseed and reduce the score, Survive as long as possible, with increasing tempo and density",
+      "popularityScore": 0
+    },
+    {
+      "slug": "2026-09-17-aurora-racer",
+      "theme": "A luminous hovercraft speeds through a neon-lit canyon of floating crystal arches, navigating a twisting energy trail while avoiding drifting debris.",
+      "mechanicsSummary": "Automatic forward motion, Steer left/right to stay on the energy trail, Collect energy orbs for speed boosts, Avoid obstacles and stay within the track boundaries",
+      "popularityScore": 0
+    },
+    {
+      "slug": "2026-09-18-crystal-constellation-puzzle",
+      "theme": "A whimsical forest of glowing mushrooms and magical crystals that must be aligned to form constellations",
+      "mechanicsSummary": "Swap adjacent tiles to match a target pattern, Solve the constellation puzzle before the timer expires, Clear the board to win",
+      "popularityScore": 0
     }
   ],
   "lessons": "The growth-sim and the puzzle entry both landed cleanly — the growth-sim on its second attempt and the puzzle game on its very first — and together they sharpen a picture the earlier refinement had already been pointing toward. Tap to bloom, intercept falling gems, manage two resources, attract small helpers, navigate a small bounded grid with discrete pickups and one explicit terminal goal: that is the same hand-authored handful of levels dressed with light procedural variation, just with a different verb each time. The puzzle entry sits most comfortably at the authored end of that spectrum — finite, legible, and produced with essentially no scaffolding — and that ease is worth taking seriously.\n\nThe dislikes on the physics-sandbox remain the one caution worth folding forward. When the terminal goal depends on precise placement or stacking, the interaction has to be legible from frame one, not discovered through failure, and the feedback suggested the sandbox fell short on both broken and unclear controls. Mood and identity continue to carry the hook; pressure-based variants still have not shipped and should stay a secondary thread.\n\nThe infrastructure failures sandwiched between these builds are no longer representative — they were provider flakiness, not problems with the skeleton, and the recent record has moved past them, so they should not be carried into the next prompt.\n\nWhat reliably worked, then, is a clear small character with a clear small want, rendered simply, in a small bounded space with discrete pickups or placements and one explicit terminal objective, wrapped in a mood and identity that earns attention. Worth revisiting next is the same skeleton in fresh skins — puzzle, growth, traversal, whatever verb fits — with a hand-authored handful of levels dressed in light procedural variation, and controls that read clearly from the very first frame."
