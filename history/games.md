@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Swap adjacent tiles to match three or more of the same color, Cleared tiles charge the beacon and new crystals fall into place, Reach the target charge before your moves run out, Progress through hand-authored levels with increasing targets
 - model: nvidia/nemotron-3.5-super-vl:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-12 — Lantern Glow
 
