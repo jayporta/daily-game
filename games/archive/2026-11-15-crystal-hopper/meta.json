@@ -1,0 +1,24 @@
+{
+  "title": "Crystal Hopper",
+  "genre": "platformer",
+  "theme": "A tiny glowing robot navigates a cavern, hopping between floating crystal platforms to collect glowing keys and reach the radiant exit.",
+  "mechanics": [
+    "Jump between platforms to avoid gaps",
+    "Collect glowing crystal keys",
+    "Reach the exit after all keys collected"
+  ],
+  "controls": [
+    {
+      "action": "move left",
+      "key": "ArrowLeft"
+    },
+    {
+      "action": "move right",
+      "key": "ArrowRight"
+    },
+    {
+      "action": "jump",
+      "key": "Space"
+    }
+  ]
+}

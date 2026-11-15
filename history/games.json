@@ -1429,6 +1429,46 @@
       "thinkingmachines/inkling-2-small:free",
       "nvidia/nemotron-3.5-lightning:free"
     ],
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 1,
+    "dislikeReasons": {
+      "gameplay-broken": 1,
+      "goal-unclear": 1
+    },
+    "popularityScore": -1
+  },
+  {
+    "date": "2026-11-15",
+    "status": "published",
+    "model": "cohere/north-mini-code:free",
+    "slug": "2026-11-15-crystal-hopper",
+    "genre": "platformer",
+    "theme": "A tiny glowing robot navigates a cavern, hopping between floating crystal platforms to collect glowing keys and reach the radiant exit.",
+    "mechanics": [
+      "Jump between platforms to avoid gaps",
+      "Collect glowing crystal keys",
+      "Reach the exit after all keys collected"
+    ],
+    "title": "Crystal Hopper",
+    "attempts": 6,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "extract",
+      "extract",
+      "extract",
+      "extract",
+      "generation-failover",
+      "extract"
+    ],
+    "attemptModels": [
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "recursive/flint-v1.0:free",
+      "nvidia/nemotron-3.5-super-vl:free",
+      "thinkingmachines/inkling-2-small:free",
+      "nvidia/nemotron-3.5-lightning:free"
+    ],
     "quotaAffected": true
   }
 ]

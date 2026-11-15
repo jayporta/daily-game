@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<title>Crystal Hopper</title>
+<style>
+html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000; }
+#gameCanvas { display:block; width:100%; height:100%; }
+#overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-family:sans-serif; font-size:2rem; pointer-events:none; }
+#overlay.hidden { display:none; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="overlay" class="hidden">Press R to Restart</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+
+// Game constants
+const GRAVITY = 0.6;
+const JUMP_VELOCITY = -12;
+const PLAYER_SPEED = 5;
+const PLATFORM_WIDTH = 120;
+const PLATFORM_HEIGHT = 20;
+const KEY_RADIUS = 8;
+const PLAYER_WIDTH = 30;
+const PLAYER_HEIGHT = 30;
+const EXIT_WIDTH = 40;
+const EXIT_HEIGHT = 40;
+
+// Game state
+let gameState = {
+  playing: false,
+  win: false,
+  keysCollected: 0,
+  totalKeys: 0,
+  level: null,
+  keys: [],
+  exit: null,
+  platforms: [],
+  player: null,
+  keysDown: {},
+  lastTime: 0,
+};
+
+// Input handling
+const keysDown = {};
+document.addEvent,白 = (e) => {
+  const key = e.key || e.code;
+  if (key) keysDown[key] = true;
+  gameState.keysDown = { ...keysDown };
+};
+document.removeEventListener('keydown', document.addEventListener('keydown', (e) => {
+  const key = e.key;
+  if (key === ' ') e.preventDefault(); // prevent space scroll
+  keysDown[key] = true;
+  gameState.keysDown = { ...keysDown };
+}));
+document.addEventListener('keyup', (e) => {
+  delete keysDown[e.key];
+  gameState.keysDown = { ...keysDown };
+});
+
+// Resize canvas to fill window
+function resizeCanvas() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Initialize level
+function initLevel() {
+  // Reset state
+  gameState.playing = true;
+  gameState.win = false;
+  gameState.keysCollected = 0;
+  gameState.level = null;
+  gameState.keys = [];
+  gameState.exit = null;
+  gameState.platforms = [];
+  gameState.player = null;
+  gameState.lastTime = performance.now();
+
+  // Platform layout (hand-authored)
+  gameState.platforms = [
+    { x: 50, y: canvas.height - 80, w: 200, h: 20 },
+    { x: 300, y: canvas.height - 140, w: 200, h: 20 },
+    { x: 550, y: canvas.height - 100, w: 200, h: 20 },
+    { x: 150, y: canvas.height - 200, w: 180, h: 20 },
+    { x: 400, y: canvas.height - 260, w: 180, h: 20 },
+  ];
+
+  // Keys positions
+  gameState.keys = [
+    { x: 80, y: canvas.height - 100, collected: false },
+    { x: 340, y: canvas.height - 160, collected: false },
+    { x: 620, y: canvas.height - 120, collected: false },
+  ];
+  gameState.totalKeys = gameState.keys.length;
+
+  // Exit position (top right)
+  gameState.exit = { x: canvas.width - 100, y: canvas.height - 300, w: EXIT_WIDTH, h: EXIT_HEIGHT };
+
+  // Player start position (left side)
+  gameState.player = {
+    x: 60,
+    y: canvas.height - 100,
+    w: PLAYER_WIDTH,
+    h: PLAYER_HEIGHT,
+    vx: 0,
+    vy: 0,
+    onGround: false,
+    jumpReady: false,
+  };
+}
+
+// Draw functions
+function drawPlatform(p) {
+  ctx.fillStyle = '#4ade80';
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+}
+
+function drawKey(k) {
+  if (k.collected) return;
+  ctx.fillStyle = '#fbbf24';
+  ctx.beginPath();
+  ctx.arc(k.x, k.y, KEY_RADIUS, 0, Math.PI * 2);
+  ctx.fill();
+  // sparkle effect
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(k.x + 3, k.y - 3, 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawExit(e) {
+  ctx.fillStyle = '#a78bfa';
+  ctx.fillRect(e.x, e.y, e.w, e.h);
+  // simple portal pattern
+  ctx.fillStyle = '#6d28d9';
+  ctx.fillRect(e.x + 10, e.y + 10, e.w - 20, e.h - 20);
+}
+
+function drawPlayer(p) {
+  // body
+  ctx.fillStyle = '#38bdf8';
+  ctx.fillRect(p.x, p.y, p.w, p.h);
+  // antenna
+  ctx.fillStyle = '#e11d48';
+  ctx.fillRect(p.x + p.w/2 - 2, p.y - 10, 4, 10);
+  // eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(p.x + 10, p.y + 10, 4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(p.x + p.w - 10, p.y + 10, 4, 0, Math.PI * 2);
+  ctx.fill();
+  // mouth
+  ctx.fillStyle = '#000';
+  ctx.fillRect(p.x + 10, p.y + 20, p.w - 20, 4);
+}
+
+function drawUI() {
+  ctx.fillStyle = '#fff';
+  ctx.font = '20px sans-serif';
+  ctx.fillText(`Keys: ${gameState.keysCollected}/${gameState.totalKeys}`, 20, 30);
+}
+
+// Collision helpers
+function checkPlatformCollision(player, platforms) {
+  let onGround = false;
+  for (let i = 0; i < platforms.length; i++) {
+    const p = platforms[i];
+    // player bottom vs platform top
+    if (player.vy >= 0 &&
+        player.x + player.w > p.x &&
+        player.x < p.x + p.w &&
+        player.y + player.h <= p.y + 2 &&
+        player.y + player.h >= p.y - 10) {
+      // Land on platform
+      const newY = p.y - player.h;
+      player.y = newY;
+      player.vy = 0;
+      onGround = true;
+      player.jumpReady = true;
+    }
+  }
+  return onGround;
+}
+
+function checkKeyCollision(player, keys) {
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    if (k.collected) continue;
+    if (player.x < k.x + KEY_RADIUS * 2 &&
+        player.x + player.w > k.x - KEY_RADIUS * 2 &&
+        player.y < k.y + KEY_RADIUS * 2 &&
+        player.y + player.h > k.y - KEY_RADIUS * 2) {
+      k.collected = true;
+      gameState.keysCollected++;
+    }
+  }
+}
+
+function checkExitCollision(player, exit) {
+  return player.x < exit.x + exit.w &&
+         player.x + player.w > exit.x &&
+         player.y < exit.y + exit.h &&
+         player.y + player.h > exit.y;
+}
+
+// Update game logic
+function update(timestamp) {
+  const dt = Math.min((timestamp - gameState.lastTime) / 16.7, 3); // cap dt
+  gameState.lastTime = timestamp;
+
+  const p = gameState.player;
+  const keys = gameState.keys;
+  const platforms = gameState.platforms;
+  const exit = gameState.exit;
+
+  // Horizontal movement
+  p.vx = 0;
+  if (gameState.keysDown['ArrowLeft'] || gameState.keysDown['a']) p.vx = -PLAYER_SPEED;
+  if (gameState.keysDown['ArrowRight'] || gameState.keysDown['d']) p.vx = PLAYER_SPEED;
+
+  p.x += p.vx * dt;
+
+  // Apply gravity
+  p.vy += GRAVITY;
+  p.y += p.vy * dt;
+
+  // Platform collision and ground detection
+  const wasOnGround = p.onGround;
+  p.onGround = checkPlatformCollision(p, platforms);
+
+  // Jump
+  if (gameState.keysDown[' '] || gameState.keysDown['Space']) {
+    if (p.onGround || p.jumpReady) {
+      p.vy = JUMP_VELOCITY;
+      p.jumpReady = false;
+    }
+  }
+
+  // Keep player inside world bounds
+  if (p.x < 0) p.x = 0;
+  if (p.x + p.w > canvas.width) p.x = canvas.width - p.w;
+  if (p.y > canvas.height) {
+    // fall off
+    p.y = canvas.height - p.h;
+    p.vy = 0;
+    p.onGround = true;
+  }
+  if (p.y < 0) p.y = 0;
+
+  // Collect keys
+  checkKeyCollision(p, keys);
+
+  // Check win
+  if (gameState.keysCollected === gameState.totalKeys && checkExitCollision(p, exit)) {
+    gameState.playing = false;
+    gameState.win = true;
+    overlay.textContent = 'You Win! Press R to Restart';
+    overlay.classList.remove('hidden');
+  }
+
+  // Draw everything
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw platforms (back to front)
+  for (let i = 0; i < platforms.length; i++) drawPlatform(platforms[i]);
+  for (let i = 0; i < keys.length; i++) drawKey(keys[i]);
+  drawExit(exit);
+  drawPlayer(p);
+  drawUI();
+
+  if (gameState.playing) {
+    requestAnimationFrame(update);
+  }
+}
+
+// Keyboard handling for restart
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') {
+    if (!gameState.playing && gameState.win) {
+      initLevel();
+      overlay.classList.add('hidden');
+      requestAnimationFrame(update);
+    }
+  }
+});
+
+// Start the game
+initLevel();
+requestAnimationFrame(update);
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-15-crystal-hopper";
+  var RELEASE = "9bbbd609da6e7453ff62583bcf49f8ed2224df4d";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

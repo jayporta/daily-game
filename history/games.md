@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-15 — Crystal Hopper
+
+- genre: platformer
+- theme: A tiny glowing robot navigates a cavern, hopping between floating crystal platforms to collect glowing keys and reach the radiant exit.
+- mechanics: Jump between platforms to avoid gaps, Collect glowing crystal keys, Reach the exit after all keys collected
+- model: cohere/north-mini-code:free
+- attempts: 6
+
 ## 2026-11-14 — Crystal Runner
 
 - genre: maze-adventure
@@ -9,6 +17,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Navigate a shifting maze grid, Collect crystal keys, Reach the exit after all keys collected
 - model: cohere/north-mini-code:free
 - attempts: 2
+- reactions: -1
+- likes: 0
+- dislikes: 1
+- disliked for: gameplay-broken: 1, goal-unclear: 1
 
 ## 2026-11-13 — Prism Match
 
