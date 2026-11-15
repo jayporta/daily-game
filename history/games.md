@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Jump between platforms to avoid gaps, Collect glowing crystal keys, Reach the exit after all keys collected
 - model: cohere/north-mini-code:free
 - attempts: 6
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-14 — Crystal Runner
 
