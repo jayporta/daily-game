@@ -2,6 +2,17 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-16 — generation failed, previous game kept
+
+- model: dots-studio/dots-3-note-preview:free
+- attempts: 6
+- attempt 1 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream ended early: terminated
+- attempt 2 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
+- attempt 3 (recursive/flint-v1.0:free): generation call failed — OpenRouter stream ended early: terminated
+- attempt 4 (nvidia/nemotron-3.5-super-vl:free): generation call failed — OpenRouter stream ended early: terminated
+- attempt 5 (nvidia/nemotron-3.5-lightning:free): could not extract bundle — missing-meta-block
+- attempt 6 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content (47058 frames, delta keys: role, content, reasoning, reasoning_details, stop: truncated)
+
 ## 2026-11-15 — Crystal Hopper
 
 - genre: platformer
