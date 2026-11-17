@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prism Dash</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #020205;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    pointer-events: auto;
+    text-align: center;
+  }
+  h1 {
+    margin: 0 0 10px 0;
+    font-size: clamp(24px, 7vw, 42px);
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: #0ff;
+    text-shadow: 0 0 16px #0ff;
+  }
+  p {
+    margin: 0 0 18px 0;
+    font-size: clamp(14px, 3.5vw, 18px);
+    opacity: 0.9;
+  }
+  button {
+    padding: 12px 28px;
+    font-size: clamp(14px, 3.5vw, 18px);
+    background: #0ff;
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  button:hover {
+    background: #9ff;
+  }
+  .hint {
+    margin-top: 14px;
+    font-size: clamp(12px, 3vw, 15px);
+    opacity: 0.75;
+  }
+  #hud {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    color: #fff;
+    pointer-events: none;
+    font-size: clamp(16px, 4vw, 22px);
+    text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">Distance: 0 m</div>
+<div id="overlay">
+  <h1>Prism Dash</h1>
+  <p>Gather light shards. Stay ahead of the shadow.</p>
+  <button id="startBtn">Start Run</button>
+  <div class="hint">Tap / Space / Up to jump</div>
+</div>
+<script>
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const hud = document.getElementById('hud');
+
+  let W = 0;
+  let H = 0;
+
+  function resize() {
+    W = canvas.width = canvas.clientWidth || window.innerWidth;
+    H = canvas.height = canvas.clientHeight || window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const GROUND_Y = () => H * 0.82;
+
+  let state = 'menu';
+  let dist = 0;
+  let score = 0;
+  let speed = 4;
+  let chaserX = -300;
+  let chaserSpeed = 3.2;
+  let frame = 0;
+
+  const player = {
+    x: 120,
+    y: 0,
+    r: 13,
+    vy: 0,
+    grounded: true,
+    hue: 190,
+    glow: 14
+  };
+
+  const obstacles = [];
+  const shards = [];
+  const particles = [];
+
+  function resetGame() {
+    dist = 0;
+    score = 0;
+    speed = 4;
+    chaserSpeed = 3.2;
+    chaserX = -300;
+    player.x = 120;
+    player.y = GROUND_Y() - player.r;
+    player.vy = 0;
+    player.grounded = true;
+    obstacles.length = 0;
+    shards.length = 0;
+    particles.length = 0;
+    frame = 0;
+    hud.textContent = 'Distance: 0 m';
+  }
+
+  function spawnObstacle() {
+    const lastX = obstacles.length > 0 ? obstacles[obstacles.length - 1].x : player.x + 300;
+    const gap = 200 + Math.random() * 200;
+    const nextX = lastX + gap;
+    const type = Math.random() < 0.55 ? 'spike' : 'wall';
+    obstacles.push({
+      x: nextX,
+      type: type,
+      w: type === 'spike' ? 28 : 44,
+      h: type === 'spike' ? 72 : 52,
+      passed: false
+    });
+    if (Math.random() < 0.65) {
+      shards.push({
+        x: nextX + (Math.random() * 80 - 40),
+        y: GROUND_Y() - 110 - Math.random() * 90,
+        r: 5 + Math.random() * 5,
+        collected: false
+      });
+    }
+  }
+
+  function spawnParticle(x, y, color, count) {
+    for (let i = 0; i < count; i++) {
+      particles.push({
+        x: x,
+        y: y,
+        vx: (Math.random() - 0.5) * 5,
+        vy: (Math.random() - 0.5) * 5 - 1,
+        life: 1,
+        color: color
+      });
+    }
+  }
+
+  function jump() {
+    if (state !== 'playing') return;
+    if (!player.grounded) return;
+    player.vy = -11;
+    player.grounded = false;
+    spawnParticle(player.x, player.y + player.r, '#0ff', 5);
+  }
+
+  function startRun() {
+    resetGame();
+    state = 'playing';
+    overlay.style.display = 'none';
+  }
+
+  function endRun() {
+    state = 'over';
+    overlay.innerHTML =
+      '<h1 style="color:#f88; text-shadow:0 0 16px #f88;">Run Ended</h1>' +
+      '<p>Distance: ' + Math.floor(dist) + ' m</p>' +
+      '<button id="restartBtn">Run Again</button>' +
+      '<div class="hint">Tap / Space to restart</div>';
+    overlay.style.display = 'flex';
+    const rb = document.getElementById('restartBtn');
+    if (rb) {
+      rb.addEventListener('click', startRun);
+    }
+  }
+
+  window.addEventListener('keydown', function (e) {
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+      if (state !== 'playing') {
+        startRun();
+        return;
+      }
+      jump();
+    }
+  });
+
+  window.addEventListener('pointerdown', function () {
+    if (state !== 'playing') {
+      startRun();
+      return;
+    }
+    jump();
+  });
+
+  window.addEventListener('touchstart', function (e) {
+    e.preventDefault();
+    if (state !== 'playing') {
+      startRun();
+      return;
+    }
+    jump();
+  }, { passive: false });
+
+  startBtn.addEventListener('click', startRun);
+
+  function update() {
+    if (state !== 'playing') return;
+
+    player.vy += 0.6;
+    player.y += player.vy;
+
+    const gy = GROUND_Y();
+    if (player.y + player.r > gy) {
+      player.y = gy - player.r;
+      player.vy = 0;
+      player.grounded = true;
+    }
+
+    dist += speed;
+    score = Math.floor(dist / 10);
+    hud.textContent = 'Distance: ' + Math.floor(dist) + ' m';
+
+    if (frame % 500 === 0) {
+      speed += 0.2;
+      chaserSpeed += 0.1;
+    }
+
+    chaserX += chaserSpeed;
+    if (chaserX > player.x - 55) {
+      endRun();
+      return;
+    }
+
+    if (obstacles.length === 0 || obstacles[obstacles.length - 1].x < W + 250) {
+      spawnObstacle();
+    }
+
+    for (let i = obstacles.length - 1; i >= 0; i--) {
+      const ob = obstacles[i];
+      if (!ob) continue;
+      ob.x -= speed;
+
+      const rectTop = gy - ob.h;
+      const cx = Math.max(ob.x, Math.min(player.x, ob.x + ob.w));
+      const cy = Math.max(rectTop, Math.min(player.y, gy));
+      const dx = player.x - cx;
+      const dy = player.y - cy;
+      if (dx * dx + dy * dy < player.r * player.r) {
+        endRun();
+        return;
+      }
+
+      if (ob.x + ob.w < -120) {
+        obstacles.splice(i, 1);
+      }
+    }
+
+    for (let i = shards.length - 1; i >= 0; i--) {
+      const sh = shards[i];
+      if (!sh) continue;
+      sh.x -= speed;
+      const dx = player.x - sh.x;
+      const dy = player.y - sh.y;
+      if (dx * dx + dy * dy < (player.r + sh.r) * (player.r + sh.r)) {
+        if (!sh.collected) {
+          sh.collected = true;
+          score += 50;
+          spawnParticle(sh.x, sh.y, '#ff0', 10);
+        }
+      }
+      if (sh.x < -120) {
+        shards.splice(i, 1);
+      }
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      if (!p) continue;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= 0.03;
+      if (p.life <= 0) {
+        particles.splice(i, 1);
+      }
+    }
+
+    frame++;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    const gy = GROUND_Y();
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#03040a');
+    bg.addColorStop(1, '#0a0a12');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#eef';
+    for (let i = 0; i < 45; i++) {
+      const sx = (i * 137) % W;
+      const sy = (i * 79) % H;
+      const a = 0.2 + 0.8 * ((i * 13) % 10) / 10;
+      ctx.globalAlpha = a;
+      ctx.fillRect(sx, sy, 1.5, 1.5);
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.beginPath();
+    ctx.moveTo(0, gy);
+    ctx.lineTo(W, gy);
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(chaserX, gy + 30, 55 + Math.sin(frame * 0.05) * 8, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(55, 40, 85, 0.6)';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(chaserX - 75, gy);
+    ctx.lineTo(chaserX + 75, gy);
+    ctx.lineTo(chaserX, gy + 85);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(35, 28, 60, 0.7)';
+    ctx.fill();
+
+    for (let i = 0; i < obstacles.length; i++) {
+      const ob = obstacles[i];
+      if (!ob) continue;
+      ctx.save();
+      ctx.translate(ob.x, gy - ob.h);
+      ctx.fillStyle = '#8ff';
+      ctx.shadowColor = '#0ff';
+      ctx.shadowBlur = 12;
+      if (ob.type === 'spike') {
+        ctx.beginPath();
+        ctx.moveTo(0, ob.h);
+        ctx.lineTo(ob.w / 2, 0);
+        ctx.lineTo(ob.w, ob.h);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.fillRect(0, 0, ob.w, ob.h);
+      }
+      ctx.restore();
+    }
+
+    for (let i = 0; i < shards.length; i++) {
+      const sh = shards[i];
+      if (!sh || sh.collected) continue;
+      ctx.beginPath();
+      ctx.arc(sh.x, sh.y, sh.r, 0, Math.PI * 2);
+      ctx.fillStyle = '#ff0';
+      ctx.shadowColor = '#ff0';
+      ctx.shadowBlur = 14;
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.r, 0, Math.PI * 2);
+    ctx.fillStyle = 'hsl(' + player.hue + ', 80%, 60%)';
+    ctx.shadowColor = 'hsl(' + player.hue + ', 100%, 50%)';
+    ctx.shadowBlur = player.glow;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.beginPath();
+    ctx.arc(player.x - player.r * 0.45, player.y - player.r * 0.3, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      if (!p) continue;
+      ctx.globalAlpha = p.life;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    if (state === 'playing' && chaserX > player.x - 240) {
+      ctx.fillStyle = 'rgba(255, 90, 90, 0.3)';
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-17-prism-dash";
+  var RELEASE = "2c67f4b4f95ed0e85402602cdd656427444332b5";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

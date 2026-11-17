@@ -1,34 +1,22 @@
 {
-  "date": "2026-11-16",
-  "slug": "2026-11-16-the-lumen-garden",
-  "path": "games/archive/2026-11-16-the-lumen-garden/game.html",
-  "promptPath": "games/archive/2026-11-16-the-lumen-garden/prompt.txt",
-  "title": "The Lumen Garden",
-  "genre": "tower-defense",
-  "genreLabel": "Tower Defense",
-  "model": "dots-studio/dots-3-note-preview:free",
-  "generatedAt": "2026-11-17T02:45:42.566Z",
-  "expiresAt": "2026-11-17T19:00:00.000Z",
+  "date": "2026-11-17",
+  "slug": "2026-11-17-prism-dash",
+  "path": "games/archive/2026-11-17-prism-dash/game.html",
+  "promptPath": "games/archive/2026-11-17-prism-dash/prompt.txt",
+  "title": "Prism Dash",
+  "genre": "endless-runner",
+  "genreLabel": "Endless Runner",
+  "model": "nvidia/nemotron-3.5-super-vl:free",
+  "generatedAt": "2026-11-17T20:01:33.829Z",
+  "expiresAt": "2026-11-18T19:00:00.000Z",
   "controls": [
     {
-      "action": "Select Crystal tower type",
-      "key": "1"
+      "action": "Jump",
+      "key": "Space or Arrow Up"
     },
     {
-      "action": "Select Prism tower type",
-      "key": "2"
-    },
-    {
-      "action": "Select Beacon tower type",
-      "key": "3"
-    },
-    {
-      "action": "Place the selected tower on a grass tile",
-      "key": "click"
-    },
-    {
-      "action": "Start the next wave of mist",
-      "key": "Space"
+      "action": "Jump / Start / Restart",
+      "key": "Tap or click"
     }
   ]
 }

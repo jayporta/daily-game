@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-17 — Prism Dash
+
+- genre: endless-runner
+- theme: A tiny prism creature rolls through a neon crystal tunnel, gathering light shards while a creeping shadow-pulse closes in behind.
+- mechanics: Auto-run forward through a scrolling tunnel, Tap or press Space/Up to jump over crystal spikes and gaps, Collect glowing light shards for score, Stay ahead of the chasing shadow pulse; speed increases over time
+- model: nvidia/nemotron-3.5-super-vl:free
+- attempts: 2
+
 ## 2026-11-16 — The Lumen Garden
 
 - genre: tower-defense
@@ -9,6 +17,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Place lumen crystal towers on grass tiles beside the path to auto-disperse nearby dusk-mist, Three tower types — Crystal (direct damage), Prism (area dispersion), Beacon (slow plus damage), Survive eight hand-authored waves of mist of increasing size and toughness, Earn light from dispersed mist to buy more towers, Protect the heart crystal — mist reaching the end costs a life; clear the final wave to win
 - model: dots-studio/dots-3-note-preview:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-15 — Crystal Hopper
 
