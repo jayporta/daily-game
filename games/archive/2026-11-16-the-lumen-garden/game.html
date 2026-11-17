@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Lumen Garden</title>
+<style>
+  html,body{margin:0;height:100%;width:100%;overflow:hidden;background:#070a12;font-family:system-ui,-apple-system,sans-serif;color:#cfe9ff}
+  #wrap{position:relative;width:100%;height:100%}
+  canvas{display:block;width:100%;height:100%}
+  .hud{position:absolute;left:12px;top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;pointer-events:none}
+  .chip{background:rgba(10,18,32,.7);border:1px solid rgba(120,200,255,.25);border-radius:10px;padding:6px 10px;font-size:13px;backdrop-filter:blur(4px)}
+  .chip b{color:#7fe0ff}
+  .panel{position:absolute;right:12px;top:12px;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+  .btn{pointer-events:auto;background:linear-gradient(180deg,#1b2a44,#10203a);border:1px solid rgba(120,200,255,.35);color:#cfe9ff;border-radius:10px;padding:9px 14px;font-size:13px;cursor:pointer;min-width:96px;text-align:center;transition:border-color .15s,background .15s}
+  .btn:hover{border-color:rgba(160,230,255,.7)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .trow{display:flex;gap:6px;pointer-events:auto}
+  .trow .btn{min-width:64px;padding:8px 10px;font-size:12px}
+  .hint{position:absolute;left:12px;bottom:12px;font-size:11px;color:#6f86a8;pointer-events:none;max-width:60%}
+  .toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:rgba(10,18,32,.85);border:1px solid rgba(120,200,255,.3);border-radius:10px;padding:8px 14px;font-size:13px;pointer-events:none;opacity:0;transition:opacity .2s}
+  .toast.show{opacity:1}
+  #overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;pointer-events:none}
+  #overlay.show{display:flex;pointer-events:auto}
+  .ovbox{background:linear-gradient(180deg,rgba(18,30,52,.92),rgba(8,14,26,.92));border:1px solid rgba(120,200,255,.35);border-radius:16px;padding:30px 36px;max-width:520px;text-align:center}
+  .ovbox h1{margin:0 0 8px;font-size:26px;color:#7fe0ff;letter-spacing:1px}
+  .ovbox p{margin:0 0 18px;font-size:14px;line-height:1.5;color:#9fb6d4}
+  .ovbtn{pointer-events:auto;background:linear-gradient(180deg,#2b3a55,#1a2a44);border:1px solid rgba(160,230,255,.6);color:#eaf6ff;border-radius:10px;padding:11px 22px;font-size:15px;cursor:pointer}
+  .ovbtn:hover{border-color:rgba(160,230,255,.9)}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c"></canvas>
+  <div class="hud">
+    <div class="chip">Light <b id="light">20</b></div>
+    <div class="chip">Wave <b id="wave">1</b>/<b id="wtotal">8</b></div>
+    <div class="chip">Lives <b id="lives">10</b></div>
+    <div class="chip">Score <b id="score">0</b></div>
+  </div>
+  <div class="panel">
+    <div class="trow">
+      <button class="btn" data-t="0">1 Crystal</button>
+      <button class="btn" data-t="1">2 Prism</button>
+      <button class="btn" data-t="2">3 Beacon</button>
+    </div>
+    <button class="btn" id="start">Start Wave</button>
+    <button class="btn" id="reset">Reset Garden</button>
+  </div>
+  <div class="hint">Click a grass tile beside the glowing path to place a tower. Keys 1/2/3 select type, Space starts the wave.</div>
+  <div class="toast" id="toast"></div>
+  <div id="overlay">
+    <div class="ovbox">
+      <h1 id="ovtitle">The Lumen Garden</h1>
+      <p id="ovsub">Place lumen crystal towers beside the glowing path to disperse the creeping dusk-mist. Protect the heart crystal at the end of the path.</p>
+      <button class="ovbtn" id="ovbtn">Begin</button>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  "use strict";
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const wrap = document.getElementById('wrap');
+  const toastEl = document.getElementById('toast');
+  const overlay = document.getElementById('overlay');
+  const ovTitle = document.getElementById('ovtitle');
+  const ovSub = document.getElementById('ovsub');
+  const ovBtn = document.getElementById('ovbtn');
+
+  const COLS = 12, ROWS = 9;
+  const PATH = [
+    [0,2],[1,2],[2,2],[3,2],[4,2],[5,2],
+    [5,3],
+    [5,4],[4,4],[3,4],[2,4],[1,4],[0,4],
+    [0,5],
+    [0,6],[1,6],[2,6],[3,6],[4,6],[5,6],[6,6],
+    [6,7],
+    [6,8],[7,8],[8,8],[9,8],[10,8],[11,8]
+  ];
+  const pathSet = new Set(PATH.map(p => p[0] + ',' + p[1]));
+
+  const TOWERS = {
+    0: { name:'Crystal', cost:10, range:2.6, damage:9,  cooldown:55, color:'#7fe0ff', shape:'diamond' },
+    1: { name:'Prism',   cost:26, range:3.2, damage:6,  cooldown:38, splash:1.6, color:'#b07fff', shape:'hex' },
+    2: { name:'Beacon',  cost:22, range:3.0, damage:4,  cooldown:28, slow:0.45, color:'#ffd27f', shape:'ring' }
+  };
+  const ETYPES = {
+    glow:   { hp:30,  speed:1.2, reward:5,  color:'#7fe0ff', r:7,  shape:'spike' },
+    shadow: { hp:70,  speed:0.9, reward:10, color:'#9aa7c8', r:9,  shape:'blob' },
+    crystal:{ hp:160, speed:0.6, reward:20, color:'#b07fff', r:11, shape:'crystal' },
+    swarm:  { hp:22,  speed:1.9, reward:3,  color:'#7fff9e', r:6,  shape:'dot' }
+  };
+  const WAVES = [
+    [{ t:'glow',   n:5 }],
+    [{ t:'glow',   n:3 }, { t:'shadow', n:2 }],
+    [{ t:'glow',   n:8 }],
+    [{ t:'shadow', n:4 }, { t:'crystal', n:2 }],
+    [{ t:'glow',   n:6 }, { t:'shadow', n:3 }],
+    [{ t:'crystal',n:4 }, { t:'shadow', n:3 }],
+    [{ t:'swarm',  n:10 }],
+    [{ t:'crystal',n:3 }, { t:'shadow', n:5 }, { t:'swarm', n:6 }]
+  ];
+
+  let W = 0, H = 0, cell = 56, ox = 0, oy = 0;
+  function resize(){
+    const r = wrap.getBoundingClientRect();
+    W = r.width; H = r.height;
+    canvas.width = W; canvas.height = H;
+    cell = Math.max(24, Math.floor(Math.min(W / COLS, H / ROWS)));
+    const gw = COLS * cell, gh = ROWS * cell;
+    ox = (W - gw) / 2; oy = (H - gh) / 2;
+  }
+  window.addEventListener('resize', resize);
+
+  let towers = [], enemies = [], projectiles = [], particles = [];
+  let light = 20, lives = 10, score = 0, wave = 0, state = 'placing';
+  let spawnQueue = [], spawnTimer = 0, SPAWN_GAP = 0.55;
+  let selectedTower = 0, hoverCell = null, t = 0;
+
+  function cellCenter(cx, cy){ return [ox + cx * cell + cell / 2, oy + cy * cell + cell / 2]; }
+  function isPath(cx, cy){ return pathSet.has(cx + ',' + cy); }
+  function adjacentPath(cx, cy){
+    if(isPath(cx, cy)) return false;
+    return [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => isPath(cx + dx, cy + dy));
+  }
+  function enemyPos(e){
+    const i = Math.floor(e.idx), f = e.idx - i;
+    const a = PATH[i], b = PATH[Math.min(PATH.length - 1, i + 1)];
+    const cx = a[0] + (b[0] - a[0]) * f, cy = a[1] + (b[1] - a[1]) * f;
+    return cellCenter(cx, cy);
+  }
+
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => toastEl.classList.remove('show'), 1500);
+  }
+  function showOverlay(title, sub, btn){
+    ovTitle.textContent = title;
+    ovSub.textContent = sub;
+    ovBtn.textContent = btn;
+    overlay.classList.add('show');
+  }
+  function hideOverlay(){ overlay.classList.remove('show'); }
+
+  function startWave(){
+    if(state !== 'placing') return;
+    spawnQueue = [];
+    WAVES[wave].forEach(g => { for(let i = 0; i < g.n; i++) spawnQueue.push(g.t); });
+    state = 'spawning'; spawnTimer = 0.3;
+    hideOverlay();
+    showToast('Wave ' + (wave + 1) + ' begins');
+  }
+  function placeTower(cx, cy){
+    if(state !== 'placing') return;
+    if(!adjacentPath(cx, cy)){ showToast('Place beside the path'); return; }
+    if(towers.some(tw => tw.x === cx && tw.y === cy)) return;
+    const T = TOWERS[selectedTower];
+    if(light < T.cost){ showToast('Not enough light'); return; }
+    light -= T.cost;
+    towers.push({ x:cx, y:cy, type:selectedTower, cooldown:0 });
+    showToast(T.name + ' placed');
+  }
+  function spawnEnemy(type){
+    const e = ETYPES[type];
+    enemies.push({ type, idx:0, hp:e.hp, maxHp:e.hp, speed:e.speed, reward:e.reward, color:e.color, r:e.r, shape:e.shape, hitFlash:0 });
+  }
+  function spawnBurst(pos, color){
+    for(let i = 0; i < 10; i++){
+      const a = Math.random() * Math.PI * 2, sp = 40 + Math.random() * 120;
+      particles.push({ x:pos[0], y:pos[1], vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, life:0.45, color });
+    }
+  }
+
+  function update(dt){
+    t += dt;
+    if(state === 'spawning'){
+      spawnTimer -= dt;
+      if(spawnTimer <= 0 && spawnQueue.length > 0){
+        spawnEnemy(spawnQueue.shift());
+        spawnTimer = SPAWN_GAP;
+      }
+      if(spawnQueue.length === 0 && enemies.length === 0){
+        wave++;
+        if(wave >= WAVES.length){
+          state = 'won';
+          showOverlay('Garden Safe', 'The heart crystal glows steady and the dusk-mist recedes.', 'Play Again');
+        } else {
+          state = 'placing';
+          showToast('Wave cleared — prepare!');
+        }
+      }
+    }
+
+    for(const e of enemies){
+      e.idx += e.speed * dt * 6;
+      if(e.idx >= PATH.length - 1){
+        lives--; e.hp = 0;
+        if(lives <= 0){
+          state = 'lost';
+          showOverlay('The Dusk Broke Through', 'The heart crystal dims. Rebuild the garden?', 'Restart Garden');
+        }
+      }
+    }
+    enemies = enemies.filter(e => e.hp > 0);
+
+    for(const tw of towers){
+      const T = TOWERS[tw.type];
+      tw.cooldown -= dt;
+      if(tw.cooldown <= 0){
+        const [tx, ty] = cellCenter(tw.x, tw.y);
+        let best = null, bestD = 1e9;
+        for(const e of enemies){
+          const [ex, ey] = enemyPos(e);
+          const d = Math.hypot(ex - tx, ey - ty);
+          if(d <= T.range * cell && d < bestD){ bestD = d; best = e; }
+        }
+        if(best){
+          tw.cooldown = T.cooldown / 60;
+          projectiles.push({ from:[tx,ty], to:enemyPos(best), damage:T.damage, splash:T.splash, color:T.color, life:0.35 });
+        }
+      }
+    }
+
+    for(const p of projectiles){
+      p.life -= dt;
+      const [ex, ey] = p.to;
+      if(p.life <= 0){
+        if(p.splash){
+          for(const e of enemies){
+            if(Math.hypot(enemyPos(e)[0] - ex, enemyPos(e)[1] - ey) <= p.splash * cell){
+              e.hp -= p.damage; e.hitFlash = 0.1;
+              if(e.hp <= 0){ score += e.reward; light += e.reward; spawnBurst(enemyPos(e), e.color); }
+            }
+          }
+        } else {
+          let tgt = null, td = 1e9;
+          for(const e of enemies){ const d = Math.hypot(enemyPos(e)[0] - ex, enemyPos(e)[1] - e.r); if(d < td){ td = d; tgt = e; } }
+          if(tgt){
+            tgt.hp -= p.damage; tgt.hitFlash = 0.1;
+            if(tgt.hp <= 0){ score += tgt.reward; light += tgt.reward; spawnBurst(enemyPos(tgt), tgt.color); }
+          }
+        }
+      }
+    }
+    projectiles = projectiles.filter(p => p.life > 0);
+
+    for(const p of particles){ p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 40 * dt; }
+    particles = particles.filter(p => p.life > 0);
+
+    for(const e of enemies){ if(e.hitFlash > 0) e.hitFlash -= dt; }
+  }
+
+  function drawTower(cx, cy, T, cooldownRatio){
+    ctx.save();
+    ctx.translate(cx, cy);
+    const pulse = 0.5 + 0.5 * Math.sin(t * 3);
+    ctx.globalAlpha = 0.22 + 0.22 * pulse;
+    ctx.fillStyle = T.color;
+    ctx.beginPath(); ctx.arc(0, 0, cell * 0.55, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = T.color;
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    ctx.lineWidth = 2;
+    if(T.shape === 'diamond'){
+      ctx.beginPath(); ctx.moveTo(0, -cell*0.32); ctx.lineTo(cell*0.24, 0); ctx.lineTo(0, cell*0.32); ctx.lineTo(-cell*0.24, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else if(T.shape === 'hex'){
+      ctx.beginPath();
+      for(let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2 - Math.PI / 6; const xx = Math.cos(a) * cell * 0.3, yy = Math.sin(a) * cell * 0.3; if(i === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy); }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else {
+      ctx.beginPath(); ctx.arc(0, 0, cell * 0.28, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.arc(0, 0, cell * 0.4, 0, Math.PI * 2); ctx.stroke();
+    }
+    if(cooldownRatio > 0.01){
+      ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, cell * 0.32, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * cooldownRatio, false);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawEnemy(x, y, e){
+    const s = e.hitFlash > 0 ? 1.25 : 1;
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    const r = e.r;
+    if(e.shape === 'spike'){
+      ctx.fillStyle = e.color; ctx.globalAlpha = 0.9;
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.6; ctx.strokeStyle = e.color; ctx.lineWidth = 2;
+      for(let i = 0; i < 4; i++){ const a = i / 4 * Math.PI * 2 + t * 4; ctx.beginPath(); ctx.moveTo(Math.cos(a) * r * 0.6, Math.sin(a) * r * 0.6); ctx.lineTo(Math.cos(a) * r * 1.6, Math.sin(a) * r * 1.6); ctx.stroke(); }
+    } else if(e.shape === 'blob'){
+      ctx.fillStyle = e.color; ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      for(let i = 0; i < 6; i++){ const a = i / 6 * Math.PI * 2; const rr = r * (0.7 + 0.3 * Math.sin(t * 3 + a)); const xx = Math.cos(a) * rr, yy = Math.sin(a) * rr; if(i === 0) ctx.moveTo(xx, yy); else ctx.lineTo(xx, yy); }
+      ctx.closePath(); ctx.fill();
+    } else if(e.shape === 'crystal'){
+      ctx.fillStyle = e.color; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.7, 0); ctx.lineTo(0, r); ctx.lineTo(-r * 0.7, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else {
+      ctx.fillStyle = e.color; ctx.globalAlpha = 0.95;
+      ctx.beginPath(); ctx.arc(0, 0, r * 0.7, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.arc(0, 0, r * 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    if(e.maxHp > 30){
+      const bw = 26, bh = 3, by = y + r + 6;
+      ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x - bw / 2, by, bw, bh);
+      ctx.fillStyle = e.hp > e.maxHp * 0.5 ? '#7fff9e' : '#ff9e7f';
+      ctx.fillRect(x - bw / 2, by, bw * (e.hp / e.maxHp), bh);
+    }
+  }
+
+  function draw(){
+    const g = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, Math.max(W, H) * 0.7);
+    g.addColorStop(0, '#0c1a2e'); g.addColorStop(1, '#05080f');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+    for(let y = 0; y < ROWS; y++) for(let x = 0; x < COLS; x++){
+      ctx.fillStyle = isPath(x, y) ? 'rgba(120,200,255,0.07)' : 'rgba(40,90,70,0.16)';
+      ctx.fillRect(ox + x * cell, oy + y * cell, cell, cell);
+    }
+
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(120,200,255,0.32)'; ctx.lineWidth = cell * 0.42;
+    ctx.beginPath();
+    for(let i = 0; i < PATH.length; i++){ const [cx, cy] = cellCenter(PATH[i][0], PATH[i][1]); if(i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy); }
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(190,232,255,0.85)'; ctx.lineWidth = cell * 0.16; ctx.stroke();
+
+    const [exx, eyy] = cellCenter(PATH[PATH.length - 1][0], PATH[PATH.length - 1][1]);
+    ctx.fillStyle = 'rgba(120,200,255,0.15)'; ctx.beginPath(); ctx.arc(exx, eyy, cell * 0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7fe0ff'; ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(exx, eyy - cell * 0.28); ctx.lineTo(exx + cell * 0.2, eyy); ctx.lineTo(exx, eyy + cell * 0.28); ctx.lineTo(exx - cell * 0.2, eyy); ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    for(const tw of towers){
+      const [cx, cy] = cellCenter(tw.x, tw.y);
+      const T = TOWERS[tw.type];
+      const cr = tw.cooldown / (T.cooldown / 60);
+      drawTower(cx, cy, T, cr);
+      if(tw.type === selectedTower){
+        ctx.strokeStyle = 'rgba(120,200,255,0.2)'; ctx.beginPath(); ctx.arc(cx, cy, T.range * cell, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+
+    if(state === 'placing' && hoverCell && adjacentPath(hoverCell.x, hoverCell.y) && !towers.some(tw => tw.x === hoverCell.x && tw.y === hoverCell.y)){
+      const T = TOWERS[selectedTower];
+      const [cx, cy] = cellCenter(hoverCell.x, hoverCell.y);
+      if(light >= T.cost){
+        ctx.globalAlpha = 0.5; drawTower(cx, cy, T, 1); ctx.globalAlpha = 1;
+        ctx.strokeStyle = 'rgba(120,200,255,0.2)'; ctx.beginPath(); ctx.arc(cx, cy, T.range * cell, 0, Math.PI * 2); ctx.stroke();
+      } else {
+        ctx.strokeStyle = 'rgba(255,120,120,0.55)'; ctx.strokeRect(cx - cell / 2 + 2, cy - cell / 2 + 2, cell - 4, cell - 4);
+      }
+    }
+
+    for(const e of enemies) drawEnemy(...enemyPos(e), e);
+
+    for(const p of projectiles){
+      const [x, y] = p.from, [ex, ey] = p.to;
+      const k = 1 - p.life / 0.35;
+      const px = x + (ex - x) * k, py = y + (ey - y) * k;
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI * 2); ctx.fill();
+    }
+
+    for(const p of particles){
+      ctx.globalAlpha = Math.max(0, p.life / 0.45);
+      ctx.fillStyle = p.color; ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function canvasPos(ev){
+    const r = canvas.getBoundingClientRect();
+    const mx = (ev.clientX - r.left) * (canvas.width / r.width);
+    const my = (ev.clientY - r.top) * (canvas.height / r.height);
+    const cx = Math.floor((mx - ox) / cell), cy = Math.floor((my - oy) / cell);
+    return { cx, cy };
+  }
+  canvas.addEventListener('mousemove', ev => {
+    const p = canvasPos(ev);
+    if(p.cx >= 0 && p.cx < COLS && p.cy >= 0 && p.cy < ROWS) hoverCell = { x:p.cx, y:p.cy };
+    else hoverCell = null;
+  });
+  canvas.addEventListener('mouseleave', () => hoverCell = null);
+  canvas.addEventListener('click', ev => {
+    const p = canvasPos(ev);
+    if(p.cx >= 0 && p.cx < COLS && p.cy >= 0 && p.cy < ROWS) placeTower(p.cx, p.cy);
+  });
+
+  window.addEventListener('keydown', ev => {
+    if(ev.key === '1') selectedTower = 0;
+    else if(ev.key === '2') selectedTower = 1;
+    else if(ev.key === '3') selectedTower = 2;
+    else if(ev.key === ' '){ ev.preventDefault(); startWave(); }
+    else return;
+    updateSelectedButtons();
+  });
+
+  document.querySelectorAll('.trow .btn').forEach(b => b.addEventListener('click', () => {
+    selectedTower = +b.dataset.t; updateSelectedButtons();
+  }));
+  document.getElementById('start').addEventListener('click', startWave);
+  document.getElementById('reset').addEventListener('click', resetGame);
+  ovBtn.addEventListener('click', () => { if(state === 'won' || state === 'lost') resetGame(); else startWave(); });
+
+  function updateSelectedButtons(){
+    document.querySelectorAll('.trow .btn').forEach(b => {
+      const on = +b.dataset.t === selectedTower;
+      b.style.borderColor = on ? 'rgba(160,230,255,0.9)' : 'rgba(120,200,255,0.35)';
+      b.style.background = on ? 'linear-gradient(180deg,#2b3a55,#1a2a44)' : 'linear-gradient(180deg,#1b2a44,#10203a)';
+    });
+  }
+
+  function resetGame(){
+    towers = []; enemies = []; projectiles = []; particles = [];
+    light = 20; lives = 10; score = 0; wave = 0; state = 'placing';
+    spawnQueue = []; spawnTimer = 0;
+    updateSelectedButtons();
+    showOverlay('The Lumen Garden', 'Place lumen crystal towers beside the glowing path to disperse the creeping dusk-mist. Protect the heart crystal at the end of the path.', 'Begin');
+  }
+
+  function updateHUD(){
+    document.getElementById('light').textContent = light;
+    document.getElementById('wave').textContent = wave + 1;
+    document.getElementById('wtotal').textContent = WAVES.length;
+    document.getElementById('lives').textContent = lives;
+    document.getElementById('score').textContent = score;
+    const sb = document.getElementById('start');
+    sb.disabled = state !== 'placing';
+    sb.textContent = state === 'spawning' ? 'Spawning…' : (wave >= WAVES.length ? 'All Clear' : 'Start Wave');
+  }
+
+  let last = performance.now();
+  function loop(now){
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    update(dt);
+    draw();
+    updateHUD();
+    requestAnimationFrame(loop);
+  }
+
+  resize();
+  resetGame();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-16-the-lumen-garden";
+  var RELEASE = "6db8b1ca97468d54b9ce68b34c75bc8ea88ae056";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

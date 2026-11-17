@@ -1,0 +1,34 @@
+{
+  "title": "The Lumen Garden",
+  "genre": "tower-defense",
+  "theme": "A glowing crystal garden defends against creeping dusk-mist that flows along a winding path toward the heart crystal.",
+  "mechanics": [
+    "Place lumen crystal towers on grass tiles beside the path to auto-disperse nearby dusk-mist",
+    "Three tower types — Crystal (direct damage), Prism (area dispersion), Beacon (slow plus damage)",
+    "Survive eight hand-authored waves of mist of increasing size and toughness",
+    "Earn light from dispersed mist to buy more towers",
+    "Protect the heart crystal — mist reaching the end costs a life; clear the final wave to win"
+  ],
+  "controls": [
+    {
+      "action": "Select Crystal tower type",
+      "key": "1"
+    },
+    {
+      "action": "Select Prism tower type",
+      "key": "2"
+    },
+    {
+      "action": "Select Beacon tower type",
+      "key": "3"
+    },
+    {
+      "action": "Place the selected tower on a grass tile",
+      "key": "click"
+    },
+    {
+      "action": "Start the next wave of mist",
+      "key": "Space"
+    }
+  ]
+}

@@ -1,25 +1,33 @@
 {
-  "date": "2026-11-15",
-  "slug": "2026-11-15-crystal-hopper",
-  "path": "games/archive/2026-11-15-crystal-hopper/game.html",
-  "promptPath": "games/archive/2026-11-15-crystal-hopper/prompt.txt",
-  "title": "Crystal Hopper",
-  "genre": "platformer",
-  "genreLabel": "Platformer",
-  "model": "cohere/north-mini-code:free",
-  "generatedAt": "2026-11-15T20:01:05.350Z",
-  "expiresAt": "2026-11-16T19:00:00.000Z",
+  "date": "2026-11-16",
+  "slug": "2026-11-16-the-lumen-garden",
+  "path": "games/archive/2026-11-16-the-lumen-garden/game.html",
+  "promptPath": "games/archive/2026-11-16-the-lumen-garden/prompt.txt",
+  "title": "The Lumen Garden",
+  "genre": "tower-defense",
+  "genreLabel": "Tower Defense",
+  "model": "dots-studio/dots-3-note-preview:free",
+  "generatedAt": "2026-11-17T02:45:42.566Z",
+  "expiresAt": "2026-11-17T19:00:00.000Z",
   "controls": [
     {
-      "action": "move left",
-      "key": "ArrowLeft"
+      "action": "Select Crystal tower type",
+      "key": "1"
     },
     {
-      "action": "move right",
-      "key": "ArrowRight"
+      "action": "Select Prism tower type",
+      "key": "2"
     },
     {
-      "action": "jump",
+      "action": "Select Beacon tower type",
+      "key": "3"
+    },
+    {
+      "action": "Place the selected tower on a grass tile",
+      "key": "click"
+    },
+    {
+      "action": "Start the next wave of mist",
       "key": "Space"
     }
   ]

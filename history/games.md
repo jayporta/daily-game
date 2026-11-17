@@ -2,16 +2,13 @@
 
 Generated automatically — do not edit by hand.
 
-## 2026-11-16 — generation failed, previous game kept
+## 2026-11-16 — The Lumen Garden
 
+- genre: tower-defense
+- theme: A glowing crystal garden defends against creeping dusk-mist that flows along a winding path toward the heart crystal.
+- mechanics: Place lumen crystal towers on grass tiles beside the path to auto-disperse nearby dusk-mist, Three tower types — Crystal (direct damage), Prism (area dispersion), Beacon (slow plus damage), Survive eight hand-authored waves of mist of increasing size and toughness, Earn light from dispersed mist to buy more towers, Protect the heart crystal — mist reaching the end costs a life; clear the final wave to win
 - model: dots-studio/dots-3-note-preview:free
-- attempts: 6
-- attempt 1 (dots-studio/dots-3-note-preview:free): generation call failed — OpenRouter stream ended early: terminated
-- attempt 2 (nvidia/nemotron-3-ultra-550b-a55b:free): could not extract bundle — missing-meta-block
-- attempt 3 (recursive/flint-v1.0:free): generation call failed — OpenRouter stream ended early: terminated
-- attempt 4 (nvidia/nemotron-3.5-super-vl:free): generation call failed — OpenRouter stream ended early: terminated
-- attempt 5 (nvidia/nemotron-3.5-lightning:free): could not extract bundle — missing-meta-block
-- attempt 6 (cohere/north-mini-code:free): generation call failed — OpenRouter stream carried no content (47058 frames, delta keys: role, content, reasoning, reasoning_details, stop: truncated)
+- attempts: 1
 
 ## 2026-11-15 — Crystal Hopper
 
