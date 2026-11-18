@@ -1527,5 +1527,37 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-11-18",
+    "status": "published",
+    "model": "recursive/flint-v1.0:free",
+    "slug": "2026-11-18-glow-beetle-sprint",
+    "genre": "racing",
+    "theme": "A tiny copper beetle races through a glowing crystal canyon",
+    "mechanics": [
+      "Race across a bounded glowing track",
+      "Steer to avoid crystal hazards",
+      "Beat the clock to reach the finish",
+      "Boost with a charged sprint"
+    ],
+    "title": "Glow Beetle Sprint",
+    "attempts": 5,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-failover",
+      "extract",
+      "smoke-js-error",
+      "extract",
+      "extract"
+    ],
+    "attemptModels": [
+      "thinkingmachines/inkling-2-small:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free",
+      "dots-studio/dots-3-note-preview:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free"
+    ],
+    "quotaAffected": true
   }
 ]

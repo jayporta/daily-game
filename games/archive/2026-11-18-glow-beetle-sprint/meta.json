@@ -1,0 +1,33 @@
+{
+  "title": "Glow Beetle Sprint",
+  "genre": "racing",
+  "theme": "A tiny copper beetle races through a glowing crystal canyon",
+  "mechanics": [
+    "Race across a bounded glowing track",
+    "Steer to avoid crystal hazards",
+    "Beat the clock to reach the finish",
+    "Boost with a charged sprint"
+  ],
+  "controls": [
+    {
+      "action": "Accelerate",
+      "key": "ArrowUp / W"
+    },
+    {
+      "action": "Steer left",
+      "key": "ArrowLeft / A / Touch left half"
+    },
+    {
+      "action": "Steer right",
+      "key": "ArrowRight / D / Touch right half"
+    },
+    {
+      "action": "Boost",
+      "key": "Space"
+    },
+    {
+      "action": "Start / restart",
+      "key": "Enter"
+    }
+  ]
+}

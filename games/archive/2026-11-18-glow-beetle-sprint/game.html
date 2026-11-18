@@ -1,0 +1,352 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #05070f; overflow: hidden; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const DESIGN_W = 800;
+const DESIGN_H = 600;
+let W = window.innerWidth;
+let H = window.innerHeight;
+let DPR = Math.min(window.devicePixelRatio || 1, 2);
+let scale = 1;
+let offsetX = 0;
+let offsetY = 0;
+function resize() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = Math.floor(W * DPR);
+  canvas.height = Math.floor(H * DPR);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  scale = Math.min(W / DESIGN_W, H / DESIGN_H);
+  offsetX = (W - DESIGN_W * scale) / 2;
+  offsetY = (H - DESIGN_H * scale) / 2;
+}
+window.addEventListener('resize', resize);
+resize();
+let state = 'menu';
+let endState = 'win';
+let timeLeft = 45;
+let countdown = 3;
+let countdownTimer = 0;
+let player = { x: 400, y: 520, angle: -Math.PI / 2, speed: 0, r: 12 };
+let hazards = [
+  { x: 180, y: 300, r: 18 },
+  { x: 620, y: 250, r: 20 },
+  { x: 300, y: 150, r: 16 },
+  { x: 520, y: 420, r: 18 },
+  { x: 650, y: 480, r: 16 },
+  { x: 150, y: 450, r: 16 }
+];
+let goal = { x: 400, y: 80, r: 22 };
+let walls = [
+  { x1: 0, y1: 560, x2: 800, y2: 560 },
+  { x1: 0, y1: 40, x2: 800, y2: 40 },
+  { x1: 40, y1: 40, x2: 40, y2: 560 },
+  { x1: 760, y1: 40, x2: 760, y2: 560 }
+];
+let invuln = 0;
+let boostActive = false;
+let keys = {};
+let touchLeft = false;
+let touchRight = false;
+function circleWallCollide(p, r, wallList) {
+  for (let w of wallList) {
+    let dx = w.x2 - w.x1;
+    let dy = w.y2 - w.y1;
+    let len2 = dx * dx + dy * dy;
+    let t = len2 > 0 ? ((p.x - w.x1) * dx + (p.y - w.y1) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    let cx = w.x1 + t * dx;
+    let cy = w.y1 + t * dy;
+    let ddx = p.x - cx;
+    let ddy = p.y - cy;
+    let dist = Math.hypot(ddx, ddy);
+    let minDist = r + 6;
+    if (dist < minDist) {
+      if (dist > 0.0001) {
+        let push = (minDist - dist) / dist;
+        p.x += ddx * push;
+        p.y += ddy * push;
+      } else {
+        let nx = ddx / (dist || 1);
+        let ny = ddy / (dist || 1);
+        p.x += nx * minDist;
+        p.y += ny * minDist;
+      }
+    }
+  }
+  return p;
+}
+function update(dt) {
+  if (state === 'countdown') {
+    countdownTimer -= dt;
+    if (countdownTimer <= 0) {
+      state = 'racing';
+      timeLeft = 45;
+    }
+    return;
+  }
+  if (state !== 'racing') return;
+  timeLeft -= dt;
+  if (timeLeft <= 0) {
+    state = 'finished';
+    endState = 'timeup';
+    return;
+  }
+  let up = keys['ArrowUp'] || keys['KeyW'] || touchLeft || touchRight;
+  let left = keys['ArrowLeft'] || keys['KeyA'] || touchLeft;
+  let right = keys['ArrowRight'] || keys['KeyD'] || touchRight;
+  let boost = boostActive;
+  let maxSp = boost ? 260 : 180;
+  let accel = boost ? 600 : 400;
+  if (up) {
+    player.speed += accel * dt;
+    player.speed = Math.min(player.speed, maxSp);
+  } else {
+    player.speed -= 200 * dt;
+    player.speed = Math.max(player.speed, 0);
+  }
+  let turnSpeed = 2.5;
+  if (left) player.angle -= turnSpeed * dt;
+  if (right) player.angle += turnSpeed * dt;
+  player.x += Math.cos(player.angle) * player.speed * dt;
+  player.y += Math.sin(player.angle) * player.speed * dt;
+  player = circleWallCollide(player, player.r, walls);
+  invuln = Math.max(0, invuln - dt);
+  if (hazards.length > 0) {
+    for (let i = 0; i < hazards.length; i++) {
+      let h = hazards[i];
+      let dx = player.x - h.x;
+      let dy = player.y - h.y;
+      let dist = Math.hypot(dx, dy);
+      if (dist < player.r + h.r && invuln <= 0) {
+        player.speed = Math.max(60, player.speed * 0.5);
+        invuln = 1.5;
+        if (dist > 0.0001) {
+          let push = (player.r + h.r - dist) / dist;
+          player.x += dx * push;
+          player.y += dy * push;
+        }
+      }
+    }
+  }
+  let gdx = player.x - goal.x;
+  let gdy = player.y - goal.y;
+  if (Math.hypot(gdx, gdy) < goal.r) {
+    state = 'finished';
+    endState = 'win';
+    return;
+  }
+}
+function render() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.scale(scale, scale);
+  ctx.translate(offsetX, offsetY);
+  ctx.fillStyle = '#05070f';
+  ctx.fillRect(0, 0, DESIGN_W, DESIGN_H);
+  ctx.strokeStyle = '#00ffcc';
+  ctx.lineWidth = 14;
+  ctx.lineCap = 'round';
+  for (let w of walls) {
+    ctx.beginPath();
+    ctx.moveTo(w.x1, w.y1);
+    ctx.lineTo(w.x2, w.y2);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(goal.x, goal.y, goal.r, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,255,204,0.2)';
+  ctx.fill();
+  ctx.strokeStyle = '#00ffcc';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  for (let h of hazards) {
+    ctx.beginPath();
+    ctx.arc(h.x, h.y, h.r, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff3366';
+    ctx.fill();
+    ctx.strokeStyle = '#ff6699';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.rotate(player.angle);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 12, 9, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#b06a2c';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 8, 6, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,255,204,0.8)';
+  ctx.fill();
+  let hx = Math.cos(player.angle) * 10;
+  let hy = Math.sin(player.angle) * 10;
+  ctx.beginPath();
+  ctx.arc(hx, hy, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#8a4b1f';
+  ctx.fill();
+  ctx.restore();
+  if (state === 'menu') {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '30px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Glow Beetle Sprint', DESIGN_W / 2, DESIGN_H / 2 - 40);
+    ctx.font = '18px monospace';
+    ctx.fillText('Race the crystal canyon', DESIGN_W / 2, DESIGN_H / 2 - 10);
+    ctx.font = '16px monospace';
+    ctx.fillText('Arrow Up / W: Accelerate', DESIGN_W / 2, DESIGN_H / 2 + 30);
+    ctx.fillText('Arrows / A, D: Steer', DESIGN_W / 2, DESIGN_H / 2 + 60);
+    ctx.fillText('Space: Boost', DESIGN_W / 2, DESIGN_H / 2 + 90);
+    ctx.fillText('Enter: Start', DESIGN_W / 2, DESIGN_H / 2 + 120);
+  }
+  if (state === 'countdown') {
+    ctx.fillStyle = '#00ffcc';
+    ctx.font = '60px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(countdown), DESIGN_W / 2, DESIGN_H / 2);
+  }
+  if (state === 'racing') {
+    ctx.fillStyle = '#00ffcc';
+    ctx.font = '20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('TIME ' + timeLeft.toFixed(1), DESIGN_W / 2, 30);
+  }
+  if (state === 'finished') {
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '40px monospace';
+    ctx.textAlign = 'center';
+    if (endState === 'win') {
+      ctx.fillText('COURSE CLEAR!', DESIGN_W / 2, DESIGN_H / 2);
+    } else {
+      ctx.fillText('TIME UP', DESIGN_W / 2, DESIGN_H / 2);
+    }
+  }
+}
+let lastTime = 0;
+function loop(t) {
+  let dt = (t - lastTime) / 1000;
+  lastTime = t;
+  if (dt > 0.1) dt = 0.1;
+  update(dt);
+  render();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+window.addEventListener('keydown', (e) => {
+  if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+    e.preventDefault();
+  }
+  keys[e.code] = true;
+  if (e.code === 'Enter') {
+    if (state === 'menu' || state === 'finished') {
+      state = 'countdown';
+      countdown = 3;
+      countdownTimer = 3;
+      player.x = 400;
+      player.y = 520;
+      player.speed = 0;
+      player.angle = -Math.PI / 2;
+      timeLeft = 45;
+      invuln = 0;
+      boostActive = false;
+      keys = {};
+      touchLeft = false;
+      touchRight = false;
+    }
+  }
+  if (e.code === 'Space') {
+    boostActive = true;
+  }
+});
+window.addEventListener('keyup', (e) => {
+  keys[e.code] = false;
+  if (e.code === 'Space') {
+    boostActive = false;
+  }
+});
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  let touch = e.touches[0];
+  let rect = canvas.getBoundingClientRect();
+  let x = touch.clientX - rect.left;
+  if (x < rect.width / 2) touchLeft = true;
+  else touchRight = true;
+});
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  let touch = e.touches[0];
+  let rect = canvas.getBoundingClientRect();
+  let x = touch.clientX - rect.left;
+  if (x < rect.width / 2) touchLeft = true;
+  else touchRight = true;
+});
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  let touch = e.changedTouches[0];
+  let rect = canvas.getBoundingClientRect();
+  let x = touch.clientX - rect.left;
+  if (x < rect.width / 2) touchLeft = false;
+  else touchRight = false;
+});
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-18-glow-beetle-sprint";
+  var RELEASE = "0425686da3ebcbe053225abd3184835fb5b440c1";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

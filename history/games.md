@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-18 — Glow Beetle Sprint
+
+- genre: racing
+- theme: A tiny copper beetle races through a glowing crystal canyon
+- mechanics: Race across a bounded glowing track, Steer to avoid crystal hazards, Beat the clock to reach the finish, Boost with a charged sprint
+- model: recursive/flint-v1.0:free
+- attempts: 5
+
 ## 2026-11-17 — Prism Dash
 
 - genre: endless-runner
