@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Auto-run forward through a scrolling tunnel, Tap or press Space/Up to jump over crystal spikes and gaps, Collect glowing light shards for score, Stay ahead of the chasing shadow pulse; speed increases over time
 - model: nvidia/nemotron-3.5-super-vl:free
 - attempts: 2
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-16 — The Lumen Garden
 
