@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-19 — Lumen Pulse
+
+- genre: rhythm
+- theme: A tiny glowing jellyfish pulses through a deep-sea coral cavern, matching the beat of bioluminescent anemones to charge the light beacon.
+- mechanics: Hit cues in time with a beat, Match a sequence of visual pulses, Score timing accuracy with Perfect/Great/Good judgments, Build combo streaks for bonus points
+- model: nvidia/nemotron-3.5-super-vl:free
+- attempts: 1
+
 ## 2026-11-18 — Glow Beetle Sprint
 
 - genre: racing

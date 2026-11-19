@@ -1,34 +1,30 @@
 {
-  "date": "2026-11-18",
-  "slug": "2026-11-18-glow-beetle-sprint",
-  "path": "games/archive/2026-11-18-glow-beetle-sprint/game.html",
-  "promptPath": "games/archive/2026-11-18-glow-beetle-sprint/prompt.txt",
-  "title": "Glow Beetle Sprint",
-  "genre": "racing",
-  "genreLabel": "Racing",
-  "model": "recursive/flint-v1.0:free",
-  "generatedAt": "2026-11-18T20:01:49.679Z",
-  "expiresAt": "2026-11-19T19:00:00.000Z",
+  "date": "2026-11-19",
+  "slug": "2026-11-19-lumen-pulse",
+  "path": "games/archive/2026-11-19-lumen-pulse/game.html",
+  "promptPath": "games/archive/2026-11-19-lumen-pulse/prompt.txt",
+  "title": "Lumen Pulse",
+  "genre": "rhythm",
+  "genreLabel": "Rhythm",
+  "model": "nvidia/nemotron-3.5-super-vl:free",
+  "generatedAt": "2026-11-19T20:01:38.076Z",
+  "expiresAt": "2026-11-20T19:00:00.000Z",
   "controls": [
     {
-      "action": "Accelerate",
-      "key": "ArrowUp / W"
+      "action": "Hit note in left lane",
+      "key": "A"
     },
     {
-      "action": "Steer left",
-      "key": "ArrowLeft / A / Touch left half"
+      "action": "Hit note in center lane",
+      "key": "S"
     },
     {
-      "action": "Steer right",
-      "key": "ArrowRight / D / Touch right half"
+      "action": "Hit note in right lane",
+      "key": "D"
     },
     {
-      "action": "Boost",
-      "key": "Space"
-    },
-    {
-      "action": "Start / restart",
-      "key": "Enter"
+      "action": "Start or restart game",
+      "key": "Click or tap"
     }
   ]
 }

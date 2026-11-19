@@ -1,0 +1,29 @@
+{
+  "title": "Lumen Pulse",
+  "genre": "rhythm",
+  "theme": "A tiny glowing jellyfish pulses through a deep-sea coral cavern, matching the beat of bioluminescent anemones to charge the light beacon.",
+  "mechanics": [
+    "Hit cues in time with a beat",
+    "Match a sequence of visual pulses",
+    "Score timing accuracy with Perfect/Great/Good judgments",
+    "Build combo streaks for bonus points"
+  ],
+  "controls": [
+    {
+      "action": "Hit note in left lane",
+      "key": "A"
+    },
+    {
+      "action": "Hit note in center lane",
+      "key": "S"
+    },
+    {
+      "action": "Hit note in right lane",
+      "key": "D"
+    },
+    {
+      "action": "Start or restart game",
+      "key": "Click or tap"
+    }
+  ]
+}

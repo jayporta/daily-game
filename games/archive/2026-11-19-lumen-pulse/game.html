@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lumen Pulse</title>
+<style>
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #04040a; }
+#game { display: block; width: 100%; height: 100%; }
+.ui-layer { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; color: #e0e8ff; font-family: system-ui, -apple-system, sans-serif; }
+#hud { pointer-events: none; justify-content: flex-start; padding: 24px; }
+#score { font-size: 40px; font-weight: 700; color: #00ffcc; margin: 0; line-height: 1; }
+#combo { font-size: 20px; color: #ffcc00; margin: 4px 0 0 0; }
+#judge { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); font-size: 34px; font-weight: 800; pointer-events: none; opacity: 0; transition: opacity 0.15s ease-out; white-space: pre; letter-spacing: 2px; }
+.menu { pointer-events: auto; justify-content: center; align-items: center; background: rgba(4, 4, 10, 0.92); text-align: center; }
+.menu h1 { margin: 0 0 12px 0; font-size: 34px; color: #00ffcc; }
+.menu p { margin: 0 0 24px 0; color: #9aa5b8; font-size: 16px; line-height: 1.5; }
+button { background: #00ffcc; color: #04040a; border: none; padding: 12px 30px; font-size: 17px; font-weight: 800; border-radius: 10px; cursor: pointer; letter-spacing: 1px; }
+button:hover { background: #33ffdd; }
+.menu .hint { margin-top: 18px; font-size: 13px; color: #6b7280; line-height: 1.5; max-width: 420px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="ui-layer" id="hud">
+  <div id="score">0</div>
+  <div id="combo">0x</div>
+</div>
+<div id="judge"></div>
+<div class="ui-layer menu" id="menu">
+  <h1>LUMEN PULSE</h1>
+  <p>Match the pulse of the deep</p>
+  <button id="startBtn">Begin</button>
+  <div class="hint">Press A / S / D or tap the lanes when the glow reaches the ring</div>
+</div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const menuEl = document.getElementById('menu');
+const startBtn = document.getElementById('startBtn');
+const scoreEl = document.getElementById('score');
+const comboEl = document.getElementById('combo');
+const judgeEl = document.getElementById('judge');
+
+let width = 0;
+let height = 0;
+function resize() {
+  width = canvas.clientWidth;
+  height = canvas.clientHeight;
+  canvas.width = width;
+  canvas.height = height;
+}
+window.addEventListener('resize', resize);
+resize();
+
+let audioCtx = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (Ctx) audioCtx = new Ctx();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+}
+
+function playTone(freq, type, duration, when) {
+  if (!audioCtx) return;
+  const t = when !== undefined ? when : audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, t);
+  gain.gain.setValueAtTime(0.08, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start(t);
+  try { osc.stop(t + duration); } catch (e) {}
+}
+
+const LANE_COUNT = 3;
+const HIT_Y_RATIO = 0.82;
+const NOTE_SPEED = 420;
+const NOTE_RADIUS = 14;
+const JUDGE_WINDOWS = [
+  { name: 'PERFECT', window: 0.05, points: 100, color: '#00ffcc' },
+  { name: 'GREAT',   window: 0.10, points:  50, color: '#00ccff' },
+  { name: 'GOOD',    window: 0.15, points:  25, color: '#ffcc00' }
+];
+
+const SONG = [
+  {t: 1.0, l: 1}, {t: 1.5, l: 0}, {t: 2.0, l: 2}, {t: 2.5, l: 1},
+  {t: 3.0, l: 0}, {t: 3.5, l: 2}, {t: 4.0, l: 1}, {t: 4.5, l: 0},
+  {t: 5.0, l: 2}, {t: 5.5, l: 1}, {t: 6.0, l: 0}, {t: 6.5, l: 2},
+  {t: 7.0, l: 1}, {t: 7.5, l: 0}, {t: 8.0, l: 2}, {t: 8.5, l: 1},
+  {t: 9.0, l: 0}, {t: 9.5, l: 2}, {t: 10.0, l: 1}, {t: 10.5, l: 0},
+  {t: 11.0, l: 2}, {t: 11.5, l: 1}, {t: 12.0, l: 0}, {t: 12.5, l: 2},
+  {t: 13.0, l: 1}, {t: 13.5, l: 0}, {t: 14.0, l: 2}, {t: 14.5, l: 1},
+  {t: 15.0, l: 0}, {t: 15.5, l: 2}, {t: 16.0, l: 1}, {t: 16.5, l: 0},
+  {t: 17.0, l: 2}, {t: 17.5, l: 1}, {t: 18.0, l: 0}, {t: 18.5, l: 2},
+  {t: 19.0, l: 1}, {t: 19.5, l: 0}, {t: 20.0, l: 2}, {t: 20.5, l: 1},
+  {t: 21.0, l: 0}, {t: 21.5, l: 2}, {t: 22.0, l: 1}, {t: 22.5, l: 0},
+  {t: 23.0, l: 2}, {t: 23.5, l: 1}, {t: 24.0, l: 0}, {t: 24.5, l: 2},
+  {t: 25.0, l: 1}, {t: 25.5, l: 0}, {t: 26.0, l: 2}, {t: 26.5, l: 1}
+];
+
+let state = 'MENU';
+let gameTime = 0;
+let score = 0;
+let combo = 0;
+let notes = [];
+let particles = [];
+let lastTime = 0;
+let hitJudge = { text: '', color: '#fff', time: 0 };
+
+function laneX(lane) {
+  return width * (0.25 + lane * 0.25);
+}
+
+function resetGame() {
+  score = 0;
+  combo = 0;
+  gameTime = 0;
+  notes = [];
+  particles = [];
+  hitJudge = { text: '', color: '#fff', time: 0 };
+  for (let i = 0; i < SONG.length; i++) {
+    const s = SONG[i];
+    notes.push({ lane: s.l, time: s.t, hit: false, missed: false });
+  }
+  if (scoreEl) scoreEl.textContent = '0';
+  if (comboEl) comboEl.textContent = '0x';
+}
+
+function startGame() {
+  ensureAudio();
+  resetGame();
+  state = 'PLAYING';
+  lastTime = performance.now();
+  if (menuEl) menuEl.style.display = 'none';
+  if (judgeEl) judgeEl.style.opacity = '0';
+  requestAnimationFrame(loop);
+}
+
+function endGame() {
+  state = 'GAMEOVER';
+  if (menuEl) {
+    menuEl.style.display = 'flex';
+    const btn = document.getElementById('startBtn');
+    if (btn) btn.textContent = 'Play Again';
+  }
+}
+
+function pressLane(lane) {
+  if (state !== 'PLAYING') return;
+  const now = gameTime;
+  let best = null;
+  let bestDiff = 1e9;
+  for (let i = 0; i < notes.length; i++) {
+    const n = notes[i];
+    if (n.lane !== lane || n.hit || n.missed) continue;
+    const diff = Math.abs(now - n.time);
+    if (diff < 0.25 && diff < bestDiff) {
+      bestDiff = diff;
+      best = n;
+    }
+  }
+  if (best) {
+    best.hit = true;
+    applyJudge(bestDiff, best.lane);
+  } else {
+    combo = 0;
+    updateHud();
+    showJudge('MISS', '#ff5555');
+    playTone(180, 'sawtooth', 0.08);
+    spawnParticles(laneX(lane), height * HIT_Y_RATIO, '#ff5555', 4);
+  }
+}
+
+function applyJudge(diff, lane) {
+  let result = 'MISS';
+  let points = 0;
+  let color = '#ff5555';
+  let tone = 400;
+  for (let w = 0; w < JUDGE_WINDOWS.length; w++) {
+    const j = JUDGE_WINDOWS[w];
+    if (diff <= j.window) {
+      result = j.name;
+      points = j.points;
+      color = j.color;
+      tone = 600 + w * 400;
+      break;
+    }
+  }
+  if (result !== 'MISS') {
+    const mult = 1 + Math.floor(combo / 10) * 0.25;
+    score += Math.floor(points * mult);
+    combo++;
+    playTone(tone, 'sine', 0.1);
+  } else {
+    combo = 0;
+    playTone(150, 'sawtooth', 0.1);
+  }
+  updateHud();
+  showJudge(result, color);
+  spawnParticles(laneX(lane), height * HIT_Y_RATIO, color, 8);
+}
+
+function updateHud() {
+  if (scoreEl) scoreEl.textContent = String(score);
+  if (comboEl) comboEl.textContent = String(combo) + 'x';
+}
+
+function showJudge(text, color) {
+  if (!judgeEl) return;
+  hitJudge = { text: text, color: color, time: gameTime };
+  judgeEl.textContent = text;
+  judgeEl.style.color = color;
+  judgeEl.style.opacity = '1';
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x: x,
+      y: y,
+      vx: (Math.random() - 0.5) * 120,
+      vy: (Math.random() - 0.5) * 120 - 40,
+      life: 0.4 + Math.random() * 0.4,
+      maxLife: 0.8,
+      color: color
+    });
+  }
+}
+
+function update(dt) {
+  if (state !== 'PLAYING') return;
+  gameTime += dt;
+
+  for (let i = 0; i < notes.length; i++) {
+    const n = notes[i];
+    if (n.hit || n.missed) continue;
+    if (gameTime > n.time + 0.25) {
+      n.missed = true;
+      combo = 0;
+      updateHud();
+      showJudge('MISS', '#ff5555');
+      playTone(150, 'sawtooth', 0.08);
+      spawnParticles(laneX(n.lane), height * HIT_Y_RATIO, '#ff5555', 4);
+    }
+  }
+
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.life -= dt;
+  }
+  const alive = [];
+  for (let i = 0; i < particles.length; i++) {
+    if (particles[i].life > 0) alive.push(particles[i]);
+  }
+  particles = alive;
+
+  if (SONG.length > 0) {
+    const last = SONG[SONG.length - 1];
+    if (gameTime > last.t + 3.0) {
+      endGame();
+    }
+  }
+}
+
+function drawJellyfish(cx, cy, pulse) {
+  const r = 18 + pulse * 6;
+  const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, r + 40);
+  glow.addColorStop(0, 'rgba(0, 255, 204, 0.5)');
+  glow.addColorStop(1, 'rgba(0, 255, 204, 0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r + 40, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#00ffcc';
+  ctx.beginPath();
+  ctx.moveTo(cx - r, cy);
+  ctx.quadraticCurveTo(cx, cy - r * 1.1, cx + r, cy);
+  ctx.quadraticCurveTo(cx, cy + r * 0.4, cx - r, cy);
+  ctx.fill();
+
+  ctx.strokeStyle = '#00ffcc';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  const t = gameTime * 6;
+  for (let i = -2; i <= 2; i++) {
+    const tx = cx + i * 10;
+    const offset = Math.sin(t + i * 1.3) * 6;
+    ctx.beginPath();
+    ctx.moveTo(tx, cy + r);
+    ctx.bezierCurveTo(tx + offset, cy + r + 18, tx - offset, cy + r + 36, tx, cy + r + 52);
+    ctx.stroke();
+  }
+}
+
+function draw() {
+  const grad = ctx.createLinearGradient(0, 0, 0, height);
+  grad.addColorStop(0, '#030308');
+  grad.addColorStop(1, '#0a0a1a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, width, height);
+
+  if (state === 'PLAYING') {
+    const hitY = height * HIT_Y_RATIO;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.lineWidth = 2;
+    for (let l = 0; l < LANE_COUNT; l++) {
+      const x = laneX(l);
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+    }
+
+    for (let l = 0; l < LANE_COUNT; l++) {
+      const x = laneX(l);
+      const ring = ctx.createRadialGradient(x, hitY, 0, x, hitY, 50);
+      ring.addColorStop(0, 'rgba(0, 255, 204, 0.15)');
+      ring.addColorStop(1, 'rgba(0, 255, 204, 0)');
+      ctx.fillStyle = ring;
+      ctx.beginPath();
+      ctx.arc(x, hitY, 50, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(0, 255, 204, 0.35)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, hitY, 34, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < notes.length; i++) {
+      const n = notes[i];
+      if (n.hit || n.missed) continue;
+      const y = hitY + (gameTime - n.time) * NOTE_SPEED;
+      if (y < -60 || y > height + 60) continue;
+      const x = laneX(n.lane);
+      const approaching = gameTime < n.time;
+      const alpha = approaching ? 0.4 + 0.6 * Math.sin((n.time - gameTime) * 10) : 1;
+      const glow = ctx.createRadialGradient(x, y, 0, x, y, NOTE_RADIUS + 10);
+      glow.addColorStop(0, 'rgba(0, 255, 204, ' + alpha + ')');
+      glow.addColorStop(1, 'rgba(0, 255, 204, 0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(x, y, NOTE_RADIUS + 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(x, y, NOTE_RADIUS * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const a = Math.max(0, p.life / p.maxLife);
+      const alphaHex = Math.floor(a * 255).toString(16).padStart(2, '0');
+      ctx.fillStyle = p.color + alphaHex;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const pulse = Math.sin(gameTime * 4) * 0.5 + 0.5;
+    drawJellyfish(width / 2, height * 0.9, pulse);
+  }
+
+  if (hitJudge.text && gameTime - hitJudge.time > 0.8) {
+    hitJudge.text = '';
+    if (judgeEl) judgeEl.style.opacity = '0';
+  }
+}
+
+function loop(now) {
+  if (!lastTime) lastTime = now;
+  const dt = Math.min(0.05, (now - lastTime) / 1000);
+  lastTime = now;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+function onKeyDown(e) {
+  if (e.code === 'KeyA') pressLane(0);
+  else if (e.code === 'KeyS') pressLane(1);
+  else if (e.code === 'KeyD') pressLane(2);
+}
+window.addEventListener('keydown', onKeyDown);
+
+function getLaneFromX(x) {
+  let best = 0;
+  let bestDist = 1e9;
+  for (let l = 0; l < LANE_COUNT; l++) {
+    const d = Math.abs(x - laneX(l));
+    if (d < bestDist) {
+      bestDist = d;
+      best = l;
+    }
+  }
+  return best;
+}
+
+canvas.addEventListener('mousedown', function(e) {
+  if (state !== 'PLAYING') return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  pressLane(getLaneFromX(x));
+});
+
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  if (state !== 'PLAYING') return;
+  const rect = canvas.getBoundingClientRect();
+  const x = e.touches[0].clientX - rect.left;
+  pressLane(getLaneFromX(x));
+}, { passive: false });
+
+if (startBtn) {
+  startBtn.addEventListener('click', function() {
+    startGame();
+  });
+}
+
+draw();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-19-lumen-pulse";
+  var RELEASE = "ccc1a869801a1f31666f510b84cf6e0a5b78fb8c";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
