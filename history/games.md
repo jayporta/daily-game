@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Race across a bounded glowing track, Steer to avoid crystal hazards, Beat the clock to reach the finish, Boost with a charged sprint
 - model: recursive/flint-v1.0:free
 - attempts: 5
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-17 — Prism Dash
 
