@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Hit cues in time with a beat, Match a sequence of visual pulses, Score timing accuracy with Perfect/Great/Good judgments, Build combo streaks for bonus points
 - model: nvidia/nemotron-3.5-super-vl:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-18 — Glow Beetle Sprint
 

@@ -1580,6 +1580,10 @@
     "title": "Lumen Pulse",
     "attempts": 1,
     "canvasDrawn": true,
-    "quotaAffected": true
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
   }
 ]
