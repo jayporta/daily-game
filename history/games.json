@@ -1585,5 +1585,36 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-11-20",
+    "status": "published",
+    "model": "dots-studio/dots-3-note-preview:free",
+    "slug": "2026-11-20-prism-seed",
+    "genre": "physics-sandbox",
+    "theme": "A tiny glowing prism creature in a deep crystal cavern launches glowing seeds to charge floating crystal targets before the light fades.",
+    "mechanics": [
+      "Click-drag from the prism to aim a projectile with direction and power",
+      "Release to fire a seed along a ballistic arc under gravity",
+      "Preview the trajectory with dotted ghost markers before firing",
+      "Charge floating crystal targets by seeding them directly",
+      "Bounce seeds off crystal walls to reach targets behind cover",
+      "Charge every target before running out of seeds",
+      "Five hand-authored levels with more targets and tighter seed budgets"
+    ],
+    "title": "Prism Seed",
+    "attempts": 2,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-failover",
+      "moderation",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "thinkingmachines/inkling-2-small:free",
+      "nvidia/nemotron-3.5-lightning:free",
+      "cohere/north-mini-code:free"
+    ],
+    "quotaAffected": true
   }
 ]

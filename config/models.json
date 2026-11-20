@@ -7,11 +7,6 @@
       "provider": "openrouter"
     },
     {
-      "id": "cohere/north-mini-code:free",
-      "active": true,
-      "provider": "openrouter"
-    },
-    {
       "id": "dots-studio/dots-3-note-preview:free",
       "active": true,
       "provider": "openrouter"
@@ -32,7 +27,12 @@
       "provider": "openrouter"
     },
     {
-      "id": "thinkingmachines/inkling-2-small:free",
+      "id": "baidu/ernie-5.5-flash-preview:free",
+      "active": true,
+      "provider": "openrouter"
+    },
+    {
+      "id": "inclusionai/ling-3.2-flash:free",
       "active": true,
       "provider": "openrouter"
     }

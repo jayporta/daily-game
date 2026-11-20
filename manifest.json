@@ -1,30 +1,26 @@
 {
-  "date": "2026-11-19",
-  "slug": "2026-11-19-lumen-pulse",
-  "path": "games/archive/2026-11-19-lumen-pulse/game.html",
-  "promptPath": "games/archive/2026-11-19-lumen-pulse/prompt.txt",
-  "title": "Lumen Pulse",
-  "genre": "rhythm",
-  "genreLabel": "Rhythm",
-  "model": "nvidia/nemotron-3.5-super-vl:free",
-  "generatedAt": "2026-11-19T20:01:38.076Z",
-  "expiresAt": "2026-11-20T19:00:00.000Z",
+  "date": "2026-11-20",
+  "slug": "2026-11-20-prism-seed",
+  "path": "games/archive/2026-11-20-prism-seed/game.html",
+  "promptPath": "games/archive/2026-11-20-prism-seed/prompt.txt",
+  "title": "Prism Seed",
+  "genre": "physics-sandbox",
+  "genreLabel": "Physics Sandbox",
+  "model": "dots-studio/dots-3-note-preview:free",
+  "generatedAt": "2026-11-20T20:01:42.785Z",
+  "expiresAt": "2026-11-21T19:00:00.000Z",
   "controls": [
     {
-      "action": "Hit note in left lane",
-      "key": "A"
+      "action": "Aim",
+      "key": "Click-drag (or touch-drag) from the pris"
     },
     {
-      "action": "Hit note in center lane",
-      "key": "S"
+      "action": "Fire",
+      "key": "Release the drag"
     },
     {
-      "action": "Hit note in right lane",
-      "key": "D"
-    },
-    {
-      "action": "Start or restart game",
-      "key": "Click or tap"
+      "action": "Advance or retry",
+      "key": "Click on the overlay card"
     }
   ]
 }
