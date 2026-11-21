@@ -1617,8 +1617,34 @@
     ],
     "quotaAffected": true,
     "likes": 0,
-    "dislikes": 0,
-    "dislikeReasons": {},
-    "popularityScore": 0
+    "dislikes": 1,
+    "dislikeReasons": {
+      "gameplay-broken": 1,
+      "goal-unclear": 1
+    },
+    "popularityScore": -1
+  },
+  {
+    "date": "2026-11-21",
+    "status": "published",
+    "model": "recursive/flint-v1.0:free",
+    "slug": "2026-11-21-lumen-chain",
+    "genre": "puzzle",
+    "theme": "A tiny glowing ember wakes a mossy crystal core",
+    "mechanics": [
+      "Drag the ember along the glowing sequence",
+      "Snap back on mismatched connections",
+      "Light all sequence nodes to wake the core"
+    ],
+    "title": "Lumen Chain",
+    "attempts": 2,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "extract"
+    ],
+    "attemptModels": [
+      "nvidia/nemotron-3-ultra-550b-a55b:free"
+    ],
+    "quotaAffected": true
   }
 ]

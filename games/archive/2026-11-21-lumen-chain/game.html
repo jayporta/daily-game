@@ -1,0 +1,371 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<style>
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: #04110b;
+  overflow: hidden;
+}
+#game {
+  position: fixed;
+  inset: 0;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+</style>
+</head>
+<body>
+<div id="game">
+<canvas id="gameCanvas"></canvas>
+</div>
+<script>
+const game = document.getElementById('game');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+let W = 0;
+let H = 0;
+let DPR = 1;
+
+function resize() {
+  const r = game.getBoundingClientRect();
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = Math.max(1, r.width);
+  H = Math.max(1, r.height);
+  canvas.width = Math.round(W * DPR);
+  canvas.height = Math.round(H * DPR);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+function pointerPos(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+const COLORS = {
+  pink: '#ff5d8f',
+  yellow: '#ffd166',
+  cyan: '#6ee7ff',
+  green: '#7dff8a',
+  orange: '#ff9f43'
+};
+
+let levelIndex = 0;
+let sequence = [];
+let nodes = [];
+let current = { x: 90, y: 0, color: null, lit: true };
+let litCount = 0;
+let state = 'play';
+let drag = { active: false, fromX: 0, fromY: 0, fromColor: null, toX: 0, toY: 0, hover: null };
+
+const LEVELS = [
+  {
+    sequence: ['pink', 'yellow', 'cyan'],
+    nodes: [
+      { x: 0.35, y: 0.35, color: 'pink', lit: false },
+      { x: 0.65, y: 0.30, color: 'yellow', lit: false },
+      { x: 0.65, y: 0.60, color: 'cyan', lit: false },
+      { x: 0.45, y: 0.70, color: 'green', lit: false },
+      { x: 0.25, y: 0.65, color: 'orange', lit: false }
+    ]
+  },
+  {
+    sequence: ['cyan', 'pink', 'yellow'],
+    nodes: [
+      { x: 0.35, y: 0.35, color: 'cyan', lit: false },
+      { x: 0.65, y: 0.30, color: 'pink', lit: false },
+      { x: 0.65, y: 0.60, color: 'yellow', lit: false },
+      { x: 0.45, y: 0.70, color: 'green', lit: false },
+      { x: 0.25, y: 0.65, color: 'orange', lit: false }
+    ]
+  },
+  {
+    sequence: ['yellow', 'cyan', 'pink'],
+    nodes: [
+      { x: 0.35, y: 0.35, color: 'yellow', lit: false },
+      { x: 0.65, y: 0.30, color: 'cyan', lit: false },
+      { x: 0.65, y: 0.60, color: 'pink', lit: false },
+      { x: 0.45, y: 0.70, color: 'green', lit: false },
+      { x: 0.25, y: 0.65, color: 'orange', lit: false }
+    ]
+  }
+];
+
+function startLevel(i) {
+  levelIndex = i;
+  const lvl = LEVELS[i];
+  sequence = lvl.sequence.slice();
+  nodes = lvl.nodes.map(function (n) {
+    return { x: n.x * W, y: n.y * H, color: n.color, lit: false };
+  });
+  litCount = 0;
+  state = 'play';
+  current = { x: W * 0.12, y: H * 0.5, color: null, lit: true };
+  drag = { active: false, fromX: current.x, fromY: current.y, fromColor: null, toX: current.x, toY: current.y, hover: null };
+}
+
+startLevel(0);
+
+function colorValue(c) {
+  if (c === 'pink') return COLORS.pink;
+  if (c === 'yellow') return COLORS.yellow;
+  if (c === 'cyan') return COLORS.cyan;
+  if (c === 'green') return COLORS.green;
+  if (c === 'orange') return COLORS.orange;
+  return '#9be7ff';
+}
+
+function getRequiredColor() {
+  if (state !== 'play') return null;
+  if (litCount < sequence.length) {
+    return sequence[litCount];
+  }
+  return null;
+}
+
+function findHover(pos) {
+  const req = getRequiredColor();
+  if (!req) return null;
+  const rad = Math.max(24, Math.min(40, Math.min(W, H) * 0.06));
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const n = nodes[i];
+    if (n.lit) continue;
+    if (n.color !== req) continue;
+    const dx = pos.x - n.x;
+    const dy = pos.y - n.y;
+    if (dx * dx + dy * dy <= rad * rad) return n;
+  }
+  return null;
+}
+
+canvas.addEventListener('pointerdown', function (e) {
+  if (state === 'win') {
+    startLevel(0);
+    return;
+  }
+  if (state !== 'play') return;
+  e.preventDefault();
+  const pos = pointerPos(e);
+  drag.active = true;
+  drag.fromX = current.x;
+  drag.fromY = current.y;
+  drag.fromColor = current.color;
+  drag.toX = pos.x;
+  drag.toY = pos.y;
+  drag.hover = null;
+});
+
+canvas.addEventListener('pointermove', function (e) {
+  if (!drag.active || state !== 'play') return;
+  const pos = pointerPos(e);
+  drag.toX = pos.x;
+  drag.toY = pos.y;
+  drag.hover = findHover(pos);
+});
+
+canvas.addEventListener('pointerup', function (e) {
+  if (!drag.active || state !== 'play') return;
+  const pos = pointerPos(e);
+  drag.toX = pos.x;
+  drag.toY = pos.y;
+  const hover = findHover(pos);
+  if (hover) {
+    hover.lit = true;
+    litCount++;
+    current = { x: hover.x, y: hover.y, color: hover.color, lit: true };
+    if (litCount >= sequence.length) {
+      state = 'win';
+    }
+  } else {
+    current = { x: drag.fromX, y: drag.fromY, color: drag.fromColor, lit: true };
+  }
+  drag.active = false;
+  drag.hover = null;
+});
+
+canvas.addEventListener('pointercancel', function (e) {
+  if (!drag.active || state !== 'play') return;
+  current = { x: drag.fromX, y: drag.fromY, color: drag.fromColor, lit: true };
+  drag.active = false;
+  drag.hover = null;
+});
+
+function hexA(hex, a) {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+}
+
+function draw() {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#03110b');
+  g.addColorStop(1, '#052018');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i];
+    const col = colorValue(n.color);
+    const rad = Math.max(18, Math.min(42, Math.min(W, H) * 0.08));
+    const glow = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, rad * 2);
+    glow.addColorStop(0, hexA(col, 0.45));
+    glow.addColorStop(1, hexA(col, 0));
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, rad * 2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, rad, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#eafcff';
+    ctx.beginPath();
+    ctx.arc(n.x - rad * 0.3, n.y - rad * 0.3, rad * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+    if (n.lit) {
+      ctx.strokeStyle = hexA(col, 0.9);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, rad + 6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  if (drag.active) {
+    ctx.strokeStyle = hexA('#8ff7ff', 0.7);
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(current.x, current.y);
+    ctx.lineTo(drag.toX, drag.toY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  const emberRad = Math.max(10, Math.min(20, Math.min(W, H) * 0.03));
+  const emberGlow = ctx.createRadialGradient(current.x, current.y, 0, current.x, current.y, emberRad * 3);
+  emberGlow.addColorStop(0, 'rgba(255,255,255,0.9)');
+  emberGlow.addColorStop(1, 'rgba(143,247,255,0)');
+  ctx.fillStyle = emberGlow;
+  ctx.beginPath();
+  ctx.arc(current.x, current.y, emberRad * 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(current.x, current.y, emberRad, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (state === 'play') {
+    const req = getRequiredColor();
+    if (req) {
+      const target = colorValue(req);
+      const rad = Math.max(24, Math.min(40, Math.min(W, H) * 0.06));
+      const pulse = 5 + Math.sin(Date.now() * 0.004) * 2;
+      for (let i = 0; i < nodes.length; i++) {
+        const n = nodes[i];
+        if (n.lit) continue;
+        if (n.color !== req) continue;
+        ctx.strokeStyle = hexA(target, 0.8);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, rad + pulse, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  }
+
+  ctx.fillStyle = 'rgba(220,255,240,0.9)';
+  ctx.font = '16px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const obj = state === 'win' ? 'Core open! The ember has woken the way forward.' : 'Wake the crystal core: light the glowing sequence.';
+  ctx.fillText(obj, W / 2, 12);
+
+  ctx.font = '12px monospace';
+  ctx.fillStyle = 'rgba(180,255,220,0.6)';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('Level ' + (levelIndex + 1) + ' / ' + LEVELS.length, 12, H - 24);
+
+  if (state === 'win') {
+    ctx.fillStyle = 'rgba(2,20,12,0.55)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#eafff5';
+    ctx.font = '28px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Core open!', W / 2, H / 2 - 30);
+    ctx.font = '14px monospace';
+    ctx.fillStyle = 'rgba(220,255,240,0.85)';
+    ctx.fillText('The ember has completed the sequence.', W / 2, H / 2 + 10);
+  }
+}
+
+function loop() {
+  draw();
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-21-lumen-chain";
+  var RELEASE = "f3286dec64b74446bd2f99c65c15d558c7e39f7d";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

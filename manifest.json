@@ -1,26 +1,18 @@
 {
-  "date": "2026-11-20",
-  "slug": "2026-11-20-prism-seed",
-  "path": "games/archive/2026-11-20-prism-seed/game.html",
-  "promptPath": "games/archive/2026-11-20-prism-seed/prompt.txt",
-  "title": "Prism Seed",
-  "genre": "physics-sandbox",
-  "genreLabel": "Physics Sandbox",
-  "model": "dots-studio/dots-3-note-preview:free",
-  "generatedAt": "2026-11-20T20:01:42.785Z",
-  "expiresAt": "2026-11-21T19:00:00.000Z",
+  "date": "2026-11-21",
+  "slug": "2026-11-21-lumen-chain",
+  "path": "games/archive/2026-11-21-lumen-chain/game.html",
+  "promptPath": "games/archive/2026-11-21-lumen-chain/prompt.txt",
+  "title": "Lumen Chain",
+  "genre": "puzzle",
+  "genreLabel": "Puzzle",
+  "model": "recursive/flint-v1.0:free",
+  "generatedAt": "2026-11-21T20:01:36.853Z",
+  "expiresAt": "2026-11-22T19:00:00.000Z",
   "controls": [
     {
-      "action": "Aim",
-      "key": "Click-drag (or touch-drag) from the pris"
-    },
-    {
-      "action": "Fire",
-      "key": "Release the drag"
-    },
-    {
-      "action": "Advance or retry",
-      "key": "Click on the overlay card"
+      "action": "Drag the ember to a glowing node",
+      "key": "Mouse or touch drag"
     }
   ]
 }

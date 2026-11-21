@@ -1,0 +1,16 @@
+{
+  "title": "Lumen Chain",
+  "genre": "puzzle",
+  "theme": "A tiny glowing ember wakes a mossy crystal core",
+  "mechanics": [
+    "Drag the ember along the glowing sequence",
+    "Snap back on mismatched connections",
+    "Light all sequence nodes to wake the core"
+  ],
+  "controls": [
+    {
+      "action": "Drag the ember to a glowing node",
+      "key": "Mouse or touch drag"
+    }
+  ]
+}

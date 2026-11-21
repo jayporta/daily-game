@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-21 — Lumen Chain
+
+- genre: puzzle
+- theme: A tiny glowing ember wakes a mossy crystal core
+- mechanics: Drag the ember along the glowing sequence, Snap back on mismatched connections, Light all sequence nodes to wake the core
+- model: recursive/flint-v1.0:free
+- attempts: 2
+
 ## 2026-11-20 — Prism Seed
 
 - genre: physics-sandbox
@@ -9,9 +17,10 @@ Generated automatically — do not edit by hand.
 - mechanics: Click-drag from the prism to aim a projectile with direction and power, Release to fire a seed along a ballistic arc under gravity, Preview the trajectory with dotted ghost markers before firing, Charge floating crystal targets by seeding them directly, Bounce seeds off crystal walls to reach targets behind cover, Charge every target before running out of seeds, Five hand-authored levels with more targets and tighter seed budgets
 - model: dots-studio/dots-3-note-preview:free
 - attempts: 2
-- reactions: 0
+- reactions: -1
 - likes: 0
-- dislikes: 0
+- dislikes: 1
+- disliked for: gameplay-broken: 1, goal-unclear: 1
 
 ## 2026-11-19 — Lumen Pulse
 
