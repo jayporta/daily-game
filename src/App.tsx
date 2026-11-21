@@ -69,13 +69,19 @@ export function App() {
           <span className="font-display text-xl font-bold">Daily Game</span>
           <MetaText>A new game randomly AI-generated every day</MetaText>
         </div>
-
         <div className="flex items-center gap-2">
           <span className="text-xs text-faint dark:text-slate-500">
             &copy;{__BUILD_YEAR__} Jason Matthew Porta
           </span>
           <GitHubLink />
           <ThemeToggle />
+        </div>
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <MetaText>
+            I built this to experiment with integrating AI APIs and to see what some of the free
+            models available through OpenRouter are capable of when given a single prompt. <br />
+            Use your own API key to see what your paid LLM can do given the same prompt.
+          </MetaText>
         </div>
       </header>
 
