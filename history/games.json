@@ -1650,5 +1650,33 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-11-22",
+    "status": "published",
+    "model": "particle-ai/particle-1:free",
+    "slug": "2026-11-22-lumen-garden",
+    "genre": "puzzle",
+    "theme": "A tiny mote of dawnlight threads a cavern of stone flowers by bouncing off crystal mirrors",
+    "mechanics": [
+      "Rotate crystal mirrors by tapping them",
+      "A continuous light beam reflects off mirrors at 90 degrees",
+      "Light every stone flower on the board to awaken the garden",
+      "Five hand-authored gardens of increasing complexity"
+    ],
+    "title": "Lumen Garden",
+    "attempts": 3,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "extract",
+      "moderation",
+      "generation-failover"
+    ],
+    "attemptModels": [
+      "nvidia/nemotron-3.5-super-vl:free",
+      "baidu/ernie-5.5-flash-preview:free",
+      "inclusionai/ling-3.2-flash:free"
+    ],
+    "quotaAffected": true
   }
 ]

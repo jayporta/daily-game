@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Lumen Garden</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    overflow: hidden; background: #060a12;
+  }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #cfe6ff;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app { position: fixed; inset: 0; display: flex; flex-direction: column; }
+  header { flex: 0 0 auto; padding: 10px 12px 2px; text-align: center; }
+  h1 {
+    margin: 0;
+    font-size: clamp(13px, 3.1vw, 20px);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: #9fe8ff;
+    text-shadow: 0 0 18px rgba(90, 200, 255, 0.55);
+  }
+  #objective {
+    margin: 5px 0 0;
+    font-size: clamp(10px, 2.4vw, 13px);
+    color: #7fa6c8;
+    line-height: 1.35;
+  }
+  #stage { flex: 1 1 auto; position: relative; min-height: 0; }
+  canvas { position: absolute; inset: 0; display: block; touch-action: none; }
+  footer {
+    flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
+    gap: 10px; flex-wrap: wrap;
+    padding: 6px 12px 12px;
+    font-size: clamp(10px, 2.4vw, 13px);
+    color: #8fb8d8;
+  }
+  footer .sep { opacity: 0.35; }
+  button {
+    font: inherit; font-size: clamp(10px, 2.4vw, 13px);
+    padding: 6px 15px;
+    border-radius: 999px;
+    border: 1px solid rgba(120, 220, 255, 0.4);
+    background: rgba(30, 80, 120, 0.35);
+    color: #bfeaff;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  button:hover { background: rgba(50, 120, 170, 0.5); border-color: rgba(150, 235, 255, 0.7); }
+  button:active { transform: translateY(1px); }
+  #overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(4, 8, 16, 0.74);
+    padding: 16px;
+  }
+  #overlay.hidden { display: none; }
+  .panel {
+    text-align: center;
+    padding: 22px 26px;
+    border-radius: 18px;
+    background: rgba(14, 26, 44, 0.94);
+    border: 1px solid rgba(110, 210, 255, 0.35);
+    box-shadow: 0 0 40px rgba(60, 170, 255, 0.25);
+    max-width: 88%;
+  }
+  .panel h2 {
+    margin: 0 0 8px;
+    font-size: clamp(15px, 3.6vw, 22px);
+    color: #a9f0ff;
+    letter-spacing: 0.03em;
+  }
+  .panel p {
+    margin: 0 0 16px;
+    font-size: clamp(11px, 2.6vw, 14px);
+    color: #8fb8d8;
+    line-height: 1.45;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Lumen Garden</h1>
+    <p id="objective">Rotate the crystal mirrors so the light beam wakes every stone flower.</p>
+  </header>
+  <div id="stage">
+    <canvas id="game"></canvas>
+    <div id="overlay" class="hidden">
+      <div class="panel">
+        <h2 id="ovTitle">Garden awakened</h2>
+        <p id="ovText">The beam woke every stone flower.</p>
+        <button id="ovBtn" type="button">Next garden</button>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <span id="levelLabel">Garden 1 / 5</span>
+    <span class="sep">|</span>
+    <span id="flowerLabel">Flowers 0 / 1</span>
+    <span class="sep">|</span>
+    <span>Tap a mirror to rotate</span>
+    <button id="resetBtn" type="button">Reset</button>
+  </footer>
+</div>
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------------------------------------------------------
+     Level data.  Grid characters:
+       '.' empty      '#' stone block     'F' stone flower
+       'E' emitter    '/' mirror slot     '\' mirror slot
+     The character stored in a mirror slot is its STARTING angle.
+  ----------------------------------------------------------------*/
+  var LEVELS = [
+    {
+      name: 'First Light',
+      emit: { x: 0, y: 3, dx: 1, dy: 0 },
+      rows: [
+        '...F...',
+        '.......',
+        '.......',
+        'E..\\...',
+        '.......',
+        '.......',
+        '.......'
+      ]
+    },
+    {
+      name: 'Twin Blooms',
+      emit: { x: 0, y: 1, dx: 1, dy: 0 },
+      rows: [
+        '........',
+        'E.../...',
+        '........',
+        '....F...',
+        'F...\\...',
+        '........',
+        '........',
+        '........'
+      ]
+    },
+    {
+      name: 'Long Arc',
+      emit: { x: 0, y: 0, dx: 1, dy: 0 },
+      rows: [
+        '..../....',
+        '.........',
+        '....F....',
+        '.........',
+        '.\\F.\\....',
+        '.........',
+        '.........',
+        '.F.......',
+        '.........'
+      ]
+    },
+    {
+      name: 'Stone Steps',
+      emit: { x: 0, y: 0, dx: 1, dy: 0 },
+      rows: [
+        'E./.#....',
+        '..F......',
+        '.........',
+        '.........',
+        '..F......',
+        '.\\\\......',
+        '.F.......',
+        '.........',
+        '.........'
+      ]
+    },
+    {
+      name: 'Full Bloom',
+      emit: { x: 0, y: 4, dx: 1, dy: 0 },
+      rows: [
+        '.\\..\\....',
+        '....F....',
+        '.........',
+        '.........',
+        '..F./....',
+        '.........',
+        '.F.......',
+        '.........',
+        '.........'
+      ]
+    }
+  ];
+
+  /* ---------------------------------------------------------------
+     Element handles
+  ----------------------------------------------------------------*/
+  var canvas = document.getElementById('game');
+  var ctx = canvas.getContext('2d');
+  var stage = document.getElementById('stage');
+  var overlay = document.getElementById('overlay');
+  var ovTitle = document.getElementById('ovTitle');
+  var ovText = document.getElementById('ovText');
+  var ovBtn = document.getElementById('ovBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var levelLabel = document.getElementById('levelLabel');
+  var flowerLabel = document.getElementById('flowerLabel');
+
+  /* ---------------------------------------------------------------
+     State
+  ----------------------------------------------------------------*/
+  var current = 0;
+  var cells = [];        // 2D array of chars; mirror slots become 'M'
+  var mirrorState = [];  // 2D array of '/' or '\\' (null for non-mirrors)
+  var lit = {};          // set of "x,y" keys for lit flowers
+  var litCount = 0;
+  var totalFlowers = 0;
+  var beamPts = [];
+  var state = 'playing'; // 'playing' | 'won'
+  var view = { w: 1, h: 1, dpr: 1 };
+  var layout = { ox: 0, oy: 0, cell: 20, cols: 1, rows: 1 };
+
+  /* ---------------------------------------------------------------
+     Level loading & beam simulation
+  ----------------------------------------------------------------*/
+  function loadLevel(index) {
+    current = index;
+    var lv = LEVELS[index];
+    var rows = lv.rows;
+    var h = rows.length;
+    var w = rows[0].length;
+
+    cells = [];
+    mirrorState = [];
+    totalFlowers = 0;
+
+    for (var y = 0; y < h; y++) {
+      var src = rows[y];
+      var rowCells = [];
+      var rowMirrors = [];
+      for (var x = 0; x < w; x++) {
+        var c = src.charAt(x);
+        if (c === '/' || c === '\\') {
+          rowCells.push('M');
+          rowMirrors.push(c);
+        } else {
+          rowCells.push(c);
+          rowMirrors.push(null);
+          if (c === 'F') totalFlowers++;
+        }
+      }
+      cells.push(rowCells);
+      mirrorState.push(rowMirrors);
+    }
+
+    state = 'playing';
+    overlay.classList.add('hidden');
+    computeLayout();
+    recompute();
+  }
+
+  function recompute() {
+    if (!cells.length || !cells[0]) { beamPts = []; lit = {}; litCount = 0; return; }
+
+    var h = cells.length;
+    var w = cells[0].length;
+    var lv = LEVELS[current];
+
+    var x = lv.emit.x;
+    var y = lv.emit.y;
+    var dx = lv.emit.dx;
+    var dy = lv.emit.dy;
+
+    var pts = [{ x: x, y: y }];
+    var found = {};
+    var foundCount = 0;
+    var seen = {};
+    var guard = 0;
+    var finished = false;
+
+    while (guard++ < 900) {
+      var nx = x + dx;
+      var ny = y + dy;
+
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h) {
+        pts.push({ x: nx, y: ny });
+        finished = true;
+        break;
+      }
+      if (cells[ny][nx] === '#') {
+        pts.push({ x: nx, y: ny });
+        finished = true;
+        break;
+      }
+
+      x = nx;
+      y = ny;
+
+      var key = x + ',' + y + ',' + dx + ',' + dy;
+      if (seen[key]) {
+        pts.push({ x: x, y: y });
+        finished = true;
+        break;
+      }
+      seen[key] = true;
+
+      var c = cells[y][x];
+
+      if (c === 'F') {
+        var fk = x + ',' + y;
+        if (!found[fk]) { found[fk] = true; foundCount++; }
+      }
+
+      if (c === 'M') {
+        pts.push({ x: x, y: y });
+        var m = mirrorState[y][x];
+        var ndx, ndy;
+        if (m === '/') { ndx = -dy; ndy = -dx; }
+        else { ndx = dy; ndy = dx; }
+        dx = ndx;
+        dy = ndy;
+      }
+    }
+
+    if (!finished) pts.push({ x: x, y: y });
+
+    beamPts = pts;
+    lit = found;
+    litCount = foundCount;
+
+    updateHud();
+
+    if (state === 'playing' && totalFlowers > 0 && litCount >= totalFlowers) {
+      win();
+    }
+  }
+
+  function updateHud() {
+    levelLabel.textContent = 'Garden ' + (current + 1) + ' / ' + LEVELS.length;
+    flowerLabel.textContent = 'Flowers ' + litCount + ' / ' + totalFlowers;
+  }
+
+  function win() {
+    state = 'won';
+    var isLast = current >= LEVELS.length - 1;
+    if (isLast) {
+      ovTitle.textContent = 'Every garden blooms';
+      ovText.textContent = 'You guided the light through all five gardens. The stone flowers are singing.';
+      ovBtn.textContent = 'Play again';
+    } else {
+      ovTitle.textContent = 'Garden awakened';
+      ovText.textContent = 'The beam woke every stone flower. Another garden waits in the dark.';
+      ovBtn.textContent = 'Next garden';
+    }
+    overlay.classList.remove('hidden');
+  }
+
+  /* ---------------------------------------------------------------
+     Layout & canvas sizing
+  ----------------------------------------------------------------*/
+  function resize() {
+    var rect = stage.getBoundingClientRect();
+    var w = Math.max(1, Math.floor(rect.width));
+    var h = Math.max(1, Math.floor(rect.height));
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+    view.w = w;
+    view.h = h;
+    view.dpr = dpr;
+
+    canvas.width = Math.max(1, Math.floor(w * dpr));
+    canvas.height = Math.max(1, Math.floor(h * dpr));
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    computeLayout();
+  }
+
+  function computeLayout() {
+    if (!cells.length || !cells[0]) {
+      layout = { ox: 0, oy: 0, cell: 20, cols: 1, rows: 1 };
+      return;
+    }
+    var cols = cells[0].length;
+    var rows = cells.length;
+    var pad = 18;
+    var availW = Math.max(20, view.w - pad * 2);
+    var availH = Math.max(20, view.h - pad * 2);
+    var cell = Math.min(availW / cols, availH / rows);
+    if (!isFinite(cell) || cell <= 0) cell = 20;
+    cell = Math.max(10, Math.floor(cell));
+    var gw = cell * cols;
+    var gh = cell * rows;
+    layout = {
+      ox: Math.floor((view.w - gw) / 2),
+      oy: Math.floor((view.h - gh) / 2),
+      cell: cell,
+      cols: cols,
+      rows: rows
+    };
+  }
+
+  /* ---------------------------------------------------------------
+     Drawing helpers
+  ----------------------------------------------------------------*/
+  function roundRect(x, y, w, h, r) {
+    var rr = Math.min(r, w / 2, h / 2);
+    if (rr < 0) rr = 0;
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function strokeBeamPath(pts, cell, ox, oy) {
+    ctx.beginPath();
+    for (var i = 0; i < pts.length; i++) {
+      var px = ox + (pts[i].x + 0.5) * cell;
+      var py = oy + (pts[i].y + 0.5) * cell;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+
+  function drawFlower(cx, cy, cell, isLit, pulse) {
+    var petals = 6;
+    var pr = cell * 0.155;
+    var orbit = cell * 0.235;
+
+    ctx.save();
+    if (isLit) {
+      ctx.shadowColor = 'rgba(255, 216, 120, 0.95)';
+      ctx.shadowBlur = cell * (0.35 + 0.3 * pulse);
+    }
+    for (var i = 0; i < petals; i++) {
+      var a = (i / petals) * Math.PI * 2 + (isLit ? pulse * 0.35 : 0);
+      var px = cx + Math.cos(a) * orbit;
+      var py = cy + Math.sin(a) * orbit;
+      ctx.beginPath();
+      ctx.arc(px, py, pr, 0, Math.PI * 2);
+      ctx.fillStyle = isLit ? 'rgba(255, 212, 128, 0.95)' : 'rgba(66, 88, 116, 0.85)';
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.arc(cx, cy, cell * 0.125, 0, Math.PI * 2);
+    ctx.fillStyle = isLit ? 'rgba(255, 252, 226, 1)' : 'rgba(94, 120, 150, 0.9)';
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawEmitter(cx, cy, cell, pulse) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(120, 230, 255, 0.95)';
+    ctx.shadowBlur = cell * (0.4 + 0.3 * pulse);
+    ctx.beginPath();
+    ctx.arc(cx, cy, cell * 0.185, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(196, 246, 255, 1)';
+    ctx.fill();
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, cell * 0.3, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(120, 220, 255, 0.5)';
+    ctx.lineWidth = Math.max(1, cell * 0.035);
+    ctx.stroke();
+  }
+
+  function drawMirror(cx, cy, cell, m) {
+    var pad = cell * 0.2;
+    var half = cell * 0.5;
+    var x1, y1, x2, y2;
+    if (m === '/') {
+      x1 = cx - half + pad; y1 = cy + half - pad;
+      x2 = cx + half - pad; y2 = cy - half + pad;
+    } else {
+      x1 = cx - half + pad; y1 = cy - half + pad;
+      x2 = cx + half - pad; y2 = cy + half - pad;
+    }
+    ctx.save();
+    ctx.shadowColor = 'rgba(120, 230, 255, 0.85)';
+    ctx.shadowBlur = cell * 0.32;
+    ctx.strokeStyle = 'rgba(158, 238, 255, 0.96)';
+    ctx.lineWidth = Math.max(2, cell * 0.105);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /* ---------------------------------------------------------------
+     Main draw
+  ----------------------------------------------------------------*/
+  function draw() {
+    var now = performance.now();
+    var pulse = 0.5 + 0.5 * Math.sin(now / 380);
+
+    ctx.clearRect(0, 0, view.w, view.h);
+
+    var bg = ctx.createRadialGradient(
+      view.w * 0.5, view.h * 0.42, 0,
+      view.w * 0.5, view.h * 0.42, Math.max(view.w, view.h) * 0.8
+    );
+    bg.addColorStop(0, '#12203a');
+    bg.addColorStop(1, '#060a12');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, view.w, view.h);
+
+    if (!cells.length || !cells[0]) return;
+
+    var ox = layout.ox;
+    var oy = layout.oy;
+    var cell = layout.cell;
+    var cols = layout.cols;
+    var rows = layout.rows;
+    var gw = cols * cell;
+    var gh = rows * cell;
+
+    // board backdrop
+    ctx.save();
+    ctx.shadowColor = 'rgba(70, 180, 255, 0.22)';
+    ctx.shadowBlur = 28;
+    ctx.fillStyle = 'rgba(11, 21, 36, 0.9)';
+    roundRect(ox - 7, oy - 7, gw + 14, gh + 14, 16);
+    ctx.fill();
+    ctx.restore();
+
+    // tiles
+    for (var y = 0; y < rows; y++) {
+      for (var x = 0; x < cols; x++) {
+        var c = cells[y][x];
+        var px = ox + x * cell;
+        var py = oy + y * cell;
+        var rad = Math.max(3, cell * 0.16);
+
+        ctx.fillStyle = 'rgba(26, 42, 66, 0.78)';
+        roundRect(px + 1.5, py + 1.5, cell - 3, cell - 3, rad);
+        ctx.fill();
+
+        if (c === '#') {
+          ctx.fillStyle = 'rgba(48, 68, 98, 0.96)';
+          roundRect(px + 1.5, py + 1.5, cell - 3, cell - 3, rad);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(112, 152, 202, 0.5)';
+          ctx.lineWidth = Math.max(1, cell * 0.035);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // beam (clipped to the board)
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(ox, oy, gw, gh);
+    ctx.clip();
+
+    if (beamPts.length > 1) {
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      ctx.strokeStyle = 'rgba(90, 200, 255, 0.16)';
+      ctx.lineWidth = Math.max(5, cell * 0.44);
+      strokeBeamPath(beamPts, cell, ox, oy);
+
+      ctx.strokeStyle = 'rgba(130, 225, 255, 0.42)';
+      ctx.lineWidth = Math.max(3, cell * 0.21);
+      strokeBeamPath(beamPts, cell, ox, oy);
+
+      ctx.strokeStyle = 'rgba(226, 250, 255, ' + (0.68 + 0.32 * pulse).toFixed(3) + ')';
+      ctx.lineWidth = Math.max(1.5, cell * 0.085);
+      strokeBeamPath(beamPts, cell, ox, oy);
+    }
+    ctx.restore();
+
+    // mirrors, flowers, emitter
+    for (var yy = 0; yy < rows; yy++) {
+      for (var xx = 0; xx < cols; xx++) {
+        var cc = cells[yy][xx];
+        var cx = ox + (xx + 0.5) * cell;
+        var cy = oy + (yy + 0.5) * cell;
+
+        if (cc === 'M') {
+          drawMirror(cx, cy, cell, mirrorState[yy][xx]);
+        } else if (cc === 'F') {
+          drawFlower(cx, cy, cell, !!lit[xx + ',' + yy], pulse);
+        } else if (cc === 'E') {
+          drawEmitter(cx, cy, cell, pulse);
+        }
+      }
+    }
+  }
+
+  function frame() {
+    draw();
+    requestAnimationFrame(frame);
+  }
+
+  /* ---------------------------------------------------------------
+     Input
+  ----------------------------------------------------------------*/
+  function handlePointer(clientX, clientY) {
+    if (state !== 'playing') return;
+    if (!cells.length || !cells[0]) return;
+
+    var rect = canvas.getBoundingClientRect();
+    var mx = clientX - rect.left;
+    var my = clientY - rect.top;
+
+    var gx = Math.floor((mx - layout.ox) / layout.cell);
+    var gy = Math.floor((my - layout.oy) / layout.cell);
+
+    if (gx < 0 || gy < 0 || gy >= cells.length || gx >= cells[0].length) return;
+    if (cells[gy][gx] !== 'M') return;
+
+    mirrorState[gy][gx] = (mirrorState[gy][gx] === '/') ? '\\' : '/';
+    recompute();
+  }
+
+  canvas.addEventListener('pointerdown', function (e) {
+    e.preventDefault();
+    handlePointer(e.clientX, e.clientY);
+  }, { passive: false });
+
+  canvas.addEventListener('touchstart', function (e) {
+    if (e.cancelable) e.preventDefault();
+    if (e.touches && e.touches.length > 0) {
+      handlePointer(e.touches[0].clientX, e.touches[0].clientY);
+    }
+  }, { passive: false });
+
+  resetBtn.addEventListener('click', function () {
+    loadLevel(current);
+  });
+
+  ovBtn.addEventListener('click', function () {
+    var next = current >= LEVELS.length - 1 ? 0 : current + 1;
+    loadLevel(next);
+  });
+
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', function () {
+    setTimeout(resize, 60);
+  });
+
+  if (typeof ResizeObserver !== 'undefined') {
+    try {
+      new ResizeObserver(function () { resize(); }).observe(stage);
+    } catch (err) { /* ignore */ }
+  }
+
+  /* ---------------------------------------------------------------
+     Boot
+  ----------------------------------------------------------------*/
+  loadLevel(0);
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-22-lumen-garden";
+  var RELEASE = "84adee33fab5f293c58546306d83dc0f0b92a9a9";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>

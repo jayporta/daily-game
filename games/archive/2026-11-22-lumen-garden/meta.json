@@ -1,0 +1,21 @@
+{
+  "title": "Lumen Garden",
+  "genre": "puzzle",
+  "theme": "A tiny mote of dawnlight threads a cavern of stone flowers by bouncing off crystal mirrors",
+  "mechanics": [
+    "Rotate crystal mirrors by tapping them",
+    "A continuous light beam reflects off mirrors at 90 degrees",
+    "Light every stone flower on the board to awaken the garden",
+    "Five hand-authored gardens of increasing complexity"
+  ],
+  "controls": [
+    {
+      "action": "Rotate a crystal mirror between its two ",
+      "key": "Click / Tap a mirror tile"
+    },
+    {
+      "action": "Restart the current garden",
+      "key": "Reset button"
+    }
+  ]
+}
