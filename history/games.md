@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Drag the ember along the glowing sequence, Snap back on mismatched connections, Light all sequence nodes to wake the core
 - model: recursive/flint-v1.0:free
 - attempts: 2
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-20 — Prism Seed
 
