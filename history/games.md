@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Rotate crystal mirrors by tapping them, A continuous light beam reflects off mirrors at 90 degrees, Light every stone flower on the board to awaken the garden, Five hand-authored gardens of increasing complexity
 - model: particle-ai/particle-1:free
 - attempts: 3
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-21 — Lumen Chain
 
