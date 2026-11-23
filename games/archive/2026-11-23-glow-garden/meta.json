@@ -1,0 +1,18 @@
+{
+  "title": "Glow Garden",
+  "genre": "growth-sim",
+  "theme": "A tiny seed-creature tends a crystal garden in a deep cavern, nurturing blooms that attract light-moths to charge the heart crystal before dusk fades.",
+  "mechanics": [
+    "Tap empty soil to plant a seed (spends light)",
+    "Tap seeds and sprouts to water them (spends water, speeds growth)",
+    "Blooms generate light over time and send light-moths to the heart crystal",
+    "Tap blooms to harvest them for instant light",
+    "Charge the heart crystal to the target before the dusk timer reaches zero"
+  ],
+  "controls": [
+    {
+      "action": "Tap or click a grid tile",
+      "key": "Mouse click or touch"
+    }
+  ]
+}

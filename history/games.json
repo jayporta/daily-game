@@ -1678,9 +1678,38 @@
       "inclusionai/ling-3.2-flash:free"
     ],
     "quotaAffected": true,
-    "likes": 0,
+    "likes": 1,
     "dislikes": 0,
     "dislikeReasons": {},
-    "popularityScore": 0
+    "popularityScore": 1
+  },
+  {
+    "date": "2026-11-23",
+    "status": "published",
+    "model": "nvidia/nemotron-3.5-super-vl:free",
+    "slug": "2026-11-23-glow-garden",
+    "genre": "growth-sim",
+    "theme": "A tiny seed-creature tends a crystal garden in a deep cavern, nurturing blooms that attract light-moths to charge the heart crystal before dusk fades.",
+    "mechanics": [
+      "Tap empty soil to plant a seed (spends light)",
+      "Tap seeds and sprouts to water them (spends water, speeds growth)",
+      "Blooms generate light over time and send light-moths to the heart crystal",
+      "Tap blooms to harvest them for instant light",
+      "Charge the heart crystal to the target before the dusk timer reaches zero"
+    ],
+    "title": "Glow Garden",
+    "attempts": 4,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "extract",
+      "extract",
+      "extract"
+    ],
+    "attemptModels": [
+      "nvidia/nemotron-3.5-lightning:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "recursive/flint-v1.0:free"
+    ],
+    "quotaAffected": true
   }
 ]

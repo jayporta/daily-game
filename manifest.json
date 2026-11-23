@@ -1,22 +1,18 @@
 {
-  "date": "2026-11-22",
-  "slug": "2026-11-22-lumen-garden",
-  "path": "games/archive/2026-11-22-lumen-garden/game.html",
-  "promptPath": "games/archive/2026-11-22-lumen-garden/prompt.txt",
-  "title": "Lumen Garden",
-  "genre": "puzzle",
-  "genreLabel": "Puzzle",
-  "model": "particle-ai/particle-1:free",
-  "generatedAt": "2026-11-22T20:01:53.249Z",
-  "expiresAt": "2026-11-23T19:00:00.000Z",
+  "date": "2026-11-23",
+  "slug": "2026-11-23-glow-garden",
+  "path": "games/archive/2026-11-23-glow-garden/game.html",
+  "promptPath": "games/archive/2026-11-23-glow-garden/prompt.txt",
+  "title": "Glow Garden",
+  "genre": "growth-sim",
+  "genreLabel": "Growth Simulation",
+  "model": "nvidia/nemotron-3.5-super-vl:free",
+  "generatedAt": "2026-11-23T20:01:33.837Z",
+  "expiresAt": "2026-11-24T19:00:00.000Z",
   "controls": [
     {
-      "action": "Rotate a crystal mirror between its two ",
-      "key": "Click / Tap a mirror tile"
-    },
-    {
-      "action": "Restart the current garden",
-      "key": "Reset button"
+      "action": "Tap or click a grid tile",
+      "key": "Mouse click or touch"
     }
   ]
 }

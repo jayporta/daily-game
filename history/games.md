@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-23 — Glow Garden
+
+- genre: growth-sim
+- theme: A tiny seed-creature tends a crystal garden in a deep cavern, nurturing blooms that attract light-moths to charge the heart crystal before dusk fades.
+- mechanics: Tap empty soil to plant a seed (spends light), Tap seeds and sprouts to water them (spends water, speeds growth), Blooms generate light over time and send light-moths to the heart crystal, Tap blooms to harvest them for instant light, Charge the heart crystal to the target before the dusk timer reaches zero
+- model: nvidia/nemotron-3.5-super-vl:free
+- attempts: 4
+
 ## 2026-11-22 — Lumen Garden
 
 - genre: puzzle
@@ -9,8 +17,8 @@ Generated automatically — do not edit by hand.
 - mechanics: Rotate crystal mirrors by tapping them, A continuous light beam reflects off mirrors at 90 degrees, Light every stone flower on the board to awaken the garden, Five hand-authored gardens of increasing complexity
 - model: particle-ai/particle-1:free
 - attempts: 3
-- reactions: 0
-- likes: 0
+- reactions: 1
+- likes: 1
 - dislikes: 0
 
 ## 2026-11-21 — Lumen Chain
