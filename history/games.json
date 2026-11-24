@@ -1715,5 +1715,23 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-11-24",
+    "status": "published",
+    "model": "baidu/ernie-5.5-flash-preview:free",
+    "slug": "2026-11-24-cloud-orchard",
+    "genre": "tile-matching",
+    "theme": "A tiny cloud-spirit tends a floating orchard, swapping weather tiles to gather glow for a sky lantern.",
+    "mechanics": [
+      "Swap adjacent tiles to match three or more",
+      "Cleared tiles add glow to the sky lantern",
+      "Reach the glow target before moves run out",
+      "Three hand-authored gardens with rising targets"
+    ],
+    "title": "Cloud Orchard",
+    "attempts": 1,
+    "canvasDrawn": true,
+    "quotaAffected": true
   }
 ]

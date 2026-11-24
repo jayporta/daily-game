@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-24 — Cloud Orchard
+
+- genre: tile-matching
+- theme: A tiny cloud-spirit tends a floating orchard, swapping weather tiles to gather glow for a sky lantern.
+- mechanics: Swap adjacent tiles to match three or more, Cleared tiles add glow to the sky lantern, Reach the glow target before moves run out, Three hand-authored gardens with rising targets
+- model: baidu/ernie-5.5-flash-preview:free
+- attempts: 1
+
 ## 2026-11-23 — Glow Garden
 
 - genre: growth-sim

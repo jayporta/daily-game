@@ -1,18 +1,26 @@
 {
-  "date": "2026-11-23",
-  "slug": "2026-11-23-glow-garden",
-  "path": "games/archive/2026-11-23-glow-garden/game.html",
-  "promptPath": "games/archive/2026-11-23-glow-garden/prompt.txt",
-  "title": "Glow Garden",
-  "genre": "growth-sim",
-  "genreLabel": "Growth Simulation",
-  "model": "nvidia/nemotron-3.5-super-vl:free",
-  "generatedAt": "2026-11-23T20:01:33.837Z",
-  "expiresAt": "2026-11-24T19:00:00.000Z",
+  "date": "2026-11-24",
+  "slug": "2026-11-24-cloud-orchard",
+  "path": "games/archive/2026-11-24-cloud-orchard/game.html",
+  "promptPath": "games/archive/2026-11-24-cloud-orchard/prompt.txt",
+  "title": "Cloud Orchard",
+  "genre": "tile-matching",
+  "genreLabel": "Tile Matching",
+  "model": "baidu/ernie-5.5-flash-preview:free",
+  "generatedAt": "2026-11-24T20:01:39.207Z",
+  "expiresAt": "2026-11-25T19:00:00.000Z",
   "controls": [
     {
-      "action": "Tap or click a grid tile",
-      "key": "Mouse click or touch"
+      "action": "Select a tile, then tap an adjacent tile",
+      "key": "Click / tap"
+    },
+    {
+      "action": "Restart the current garden",
+      "key": "R"
+    },
+    {
+      "action": "Advance after winning or retry after los",
+      "key": "Enter"
     }
   ]
 }

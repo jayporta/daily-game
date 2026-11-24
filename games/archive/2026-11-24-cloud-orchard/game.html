@@ -1,0 +1,894 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Cloud Orchard</title>
+<style>
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0b1026;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(() => {
+  'use strict';
+
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  let W = 0;
+  let H = 0;
+  let DPR = 1;
+  let stars = [];
+
+  const COLS = 7;
+  const ROWS = 7;
+
+  const LEVELS = [
+    { name: 'Dewdrop Meadow', target: 30, moves: 15, types: 4 },
+    { name: 'Sunpetal Rise', target: 45, moves: 18, types: 5 },
+    { name: 'Windbell Grove', target: 60, moves: 20, types: 5 }
+  ];
+
+  const TILE_BG = [
+    '#3b2f1f',
+    '#1e3a5f',
+    '#1f3d2b',
+    '#2a3550',
+    '#4a2440'
+  ];
+
+  let levelIndex = 0;
+  let board = [];
+  let selected = null;
+  let moves = 0;
+  let glow = 0;
+  let target = 0;
+  let state = 'playing';
+  let busy = false;
+  let session = 0;
+
+  let flashCells = [];
+  let flashUntil = 0;
+  let floaters = [];
+  let message = '';
+  let messageUntil = 0;
+  let buttons = [];
+
+  let lastTime = 0;
+
+  function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+
+  function initStars() {
+    stars = [];
+    for (let i = 0; i < 70; i++) {
+      stars.push({
+        x: Math.random(),
+        y: Math.random(),
+        r: 0.5 + Math.random() * 1.5,
+        p: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
+  function roundRect(x, y, w, h, r) {
+    r = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function idx(r, c) {
+    return r * COLS + c;
+  }
+
+  function rowOf(i) {
+    return Math.floor(i / COLS);
+  }
+
+  function colOf(i) {
+    return i % COLS;
+  }
+
+  function areAdjacent(i, j) {
+    const r1 = rowOf(i);
+    const c1 = colOf(i);
+    const r2 = rowOf(j);
+    const c2 = colOf(j);
+    return Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1;
+  }
+
+  function swapIdx(b, i, j) {
+    const r1 = rowOf(i);
+    const c1 = colOf(i);
+    const r2 = rowOf(j);
+    const c2 = colOf(j);
+    const tmp = b[r1][c1];
+    b[r1][c1] = b[r2][c2];
+    b[r2][c2] = tmp;
+  }
+
+  function findMatchesOn(b) {
+    const matched = new Set();
+
+    for (let r = 0; r < ROWS; r++) {
+      let runStart = 0;
+      for (let c = 1; c <= COLS; c++) {
+        if (c < COLS && b[r][c] !== null && b[r][c] === b[r][runStart]) {
+          continue;
+        }
+        if (c - runStart >= 3) {
+          for (let k = runStart; k < c; k++) {
+            matched.add(idx(r, k));
+          }
+        }
+        runStart = c;
+      }
+    }
+
+    for (let c = 0; c < COLS; c++) {
+      let runStart = 0;
+      for (let r = 1; r <= ROWS; r++) {
+        if (r < ROWS && b[r][c] !== null && b[r][c] === b[runStart][c]) {
+          continue;
+        }
+        if (r - runStart >= 3) {
+          for (let k = runStart; k < r; k++) {
+            matched.add(idx(k, c));
+          }
+        }
+        runStart = r;
+      }
+    }
+
+    return matched;
+  }
+
+  function hasPossibleMove(b, types) {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const i = idx(r, c);
+        if (c + 1 < COLS) {
+          const j = idx(r, c + 1);
+          swapIdx(b, i, j);
+          const found = findMatchesOn(b).size > 0;
+          swapIdx(b, i, j);
+          if (found) return true;
+        }
+        if (r + 1 < ROWS) {
+          const j = idx(r + 1, c);
+          swapIdx(b, i, j);
+          const found = findMatchesOn(b).size > 0;
+          swapIdx(b, i, j);
+          if (found) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function makeBoard(types) {
+    let b;
+    let attempts = 0;
+
+    do {
+      b = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const choices = [];
+          for (let t = 0; t < types; t++) {
+            if (c >= 2 && b[r][c - 1] === t && b[r][c - 2] === t) continue;
+            if (r >= 2 && b[r - 1][c] === t && b[r - 2][c] === t) continue;
+            choices.push(t);
+          }
+          b[r][c] = choices[Math.floor(Math.random() * choices.length)];
+        }
+      }
+
+      attempts++;
+    } while (!hasPossibleMove(b, types) && attempts < 200);
+
+    return b;
+  }
+
+  function startLevel(i) {
+    session++;
+    levelIndex = i;
+    const L = LEVELS[levelIndex];
+    target = L.target;
+    moves = L.moves;
+    glow = 0;
+    state = 'playing';
+    busy = false;
+    selected = null;
+    board = makeBoard(L.types);
+    flashCells = [];
+    flashUntil = 0;
+    floaters = [];
+    message = '';
+    messageUntil = 0;
+    buttons = [];
+  }
+
+  function addFloater(count, matches) {
+    floaters.push({
+      text: '+' + count,
+      cells: Array.from(matches),
+      t: 0
+    });
+  }
+
+  function collapseAndRefill() {
+    const types = LEVELS[levelIndex].types;
+
+    for (let c = 0; c < COLS; c++) {
+      let write = ROWS - 1;
+
+      for (let r = ROWS - 1; r >= 0; r--) {
+        if (board[r][c] !== null) {
+          board[write][c] = board[r][c];
+          if (write !== r) {
+            board[r][c] = null;
+          }
+          write--;
+        }
+      }
+
+      for (let r = write; r >= 0; r--) {
+        board[r][c] = Math.floor(Math.random() * types);
+      }
+    }
+  }
+
+  function checkEnd() {
+    if (state !== 'playing') return;
+
+    if (glow >= target) {
+      state = 'won';
+      message = '';
+      messageUntil = 0;
+    } else if (moves <= 0) {
+      state = 'lost';
+      message = '';
+      messageUntil = 0;
+    }
+  }
+
+  function resolveMatches(matches, chain, token) {
+    if (token !== session) return;
+
+    flashCells = Array.from(matches);
+    flashUntil = performance.now() + 180;
+
+    setTimeout(() => {
+      if (token !== session) return;
+
+      let count = 0;
+      for (const i of matches) {
+        const r = rowOf(i);
+        const c = colOf(i);
+        if (board[r][c] !== null) {
+          board[r][c] = null;
+          count++;
+        }
+      }
+
+      glow += count;
+      addFloater(count, matches);
+      flashCells = [];
+      collapseAndRefill();
+
+      const next = findMatchesOn(board);
+
+      if (next.size > 0) {
+        resolveMatches(next, chain + 1, token);
+      } else {
+        if (!hasPossibleMove(board, LEVELS[levelIndex].types)) {
+          board = makeBoard(LEVELS[levelIndex].types);
+          message = 'The garden reshuffles...';
+          messageUntil = performance.now() + 1500;
+        }
+
+        busy = false;
+        checkEnd();
+      }
+    }, 180);
+  }
+
+  function trySwap(i, j) {
+    if (state !== 'playing' || busy) return;
+    if (!areAdjacent(i, j)) {
+      selected = j;
+      return;
+    }
+
+    busy = true;
+    selected = null;
+    const token = session;
+    swapIdx(board, i, j);
+
+    const matches = findMatchesOn(board);
+
+    if (matches.size === 0) {
+      message = 'No match — try another swap';
+      messageUntil = performance.now() + 1200;
+
+      setTimeout(() => {
+        if (token !== session) return;
+        swapIdx(board, i, j);
+        busy = false;
+      }, 180);
+    } else {
+      moves--;
+      resolveMatches(matches, 1, token);
+    }
+  }
+
+  function cellAt(x, y) {
+    const L = getLayout();
+    if (x < L.x || y < L.y || x >= L.x + L.size || y >= L.y + L.size) {
+      return null;
+    }
+
+    const c = Math.floor((x - L.x) / L.tile);
+    const r = Math.floor((y - L.y) / L.tile);
+
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return null;
+    return idx(r, c);
+  }
+
+  function getLayout() {
+    const margin = Math.max(6, Math.min(18, Math.min(W, H) * 0.02));
+    const topH = Math.max(56, Math.min(150, H * 0.16));
+    const bottomH = Math.max(48, Math.min(120, H * 0.13));
+    const availW = W - margin * 2;
+    const availH = H - topH - bottomH - margin * 2;
+    const size = Math.max(1, Math.min(availW, availH));
+    const tile = size / COLS;
+    const x = (W - size) / 2;
+    const y = topH + (H - topH - bottomH - size) / 2;
+
+    return { x, y, size, tile, topH, bottomH, margin };
+  }
+
+  function drawCloud(x, y, s, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = '#cbd5e1';
+
+    ctx.beginPath();
+    ctx.arc(x, y, s * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x + s * 0.55, y - s * 0.1, s * 0.65, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(x + s * 1.1, y, s * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawSymbol(type, cx, cy, s) {
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    if (type === 0) {
+      ctx.fillStyle = '#ffd166';
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#ffd166';
+      ctx.lineWidth = Math.max(1, s * 0.12);
+      ctx.lineCap = 'round';
+
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * s * 0.75, Math.sin(a) * s * 0.75);
+        ctx.lineTo(Math.cos(a) * s * 1.05, Math.sin(a) * s * 1.05);
+        ctx.stroke();
+      }
+    } else if (type === 1) {
+      ctx.fillStyle = '#7dd3fc';
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 1.0);
+      ctx.bezierCurveTo(s * 0.75, -s * 0.1, s * 0.7, s * 0.7, 0, s * 0.9);
+      ctx.bezierCurveTo(-s * 0.7, s * 0.7, -s * 0.75, -s * 0.1, 0, -s * 1.0);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath();
+      ctx.ellipse(-s * 0.2, s * 0.1, s * 0.12, s * 0.25, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (type === 2) {
+      ctx.rotate(-0.6);
+      ctx.fillStyle = '#86efac';
+      ctx.beginPath();
+      ctx.ellipse(0, 0, s * 0.55, s * 0.95, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#166534';
+      ctx.lineWidth = Math.max(1, s * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(0, -s * 0.8);
+      ctx.lineTo(0, s * 0.8);
+      ctx.stroke();
+    } else if (type === 3) {
+      ctx.strokeStyle = '#e0f2fe';
+      ctx.lineWidth = Math.max(1.5, s * 0.14);
+      ctx.lineCap = 'round';
+
+      ctx.beginPath();
+      ctx.arc(-s * 0.1, 0, s * 0.55, Math.PI * 0.2, Math.PI * 1.7);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(s * 0.35, s * 0.35, s * 0.25, Math.PI * 0.2, Math.PI * 1.8);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(-s * 0.8, -s * 0.35);
+      ctx.lineTo(s * 0.1, -s * 0.35);
+      ctx.stroke();
+    } else if (type === 4) {
+      ctx.fillStyle = '#f9a8d4';
+
+      for (let i = 0; i < 5; i++) {
+        const a = i * Math.PI * 2 / 5 - Math.PI / 2;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * s * 0.5, Math.sin(a) * s * 0.5, s * 0.38, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.fillStyle = '#fde68a';
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  function drawButton(x, y, w, h, label, action) {
+    ctx.fillStyle = '#fbbf24';
+    roundRect(x, y, w, h, Math.min(14, h / 2));
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#1f2937';
+    ctx.font = '800 ' + Math.max(12, Math.min(18, h * 0.42)) + 'px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, x + w / 2, y + h / 2 + 1);
+
+    buttons.push({ x, y, w, h, action });
+  }
+
+  function drawOverlay() {
+    ctx.fillStyle = 'rgba(3,7,18,0.72)';
+    ctx.fillRect(0, 0, W, H);
+
+    const pw = Math.min(W * 0.82, 440);
+    const ph = Math.min(H * 0.52, 280);
+    const px = (W - pw) / 2;
+    const py = (H - ph) / 2;
+
+    ctx.fillStyle = 'rgba(15,23,42,0.96)';
+    roundRect(px, py, pw, ph, 22);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(253,230,138,0.5)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    const fs = Math.max(14, Math.min(24, Math.min(W, H) * 0.035));
+    const overlayState = state;
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = '#fef3c7';
+    ctx.font = '800 ' + (fs * 1.2) + 'px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.fillText(state === 'won' ? 'Garden Aglow!' : 'The Lantern Dims', W / 2, py + ph * 0.25);
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '600 ' + (fs * 0.9) + 'px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.fillText(state === 'won' ? glow + ' glow gathered' : glow + ' / ' + target + ' glow', W / 2, py + ph * 0.42);
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '500 ' + (fs * 0.8) + 'px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    const sub = state === 'won'
+      ? (levelIndex < LEVELS.length - 1 ? 'The next garden is waiting.' : 'Every garden is aglow.')
+      : 'Every match adds glow. Try again.';
+    ctx.fillText(sub, W / 2, py + ph * 0.55);
+
+    const bw = Math.min(240, pw * 0.65);
+    const bh = Math.max(42, fs * 2.2);
+    const bx = W / 2 - bw / 2;
+    const by = py + ph * 0.68;
+    const label = state === 'won'
+      ? (levelIndex < LEVELS.length - 1 ? 'Next Garden' : 'Play Again')
+      : 'Try Again';
+
+    drawButton(bx, by, bw, bh, label, () => {
+      if (state !== overlayState) return;
+
+      if (state === 'won') {
+        if (levelIndex < LEVELS.length - 1) {
+          startLevel(levelIndex + 1);
+        } else {
+          startLevel(0);
+        }
+      } else {
+        startLevel(levelIndex);
+      }
+    });
+  }
+
+  function draw(now) {
+    buttons = [];
+
+    const bg = ctx.createLinearGradient(0, 0, 0, H);
+    bg.addColorStop(0, '#0b1026');
+    bg.addColorStop(0.5, '#1b2a4a');
+    bg.addColorStop(1, '#2d1b3d');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    for (const s of stars) {
+      const a = 0.25 + 0.25 * Math.sin(now * 0.001 + s.p);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#dbeafe';
+      ctx.beginPath();
+      ctx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    drawCloud(W * 0.12 + Math.sin(now * 0.00015) * 20, H * 0.22, Math.min(W, H) * 0.09, 0.06);
+    drawCloud(W * 0.78 + Math.sin(now * 0.00012 + 2) * 25, H * 0.16, Math.min(W, H) * 0.12, 0.05);
+    drawCloud(W * 0.55 + Math.sin(now * 0.0001 + 4) * 30, H * 0.82, Math.min(W, H) * 0.1, 0.045);
+
+    const L = getLayout();
+    const fs = Math.max(11, Math.min(22, Math.min(W, H) * 0.028));
+
+    const topY = L.margin;
+    const topW = W - L.margin * 2;
+    const topPanelH = L.topH - L.margin;
+
+    ctx.fillStyle = 'rgba(8,15,32,0.62)';
+    roundRect(L.margin, topY, topW, topPanelH, 16);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    ctx.fillStyle = '#fef3c7';
+    ctx.font = '800 ' + (fs * 1.1) + 'px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.fillText('CLOUD ORCHARD', L.margin + 16, topY + fs * 1.2 + 8);
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '600 ' + (fs * 0.8) + 'px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('Garden ' + (levelIndex + 1) + '/' + LEVELS.length + ' · ' + LEVELS[levelIndex].name, L.margin + topW - 16, topY + fs * 1.2 + 8);
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '600 ' + (fs * 0.9) + 'px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.fillText('Fill the sky lantern: ' + glow + ' / ' + target + ' glow', L.margin + 16, topY + fs * 2.3 + 8);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fde68a';
+    ctx.font = '700 ' + fs + 'px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+    ctx.fillText('Moves ' + moves, L.margin + topW - 16, topY + fs * 2.3 + 8);
+
+    const barX = L.margin + 16;
+    const barY = topY + fs * 3.0 + 8;
+    const barW = topW - 32;
+    const barH = Math.max(6, fs * 0.45);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    roundRect(barX, barY, barW, barH, barH / 2);
+    ctx.fill();
+
+    const progress = Math.min(1, glow / target);
+    if (progress > 0) {
+      ctx.fillStyle = '#fbbf24';
+      roundRect(barX, barY, Math.max(barH, barW * progress), barH, barH / 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = 'rgba(8,15,32,0.55)';
+    roundRect(L.x - 8, L.y - 8, L.size + 16, L.size + 16, 18);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const i = idx(r, c);
+        const type = board[r][c];
+        const x = L.x + c * L.tile;
+        const y = L.y + r * L.tile;
+        const pad = L.tile * 0.06;
+        const ts = L.tile - pad * 2;
+
+        if (ts <= 0) continue;
+
+        const tx = x + pad;
+        const ty = y + pad;
+
+        if (type === null) {
+          ctx.fillStyle = 'rgba(255,255,255,0.04)';
+          roundRect(tx, ty, ts, ts, ts * 0.18);
+          ctx.fill();
+          continue;
+        }
+
+        ctx.fillStyle = TILE_BG[type] || '#222';
+        roundRect(tx, ty, ts, ts, ts * 0.18);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        drawSymbol(type, tx + ts / 2, ty + ts / 2, ts * 0.3);
+
+        if (selected === i) {
+          const pulse = 0.5 + 0.5 * Math.sin(now * 0.008);
+          ctx.strokeStyle = 'rgba(253,230,138,' + (0.6 + 0.4 * pulse) + ')';
+          ctx.lineWidth = Math.max(2, L.tile * 0.06);
+          roundRect(tx - 2, ty - 2, ts + 4, ts + 4, ts * 0.2);
+          ctx.stroke();
+        }
+
+        if (now < flashUntil && flashCells.indexOf(i) !== -1) {
+          ctx.fillStyle = 'rgba(255,255,255,0.55)';
+          roundRect(tx, ty, ts, ts, ts * 0.18);
+          ctx.fill();
+        }
+      }
+    }
+
+    for (const f of floaters) {
+      const alpha = Math.max(0, 1 - f.t / 1.2);
+      let sx = 0;
+      let sy = 0;
+      let n = 0;
+
+      for (const i of f.cells) {
+        const r = rowOf(i);
+        const c = colOf(i);
+        sx += L.x + (c + 0.5) * L.tile;
+        sy += L.y + (r + 0.5) * L.tile;
+        n++;
+      }
+
+      if (n > 0) {
+        sx /= n;
+        sy /= n;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = '#fde68a';
+        ctx.font = '800 ' + Math.max(14, L.tile * 0.35) + 'px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(f.text, sx, sy - f.t * 30);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    if (message && now < messageUntil) {
+      ctx.globalAlpha = Math.min(1, (messageUntil - now) / 300);
+      ctx.fillStyle = '#fef3c7';
+      ctx.font = '700 ' + fs + 'px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(message, W / 2, L.y - fs * 0.8);
+      ctx.globalAlpha = 1;
+    }
+
+    if (state === 'playing') {
+      const by = H - L.bottomH + L.margin;
+      const bh = L.bottomH - L.margin * 2;
+
+      ctx.fillStyle = 'rgba(8,15,32,0.55)';
+      roundRect(L.margin, by, W - L.margin * 2, bh, 14);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '600 ' + (fs * 0.85) + 'px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Tap two neighbors to swap · Match 3+', L.margin + 16, by + bh / 2);
+
+      const bw = Math.min(110, W * 0.28);
+      const bh2 = Math.min(38, bh * 0.7);
+      const bx = W - L.margin - bw - 10;
+      const byy = by + (bh - bh2) / 2;
+
+      drawButton(bx, byy, bw, bh2, 'Restart', () => {
+        startLevel(levelIndex);
+      });
+    }
+
+    if (state === 'won' || state === 'lost') {
+      drawOverlay();
+    }
+  }
+
+  function update(dt) {
+    for (let i = floaters.length - 1; i >= 0; i--) {
+      floaters[i].t += dt;
+      if (floaters[i].t > 1.2) {
+        floaters.splice(i, 1);
+      }
+    }
+  }
+
+  function loop(now) {
+    if (!lastTime) lastTime = now;
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+
+    update(dt);
+    draw(now);
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    for (const b of buttons) {
+      if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
+        b.action();
+        return;
+      }
+    }
+
+    if (state !== 'playing' || busy) return;
+
+    const cell = cellAt(x, y);
+
+    if (cell === null) {
+      selected = null;
+      return;
+    }
+
+    if (selected === null) {
+      selected = cell;
+      return;
+    }
+
+    if (selected === cell) {
+      selected = null;
+      return;
+    }
+
+    if (areAdjacent(selected, cell)) {
+      trySwap(selected, cell);
+    } else {
+      selected = cell;
+    }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'r' || e.key === 'R') {
+      startLevel(levelIndex);
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      if (state === 'won') {
+        if (levelIndex < LEVELS.length - 1) {
+          startLevel(levelIndex + 1);
+        } else {
+          startLevel(0);
+        }
+      } else if (state === 'lost') {
+        startLevel(levelIndex);
+      }
+    }
+  });
+
+  window.addEventListener('resize', resize);
+
+  resize();
+  initStars();
+  startLevel(0);
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-24-cloud-orchard";
+  var RELEASE = "b8dd8d9c7035423c74891a03365a40f77628d70b";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
