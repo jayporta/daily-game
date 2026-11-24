@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Tap empty soil to plant a seed (spends light), Tap seeds and sprouts to water them (spends water, speeds growth), Blooms generate light over time and send light-moths to the heart crystal, Tap blooms to harvest them for instant light, Charge the heart crystal to the target before the dusk timer reaches zero
 - model: nvidia/nemotron-3.5-super-vl:free
 - attempts: 4
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-22 — Lumen Garden
 
