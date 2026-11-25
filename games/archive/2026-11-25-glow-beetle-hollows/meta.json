@@ -1,0 +1,43 @@
+{
+  "title": "Glow-Beetle Hollows",
+  "genre": "maze-adventure",
+  "theme": "A tiny lantern-backed beetle threads mossy root hollows, gathering fallen glow-seeds to wake the burrow doors.",
+  "mechanics": [
+    "Move one cell at a time through a hand-authored maze",
+    "Collect every glow-seed in the hollow",
+    "The burrow door stays sealed until all seeds are gathered",
+    "Bumping walls gives a small physical nudge feedback",
+    "Four hand-authored hollows of rising size and seed count",
+    "Move counter tracked per hollow and across the whole run"
+  ],
+  "controls": [
+    {
+      "action": "Move the beetle up",
+      "key": "ArrowUp / W"
+    },
+    {
+      "action": "Move the beetle down",
+      "key": "ArrowDown / S"
+    },
+    {
+      "action": "Move the beetle left",
+      "key": "ArrowLeft / A"
+    },
+    {
+      "action": "Move the beetle right",
+      "key": "ArrowRight / D"
+    },
+    {
+      "action": "Move by swiping or tapping a neighbourin",
+      "key": "Swipe / Tap on the canvas"
+    },
+    {
+      "action": "Restart the run",
+      "key": "R"
+    },
+    {
+      "action": "Restart after the final hollow",
+      "key": "Enter / Space / Tap"
+    }
+  ]
+}

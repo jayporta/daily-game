@@ -1,26 +1,42 @@
 {
-  "date": "2026-11-24",
-  "slug": "2026-11-24-cloud-orchard",
-  "path": "games/archive/2026-11-24-cloud-orchard/game.html",
-  "promptPath": "games/archive/2026-11-24-cloud-orchard/prompt.txt",
-  "title": "Cloud Orchard",
-  "genre": "tile-matching",
-  "genreLabel": "Tile Matching",
-  "model": "baidu/ernie-5.5-flash-preview:free",
-  "generatedAt": "2026-11-24T20:01:39.207Z",
-  "expiresAt": "2026-11-25T19:00:00.000Z",
+  "date": "2026-11-25",
+  "slug": "2026-11-25-glow-beetle-hollows",
+  "path": "games/archive/2026-11-25-glow-beetle-hollows/game.html",
+  "promptPath": "games/archive/2026-11-25-glow-beetle-hollows/prompt.txt",
+  "title": "Glow-Beetle Hollows",
+  "genre": "maze-adventure",
+  "genreLabel": "Maze Adventure",
+  "model": "particle-ai/particle-1:free",
+  "generatedAt": "2026-11-25T20:01:38.951Z",
+  "expiresAt": "2026-11-26T19:00:00.000Z",
   "controls": [
     {
-      "action": "Select a tile, then tap an adjacent tile",
-      "key": "Click / tap"
+      "action": "Move the beetle up",
+      "key": "ArrowUp / W"
     },
     {
-      "action": "Restart the current garden",
+      "action": "Move the beetle down",
+      "key": "ArrowDown / S"
+    },
+    {
+      "action": "Move the beetle left",
+      "key": "ArrowLeft / A"
+    },
+    {
+      "action": "Move the beetle right",
+      "key": "ArrowRight / D"
+    },
+    {
+      "action": "Move by swiping or tapping a neighbourin",
+      "key": "Swipe / Tap on the canvas"
+    },
+    {
+      "action": "Restart the run",
       "key": "R"
     },
     {
-      "action": "Advance after winning or retry after los",
-      "key": "Enter"
+      "action": "Restart after the final hollow",
+      "key": "Enter / Space / Tap"
     }
   ]
 }

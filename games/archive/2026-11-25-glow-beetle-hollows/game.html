@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src https://o4512003238199296.ingest.us.sentry.io">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Glow-Beetle Hollows</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #050806;
+  }
+  #wrap {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="c"></canvas></div>
+<script>
+(function () {
+  'use strict';
+
+  /* ------------------------------------------------------------------ *
+   *  Levels — hand authored.  '#' wall, '.' floor, 'S' start,
+   *  'o' glow-seed, 'E' burrow door.
+   * ------------------------------------------------------------------ */
+  var LEVELS = [
+    {
+      name: 'Mossy Threshold',
+      rows: [
+        '#########',
+        '#S......#',
+        '#.#####.#',
+        '#...#...#',
+        '###.#.#.#',
+        '#o..#o.E#',
+        '#########'
+      ]
+    },
+    {
+      name: 'Fern Knot',
+      rows: [
+        '###########',
+        '#S...#....#',
+        '#.##.#.##.#',
+        '#.#..#.o#.#',
+        '#.#.##.##.#',
+        '#...#o.#..#',
+        '#.###.##..#',
+        '#o.......E#',
+        '###########'
+      ]
+    },
+    {
+      name: 'Rootweave Deep',
+      rows: [
+        '#############',
+        '#S.o#.......#',
+        '#.#.#.#####.#',
+        '#.#...#...#.#',
+        '#.###.#.#.#.#',
+        '#...#o#.#...#',
+        '#.#.#.#.###.#',
+        '#o#...#..o.E#',
+        '#############'
+      ]
+    },
+    {
+      name: 'The Long Burrow',
+      rows: [
+        '###############',
+        '#S.o..#.......#',
+        '#.###.#.#####.#',
+        '#...#...#..o#.#',
+        '#.#.#.###.#.#.#',
+        '#.#...#..o#...#',
+        '#.#####.#.###.#',
+        '#....o..#...#.#',
+        '#.#####.###.#.#',
+        '#o...........E#',
+        '###############'
+      ]
+    }
+  ];
+
+  /* ------------------------------------------------------------------ *
+   *  Canvas / sizing
+   * ------------------------------------------------------------------ */
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var W = 0, H = 0, DPR = 1;
+  var layout = { cell: 0, ox: 0, oy: 0, hudH: 0 };
+  var mazeCanvas = null;
+
+  /* ------------------------------------------------------------------ *
+   *  Game state
+   * ------------------------------------------------------------------ */
+  var game = {
+    levelIndex: 0,
+    cols: 0,
+    rows: 0,
+    grid: [],
+    px: 0, py: 0,
+    rx: 0, ry: 0,
+    angle: 0,
+    seedsLeft: 0,
+    seedsTotal: 0,
+    moves: 0,
+    totalMoves: 0,
+    phase: 'play',       /* play | clear | done */
+    timer: 0,
+    shake: 0,
+    shx: 0,
+    shy: 0,
+    particles: [],
+    unlockPulse: 0,
+    lockedFlash: 0,
+    exitX: 0,
+    exitY: 0
+  };
+
+  /* ------------------------------------------------------------------ *
+   *  Background motes
+   * ------------------------------------------------------------------ */
+  var motes = [];
+  (function makeMotes() {
+    for (var i = 0; i < 28; i++) {
+      motes.push({
+        x: Math.random(),
+        y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.010,
+        vy: -0.004 - Math.random() * 0.012,
+        r: 0.6 + Math.random() * 1.6,
+        p: 0.6 + Math.random() * 1.4,
+        ph: Math.random() * Math.PI * 2
+      });
+    }
+  })();
+
+  /* ------------------------------------------------------------------ *
+   *  Helpers
+   * ------------------------------------------------------------------ */
+  function hash(x, y) {
+    var h = (x | 0) * 374761393 + (y | 0) * 668265263;
+    h = (h ^ (h >>> 13)) * 1274126177;
+    h = h ^ (h >>> 16);
+    return ((h >>> 0) % 100000) / 100000;
+  }
+
+  function roundRectPath(c, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    if (r < 0.5) r = 0.5;
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.lineTo(x + w - r, y);
+    c.arcTo(x + w, y, x + w, y + r, r);
+    c.lineTo(x + w, y + h - r);
+    c.arcTo(x + w, y + h, x + w - r, y + h, r);
+    c.lineTo(x + r, y + h);
+    c.arcTo(x, y + h, x, y + h - r, r);
+    c.lineTo(x, y + r);
+    c.arcTo(x, y, x + r, y, r);
+    c.closePath();
+  }
+
+  function fontString(weight, size) {
+    return weight + ' ' + Math.round(size) + 'px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Layout
+   * ------------------------------------------------------------------ */
+  function computeLayout() {
+    var cols = game.cols || 9;
+    var rows = game.rows || 7;
+
+    var hudH = Math.max(34, Math.min(60, H * 0.085));
+    var padX = Math.max(8, Math.min(28, W * 0.04));
+    var padTop = Math.max(4, H * 0.015);
+    var padBot = Math.max(8, H * 0.03);
+
+    var availW = Math.max(40, W - padX * 2);
+    var availH = Math.max(40, H - hudH - padTop - padBot);
+
+    var cell = Math.min(availW / cols, availH / rows);
+    if (!isFinite(cell) || cell < 8) cell = 8;
+
+    layout.cell = cell;
+    layout.hudH = hudH;
+    layout.ox = (W - cell * cols) / 2;
+    layout.oy = hudH + padTop + (availH - cell * rows) / 2;
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Static maze pre-render
+   * ------------------------------------------------------------------ */
+  function buildMazeCanvas() {
+    if (!game.grid || !game.grid.length || !layout.cell) return;
+
+    var cell = layout.cell;
+    var w = game.cols * cell;
+    var h = game.rows * cell;
+    if (w < 1 || h < 1) return;
+
+    var cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round(w * DPR));
+    cv.height = Math.max(1, Math.round(h * DPR));
+    var g = cv.getContext('2d');
+    g.setTransform(DPR, 0, 0, DPR, 0, 0);
+    g.clearRect(0, 0, w, h);
+
+    var x, y, i, px, py;
+
+    /* floors */
+    for (y = 0; y < game.rows; y++) {
+      for (x = 0; x < game.cols; x++) {
+        if (game.grid[y][x] === '#') continue;
+        px = x * cell;
+        py = y * cell;
+
+        g.fillStyle = '#101b15';
+        g.fillRect(px, py, cell, cell);
+
+        g.fillStyle = 'rgba(70,120,90,0.045)';
+        g.fillRect(px + cell * 0.5, py + cell * 0.5, cell * 0.5, cell * 0.5);
+
+        for (i = 0; i < 3; i++) {
+          var r1 = hash(x * 7 + i * 13, y * 11 + i * 5);
+          var r2 = hash(x * 3 + i * 29, y * 17 + i * 7);
+          var r3 = hash(x * 19 + i, y * 23 + i * 3);
+          g.fillStyle = 'rgba(130,200,150,' + (0.035 + r3 * 0.055).toFixed(3) + ')';
+          g.beginPath();
+          g.arc(px + r1 * cell, py + r2 * cell,
+                Math.max(0.6, cell * 0.018 + r3 * cell * 0.022), 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+    }
+
+    /* walls */
+    for (y = 0; y < game.rows; y++) {
+      for (x = 0; x < game.cols; x++) {
+        if (game.grid[y][x] !== '#') continue;
+        px = x * cell;
+        py = y * cell;
+
+        var grad = g.createLinearGradient(px, py, px, py + cell);
+        grad.addColorStop(0, '#2d4834');
+        grad.addColorStop(0.52, '#20362a');
+        grad.addColorStop(1, '#15231b');
+
+        g.fillStyle = grad;
+        roundRectPath(g, px + cell * 0.03, py + cell * 0.03,
+                      cell * 0.94, cell * 0.94, Math.max(2, cell * 0.18));
+        g.fill();
+
+        g.fillStyle = 'rgba(140,210,160,0.13)';
+        roundRectPath(g, px + cell * 0.14, py + cell * 0.10,
+                      cell * 0.72, Math.max(1, cell * 0.085),
+                      Math.max(1, cell * 0.04));
+        g.fill();
+
+        var rr = hash(x * 31 + 7, y * 37 + 3);
+        if (rr > 0.52) {
+          g.fillStyle = 'rgba(115,195,135,0.15)';
+          g.beginPath();
+          g.arc(px + cell * (0.30 + rr * 0.40),
+                py + cell * (0.45 + hash(x + 5, y + 9) * 0.35),
+                Math.max(1, cell * 0.065), 0, Math.PI * 2);
+          g.fill();
+        }
+      }
+    }
+
+    mazeCanvas = cv;
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Level loading
+   * ------------------------------------------------------------------ */
+  function loadLevel(index) {
+    var L = LEVELS[index];
+    game.levelIndex = index;
+    game.rows = L.rows.length;
+    game.cols = L.rows[0].length;
+    game.grid = [];
+    game.seedsLeft = 0;
+    game.exitX = 0;
+    game.exitY = 0;
+
+    for (var y = 0; y < game.rows; y++) {
+      var row = [];
+      for (var x = 0; x < game.cols; x++) {
+        var ch = L.rows[y].charAt(x) || '#';
+        if (ch === 'S') {
+          game.px = x;
+          game.py = y;
+          ch = '.';
+        }
+        if (ch === 'o') game.seedsLeft++;
+        if (ch === 'E') {
+          game.exitX = x;
+          game.exitY = y;
+        }
+        row.push(ch);
+      }
+      game.grid.push(row);
+    }
+
+    game.seedsTotal = game.seedsLeft;
+    game.rx = game.px;
+    game.ry = game.py;
+    game.angle = 0;
+    game.moves = 0;
+    game.phase = 'play';
+    game.timer = 0;
+    game.particles.length = 0;
+    game.shake = 0;
+    game.shx = 0;
+    game.shy = 0;
+    game.unlockPulse = 0;
+    game.lockedFlash = 0;
+
+    computeLayout();
+    buildMazeCanvas();
+  }
+
+  function restart() {
+    game.totalMoves = 0;
+    loadLevel(0);
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Particles
+   * ------------------------------------------------------------------ */
+  function spawnBurst(gx, gy, n) {
+    n = n || 12;
+    for (var i = 0; i < n; i++) {
+      var a = Math.random() * Math.PI * 2;
+      var sp = 0.9 + Math.random() * 2.4;
+      game.particles.push({
+        x: gx,
+        y: gy,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        life: 1,
+        r: 0.028 + Math.random() * 0.055
+      });
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Movement
+   * ------------------------------------------------------------------ */
+  function tryMove(dx, dy) {
+    if (game.phase !== 'play') return;
+    if (dx === 0 && dy === 0) return;
+
+    var nx = game.px + dx;
+    var ny = game.py + dy;
+    if (nx < 0 || ny < 0 || nx >= game.cols || ny >= game.rows) return;
+
+    var c = game.grid[ny][nx];
+
+    if (c === '#' || (c === 'E' && game.seedsLeft > 0)) {
+      game.shake = 1;
+      game.shx = dx;
+      game.shy = dy;
+      if (c === 'E') game.lockedFlash = 1;
+      return;
+    }
+
+    game.px = nx;
+    game.py = ny;
+    game.moves++;
+    game.angle = Math.atan2(dy, dx);
+
+    if (c === 'o') {
+      game.grid[ny][nx] = '.';
+      game.seedsLeft--;
+      spawnBurst(nx + 0.5, ny + 0.5, 12);
+      if (game.seedsLeft === 0) {
+        game.unlockPulse = 1;
+        spawnBurst(game.exitX + 0.5, game.exitY + 0.5, 20);
+      }
+    }
+
+    if (c === 'E') {
+      game.phase = 'clear';
+      game.timer = 1.5;
+      game.totalMoves += game.moves;
+      spawnBurst(nx + 0.5, ny + 0.5, 24);
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Update
+   * ------------------------------------------------------------------ */
+  function update(dt) {
+    var k = 1 - Math.exp(-dt * 20);
+    game.rx += (game.px - game.rx) * k;
+    game.ry += (game.py - game.ry) * k;
+
+    if (game.shake > 0) game.shake = Math.max(0, game.shake - dt * 4.2);
+    if (game.unlockPulse > 0) game.unlockPulse = Math.max(0, game.unlockPulse - dt * 0.7);
+    if (game.lockedFlash > 0) game.lockedFlash = Math.max(0, game.lockedFlash - dt * 2.0);
+
+    for (var i = game.particles.length - 1; i >= 0; i--) {
+      var p = game.particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      var damp = Math.pow(0.10, dt);
+      p.vx *= damp;
+      p.vy *= damp;
+      p.life -= dt * 1.7;
+      if (p.life <= 0) game.particles.splice(i, 1);
+    }
+
+    if (game.phase === 'clear') {
+      game.timer -= dt;
+      if (game.timer <= 0) {
+        if (game.levelIndex + 1 < LEVELS.length) {
+          loadLevel(game.levelIndex + 1);
+        } else {
+          game.phase = 'done';
+        }
+      }
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Beetle
+   * ------------------------------------------------------------------ */
+  function drawBeetle(cx, cy, s, angle, t) {
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    /* lantern glow */
+    var gl = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 1.95);
+    gl.addColorStop(0, 'rgba(150,255,205,0.22)');
+    gl.addColorStop(0.45, 'rgba(90,225,170,0.085)');
+    gl.addColorStop(1, 'rgba(90,225,170,0)');
+    ctx.fillStyle = gl;
+    ctx.beginPath();
+    ctx.arc(0, 0, s * 1.95, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.rotate(angle);
+
+    /* ground shadow */
+    ctx.fillStyle = 'rgba(0,0,0,0.38)';
+    ctx.beginPath();
+    ctx.ellipse(0, s * 0.11, s * 0.30, s * 0.23, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    /* body */
+    var body = ctx.createLinearGradient(0, -s * 0.30, 0, s * 0.30);
+    body.addColorStop(0, '#63d9ab');
+    body.addColorStop(0.55, '#3aa982');
+    body.addColorStop(1, '#1d6b52');
+    ctx.fillStyle = body;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, s * 0.30, s * 0.235, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(8,28,20,0.85)';
+    ctx.lineWidth = Math.max(1, s * 0.045);
+    ctx.stroke();
+
+    /* wing seam */
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.22, 0);
+    ctx.lineTo(s * 0.20, 0);
+    ctx.strokeStyle = 'rgba(10,45,33,0.55)';
+    ctx.lineWidth = Math.max(1, s * 0.032);
+    ctx.stroke();
+
+    /* shell sparkle */
+    ctx.fillStyle = 'rgba(200,255,225,0.30)';
+    ctx.beginPath();
+    ctx.ellipse(-s * 0.08, -s * 0.10, s * 0.085, s * 0.045, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    /* head */
+    ctx.fillStyle = '#a8f7d2';
+    ctx.beginPath();
+    ctx.arc(s * 0.255, 0, s * 0.095, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(8,28,20,0.7)';
+    ctx.lineWidth = Math.max(1, s * 0.028);
+    ctx.stroke();
+
+    /* antennae */
+    ctx.strokeStyle = 'rgba(170,255,220,0.85)';
+    ctx.lineWidth = Math.max(1, s * 0.033);
+    ctx.beginPath();
+    ctx.moveTo(s * 0.30, -s * 0.05);
+    ctx.quadraticCurveTo(s * 0.46, -s * 0.18, s * 0.53, -s * 0.30);
+    ctx.moveTo(s * 0.30, s * 0.05);
+    ctx.quadraticCurveTo(s * 0.46, s * 0.18, s * 0.53, s * 0.30);
+    ctx.stroke();
+
+    /* antenna tips */
+    var tipPulse = 0.55 + 0.45 * Math.sin(t * 5);
+    ctx.fillStyle = 'rgba(210,255,235,' + (0.55 + tipPulse * 0.4).toFixed(3) + ')';
+    ctx.beginPath();
+    ctx.arc(s * 0.53, -s * 0.30, Math.max(1, s * 0.045), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(s * 0.53, s * 0.30, Math.max(1, s * 0.045), 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Draw
+   * ------------------------------------------------------------------ */
+  function draw(t) {
+    /* background */
+    var bg = ctx.createRadialGradient(
+      W * 0.5, H * 0.42, Math.min(W, H) * 0.03,
+      W * 0.5, H * 0.55, Math.max(W, H) * 0.85
+    );
+    bg.addColorStop(0, '#182a20');
+    bg.addColorStop(0.55, '#0d1611');
+    bg.addColorStop(1, '#050806');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    /* drifting motes */
+    for (var mi = 0; mi < motes.length; mi++) {
+      var m = motes[mi];
+      var mx = (((m.x + t * m.vx) % 1) + 1) % 1 * W;
+      var my = (((m.y + t * m.vy) % 1) + 1) % 1 * H;
+      var ma = 0.045 + 0.05 * Math.sin(t * m.p + m.ph);
+      if (ma < 0) ma = 0;
+      ctx.fillStyle = 'rgba(150,230,180,' + ma.toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.arc(mx, my, m.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    var cell = layout.cell;
+    var ox = layout.ox;
+    var oy = layout.oy;
+    var x, y, cx, cy;
+
+    /* static maze */
+    if (mazeCanvas) {
+      ctx.drawImage(mazeCanvas, ox, oy, game.cols * cell, game.rows * cell);
+    }
+
+    /* seeds */
+    for (y = 0; y < game.rows; y++) {
+      for (x = 0; x < game.cols; x++) {
+        if (game.grid[y][x] !== 'o') continue;
+        cx = ox + (x + 0.5) * cell;
+        cy = oy + (y + 0.5) * cell;
+        var pulse = 0.5 + 0.5 * Math.sin(t * 3.2 + x * 0.9 + y * 1.7);
+        var R = cell * (0.86 + pulse * 0.20);
+
+        var sg = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+        sg.addColorStop(0, 'rgba(195,255,195,0.34)');
+        sg.addColorStop(0.45, 'rgba(120,255,170,0.13)');
+        sg.addColorStop(1, 'rgba(120,255,170,0)');
+        ctx.fillStyle = sg;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(130,255,185,0.65)';
+        ctx.lineWidth = Math.max(1, cell * 0.030);
+        ctx.beginPath();
+        ctx.arc(cx, cy, cell * (0.215 + 0.035 * pulse), 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#dcffc2';
+        ctx.beginPath();
+        ctx.arc(cx, cy, cell * (0.125 + 0.022 * pulse), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    /* burrow door */
+    for (y = 0; y < game.rows; y++) {
+      for (x = 0; x < game.cols; x++) {
+        if (game.grid[y][x] !== 'E') continue;
+        cx = ox + (x + 0.5) * cell;
+        cy = oy + (y + 0.5) * cell;
+        var unlocked = (game.seedsLeft === 0);
+
+        if (unlocked) {
+          var dp = 0.5 + 0.5 * Math.sin(t * 2.6);
+          var dR = cell * (1.05 + 0.28 * dp) + game.unlockPulse * cell * 1.8;
+          var dg = ctx.createRadialGradient(cx, cy, 0, cx, cy, dR);
+          dg.addColorStop(0, 'rgba(255,214,140,0.46)');
+          dg.addColorStop(0.5, 'rgba(255,190,95,0.16)');
+          dg.addColorStop(1, 'rgba(255,190,95,0)');
+          ctx.fillStyle = dg;
+          ctx.beginPath();
+          ctx.arc(cx, cy, dR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        var aw = cell * 0.60;
+        var ah = cell * 0.72;
+        var archTop = -ah / 2 + aw / 2;
+
+        ctx.save();
+        ctx.translate(cx, cy + cell * 0.05);
+        ctx.beginPath();
+        ctx.moveTo(-aw / 2, ah / 2);
+        ctx.lineTo(-aw / 2, archTop);
+        ctx.arc(0, archTop, aw / 2, Math.PI, 0);
+        ctx.lineTo(aw / 2, ah / 2);
+        ctx.closePath();
+
+        if (unlocked) {
+          var doorGrad = ctx.createLinearGradient(0, -ah / 2, 0, ah / 2);
+          doorGrad.addColorStop(0, 'rgba(255,240,190,0.95)');
+          doorGrad.addColorStop(1, 'rgba(240,170,70,0.85)');
+          ctx.fillStyle = doorGrad;
+        } else {
+          ctx.fillStyle = 'rgba(64,86,72,0.92)';
+        }
+        ctx.fill();
+
+        ctx.strokeStyle = unlocked
+          ? 'rgba(255,246,205,0.95)'
+          : 'rgba(120,150,130,0.65)';
+        ctx.lineWidth = Math.max(1, cell * 0.05);
+        ctx.stroke();
+        ctx.restore();
+
+        if (!unlocked) {
+          var lockA = 0.45 + game.lockedFlash * 0.55;
+          ctx.fillStyle = 'rgba(215,235,215,' + lockA.toFixed(3) + ')';
+          ctx.beginPath();
+          ctx.arc(cx, cy + cell * 0.06, cell * 0.065, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+
+    /* particles */
+    for (var pi = 0; pi < game.particles.length; pi++) {
+      var p = game.particles[pi];
+      var a = Math.max(0, Math.min(1, p.life));
+      ctx.fillStyle = 'rgba(205,255,195,' + (a * 0.85).toFixed(3) + ')';
+      ctx.beginPath();
+      ctx.arc(ox + p.x * cell, oy + p.y * cell, Math.max(0.8, p.r * cell), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    /* beetle */
+    var wob = Math.sin(game.shake * Math.PI * 6) * game.shake * cell * 0.10;
+    var pcx = ox + (game.rx + 0.5) * cell + game.shx * wob;
+    var pcy = oy + (game.ry + 0.5) * cell + game.shy * wob;
+    drawBeetle(pcx, pcy, cell, game.angle, t);
+
+    /* HUD */
+    drawHUD(t);
+
+    /* first-level hint */
+    if (game.levelIndex === 0 && game.moves < 1 && game.phase === 'play') {
+      var ha = 0.55 + 0.25 * Math.sin(t * 2.4);
+      var hf = Math.max(10, Math.min(15, W * 0.027));
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = fontString(600, hf);
+      ctx.fillStyle = 'rgba(195,235,210,' + ha.toFixed(3) + ')';
+      ctx.fillText('Arrow keys / WASD / swipe to move', W / 2, H - 34);
+      ctx.font = fontString(500, hf * 0.92);
+      ctx.fillStyle = 'rgba(165,205,180,' + (ha * 0.85).toFixed(3) + ')';
+      ctx.fillText('Gather every glow-seed, then reach the burrow door', W / 2, H - 15);
+    }
+
+    /* overlays */
+    drawOverlay(t);
+  }
+
+  function drawHUD(t) {
+    var hudH = layout.hudH;
+    var g = ctx.createLinearGradient(0, 0, 0, hudH);
+    g.addColorStop(0, 'rgba(8,16,11,0.88)');
+    g.addColorStop(1, 'rgba(8,16,11,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, hudH);
+
+    var fs = Math.max(11, Math.min(16, hudH * 0.36));
+    var midY = hudH * 0.48;
+
+    ctx.textBaseline = 'middle';
+
+    /* left: hollow name */
+    ctx.textAlign = 'left';
+    ctx.font = fontString(700, fs);
+    ctx.fillStyle = 'rgba(205,240,215,0.92)';
+    var label = 'Hollow ' + (game.levelIndex + 1) + '/' + LEVELS.length;
+    ctx.fillText(label, 16, midY);
+
+    var labelW = ctx.measureText(label).width;
+    if (W > 430) {
+      ctx.font = fontString(500, fs * 0.92);
+      ctx.fillStyle = 'rgba(150,195,168,0.65)';
+      ctx.fillText('· ' + LEVELS[game.levelIndex].name, 16 + labelW + 6, midY);
+    }
+
+    /* right: seeds + moves */
+    var rightX = W - 16;
+    var collected = game.seedsTotal - game.seedsLeft;
+    var seedTxt = collected + '/' + game.seedsTotal;
+
+    ctx.textAlign = 'right';
+    ctx.font = fontString(700, fs);
+    ctx.fillStyle = (game.seedsLeft === 0)
+      ? 'rgba(255,225,160,0.95)'
+      : 'rgba(205,240,215,0.9)';
+    ctx.fillText(seedTxt, rightX, midY);
+
+    var seedW = ctx.measureText(seedTxt).width;
+    var iconX = rightX - seedW - fs * 0.62;
+
+    var sp = 0.5 + 0.5 * Math.sin(t * 3.4);
+    ctx.fillStyle = (game.seedsLeft === 0)
+      ? 'rgba(255,225,160,0.95)'
+      : 'rgba(200,255,180,' + (0.7 + sp * 0.3).toFixed(3) + ')';
+    ctx.beginPath();
+    ctx.arc(iconX, midY, fs * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (W > 470) {
+      ctx.font = fontString(500, fs * 0.88);
+      ctx.fillStyle = 'rgba(150,195,168,0.6)';
+      ctx.textAlign = 'right';
+      ctx.fillText(game.moves + ' moves', iconX - fs * 1.0, midY);
+    }
+  }
+
+  function drawOverlay(t) {
+    if (game.phase !== 'clear' && game.phase !== 'done') return;
+
+    var a;
+    if (game.phase === 'clear') {
+      a = Math.min(1, (1.5 - game.timer) * 3);
+    } else {
+      a = 1;
+    }
+    if (a < 0) a = 0;
+    if (a > 1) a = 1;
+
+    ctx.fillStyle = 'rgba(5,10,7,' + (0.62 * a).toFixed(3) + ')';
+    ctx.fillRect(0, 0, W, H);
+
+    var cx = W / 2;
+    var cy = H / 2;
+    var big = Math.max(18, Math.min(40, Math.min(W, H) * 0.062));
+    var small = Math.max(11, Math.min(17, Math.min(W, H) * 0.028));
+
+    var gl = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.min(W, H) * 0.52);
+    gl.addColorStop(0, 'rgba(255,215,140,' + (0.11 * a).toFixed(3) + ')');
+    gl.addColorStop(1, 'rgba(255,215,140,0)');
+    ctx.fillStyle = gl;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (game.phase === 'clear') {
+      ctx.fillStyle = 'rgba(255,236,192,' + a.toFixed(3) + ')';
+      ctx.font = fontString(700, big);
+      ctx.fillText('Hollow cleared', cx, cy - big * 0.38);
+
+      ctx.fillStyle = 'rgba(195,235,210,' + (0.88 * a).toFixed(3) + ')';
+      ctx.font = fontString(500, small);
+      ctx.fillText(game.moves + ' moves', cx, cy + big * 0.55);
+    } else {
+      ctx.fillStyle = 'rgba(255,236,192,' + a.toFixed(3) + ')';
+      ctx.font = fontString(700, big);
+      ctx.fillText('Every hollow glows', cx, cy - big * 0.75);
+
+      ctx.fillStyle = 'rgba(205,242,218,' + (0.9 * a).toFixed(3) + ')';
+      ctx.font = fontString(500, small);
+      ctx.fillText('All ' + LEVELS.length + ' hollows cleared in ' +
+                   game.totalMoves + ' moves', cx, cy + small * 0.35);
+
+      var pulseA = 0.72 + 0.28 * Math.sin(t * 3);
+      ctx.fillStyle = 'rgba(255,218,155,' + pulseA.toFixed(3) + ')';
+      ctx.fillText('Tap or press Enter to wander again', cx, cy + small * 2.3);
+    }
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Resize
+   * ------------------------------------------------------------------ */
+  function resize() {
+    var r = canvas.getBoundingClientRect();
+    var nw = Math.max(1, Math.round(r.width));
+    var nh = Math.max(1, Math.round(r.height));
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+
+    W = nw;
+    H = nh;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+
+    computeLayout();
+    buildMazeCanvas();
+  }
+
+  /* ------------------------------------------------------------------ *
+   *  Input
+   * ------------------------------------------------------------------ */
+  window.addEventListener('keydown', function (e) {
+    var k = e.key;
+    var dx = 0;
+    var dy = 0;
+
+    if (k === 'ArrowUp' || k === 'w' || k === 'W') {
+      dy = -1;
+    } else if (k === 'ArrowDown' || k === 's' || k === 'S') {
+      dy = 1;
+    } else if (k === 'ArrowLeft' || k === 'a' || k === 'A') {
+      dx = -1;
+    } else if (k === 'ArrowRight' || k === 'd' || k === 'D') {
+      dx = 1;
+    } else if (k === 'r' || k === 'R') {
+      e.preventDefault();
+      restart();
+      return;
+    } else if (k === 'Enter' || k === ' ' || k === 'Spacebar') {
+      if (game.phase === 'done') {
+        e.preventDefault();
+        restart();
+      }
+      return;
+    } else {
+      return;
+    }
+
+    e.preventDefault();
+    tryMove(dx, dy);
+  }, { passive: false });
+
+  var pointerStart = null;
+
+  canvas.addEventListener('pointerdown', function (e) {
+    pointerStart = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    if (canvas.setPointerCapture && e.pointerId !== undefined) {
+      try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+    }
+  });
+
+  canvas.addEventListener('pointerup', function (e) {
+    if (!pointerStart) return;
+    var sx = pointerStart.x;
+    var sy = pointerStart.y;
+    pointerStart = null;
+
+    if (game.phase === 'done') {
+      restart();
+      return;
+    }
+
+    var dx = e.clientX - sx;
+    var dy = e.clientY - sy;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 24) {
+      if (Math.abs(dx) > Math.abs(dy)) {
+        tryMove(dx > 0 ? 1 : -1, 0);
+      } else {
+        tryMove(0, dy > 0 ? 1 : -1);
+      }
+      return;
+    }
+
+    /* tap: step toward the tapped cell */
+    var rect = canvas.getBoundingClientRect();
+    var gx = (e.clientX - rect.left - layout.ox) / layout.cell;
+    var gy = (e.clientY - rect.top - layout.oy) / layout.cell;
+    var tx = Math.floor(gx);
+    var ty = Math.floor(gy);
+    var ddx = tx - game.px;
+    var ddy = ty - game.py;
+
+    if (ddx === 0 && ddy === 0) return;
+
+    if (Math.abs(ddx) >= Math.abs(ddy) && ddx !== 0) {
+      tryMove(ddx > 0 ? 1 : -1, 0);
+    } else if (ddy !== 0) {
+      tryMove(0, ddy > 0 ? 1 : -1);
+    }
+  });
+
+  canvas.addEventListener('pointercancel', function () {
+    pointerStart = null;
+  });
+
+  /* ------------------------------------------------------------------ *
+   *  Boot
+   * ------------------------------------------------------------------ */
+  resize();
+  loadLevel(0);
+
+  if (typeof ResizeObserver !== 'undefined') {
+    var ro = new ResizeObserver(function () { resize(); });
+    ro.observe(document.getElementById('wrap'));
+  }
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', function () {
+    setTimeout(resize, 60);
+  });
+
+  var last = performance.now();
+
+  function frame(now) {
+    var dt = (now - last) / 1000;
+    last = now;
+    if (!isFinite(dt) || dt < 0) dt = 0;
+    if (dt > 0.05) dt = 0.05;
+
+    update(dt);
+    draw(now / 1000);
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
+<!-- Error reporting appended by publish.ts — not model-authored. -->
+<script>
+(function () {
+  var ENDPOINT = "https://o4512003238199296.ingest.us.sentry.io/api/4512003246194688/envelope/?sentry_key=536c04a3fdaba8575a4e05b9f4f930a0&sentry_version=7";
+  var SLUG = "2026-11-25-glow-beetle-hollows";
+  var RELEASE = "2a74c11bf24674a864e29927c7f323681137be8e";
+
+  function eventId() {
+    var id = '';
+    for (var i = 0; i < 32; i += 1) id += Math.floor(Math.random() * 16).toString(16);
+    return id;
+  }
+
+  function report(value, extra) {
+    try {
+      var id = eventId();
+      // Sentry's envelope format: envelope header, item header, payload,
+      // one per line.
+      var body =
+        JSON.stringify({ event_id: id, sent_at: new Date().toISOString() }) + '\n' +
+        JSON.stringify({ type: 'event' }) + '\n' +
+        JSON.stringify({
+          event_id: id,
+          timestamp: Date.now() / 1000,
+          platform: 'javascript',
+          level: 'error',
+          release: RELEASE,
+          tags: { slug: SLUG },
+          exception: { values: [{ type: 'Error', value: String(value).slice(0, 500) }] },
+          extra: extra
+        });
+      // No Content-Type: it keeps the request CORS-simple, so a dying page
+      // is not waiting on a preflight. keepalive lets it outlive the frame.
+      fetch(ENDPOINT, { method: 'POST', body: body, keepalive: true, mode: 'cors' });
+    } catch (e) {}
+  }
+
+  window.addEventListener('error', function (event) {
+    report(event.message, { source: String(event.filename), line: event.lineno });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    report(event.reason, { kind: 'unhandledrejection' });
+  });
+})();
+</script>
