@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Swap adjacent tiles to match three or more, Cleared tiles add glow to the sky lantern, Reach the glow target before moves run out, Three hand-authored gardens with rising targets
 - model: baidu/ernie-5.5-flash-preview:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-23 — Glow Garden
 
