@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Move one cell at a time through a hand-authored maze, Collect every glow-seed in the hollow, The burrow door stays sealed until all seeds are gathered, Bumping walls gives a small physical nudge feedback, Four hand-authored hollows of rising size and seed count, Move counter tracked per hollow and across the whole run
 - model: particle-ai/particle-1:free
 - attempts: 1
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-24 — Cloud Orchard
 
