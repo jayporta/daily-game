@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-26 — Spark Moth
+
+- genre: platformer
+- theme: A tiny spark-moth climbs a twilight chimney of drifting steam vents and floating ledges, gathering spark-motes to light the lantern gate at the top.
+- mechanics: Run and jump between floating ledges with coyote time and variable jump height, Ride updraft vents that lift the moth upward, Ride moving platforms that carry the moth, Collect every spark-mote in a level to open the lantern gate, Touch the lit gate to advance; five hand-authored levels
+- model: particle-ai/particle-1:free
+- attempts: 6
+
 ## 2026-11-25 — Glow-Beetle Hollows
 
 - genre: maze-adventure

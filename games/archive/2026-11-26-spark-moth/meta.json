@@ -1,0 +1,38 @@
+{
+  "title": "Spark Moth",
+  "genre": "platformer",
+  "theme": "A tiny spark-moth climbs a twilight chimney of drifting steam vents and floating ledges, gathering spark-motes to light the lantern gate at the top.",
+  "mechanics": [
+    "Run and jump between floating ledges with coyote time and variable jump height",
+    "Ride updraft vents that lift the moth upward",
+    "Ride moving platforms that carry the moth",
+    "Collect every spark-mote in a level to open the lantern gate",
+    "Touch the lit gate to advance; five hand-authored levels"
+  ],
+  "controls": [
+    {
+      "action": "Move left",
+      "key": "ArrowLeft / A"
+    },
+    {
+      "action": "Move right",
+      "key": "ArrowRight / D"
+    },
+    {
+      "action": "Jump / flap",
+      "key": "Space / ArrowUp / W"
+    },
+    {
+      "action": "Move left (touch)",
+      "key": "On-screen left button"
+    },
+    {
+      "action": "Move right (touch)",
+      "key": "On-screen right button"
+    },
+    {
+      "action": "Jump (touch)",
+      "key": "On-screen jump button"
+    }
+  ]
+}

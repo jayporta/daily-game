@@ -1767,5 +1767,40 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-11-26",
+    "status": "published",
+    "model": "particle-ai/particle-1:free",
+    "slug": "2026-11-26-spark-moth",
+    "genre": "platformer",
+    "theme": "A tiny spark-moth climbs a twilight chimney of drifting steam vents and floating ledges, gathering spark-motes to light the lantern gate at the top.",
+    "mechanics": [
+      "Run and jump between floating ledges with coyote time and variable jump height",
+      "Ride updraft vents that lift the moth upward",
+      "Ride moving platforms that carry the moth",
+      "Collect every spark-mote in a level to open the lantern gate",
+      "Touch the lit gate to advance; five hand-authored levels"
+    ],
+    "title": "Spark Moth",
+    "attempts": 6,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "generation-failover",
+      "extract",
+      "generation-call",
+      "extract",
+      "extract",
+      "generation-call"
+    ],
+    "attemptModels": [
+      "nvidia/nemotron-3.5-lightning:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "recursive/flint-v1.0:free",
+      "nvidia/nemotron-3.5-super-vl:free",
+      "baidu/ernie-5.5-flash-preview:free",
+      "inclusionai/ling-3.2-flash:free"
+    ],
+    "quotaAffected": true
   }
 ]

@@ -1,42 +1,38 @@
 {
-  "date": "2026-11-25",
-  "slug": "2026-11-25-glow-beetle-hollows",
-  "path": "games/archive/2026-11-25-glow-beetle-hollows/game.html",
-  "promptPath": "games/archive/2026-11-25-glow-beetle-hollows/prompt.txt",
-  "title": "Glow-Beetle Hollows",
-  "genre": "maze-adventure",
-  "genreLabel": "Maze Adventure",
+  "date": "2026-11-26",
+  "slug": "2026-11-26-spark-moth",
+  "path": "games/archive/2026-11-26-spark-moth/game.html",
+  "promptPath": "games/archive/2026-11-26-spark-moth/prompt.txt",
+  "title": "Spark Moth",
+  "genre": "platformer",
+  "genreLabel": "Platformer",
   "model": "particle-ai/particle-1:free",
-  "generatedAt": "2026-11-25T20:01:38.951Z",
-  "expiresAt": "2026-11-26T19:00:00.000Z",
+  "generatedAt": "2026-11-26T20:01:12.563Z",
+  "expiresAt": "2026-11-27T19:00:00.000Z",
   "controls": [
     {
-      "action": "Move the beetle up",
-      "key": "ArrowUp / W"
-    },
-    {
-      "action": "Move the beetle down",
-      "key": "ArrowDown / S"
-    },
-    {
-      "action": "Move the beetle left",
+      "action": "Move left",
       "key": "ArrowLeft / A"
     },
     {
-      "action": "Move the beetle right",
+      "action": "Move right",
       "key": "ArrowRight / D"
     },
     {
-      "action": "Move by swiping or tapping a neighbourin",
-      "key": "Swipe / Tap on the canvas"
+      "action": "Jump / flap",
+      "key": "Space / ArrowUp / W"
     },
     {
-      "action": "Restart the run",
-      "key": "R"
+      "action": "Move left (touch)",
+      "key": "On-screen left button"
     },
     {
-      "action": "Restart after the final hollow",
-      "key": "Enter / Space / Tap"
+      "action": "Move right (touch)",
+      "key": "On-screen right button"
+    },
+    {
+      "action": "Jump (touch)",
+      "key": "On-screen jump button"
     }
   ]
 }
