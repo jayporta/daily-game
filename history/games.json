@@ -1801,6 +1801,10 @@
       "baidu/ernie-5.5-flash-preview:free",
       "inclusionai/ling-3.2-flash:free"
     ],
-    "quotaAffected": true
+    "quotaAffected": true,
+    "likes": 0,
+    "dislikes": 0,
+    "dislikeReasons": {},
+    "popularityScore": 0
   }
 ]
