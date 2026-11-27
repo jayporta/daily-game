@@ -1,38 +1,26 @@
 {
-  "date": "2026-11-26",
-  "slug": "2026-11-26-spark-moth",
-  "path": "games/archive/2026-11-26-spark-moth/game.html",
-  "promptPath": "games/archive/2026-11-26-spark-moth/prompt.txt",
-  "title": "Spark Moth",
-  "genre": "platformer",
-  "genreLabel": "Platformer",
-  "model": "particle-ai/particle-1:free",
-  "generatedAt": "2026-11-26T20:01:12.563Z",
-  "expiresAt": "2026-11-27T19:00:00.000Z",
+  "date": "2026-11-27",
+  "slug": "2026-11-27-bubble-drift",
+  "path": "games/archive/2026-11-27-bubble-drift/game.html",
+  "promptPath": "games/archive/2026-11-27-bubble-drift/prompt.txt",
+  "title": "Bubble Drift",
+  "genre": "tower-defense",
+  "genreLabel": "Tower Defense",
+  "model": "nvidia/nemotron-3.5-super-vl:free",
+  "generatedAt": "2026-11-27T20:01:24.318Z",
+  "expiresAt": "2026-11-28T19:00:00.000Z",
   "controls": [
     {
-      "action": "Move left",
-      "key": "ArrowLeft / A"
+      "action": "Place or select a bubble turret",
+      "key": "Click or tap an empty grid tile beside t"
     },
     {
-      "action": "Move right",
-      "key": "ArrowRight / D"
+      "action": "Upgrade the selected turret",
+      "key": "Click or tap the Upgrade button"
     },
     {
-      "action": "Jump / flap",
-      "key": "Space / ArrowUp / W"
-    },
-    {
-      "action": "Move left (touch)",
-      "key": "On-screen left button"
-    },
-    {
-      "action": "Move right (touch)",
-      "key": "On-screen right button"
-    },
-    {
-      "action": "Jump (touch)",
-      "key": "On-screen jump button"
+      "action": "Start the next wave",
+      "key": "Click or tap the Start Wave button"
     }
   ]
 }

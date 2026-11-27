@@ -1806,5 +1806,34 @@
     "dislikes": 0,
     "dislikeReasons": {},
     "popularityScore": 0
+  },
+  {
+    "date": "2026-11-27",
+    "status": "published",
+    "model": "nvidia/nemotron-3.5-super-vl:free",
+    "slug": "2026-11-27-bubble-drift",
+    "genre": "tower-defense",
+    "theme": "A tiny robot drone tends a crystal garden path, placing containment-bubble turrets to gently trap crawling crystal pests before they reach the heart crystal, collecting amber to build and upgrade defenses across ten waves.",
+    "mechanics": [
+      "Place bubble turrets on empty tiles beside the crawler path",
+      "Turrets automatically trap nearby crawlers in containment bubbles",
+      "Trapped crawlers release amber used to build and upgrade turrets",
+      "Stop crawlers from reaching the heart crystal across ten waves",
+      "Upgrade turret range and firing speed with amber"
+    ],
+    "title": "Bubble Drift",
+    "attempts": 4,
+    "canvasDrawn": true,
+    "failureKinds": [
+      "smoke-js-error",
+      "extract",
+      "extract"
+    ],
+    "attemptModels": [
+      "nvidia/nemotron-3.5-lightning:free",
+      "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "recursive/flint-v1.0:free"
+    ],
+    "quotaAffected": true
   }
 ]

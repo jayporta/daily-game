@@ -1,0 +1,138 @@
+# Build today's game
+
+Invent a complete, original browser game. Pick its genre, theme and
+mechanics yourself from the catalog below — you are not being assigned one.
+
+## Content rules — non-negotiable
+
+# Content Guardrails
+
+These rules are non-negotiable and are injected verbatim into every
+generation and moderation prompt. Editing this file changes what both the
+generator and the moderator check for — they must always stay in sync,
+which is why both read this exact file.
+
+A generated game must NEVER contain:
+
+- Blood, gore, or death/killing of any kind
+- Sexual content or innuendo of any kind
+- Depictions or references to drugs, alcohol, or cigarettes/vaping
+- Foul language, slurs, or profanity of any kind
+- **Human characters.** No people, no human silhouettes, no human body
+  parts. All characters, avatars, and entities must be non-human: animals,
+  creatures, robots, plants, abstract shapes, vehicles, elements (fire,
+  water, etc.), or other invented non-human forms. This rule exists
+  specifically so the game can never accidentally depict a real-world
+  race, ethnicity, or human likeness.
+- References to real-world religions, religious symbols, or religious
+  practices
+- References to real-world ethnicities, nationalities, or political
+  figures/parties/movements
+- Real-world brand names, trademarks, or copyrighted characters
+
+A generated game MUST be:
+
+- A single self-contained HTML file: inline `<style>` and `<script>` only
+- Drawn entirely in code (Canvas, CSS, and/or SVG), with optional Web Audio
+  for sound — no external image or audio files
+- Free of any network requests (no `fetch`, `XMLHttpRequest`, WebSocket,
+  or remote resource loading of any kind)
+
+## Genre catalog
+
+Choose ONE genre id from this list. Genres marked as recently used should
+be avoided so the site stays varied.
+
+- maze-adventure (Maze Adventure) [RECENTLY USED — avoid]: navigate a shifting maze to reach an exit; collect keys scattered through a labyrinth
+- platformer (Platformer) [RECENTLY USED — avoid]: jump between platforms to reach the top; run and jump past obstacles to a goal
+- puzzle (Puzzle) [RECENTLY USED — avoid]: rearrange tiles to match a pattern; solve a logic grid before time runs out
+- tower-defense (Tower Defense): place defenders along a path to stop invaders; upgrade towers to survive waves
+- endless-runner (Endless Runner) [RECENTLY USED — avoid]: dodge obstacles in an ever-scrolling world; collect items while outrunning a chaser
+- physics-sandbox (Physics Sandbox) [RECENTLY USED — avoid]: stack objects without toppling them; launch a projectile to hit a target
+- rhythm (Rhythm) [RECENTLY USED — avoid]: hit cues in time with a beat; match a sequence of visual pulses
+- tile-matching (Tile Matching) [RECENTLY USED — avoid]: match three or more tiles to clear them; swap adjacent tiles to form patterns
+- growth-sim (Growth Simulation) [RECENTLY USED — avoid]: nurture a garden that grows over time; manage a small ecosystem's balance
+- racing (Racing) [RECENTLY USED — avoid]: race a course avoiding hazards; beat the clock across a track
+
+## Recent days — how each one went
+
+Do not repeat these themes or mechanic combinations, and learn from how they
+were received.
+
+- 2026-11-26 · genre: platformer · theme: A tiny spark-moth climbs a twilight chimney of drifting steam vents and floating ledges, gathering spark-motes to light the lantern gate at the top. · mechanics: Run and jump between floating ledges with coyote time and variable jump height, Ride updraft vents that lift the moth upward, Ride moving platforms that carry the moth, Collect every spark-mote in a level to open the lantern gate, Touch the lit gate to advance; five hand-authored levels · 0 liked, 0 disliked · took 6 attempts
+- 2026-11-25 · genre: maze-adventure · theme: A tiny lantern-backed beetle threads mossy root hollows, gathering fallen glow-seeds to wake the burrow doors. · mechanics: Move one cell at a time through a hand-authored maze, Collect every glow-seed in the hollow, The burrow door stays sealed until all seeds are gathered, Bumping walls gives a small physical nudge feedback, Four hand-authored hollows of rising size and seed count, Move counter tracked per hollow and across the whole run · 0 liked, 0 disliked
+- 2026-11-24 · genre: tile-matching · theme: A tiny cloud-spirit tends a floating orchard, swapping weather tiles to gather glow for a sky lantern. · mechanics: Swap adjacent tiles to match three or more, Cleared tiles add glow to the sky lantern, Reach the glow target before moves run out, Three hand-authored gardens with rising targets · 0 liked, 0 disliked
+- 2026-11-23 · genre: growth-sim · theme: A tiny seed-creature tends a crystal garden in a deep cavern, nurturing blooms that attract light-moths to charge the heart crystal before dusk fades. · mechanics: Tap empty soil to plant a seed (spends light), Tap seeds and sprouts to water them (spends water, speeds growth), Blooms generate light over time and send light-moths to the heart crystal, Tap blooms to harvest them for instant light, Charge the heart crystal to the target before the dusk timer reaches zero · 0 liked, 0 disliked · took 4 attempts
+- 2026-11-22 · genre: puzzle · theme: A tiny mote of dawnlight threads a cavern of stone flowers by bouncing off crystal mirrors · mechanics: Rotate crystal mirrors by tapping them, A continuous light beam reflects off mirrors at 90 degrees, Light every stone flower on the board to awaken the garden, Five hand-authored gardens of increasing complexity · 1 liked, 0 disliked · took 3 attempts
+- 2026-11-21 · genre: puzzle · theme: A tiny glowing ember wakes a mossy crystal core · mechanics: Drag the ember along the glowing sequence, Snap back on mismatched connections, Light all sequence nodes to wake the core · 0 liked, 0 disliked · took 2 attempts
+- 2026-11-20 · genre: physics-sandbox · theme: A tiny glowing prism creature in a deep crystal cavern launches glowing seeds to charge floating crystal targets before the light fades. · mechanics: Click-drag from the prism to aim a projectile with direction and power, Release to fire a seed along a ballistic arc under gravity, Preview the trajectory with dotted ghost markers before firing, Charge floating crystal targets by seeding them directly, Bounce seeds off crystal walls to reach targets behind cover, Charge every target before running out of seeds, Five hand-authored levels with more targets and tighter seed budgets · 0 liked, 1 disliked · marked: gameplay-broken, goal-unclear · took 2 attempts
+- 2026-11-19 · genre: rhythm · theme: A tiny glowing jellyfish pulses through a deep-sea coral cavern, matching the beat of bioluminescent anemones to charge the light beacon. · mechanics: Hit cues in time with a beat, Match a sequence of visual pulses, Score timing accuracy with Perfect/Great/Good judgments, Build combo streaks for bonus points · 0 liked, 0 disliked
+- 2026-11-18 · genre: racing · theme: A tiny copper beetle races through a glowing crystal canyon · mechanics: Race across a bounded glowing track, Steer to avoid crystal hazards, Beat the clock to reach the finish, Boost with a charged sprint · 0 liked, 0 disliked · took 5 attempts
+- 2026-11-17 · genre: endless-runner · theme: A tiny prism creature rolls through a neon crystal tunnel, gathering light shards while a creeping shadow-pulse closes in behind. · mechanics: Auto-run forward through a scrolling tunnel, Tap or press Space/Up to jump over crystal spikes and gaps, Collect glowing light shards for score, Stay ahead of the chasing shadow pulse; speed increases over time · 0 liked, 0 disliked · took 2 attempts
+
+## Fix what has been going wrong
+
+- Recent attempts returned a response that could not be parsed. Return exactly two fenced blocks, tagged json and html, with valid JSON in the first.
+- Recent attempts were rejected by the content rules. Re-read them and stay well clear of anything borderline.
+
+## Lessons from past builds
+
+The growth-sim and the puzzle entry both landed cleanly — the growth-sim on its second attempt and the puzzle game on its very first — and together they sharpen a picture the earlier refinement had already been pointing toward. Tap to bloom, intercept falling gems, manage two resources, attract small helpers, navigate a small bounded grid with discrete pickups and one explicit terminal goal: that is the same hand-authored handful of levels dressed with light procedural variation, just with a different verb each time. The puzzle entry sits most comfortably at the authored end of that spectrum — finite, legible, and produced with essentially no scaffolding — and that ease is worth taking seriously.
+
+The dislikes on the physics-sandbox remain the one caution worth folding forward. When the terminal goal depends on precise placement or stacking, the interaction has to be legible from frame one, not discovered through failure, and the feedback suggested the sandbox fell short on both broken and unclear controls. Mood and identity continue to carry the hook; pressure-based variants still have not shipped and should stay a secondary thread.
+
+The infrastructure failures sandwiched between these builds are no longer representative — they were provider flakiness, not problems with the skeleton, and the recent record has moved past them, so they should not be carried into the next prompt.
+
+What reliably worked, then, is a clear small character with a clear small want, rendered simply, in a small bounded space with discrete pickups or placements and one explicit terminal objective, wrapped in a mood and identity that earns attention. Worth revisiting next is the same skeleton in fresh skins — puzzle, growth, traversal, whatever verb fits — with a hand-authored handful of levels dressed in light procedural variation, and controls that read clearly from the very first frame.
+
+## Fix this — your previous attempt failed
+
+Your response had no ```html block. Return both fenced blocks exactly as specified.
+
+Be more defensive this time. Re-read the rules above before you start.
+
+## How your game is displayed
+
+Your document is loaded on its own into a frame that fills the middle of the
+page. Nothing outside your document paints any part of that frame, so
+whatever you leave unfilled shows as blank space around your game.
+
+- Fill the frame. Give `html` and `body` no margin and the full width and
+  height available, and paint your own background across all of it.
+- Size to the frame at runtime, never to a constant. If you draw on a
+  canvas, set its width and height from its measured container rather than
+  with fixed attributes, and redraw when the frame is resized.
+- Assume nothing about its shape. It is as wide and as tall as the visitor's
+  window makes it, in any proportion, on a phone or on a desktop.
+- Keep the whole playfield inside it. Never require the player to scroll.
+
+## Output format
+
+Return EXACTLY two fenced code blocks and nothing else that could be mistaken for them.
+
+First, a block tagged `json` containing only this object:
+```json
+{"title": "...", "genre": "...", "theme": "...", "mechanics": ["...", "..."], "controls": [{"action": "...", "key": "..."}]}
+```
+
+Second, a block tagged `html` containing the entire game as ONE self-contained HTML file:
+```html
+<!doctype html>
+(the whole game: inline style and script, every line written out in full)
+```
+
+The `genre` value must be one of the genre ids listed above. The html block
+must be a complete, immediately playable document that needs no other files.
+
+Write every line of the game: setup, the game loop, drawing, every input
+handler, scoring and how it ends. Never stand in for code with a comment, an
+ellipsis, "TODO" or a note like "game logic here" or "rest of the code" — an
+abbreviated script publishes as a page that does nothing. If the game you have
+in mind is too big to write out in full, make a smaller one: a short game that
+works beats an ambitious one left unfinished.
+
+The `controls` array must list the inputs your game actually listens for,
+using whatever control scheme you chose — `action` describes what it does in
+your game, `key` is what the player presses, clicks or drags. List only
+inputs the code really handles, and return an empty array if the game needs
+none.

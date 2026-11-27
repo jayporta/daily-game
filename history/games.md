@@ -2,6 +2,14 @@
 
 Generated automatically — do not edit by hand.
 
+## 2026-11-27 — Bubble Drift
+
+- genre: tower-defense
+- theme: A tiny robot drone tends a crystal garden path, placing containment-bubble turrets to gently trap crawling crystal pests before they reach the heart crystal, collecting amber to build and upgrade defenses across ten waves.
+- mechanics: Place bubble turrets on empty tiles beside the crawler path, Turrets automatically trap nearby crawlers in containment bubbles, Trapped crawlers release amber used to build and upgrade turrets, Stop crawlers from reaching the heart crystal across ten waves, Upgrade turret range and firing speed with amber
+- model: nvidia/nemotron-3.5-super-vl:free
+- attempts: 4
+
 ## 2026-11-26 — Spark Moth
 
 - genre: platformer

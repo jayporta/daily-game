@@ -27,12 +27,12 @@
       "provider": "openrouter"
     },
     {
-      "id": "inclusionai/ling-3.2-flash:free",
+      "id": "particle-ai/particle-1:free",
       "active": true,
       "provider": "openrouter"
     },
     {
-      "id": "particle-ai/particle-1:free",
+      "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
       "active": true,
       "provider": "openrouter"
     }
