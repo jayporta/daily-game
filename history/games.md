@@ -9,6 +9,9 @@ Generated automatically — do not edit by hand.
 - mechanics: Place bubble turrets on empty tiles beside the crawler path, Turrets automatically trap nearby crawlers in containment bubbles, Trapped crawlers release amber used to build and upgrade turrets, Stop crawlers from reaching the heart crystal across ten waves, Upgrade turret range and firing speed with amber
 - model: nvidia/nemotron-3.5-super-vl:free
 - attempts: 4
+- reactions: 0
+- likes: 0
+- dislikes: 0
 
 ## 2026-11-26 — Spark Moth
 
